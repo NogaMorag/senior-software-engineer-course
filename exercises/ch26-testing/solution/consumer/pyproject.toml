@@ -1,0 +1,36 @@
+[project]
+name = "consumer"
+version = "0.1.0"
+description = "The consumer side of the chapter 26 webhook contract: parses Hookline event bodies."
+requires-python = ">=3.14"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "jsonschema==4.26.0",
+    "mypy==2.4.0",
+    "pytest==9.1.1",
+    # jsonschema checks "format": "date-time" only when this package is installed.
+    "rfc3339-validator==0.1.4",
+    "ruff==0.16.10",
+    "types-jsonschema==4.26.0.20260518",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.23,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP", "SIM", "RUF", "PT", "N"]
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+
+[tool.pytest]
+testpaths = ["tests"]
+addopts = ["--strict-markers", "--strict-config", "-ra"]

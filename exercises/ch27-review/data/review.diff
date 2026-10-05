@@ -1,0 +1,208 @@
+diff --git a/internal/docs/handler.go b/internal/docs/handler.go
+new file mode 100644
+index 0000000..f711d3f
+--- /dev/null
++++ b/internal/docs/handler.go
+@@ -0,0 +1,86 @@
++package docs
++
++import (
++	"context"
++	"database/sql"
++	"encoding/json"
++	"log/slog"
++	"net/http"
++	"strconv"
++
++	"example.com/docsvc/internal/auth"
++)
++
++// Store is what the handlers need from the repository.
++type Store interface {
++	List(ctx context.Context, tenantID, sort string, limit int) ([]Document, error)
++	Get(ctx context.Context, id string) (Document, error)
++}
++
++// cache keeps documents that were read recently, to save database round trips.
++var cache = map[string]Document{}
++
++// Handler serves the documents API.
++type Handler struct {
++	Store Store
++	Log   *slog.Logger
++}
++
++// Register adds the routes.
++func (h *Handler) Register(mux *http.ServeMux) {
++	mux.HandleFunc("GET /v1/documents", h.ListDocumentsHandler)
++	mux.HandleFunc("GET /v1/documents/{id}", h.GetDocumentHandler)
++}
++
++// ListDocumentsHandler returns the caller's documents.
++func (h *Handler) ListDocumentsHandler(w http.ResponseWriter, r *http.Request) {
++	id, ok := auth.From(r.Context())
++	if !ok {
++		http.Error(w, "unauthorized", http.StatusUnauthorized)
++		return
++	}
++	h.Log.InfoContext(r.Context(), "list documents",
++		slog.String("tenant", id.Tenant), slog.String("auth", r.Header.Get("Authorization")))
++
++	sort := r.URL.Query().Get("sort")
++	if sort == "" {
++		sort = "created_at"
++	}
++	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
++	if limit == 0 {
++		limit = 50
++	}
++	docs, err := h.Store.List(r.Context(), id.Tenant, sort, limit)
++	if err != nil {
++		http.Error(w, err.Error(), http.StatusInternalServerError)
++		return
++	}
++	w.Header().Set("Content-Type", "application/json")
++	json.NewEncoder(w).Encode(map[string]any{"items": docs})
++}
++
++// GetDocumentHandler returns one document.
++func (h *Handler) GetDocumentHandler(w http.ResponseWriter, r *http.Request) {
++	if _, ok := auth.From(r.Context()); !ok {
++		http.Error(w, "unauthorized", http.StatusUnauthorized)
++		return
++	}
++	docId := r.PathValue("id")
++	if d, ok := cache[docId]; ok {
++		w.Header().Set("Content-Type", "application/json")
++		json.NewEncoder(w).Encode(d)
++		return
++	}
++	d, err := h.Store.Get(r.Context(), docId)
++	if err == sql.ErrNoRows {
++		http.Error(w, "not found", http.StatusNotFound)
++		return
++	}
++	if err != nil {
++		http.Error(w, err.Error(), http.StatusInternalServerError)
++		return
++	}
++	cache[docId] = d
++	w.Header().Set("Content-Type", "application/json")
++	json.NewEncoder(w).Encode(d)
++}
+diff --git a/internal/docs/handler_test.go b/internal/docs/handler_test.go
+new file mode 100644
+index 0000000..8206856
+--- /dev/null
++++ b/internal/docs/handler_test.go
+@@ -0,0 +1,58 @@
++package docs
++
++import (
++	"context"
++	"log/slog"
++	"net/http"
++	"net/http/httptest"
++	"testing"
++
++	"example.com/docsvc/internal/auth"
++)
++
++type fakeStore struct{ docs []Document }
++
++func (f *fakeStore) List(ctx context.Context, tenantID, sort string, limit int) ([]Document, error) {
++	return f.docs, nil
++}
++
++func (f *fakeStore) Get(ctx context.Context, id string) (Document, error) {
++	for _, d := range f.docs {
++		if d.ID == id {
++			return d, nil
++		}
++	}
++	return Document{}, ErrNotFound
++}
++
++func TestListDocuments(t *testing.T) {
++	store := &fakeStore{docs: []Document{{ID: "d1", TenantID: "acme", Title: "Plan"}}}
++	h := &Handler{Store: store, Log: slog.New(slog.DiscardHandler)}
++	mux := http.NewServeMux()
++	h.Register(mux)
++
++	req := httptest.NewRequest(http.MethodGet, "/v1/documents", nil)
++	req = req.WithContext(auth.WithIdentity(req.Context(), auth.Identity{Subject: "u1", Tenant: "acme"}))
++	rec := httptest.NewRecorder()
++	mux.ServeHTTP(rec, req)
++
++	if rec.Code != http.StatusOK {
++		t.Log("unexpected status", rec.Code)
++	}
++}
++
++func TestGetDocument(t *testing.T) {
++	store := &fakeStore{docs: []Document{{ID: "d1", TenantID: "acme", Title: "Plan"}}}
++	h := &Handler{Store: store, Log: slog.New(slog.DiscardHandler)}
++	mux := http.NewServeMux()
++	h.Register(mux)
++
++	req := httptest.NewRequest(http.MethodGet, "/v1/documents/d1", nil)
++	req = req.WithContext(auth.WithIdentity(req.Context(), auth.Identity{Subject: "u1", Tenant: "acme"}))
++	rec := httptest.NewRecorder()
++	mux.ServeHTTP(rec, req)
++
++	if rec.Code != http.StatusOK {
++		t.Fatalf("status = %d", rec.Code)
++	}
++}
+diff --git a/internal/docs/repo.go b/internal/docs/repo.go
+new file mode 100644
+index 0000000..e94fd57
+--- /dev/null
++++ b/internal/docs/repo.go
+@@ -0,0 +1,46 @@
++package docs
++
++import (
++	"context"
++	"database/sql"
++	"fmt"
++	"time"
++)
++
++// Repo reads documents from PostgreSQL.
++type Repo struct {
++	DB *sql.DB
++}
++
++// List returns the tenant's documents, sorted by the given column.
++func (r *Repo) List(ctx context.Context, tenantID, sort string, limit int) ([]Document, error) {
++	q := fmt.Sprintf(`SELECT id, tenant_id, title, body, created_at FROM documents
++		WHERE tenant_id = $1 ORDER BY %s LIMIT $2`, sort)
++	rows, err := r.DB.QueryContext(ctx, q, tenantID, limit)
++	if err != nil {
++		return nil, fmt.Errorf("list documents: %w", err)
++	}
++	var out []Document
++	for rows.Next() {
++		var d Document
++		if err := rows.Scan(&d.ID, &d.TenantID, &d.Title, &d.Body, &d.CreatedAt); err != nil {
++			return nil, fmt.Errorf("scan document: %w", err)
++		}
++		out = append(out, d)
++	}
++	return out, nil
++}
++
++// Get returns one document by id.
++func (r *Repo) Get(ctx context.Context, id string) (Document, error) {
++	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
++	defer cancel()
++	var d Document
++	err := r.DB.QueryRowContext(ctx,
++		`SELECT id, tenant_id, title, body, created_at FROM documents WHERE id = $1`, id,
++	).Scan(&d.ID, &d.TenantID, &d.Title, &d.Body, &d.CreatedAt)
++	if err != nil {
++		return Document{}, fmt.Errorf("get document %s: %w", id, err)
++	}
++	return d, nil
++}

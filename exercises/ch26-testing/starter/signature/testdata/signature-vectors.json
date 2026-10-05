@@ -1,0 +1,279 @@
+{
+  "description": "Hookline signature test vectors, shared by the Python receiver (chapter 8) and the Go signers (chapter 26 and Hookline M5). Header: t=<unix seconds>,v1=<lowercase hex HMAC-SHA256(secret, \"<t>.\" + raw body bytes)>. Strings are UTF-8; secret and body are signed as their UTF-8 bytes.",
+  "tolerance_seconds": 300,
+  "check_order": [
+    "malformed",
+    "timestamp_out_of_tolerance",
+    "signature_mismatch"
+  ],
+  "reasons": {
+    "ok": "the signature is valid",
+    "malformed": "the header cannot be parsed: missing, no single numeric t, no v1, a v1 that is not 64 hex characters, or an item without '='",
+    "timestamp_out_of_tolerance": "|now - t| > tolerance_seconds",
+    "signature_mismatch": "no v1 value equals the HMAC (compared in constant time)"
+  },
+  "sign": [
+    {
+      "name": "json body",
+      "secret": "whsec_change-me",
+      "timestamp": 1791201600,
+      "body": "{\"id\":\"6f1c2a9e-3b7d-4c1a-9e2f-1a2b3c4d5e6f\",\"type\":\"invoice.paid\",\"data\":{\"amount_cents\":1999}}",
+      "header": "t=1791201600,v1=57665317204099d1fd6e02057a3c1c93560ada672e3e5aaa1ca693b7182e6189"
+    },
+    {
+      "name": "empty body",
+      "secret": "whsec_change-me",
+      "timestamp": 1791201600,
+      "body": "",
+      "header": "t=1791201600,v1=a146e028e1b183d22780460b79fbd1af543e60ef242531ccb75311c75134211f"
+    },
+    {
+      "name": "non-ASCII body (UTF-8 bytes are signed)",
+      "secret": "whsec_change-me",
+      "timestamp": 1791201600,
+      "body": "{\"city\":\"חיפה\"}",
+      "header": "t=1791201600,v1=925fe229cd3fca71fa7cedc287bb893b463d6cad43e91be97b1a7abf5bdedb8c"
+    },
+    {
+      "name": "body with trailing newline",
+      "secret": "whsec_change-me",
+      "timestamp": 1791201600,
+      "body": "{\"id\":\"6f1c2a9e-3b7d-4c1a-9e2f-1a2b3c4d5e6f\",\"type\":\"invoice.paid\",\"data\":{\"amount_cents\":1999}}\n",
+      "header": "t=1791201600,v1=e6ba36a965915919c0b1d46f5c0f604643a3d8204053127649f875154ec33a99"
+    },
+    {
+      "name": "other secret",
+      "secret": "whsec_other-change-me",
+      "timestamp": 1791201660,
+      "body": "{\"id\":\"6f1c2a9e-3b7d-4c1a-9e2f-1a2b3c4d5e6f\",\"type\":\"invoice.paid\",\"data\":{\"amount_cents\":1999}}",
+      "header": "t=1791201660,v1=048788c236dcde126fb8b258af4dd05119b8011a7c465c1237a74691892f8101"
+    }
+  ],
+  "verify": [
+    {
+      "name": "valid",
+      "secret": "whsec_change-me",
+      "header": "t=1791201600,v1=57665317204099d1fd6e02057a3c1c93560ada672e3e5aaa1ca693b7182e6189",
+      "body": "{\"id\":\"6f1c2a9e-3b7d-4c1a-9e2f-1a2b3c4d5e6f\",\"type\":\"invoice.paid\",\"data\":{\"amount_cents\":1999}}",
+      "now": 1791201600,
+      "valid": true,
+      "reason": "ok"
+    },
+    {
+      "name": "valid at the tolerance edge, 300 s later",
+      "secret": "whsec_change-me",
+      "header": "t=1791201600,v1=57665317204099d1fd6e02057a3c1c93560ada672e3e5aaa1ca693b7182e6189",
+      "body": "{\"id\":\"6f1c2a9e-3b7d-4c1a-9e2f-1a2b3c4d5e6f\",\"type\":\"invoice.paid\",\"data\":{\"amount_cents\":1999}}",
+      "now": 1791201900,
+      "valid": true,
+      "reason": "ok"
+    },
+    {
+      "name": "valid at the tolerance edge, 300 s earlier (sender clock ahead)",
+      "secret": "whsec_change-me",
+      "header": "t=1791201600,v1=57665317204099d1fd6e02057a3c1c93560ada672e3e5aaa1ca693b7182e6189",
+      "body": "{\"id\":\"6f1c2a9e-3b7d-4c1a-9e2f-1a2b3c4d5e6f\",\"type\":\"invoice.paid\",\"data\":{\"amount_cents\":1999}}",
+      "now": 1791201300,
+      "valid": true,
+      "reason": "ok"
+    },
+    {
+      "name": "valid with spaces after the comma",
+      "secret": "whsec_change-me",
+      "header": "t=1791201600, v1=57665317204099d1fd6e02057a3c1c93560ada672e3e5aaa1ca693b7182e6189",
+      "body": "{\"id\":\"6f1c2a9e-3b7d-4c1a-9e2f-1a2b3c4d5e6f\",\"type\":\"invoice.paid\",\"data\":{\"amount_cents\":1999}}",
+      "now": 1791201600,
+      "valid": true,
+      "reason": "ok"
+    },
+    {
+      "name": "valid with keys in the other order",
+      "secret": "whsec_change-me",
+      "header": "v1=57665317204099d1fd6e02057a3c1c93560ada672e3e5aaa1ca693b7182e6189,t=1791201600",
+      "body": "{\"id\":\"6f1c2a9e-3b7d-4c1a-9e2f-1a2b3c4d5e6f\",\"type\":\"invoice.paid\",\"data\":{\"amount_cents\":1999}}",
+      "now": 1791201600,
+      "valid": true,
+      "reason": "ok"
+    },
+    {
+      "name": "valid with uppercase hex",
+      "secret": "whsec_change-me",
+      "header": "t=1791201600,v1=57665317204099D1FD6E02057A3C1C93560ADA672E3E5AAA1CA693B7182E6189",
+      "body": "{\"id\":\"6f1c2a9e-3b7d-4c1a-9e2f-1a2b3c4d5e6f\",\"type\":\"invoice.paid\",\"data\":{\"amount_cents\":1999}}",
+      "now": 1791201600,
+      "valid": true,
+      "reason": "ok"
+    },
+    {
+      "name": "valid when the second of two v1 values matches (secret rotation)",
+      "secret": "whsec_change-me",
+      "header": "t=1791201600,v1=007e86c563b720ee2ac86a70a9250ed517a1e8de484191fc859c46551cc398bf,v1=57665317204099d1fd6e02057a3c1c93560ada672e3e5aaa1ca693b7182e6189",
+      "body": "{\"id\":\"6f1c2a9e-3b7d-4c1a-9e2f-1a2b3c4d5e6f\",\"type\":\"invoice.paid\",\"data\":{\"amount_cents\":1999}}",
+      "now": 1791201600,
+      "valid": true,
+      "reason": "ok"
+    },
+    {
+      "name": "valid with an unknown extra key",
+      "secret": "whsec_change-me",
+      "header": "t=1791201600,v1=57665317204099d1fd6e02057a3c1c93560ada672e3e5aaa1ca693b7182e6189,v0=legacy",
+      "body": "{\"id\":\"6f1c2a9e-3b7d-4c1a-9e2f-1a2b3c4d5e6f\",\"type\":\"invoice.paid\",\"data\":{\"amount_cents\":1999}}",
+      "now": 1791201600,
+      "valid": true,
+      "reason": "ok"
+    },
+    {
+      "name": "too old: 301 s later",
+      "secret": "whsec_change-me",
+      "header": "t=1791201600,v1=57665317204099d1fd6e02057a3c1c93560ada672e3e5aaa1ca693b7182e6189",
+      "body": "{\"id\":\"6f1c2a9e-3b7d-4c1a-9e2f-1a2b3c4d5e6f\",\"type\":\"invoice.paid\",\"data\":{\"amount_cents\":1999}}",
+      "now": 1791201901,
+      "valid": false,
+      "reason": "timestamp_out_of_tolerance"
+    },
+    {
+      "name": "too far in the future: 301 s earlier",
+      "secret": "whsec_change-me",
+      "header": "t=1791201600,v1=57665317204099d1fd6e02057a3c1c93560ada672e3e5aaa1ca693b7182e6189",
+      "body": "{\"id\":\"6f1c2a9e-3b7d-4c1a-9e2f-1a2b3c4d5e6f\",\"type\":\"invoice.paid\",\"data\":{\"amount_cents\":1999}}",
+      "now": 1791201299,
+      "valid": false,
+      "reason": "timestamp_out_of_tolerance"
+    },
+    {
+      "name": "wrong secret",
+      "secret": "whsec_change-me",
+      "header": "t=1791201600,v1=007e86c563b720ee2ac86a70a9250ed517a1e8de484191fc859c46551cc398bf",
+      "body": "{\"id\":\"6f1c2a9e-3b7d-4c1a-9e2f-1a2b3c4d5e6f\",\"type\":\"invoice.paid\",\"data\":{\"amount_cents\":1999}}",
+      "now": 1791201600,
+      "valid": false,
+      "reason": "signature_mismatch"
+    },
+    {
+      "name": "body changed by one character",
+      "secret": "whsec_change-me",
+      "header": "t=1791201600,v1=57665317204099d1fd6e02057a3c1c93560ada672e3e5aaa1ca693b7182e6189",
+      "body": "{\"id\":\"6f1c2a9e-3b7d-4c1a-9e2f-1a2b3c4d5e6f\",\"type\":\"invoice.paid\",\"data\":{\"amount_cents\":1990}}",
+      "now": 1791201600,
+      "valid": false,
+      "reason": "signature_mismatch"
+    },
+    {
+      "name": "body re-serialized with spaces",
+      "secret": "whsec_change-me",
+      "header": "t=1791201600,v1=57665317204099d1fd6e02057a3c1c93560ada672e3e5aaa1ca693b7182e6189",
+      "body": "{\"id\": \"6f1c2a9e-3b7d-4c1a-9e2f-1a2b3c4d5e6f\", \"type\": \"invoice.paid\", \"data\": {\"amount_cents\": 1999}}",
+      "now": 1791201600,
+      "valid": false,
+      "reason": "signature_mismatch"
+    },
+    {
+      "name": "body with a trailing newline added",
+      "secret": "whsec_change-me",
+      "header": "t=1791201600,v1=57665317204099d1fd6e02057a3c1c93560ada672e3e5aaa1ca693b7182e6189",
+      "body": "{\"id\":\"6f1c2a9e-3b7d-4c1a-9e2f-1a2b3c4d5e6f\",\"type\":\"invoice.paid\",\"data\":{\"amount_cents\":1999}}\n",
+      "now": 1791201600,
+      "valid": false,
+      "reason": "signature_mismatch"
+    },
+    {
+      "name": "timestamp changed in the header",
+      "secret": "whsec_change-me",
+      "header": "t=1791201601,v1=57665317204099d1fd6e02057a3c1c93560ada672e3e5aaa1ca693b7182e6189",
+      "body": "{\"id\":\"6f1c2a9e-3b7d-4c1a-9e2f-1a2b3c4d5e6f\",\"type\":\"invoice.paid\",\"data\":{\"amount_cents\":1999}}",
+      "now": 1791201600,
+      "valid": false,
+      "reason": "signature_mismatch"
+    },
+    {
+      "name": "empty header",
+      "secret": "whsec_change-me",
+      "header": "",
+      "body": "{\"id\":\"6f1c2a9e-3b7d-4c1a-9e2f-1a2b3c4d5e6f\",\"type\":\"invoice.paid\",\"data\":{\"amount_cents\":1999}}",
+      "now": 1791201600,
+      "valid": false,
+      "reason": "malformed"
+    },
+    {
+      "name": "missing t",
+      "secret": "whsec_change-me",
+      "header": "v1=57665317204099d1fd6e02057a3c1c93560ada672e3e5aaa1ca693b7182e6189",
+      "body": "{\"id\":\"6f1c2a9e-3b7d-4c1a-9e2f-1a2b3c4d5e6f\",\"type\":\"invoice.paid\",\"data\":{\"amount_cents\":1999}}",
+      "now": 1791201600,
+      "valid": false,
+      "reason": "malformed"
+    },
+    {
+      "name": "missing v1",
+      "secret": "whsec_change-me",
+      "header": "t=1791201600",
+      "body": "{\"id\":\"6f1c2a9e-3b7d-4c1a-9e2f-1a2b3c4d5e6f\",\"type\":\"invoice.paid\",\"data\":{\"amount_cents\":1999}}",
+      "now": 1791201600,
+      "valid": false,
+      "reason": "malformed"
+    },
+    {
+      "name": "two t values",
+      "secret": "whsec_change-me",
+      "header": "t=1791201600,t=1791201600,v1=57665317204099d1fd6e02057a3c1c93560ada672e3e5aaa1ca693b7182e6189",
+      "body": "{\"id\":\"6f1c2a9e-3b7d-4c1a-9e2f-1a2b3c4d5e6f\",\"type\":\"invoice.paid\",\"data\":{\"amount_cents\":1999}}",
+      "now": 1791201600,
+      "valid": false,
+      "reason": "malformed"
+    },
+    {
+      "name": "non-numeric t",
+      "secret": "whsec_change-me",
+      "header": "t=yesterday,v1=57665317204099d1fd6e02057a3c1c93560ada672e3e5aaa1ca693b7182e6189",
+      "body": "{\"id\":\"6f1c2a9e-3b7d-4c1a-9e2f-1a2b3c4d5e6f\",\"type\":\"invoice.paid\",\"data\":{\"amount_cents\":1999}}",
+      "now": 1791201600,
+      "valid": false,
+      "reason": "malformed"
+    },
+    {
+      "name": "t with non-ASCII digits",
+      "secret": "whsec_change-me",
+      "header": "t=١٧٩١٢٠٨٠٠٠,v1=57665317204099d1fd6e02057a3c1c93560ada672e3e5aaa1ca693b7182e6189",
+      "body": "{\"id\":\"6f1c2a9e-3b7d-4c1a-9e2f-1a2b3c4d5e6f\",\"type\":\"invoice.paid\",\"data\":{\"amount_cents\":1999}}",
+      "now": 1791201600,
+      "valid": false,
+      "reason": "malformed"
+    },
+    {
+      "name": "negative t",
+      "secret": "whsec_change-me",
+      "header": "t=-1791201600,v1=57665317204099d1fd6e02057a3c1c93560ada672e3e5aaa1ca693b7182e6189",
+      "body": "{\"id\":\"6f1c2a9e-3b7d-4c1a-9e2f-1a2b3c4d5e6f\",\"type\":\"invoice.paid\",\"data\":{\"amount_cents\":1999}}",
+      "now": 1791201600,
+      "valid": false,
+      "reason": "malformed"
+    },
+    {
+      "name": "v1 not hex",
+      "secret": "whsec_change-me",
+      "header": "t=1791201600,v1=zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+      "body": "{\"id\":\"6f1c2a9e-3b7d-4c1a-9e2f-1a2b3c4d5e6f\",\"type\":\"invoice.paid\",\"data\":{\"amount_cents\":1999}}",
+      "now": 1791201600,
+      "valid": false,
+      "reason": "malformed"
+    },
+    {
+      "name": "v1 too short",
+      "secret": "whsec_change-me",
+      "header": "t=1791201600,v1=57665317204099d1fd6e02057a3c1c93560ada672e3e5aaa1ca693b7182e618",
+      "body": "{\"id\":\"6f1c2a9e-3b7d-4c1a-9e2f-1a2b3c4d5e6f\",\"type\":\"invoice.paid\",\"data\":{\"amount_cents\":1999}}",
+      "now": 1791201600,
+      "valid": false,
+      "reason": "malformed"
+    },
+    {
+      "name": "item without =",
+      "secret": "whsec_change-me",
+      "header": "t=1791201600,v157665317204099d1fd6e02057a3c1c93560ada672e3e5aaa1ca693b7182e6189",
+      "body": "{\"id\":\"6f1c2a9e-3b7d-4c1a-9e2f-1a2b3c4d5e6f\",\"type\":\"invoice.paid\",\"data\":{\"amount_cents\":1999}}",
+      "now": 1791201600,
+      "valid": false,
+      "reason": "malformed"
+    }
+  ]
+}

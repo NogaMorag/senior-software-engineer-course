@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/hookline/webhook-event.schema.json",
+  "title": "Hookline webhook event",
+  "$comment": "TODO (day 80, step 5): this schema accepts anything. Describe the body: an object with required id (uuid), type (dotted lowercase words), created_at (date-time) and data (object). See the README.",
+  "type": "object"
+}

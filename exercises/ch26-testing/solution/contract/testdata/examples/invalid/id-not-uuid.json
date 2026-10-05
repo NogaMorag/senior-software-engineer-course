@@ -1,0 +1,1 @@
+{"id": "evt_123", "type": "invoice.paid", "created_at": "2026-10-05T09:30:00Z", "data": {"amount_cents": 1999}}

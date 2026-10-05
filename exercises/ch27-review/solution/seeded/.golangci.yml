@@ -1,0 +1,16 @@
+version: "2"
+
+linters:
+  # The standard set: errcheck, govet, ineffassign, staticcheck, unused.
+  default: standard
+  enable:
+    - bodyclose  # HTTP response bodies that are never closed
+    - errorlint  # == on errors that may be wrapped
+    - gosec      # security patterns (SQL by Sprintf, servers without timeouts, ...)
+    - misspell   # common English misspellings in comments and strings
+    - noctx      # HTTP requests without a context
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
