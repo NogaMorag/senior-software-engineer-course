@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.py[oc]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.env
+.DS_Store
+Thumbs.db
+bin/
+*.test
+coverage.out
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl.bak
+node_modules/
