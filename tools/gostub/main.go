@@ -11,10 +11,13 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
 func stub(path string) (int, error) {
+	dir = filepath.Dir(path)
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
 	if err != nil {
@@ -92,20 +95,32 @@ func pruneImports(file *ast.File) {
 	file.Imports = imports
 }
 
-// importName is the local name of an import: its alias, or the last path element without a /vN or .vN suffix.
+// dir is the directory of the file being stubbed; `go list` resolves import paths from there.
+var (
+	dir   string
+	names = map[string]string{}
+)
+
+// importName is the local name of an import: its alias, or the package name `go list` reports
+// (a path like github.com/redis/go-redis/v9 declares package redis, which no path rule can guess).
 func importName(spec *ast.ImportSpec) string {
 	if spec.Name != nil {
 		return spec.Name.Name
 	}
-	parts := strings.Split(strings.Trim(spec.Path.Value, `"`), "/")
-	last := parts[len(parts)-1]
-	if len(parts) > 1 && len(last) > 1 && last[0] == 'v' && strings.Trim(last[1:], "0123456789") == "" {
-		last = parts[len(parts)-2]
+	path := strings.Trim(spec.Path.Value, `"`)
+	if name, ok := names[path]; ok {
+		return name
 	}
-	if i := strings.Index(last, ".v"); i > 0 {
-		last = last[:i]
+	cmd := exec.Command("go", "list", "-f", "{{.Name}}", path)
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	name := strings.TrimSpace(string(out))
+	if err != nil || name == "" {
+		parts := strings.Split(path, "/")
+		name = parts[len(parts)-1] // fallback: last element
 	}
-	return strings.ReplaceAll(last, "-", "")
+	names[path] = name
+	return name
 }
 
 func main() {

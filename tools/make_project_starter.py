@@ -40,6 +40,10 @@ KEEP_WHOLE = {
     "internal/db/db.go",  # chapter 11, unchanged
     "internal/testdb/testdb.go",  # test infrastructure
     "internal/store/storetest/storetest.go",  # the conformance suite is a specification
+    "internal/wire/wire.go",  # connections shared by the binaries
+    "internal/bus/bus.go",  # chapter 13 client construction, plus CreateTopic
+    "internal/testenv/testenv.go",  # test infrastructure
+    "internal/testenv/fixtures.go",  # test infrastructure
     "internal/telemetry/telemetry.go",
 }
 KEEP_PY = {"__init__.py", "settings.py"}

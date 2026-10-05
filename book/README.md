@@ -109,7 +109,7 @@ title: "תוכן העניינים הראשי"
 | --- | --- | --- |
 | פרק 34: תהליך הגיוס הבכיר | [`34-senior-interview-loop.md`](34-senior-interview-loop.md) | ✅ |
 | פרק 35: תרגילי קוד מעשיים | [`35-coding-drills.md`](35-coding-drills.md) | ✅ |
-| פרק 36: תכנון מערכות בראיון ומאגר השאלות | [`36-system-design-interviews.md`](36-system-design-interviews.md) | ⏳ |
+| פרק 36: תכנון מערכות בראיון ומאגר השאלות | [`36-system-design-interviews.md`](36-system-design-interviews.md) | ✅ |
 
 ## חלק י: פרויקט הגמר
 
@@ -123,11 +123,11 @@ title: "תוכן העניינים הראשי"
 
 | נספח | קובץ | מצב |
 | --- | --- | --- |
-| א: מילון מונחים | [`appendices/a-glossary.md`](appendices/a-glossary.md) | ⏳ |
-| ב: פתרון תקלות | [`appendices/b-troubleshooting.md`](appendices/b-troubleshooting.md) | ⏳ |
-| ג: גרסאות כלים | [`appendices/c-tool-versions.md`](appendices/c-tool-versions.md) | ⏳ |
-| ד: תבניות Obsidian | [`appendices/d-obsidian-templates.md`](appendices/d-obsidian-templates.md) | ⏳ |
-| ה: רשימות בדיקה | [`appendices/e-checklists.md`](appendices/e-checklists.md) | ⏳ |
+| א: מילון מונחים | [`appendices/a-glossary.md`](appendices/a-glossary.md) | ✅ |
+| ב: פתרון תקלות | [`appendices/b-troubleshooting.md`](appendices/b-troubleshooting.md) | ✅ |
+| ג: גרסאות כלים | [`appendices/c-tool-versions.md`](appendices/c-tool-versions.md) | ✅ |
+| ד: תבניות Obsidian | [`appendices/d-obsidian-templates.md`](appendices/d-obsidian-templates.md) | ✅ |
+| ה: רשימות בדיקה | [`appendices/e-checklists.md`](appendices/e-checklists.md) | ✅ |
 | ו: לוח הלימוד היומי | [`appendices/f-daily-schedule.md`](appendices/f-daily-schedule.md) | ✅ |
 
 </div>
