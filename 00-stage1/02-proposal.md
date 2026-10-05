@@ -10,10 +10,11 @@ See `03-decisions-2026-10-04.md` D1. The book assumes she can program well and r
 nothing about Go, Kubernetes, Kafka, Terraform, observability stacks, or how senior loops are run in 2026.
 
 ## 2. Language decision
-Go is the primary language: it is the dominant language of cloud-native infrastructure (Kubernetes, Terraform,
-Prometheus, etc. are written in it) and a frequent requirement in Israeli backend/infra postings (see
-`01-market-research.md` §1). Python is the second production language because it appears in most postings and the
-reader already knows it; the book raises it to senior production level instead of re-teaching it. Rust is her edge:
+Go is the primary language: it is the language of the cloud-native infrastructure the lane works on (Kubernetes,
+Terraform and Prometheus are written in it) and appears in roughly a third of the sampled Israeli senior postings,
+usually next to Python (`01-market-research.md` §1). Python leads the same sample, which is why it is the second
+production language rather than an afterthought. Because the
+reader already knows Python, the book raises it to senior production level instead of re-teaching it. Rust is her edge:
 the book does not teach it but tells her where it is valued and how to present it, and uses it as the comparison
 point when teaching Go.
 
