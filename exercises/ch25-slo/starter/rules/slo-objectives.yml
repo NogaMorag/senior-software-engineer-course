@@ -1,0 +1,17 @@
+# One line per service and SLO: the objective as a constant series with a job
+# label. The alert rules divide by these, so a new service (Hookline's api in
+# M8) gets burn-rate alerts by adding its two records here, and a stricter
+# objective is a one-number change. Both SLOs are measured over 30 days.
+groups:
+  - name: slo-objectives
+    rules:
+      # shorty: 99.5% of requests are not answered 5xx.
+      - record: job:slo_availability:objective
+        expr: vector(0.995)
+        labels:
+          job: shorty
+      # shorty: 99% of requests finish within 250 ms.
+      - record: job:slo_latency:objective
+        expr: vector(0.99)
+        labels:
+          job: shorty

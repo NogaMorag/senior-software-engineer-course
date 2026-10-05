@@ -1,0 +1,172 @@
+# Unit tests for the SLO rules: promtool test rules slo_test.yml (from this
+# folder; tests/run_promtool.sh runs it in the prom/prometheus image).
+#
+# Series notation: "a+bxn" is a, then a+b, ... n more samples, one per
+# interval. Counters only go up, so a request rate of 100 per minute is
+# "0+100x60". Every scenario is shorty at 100 requests per minute.
+rule_files:
+  - ../rules/slo-recording.yml
+  - ../rules/slo-objectives.yml
+  - ../rules/slo-alerts.yml
+
+evaluation_interval: 1m
+
+tests:
+  # 1. Healthy: no 5xx series at all. The ratio is an explicit 0, not "no
+  #    data", and nothing fires.
+  - name: healthy service records zero and stays quiet
+    interval: 1m
+    input_series:
+      - series: 'http_server_request_duration_seconds_count{job="shorty", http_route="/{code}", http_response_status_code="302"}'
+        values: "0+100x120"
+      - series: 'http_server_request_duration_seconds_bucket{job="shorty", http_route="/{code}", http_response_status_code="302", le="0.25"}'
+        values: "0+100x120"
+    promql_expr_test:
+      - expr: job:slo_errors_per_request:ratio_rate5m
+        eval_time: 1h
+        exp_samples:
+          - labels: 'job:slo_errors_per_request:ratio_rate5m{job="shorty"}'
+            value: 0
+      - expr: job:slo_slow_requests:ratio_rate5m
+        eval_time: 1h
+        exp_samples:
+          - labels: 'job:slo_slow_requests:ratio_rate5m{job="shorty"}'
+            value: 0
+    alert_rule_test:
+      - eval_time: 2h
+        alertname: SLOAvailabilityBudgetBurn
+        exp_alerts: []
+      - eval_time: 2h
+        alertname: SLOLatencyBudgetBurn
+        exp_alerts: []
+
+  # 2. Fast burn: from minute 60, one request in five fails (burn rate 40
+  #    against a 0.5% budget). After 3 minutes the 5m window is far above the
+  #    14.4 threshold (7.2%) but the 1h window is not yet (about 1%): no page.
+  #    The 1h window crosses 7.2% after 0.072 / 0.2 x 60 = 21.6 minutes; at
+  #    minute 85 both windows are above it: page.
+  - name: fast burn pages within minutes
+    interval: 1m
+    input_series:
+      - series: 'http_server_request_duration_seconds_count{job="shorty", http_route="/{code}", http_response_status_code="302"}'
+        values: "0+100x60 6080+80x29"
+      - series: 'http_server_request_duration_seconds_count{job="shorty", http_route="/v1/links", http_response_status_code="503"}'
+        values: "0+0x60 20+20x29"
+    promql_expr_test:
+      - expr: job:slo_errors_per_request:ratio_rate5m
+        eval_time: 80m
+        exp_samples:
+          - labels: 'job:slo_errors_per_request:ratio_rate5m{job="shorty"}'
+            value: 0.2
+    alert_rule_test:
+      - eval_time: 63m
+        alertname: SLOAvailabilityBudgetBurn
+        exp_alerts: []
+      - eval_time: 85m
+        alertname: SLOAvailabilityBudgetBurn
+        exp_alerts:
+          - exp_labels:
+              job: shorty
+              severity: page
+              slo: availability
+            exp_annotations:
+              summary: shorty is spending its availability error budget fast
+              description: "shorty answers 5xx at 6 to 14.4 times the rate its SLO allows, over a long and a short window. At this rate the 30-day budget is gone in days or hours. The current ratio is on the RED dashboard and in job:slo_errors_per_request:ratio_rate5m."
+              runbook_url: runbooks/slo-availability-budget-burn.md
+
+  # 3. A short blip: for two minutes, one request in three fails, then all is
+  #    well again. The 5m window alone would page; the long windows, which
+  #    have six hours of good traffic behind them, are below their
+  #    thresholds, so nothing fires at any point.
+  - name: a two-minute blip does not page
+    interval: 1m
+    input_series:
+      - series: 'http_server_request_duration_seconds_count{job="shorty", http_route="/{code}", http_response_status_code="302"}'
+        values: "0+100x420"
+      - series: 'http_server_request_duration_seconds_count{job="shorty", http_route="/v1/links", http_response_status_code="503"}'
+        values: "0+0x400 50+50x1 100+0x18"
+    promql_expr_test:
+      # During the blip the short window is far above the 7.2% threshold...
+      - expr: job:slo_errors_per_request:ratio_rate5m > bool 0.072
+        eval_time: 402m
+        exp_samples:
+          - labels: '{job="shorty"}'
+            value: 1
+    alert_rule_test:
+      # ...but the alert stays silent during and after it.
+      - eval_time: 401m
+        alertname: SLOAvailabilityBudgetBurn
+        exp_alerts: []
+      - eval_time: 402m
+        alertname: SLOAvailabilityBudgetBurn
+        exp_alerts: []
+      - eval_time: 410m
+        alertname: SLOAvailabilityBudgetBurn
+        exp_alerts: []
+      - eval_time: 410m
+        alertname: SLOAvailabilityBudgetDrain
+        exp_alerts: []
+
+  # 4. Slow burn: 1% of requests fail for three days, twice what the 0.5%
+  #    budget allows. Neither page fires (1% is below both 7.2% and 3%); the
+  #    ticket does, because the budget would be gone in 15 of the 30 days.
+  - name: a slow leak opens a ticket, not a page
+    interval: 1m
+    input_series:
+      - series: 'http_server_request_duration_seconds_count{job="shorty", http_route="/{code}", http_response_status_code="302"}'
+        values: "0+99x4400"
+      - series: 'http_server_request_duration_seconds_count{job="shorty", http_route="/v1/links", http_response_status_code="503"}'
+        values: "0+1x4400"
+    alert_rule_test:
+      - eval_time: 73h
+        alertname: SLOAvailabilityBudgetBurn
+        exp_alerts: []
+      - eval_time: 73h
+        alertname: SLOAvailabilityBudgetDrain
+        exp_alerts:
+          - exp_labels:
+              job: shorty
+              severity: ticket
+              slo: availability
+            exp_annotations:
+              summary: shorty is using more availability budget than the SLO allows
+              description: "shorty has failed more requests over 3 days than its SLO allows; the budget will not last the 30 days."
+              runbook_url: runbooks/slo-availability-budget-drain.md
+
+  # 5. Latency: from minute 60, half of the requests take longer than 250 ms
+  #    (the le="0.25" bucket grows by 50 of every 100). The latency budget is
+  #    1%, so the 1h threshold is 14.4%, crossed after 0.144 / 0.5 x 60 = 17.3
+  #    minutes: page at minute 80.
+  - name: slow requests page on the latency SLO
+    interval: 1m
+    input_series:
+      - series: 'http_server_request_duration_seconds_count{job="shorty", http_route="/{code}", http_response_status_code="302"}'
+        values: "0+100x90"
+      - series: 'http_server_request_duration_seconds_bucket{job="shorty", http_route="/{code}", http_response_status_code="302", le="0.25"}'
+        values: "0+100x60 6050+50x29"
+    alert_rule_test:
+      - eval_time: 80m
+        alertname: SLOLatencyBudgetBurn
+        exp_alerts:
+          - exp_labels:
+              job: shorty
+              severity: page
+              slo: latency
+            exp_annotations:
+              summary: shorty is spending its latency error budget fast
+              description: "shorty answers more slowly than 250 ms at 6 to 14.4 times the rate its SLO allows, over a long and a short window."
+              runbook_url: runbooks/slo-latency-budget-burn.md
+      - eval_time: 80m
+        alertname: SLOAvailabilityBudgetBurn
+        exp_alerts: []
+
+  # 6. A service without an objective gets no SLO alerts, however bad it is.
+  - name: no objective, no alert
+    interval: 1m
+    input_series:
+      - series: 'http_server_request_duration_seconds_count{job="receiver", http_route="/hooks/{name}", http_response_status_code="500"}'
+        values: "0+100x90"
+    alert_rule_test:
+      - eval_time: 80m
+        alertname: SLOAvailabilityBudgetBurn
+        exp_alerts: []

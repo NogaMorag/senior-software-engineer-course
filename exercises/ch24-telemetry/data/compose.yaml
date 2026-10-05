@@ -1,0 +1,239 @@
+# Chapter 24 stack: the instrumented services, the Kafka hop, and the
+# telemetry backends. Every service has a memory limit; the whole stack fits
+# in a few GB of Docker's VM.
+#
+#   docker compose -p ch24 -f data/compose.yaml up -d --build --wait
+#   docker compose -p ch24 -f data/compose.yaml down -v
+#
+# APP_DIR is the folder that holds shorty/ and receiver/, relative to this
+# file. The default ".." is your ~/senior-course/ch24; in the book repository
+# use APP_DIR=../solution (or ../starter).
+#
+# Signal flow: services --OTLP--> collector --> Prometheus (metrics, OTLP
+# receiver), Loki (logs, OTLP endpoint), Tempo (traces, OTLP). Grafana reads
+# all three. Chapter 25 (and Hookline M8) mount their rules into
+# /etc/prometheus/rules with a second compose file; see that README.
+name: ch24
+
+x-otel-env: &otel-env
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://collector:4318
+  OTEL_METRIC_EXPORT_INTERVAL: "5000" # milliseconds; the default 60 s makes the dashboard sluggish
+  OTEL_RESOURCE_ATTRIBUTES: deployment.environment.name=local
+
+services:
+  # ---- the system under observation ----
+  shorty:
+    build:
+      context: ${APP_DIR:-..}/shorty
+    image: ch24-shorty:dev
+    environment:
+      <<: *otel-env
+      SHORTY_BASE_URL: http://localhost:8080
+      SHORTY_DEBUG_ADDR: "off"
+      SHORTY_KAFKA_BROKERS: redpanda:9092
+      SHORTY_KAFKA_TOPIC: ${SHORTY_KAFKA_TOPIC:-links.created} # chapter 25 stages an incident here
+    ports:
+      - "127.0.0.1:8080:8080"
+    read_only: true
+    mem_limit: 128m
+    healthcheck:
+      test: ["CMD", "/shorty", "healthcheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    depends_on:
+      topics:
+        condition: service_completed_successfully
+      collector:
+        condition: service_started
+
+  linkworker:
+    build:
+      context: ${APP_DIR:-..}/shorty
+    image: ch24-shorty:dev # the same image as shorty; another program in it
+    entrypoint: ["/linkworker"]
+    environment:
+      <<: *otel-env
+      LINKWORKER_KAFKA_BROKERS: redpanda:9092
+      LINKWORKER_RECEIVER_URL: http://receiver:8081/hooks/links
+      LINKWORKER_SECRET: change-me # local practice secret, not a real one
+    read_only: true
+    mem_limit: 128m
+    healthcheck:
+      test: ["CMD", "/linkworker", "healthcheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    depends_on:
+      topics:
+        condition: service_completed_successfully
+      receiver:
+        condition: service_healthy
+
+  receiver:
+    build:
+      context: ${APP_DIR:-..}/receiver
+    image: ch24-receiver:dev
+    environment:
+      <<: *otel-env
+      RECEIVER_SECRETS: links=change-me
+    ports:
+      - "127.0.0.1:8081:8081"
+    read_only: true
+    mem_limit: 256m
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8081/stats', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    depends_on:
+      collector:
+        condition: service_started
+
+  # Traffic on demand: docker compose -p ch24 -f data/compose.yaml run --rm loadgen -d 2m
+  loadgen:
+    build:
+      context: ${APP_DIR:-..}/shorty
+    image: ch24-shorty:dev
+    entrypoint: ["/loadgen", "-base", "http://shorty:8080"]
+    command: ["-rps", "20", "-d", "1m"]
+    profiles: ["load"]
+    mem_limit: 64m
+    depends_on:
+      shorty:
+        condition: service_healthy
+
+  # ---- Kafka: one Redpanda broker, as in chapter 13 ----
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v26.2.3
+    command:
+      - redpanda
+      - start
+      - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr internal://redpanda:9092,external://localhost:19092
+      - --rpc-addr redpanda:33145
+      - --advertise-rpc-addr redpanda:33145
+      - --mode dev-container
+      - --smp 1
+      - --memory 384M
+      - --default-log-level=warn
+    ports:
+      - "127.0.0.1:19092:19092"
+    mem_limit: 640m
+    healthcheck:
+      test: ["CMD", "rpk", "cluster", "info"]
+      interval: 3s
+      timeout: 10s
+      retries: 30
+
+  # Creates the topic once. shorty never asks the broker to create topics, so
+  # the topic must exist before the first publish.
+  topics:
+    image: docker.redpanda.com/redpandadata/redpanda:v26.2.3
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["rpk topic create links.created -X brokers=redpanda:9092 --partitions 3 || rpk topic describe links.created -X brokers=redpanda:9092"]
+    mem_limit: 128m
+    depends_on:
+      redpanda:
+        condition: service_healthy
+
+  # ---- telemetry ----
+  collector:
+    # GHCR, not Docker Hub: in October 2026 the multi-arch tag of this
+    # release was published only there (see appendix C).
+    image: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-contrib:0.162.0
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./otel-collector.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "127.0.0.1:4317:4317" # OTLP gRPC, for programs on your machine
+      - "127.0.0.1:4318:4318" # OTLP HTTP
+      - "127.0.0.1:13133:13133" # health_check extension
+    mem_limit: 256m
+    # No healthcheck: the image has no shell and no HTTP client. Probe
+    # http://localhost:13133/ from your machine instead (tests/check_stack.sh does).
+    depends_on:
+      prometheus:
+        condition: service_healthy
+      loki:
+        condition: service_started
+      tempo:
+        condition: service_healthy
+
+  prometheus:
+    image: prom/prometheus:v3.15.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --web.enable-otlp-receiver # accept OTLP metrics at /api/v1/otlp/v1/metrics
+      - --enable-feature=exemplar-storage # keep the trace IDs attached to histogram samples
+      - --web.enable-lifecycle # POST /-/reload after editing rules
+      - --storage.tsdb.retention.time=2d
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ${RULES_DIR:-./rules}:/etc/prometheus/rules:ro
+    ports:
+      - "127.0.0.1:9090:9090"
+    mem_limit: 384m
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9090/-/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  loki:
+    image: grafana/loki:3.7.8
+    command: ["-config.file=/etc/loki/config.yaml"]
+    volumes:
+      - ./loki.yaml:/etc/loki/config.yaml:ro
+      - loki-data:/loki
+    ports:
+      - "127.0.0.1:3100:3100"
+    mem_limit: 384m
+    # No healthcheck: the image has no shell, no HTTP client and no health
+    # flag. tests/check_stack.sh probes http://localhost:3100/ready instead.
+
+  tempo:
+    image: grafana/tempo:3.1.0
+    command: ["-target=all", "-config.file=/etc/tempo/config.yaml"]
+    volumes:
+      - ./tempo.yaml:/etc/tempo/config.yaml:ro
+      - tempo-data:/var/tempo
+    ports:
+      - "127.0.0.1:3200:3200"
+    mem_limit: 384m
+    healthcheck:
+      test: ["CMD", "/tempo", "-health"] # the binary checks its own /ready
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  grafana:
+    image: grafana/grafana:13.2.3
+    environment:
+      # Local practice only: no login, everyone is an admin.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_LOG_LEVEL: warn
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "127.0.0.1:3000:3000"
+    mem_limit: 448m # Grafana 13 was OOM-killed at 256m on the author's machine
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    depends_on:
+      prometheus:
+        condition: service_healthy
+      loki:
+        condition: service_started
+
+volumes:
+  loki-data:
+  tempo-data:

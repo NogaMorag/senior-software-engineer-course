@@ -82,8 +82,8 @@ title: "תוכן העניינים הראשי"
 
 | פרק | קובץ | מצב |
 | --- | --- | --- |
-| פרק 24: טלמטריה: OpenTelemetry, Prometheus, Grafana ו־Loki | [`24-telemetry.md`](24-telemetry.md) | ⏳ |
-| פרק 25: SLO, התראות, תורנות ותחקיר | [`25-slo-alerting-incidents.md`](25-slo-alerting-incidents.md) | ⏳ |
+| פרק 24: טלמטריה: OpenTelemetry, Prometheus, Grafana ו־Loki | [`24-telemetry.md`](24-telemetry.md) | ✅ |
+| פרק 25: SLO, התראות, תורנות ותחקיר | [`25-slo-alerting-incidents.md`](25-slo-alerting-incidents.md) | ✅ |
 
 ## חלק ז: איכות ואבטחה
 

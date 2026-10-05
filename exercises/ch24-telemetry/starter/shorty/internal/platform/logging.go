@@ -1,0 +1,68 @@
+package platform
+
+import (
+	"context"
+	"io"
+	"log/slog"
+
+	"go.opentelemetry.io/otel/trace"
+)
+
+// NewLogger returns a JSON logger. Every record logged through a ...Context
+// method (InfoContext, ErrorContext, LogAttrs) gets the request ID and, in
+// chapter 24, the trace and span IDs found in the context, so a log line
+// leads to its trace and a trace leads to its log lines.
+//
+// Records below level are dropped. Records at or above it go to w and to
+// every handler in also (chapter 24 passes the OpenTelemetry bridge, which
+// ships the same records to Loki through the collector).
+func NewLogger(w io.Writer, level slog.Leveler, also ...slog.Handler) *slog.Logger {
+	var h slog.Handler = contextHandler{slog.NewJSONHandler(w, &slog.HandlerOptions{Level: level})}
+	// TODO(chapter 24, section 24.2): when also is not empty, send every record
+	// to h and to the handlers in also (slog.NewMultiHandler).
+	_ = also
+	return slog.New(minLevel{h, level})
+}
+
+// contextHandler decorates another handler with values taken from the context.
+type contextHandler struct {
+	slog.Handler
+}
+
+func (h contextHandler) Handle(ctx context.Context, r slog.Record) error {
+	if id := RequestIDFrom(ctx); id != "" {
+		r = r.Clone() // records share state; never modify one you were handed
+		r.AddAttrs(slog.String("request_id", id))
+	}
+	// TODO(chapter 24, section 24.2): when trace.SpanContextFromContext(ctx) is
+	// valid, add trace_id and span_id (its TraceID().String() and SpanID().String()).
+	_ = trace.SpanContextFromContext
+	return h.Handler.Handle(ctx, r)
+}
+
+func (h contextHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return contextHandler{h.Handler.WithAttrs(attrs)}
+}
+
+func (h contextHandler) WithGroup(name string) slog.Handler {
+	return contextHandler{h.Handler.WithGroup(name)}
+}
+
+// minLevel applies one level to every handler behind it, including handlers
+// such as the OpenTelemetry bridge that have no level option of their own.
+type minLevel struct {
+	slog.Handler
+	level slog.Leveler
+}
+
+func (h minLevel) Enabled(ctx context.Context, l slog.Level) bool {
+	return l >= h.level.Level() && h.Handler.Enabled(ctx, l)
+}
+
+func (h minLevel) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return minLevel{h.Handler.WithAttrs(attrs), h.level}
+}
+
+func (h minLevel) WithGroup(name string) slog.Handler {
+	return minLevel{h.Handler.WithGroup(name), h.level}
+}

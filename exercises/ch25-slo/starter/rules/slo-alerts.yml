@@ -1,0 +1,18 @@
+# Multi-window, multi-burn-rate alerts, after the Google SRE Workbook chapter
+# "Alerting on SLOs" (https://sre.google/workbook/alerting-on-slos/), with its
+# recommended table for a 30-day SLO:
+#
+#   budget spent   long window   short window   burn rate   action
+#   2%             1h            5m             14.4        page
+#   5%             6h            30m            6           page
+#   10%            3d            6h             1           ticket
+groups:
+  - name: slo-burn-rate
+    # TODO(chapter 25, section 25.3), day 75: four alerts, each comparing the SLI recording
+    # rules with burn rate x (1 - the objective), matched "on (job)":
+    #   SLOAvailabilityBudgetBurn  severity=page    slo=availability  (1h and 5m > 14.4) or (6h and 30m > 6)
+    #   SLOAvailabilityBudgetDrain severity=ticket  slo=availability  3d and 6h > 1
+    #   SLOLatencyBudgetBurn       severity=page    slo=latency       as the first, on the latency SLI
+    #   SLOLatencyBudgetDrain      severity=ticket  slo=latency       as the second, on the latency SLI
+    # Give each a summary, a description and runbook_url: runbooks/<kebab-case-name>.md.
+    rules: []

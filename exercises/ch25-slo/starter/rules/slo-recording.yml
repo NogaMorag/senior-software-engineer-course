@@ -1,0 +1,30 @@
+# SLI recording rules, one set for every HTTP service that emits the
+# OpenTelemetry metric http.server.request.duration (in Prometheus:
+# http_server_request_duration_seconds_*). Nothing here names a service: the
+# job label (OpenTelemetry's service.name) carries it, so Hookline (M8) reuses
+# this file as it is.
+#
+# Naming follows the Prometheus convention level:metric:operations.
+#   job:slo_errors_per_request:ratio_rate<w>  share of requests answered 5xx over window w
+#   job:slo_slow_requests:ratio_rate<w>       share of requests slower than 250 ms over window w
+# Windows: 5m, 30m, 1h, 6h and 3d, the pairs of the multi-window burn-rate alerts.
+groups:
+  - name: slo-sli-availability
+    rules:
+      # "or ... * 0" turns "no 5xx series at all" into an explicit 0, so a
+      # healthy service shows a ratio of 0 instead of no data.
+      - record: job:slo_errors_per_request:ratio_rate5m
+        expr: |
+          (
+            sum by (job) (rate(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[5m]))
+            or sum by (job) (rate(http_server_request_duration_seconds_count[5m])) * 0
+          )
+          / sum by (job) (rate(http_server_request_duration_seconds_count[5m]))
+      # TODO(chapter 25, section 25.1), day 75: the same rule for 30m, 1h, 6h and 3d
+      # (job:slo_errors_per_request:ratio_rate30m and so on). The alerts need all five.
+
+  - name: slo-sli-latency
+    rules:
+      # TODO(chapter 25, section 25.1): job:slo_slow_requests:ratio_rate<w> for the same five
+      # windows: 1 minus (the rate of the le="0.25" bucket divided by the rate of _count).
+      []

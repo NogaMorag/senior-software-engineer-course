@@ -1,0 +1,88 @@
+# Multi-window, multi-burn-rate alerts, after the Google SRE Workbook chapter
+# "Alerting on SLOs" (https://sre.google/workbook/alerting-on-slos/), with its
+# recommended table for a 30-day SLO:
+#
+#   budget spent   long window   short window   burn rate   action
+#   2%             1h            5m             14.4        page
+#   5%             6h            30m            6           page
+#   10%            3d            6h             1           ticket
+#
+# A burn rate is the error ratio divided by the error budget (1 - objective):
+# at burn rate 1 the budget lasts exactly the 30 days. Both windows of a pair
+# must exceed the threshold: the long one proves the problem is big enough to
+# matter, the short one proves it is still happening, so the alert stops soon
+# after a fix. The severity label says who is told: page wakes a person, ticket
+# waits for working hours (the routing itself is Alertmanager's job). The
+# descriptions do not print $value: recording and alerting rules sit in
+# separate groups, which Prometheus evaluates concurrently, so the exact value
+# an alert sees can differ by one evaluation, and promtool compares text.
+groups:
+  - name: slo-burn-rate
+    rules:
+      - alert: SLOAvailabilityBudgetBurn
+        expr: |
+          (
+              job:slo_errors_per_request:ratio_rate1h > on (job) (14.4 * (1 - job:slo_availability:objective))
+            and on (job)
+              job:slo_errors_per_request:ratio_rate5m > on (job) (14.4 * (1 - job:slo_availability:objective))
+          )
+          or
+          (
+              job:slo_errors_per_request:ratio_rate6h > on (job) (6 * (1 - job:slo_availability:objective))
+            and on (job)
+              job:slo_errors_per_request:ratio_rate30m > on (job) (6 * (1 - job:slo_availability:objective))
+          )
+        labels:
+          severity: page
+          slo: availability
+        annotations:
+          summary: "{{ $labels.job }} is spending its availability error budget fast"
+          description: "{{ $labels.job }} answers 5xx at 6 to 14.4 times the rate its SLO allows, over a long and a short window. At this rate the 30-day budget is gone in days or hours. The current ratio is on the RED dashboard and in job:slo_errors_per_request:ratio_rate5m."
+          runbook_url: runbooks/slo-availability-budget-burn.md
+
+      - alert: SLOAvailabilityBudgetDrain
+        expr: |
+          (job:slo_errors_per_request:ratio_rate3d > on (job) (1 * (1 - job:slo_availability:objective)))
+          and on (job)
+          (job:slo_errors_per_request:ratio_rate6h > on (job) (1 * (1 - job:slo_availability:objective)))
+        labels:
+          severity: ticket
+          slo: availability
+        annotations:
+          summary: "{{ $labels.job }} is using more availability budget than the SLO allows"
+          description: "{{ $labels.job }} has failed more requests over 3 days than its SLO allows; the budget will not last the 30 days."
+          runbook_url: runbooks/slo-availability-budget-drain.md
+
+      - alert: SLOLatencyBudgetBurn
+        expr: |
+          (
+              job:slo_slow_requests:ratio_rate1h > on (job) (14.4 * (1 - job:slo_latency:objective))
+            and on (job)
+              job:slo_slow_requests:ratio_rate5m > on (job) (14.4 * (1 - job:slo_latency:objective))
+          )
+          or
+          (
+              job:slo_slow_requests:ratio_rate6h > on (job) (6 * (1 - job:slo_latency:objective))
+            and on (job)
+              job:slo_slow_requests:ratio_rate30m > on (job) (6 * (1 - job:slo_latency:objective))
+          )
+        labels:
+          severity: page
+          slo: latency
+        annotations:
+          summary: "{{ $labels.job }} is spending its latency error budget fast"
+          description: "{{ $labels.job }} answers more slowly than 250 ms at 6 to 14.4 times the rate its SLO allows, over a long and a short window."
+          runbook_url: runbooks/slo-latency-budget-burn.md
+
+      - alert: SLOLatencyBudgetDrain
+        expr: |
+          (job:slo_slow_requests:ratio_rate3d > on (job) (1 * (1 - job:slo_latency:objective)))
+          and on (job)
+          (job:slo_slow_requests:ratio_rate6h > on (job) (1 * (1 - job:slo_latency:objective)))
+        labels:
+          severity: ticket
+          slo: latency
+        annotations:
+          summary: "{{ $labels.job }} is slower than the latency SLO allows"
+          description: "{{ $labels.job }} has answered more requests slower than 250 ms over 3 days than its SLO allows."
+          runbook_url: runbooks/slo-latency-budget-drain.md

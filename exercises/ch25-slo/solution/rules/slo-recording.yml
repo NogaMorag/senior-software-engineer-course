@@ -1,0 +1,87 @@
+# SLI recording rules, one set for every HTTP service that emits the
+# OpenTelemetry metric http.server.request.duration (in Prometheus:
+# http_server_request_duration_seconds_*). Nothing here names a service: the
+# job label (OpenTelemetry's service.name) carries it, so Hookline (M8) reuses
+# this file as it is.
+#
+# Naming follows the Prometheus convention level:metric:operations.
+#   job:slo_errors_per_request:ratio_rate<w>  share of requests answered 5xx over window w
+#   job:slo_slow_requests:ratio_rate<w>       share of requests slower than 250 ms over window w
+# Windows: 5m, 30m, 1h, 6h and 3d, the pairs of the multi-window burn-rate alerts.
+groups:
+  - name: slo-sli-availability
+    rules:
+      # "or ... * 0" turns "no 5xx series at all" into an explicit 0, so a
+      # healthy service shows a ratio of 0 instead of no data.
+      - record: job:slo_errors_per_request:ratio_rate5m
+        expr: |
+          (
+            sum by (job) (rate(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[5m]))
+            or sum by (job) (rate(http_server_request_duration_seconds_count[5m])) * 0
+          )
+          / sum by (job) (rate(http_server_request_duration_seconds_count[5m]))
+      - record: job:slo_errors_per_request:ratio_rate30m
+        expr: |
+          (
+            sum by (job) (rate(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[30m]))
+            or sum by (job) (rate(http_server_request_duration_seconds_count[30m])) * 0
+          )
+          / sum by (job) (rate(http_server_request_duration_seconds_count[30m]))
+      - record: job:slo_errors_per_request:ratio_rate1h
+        expr: |
+          (
+            sum by (job) (rate(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[1h]))
+            or sum by (job) (rate(http_server_request_duration_seconds_count[1h])) * 0
+          )
+          / sum by (job) (rate(http_server_request_duration_seconds_count[1h]))
+      - record: job:slo_errors_per_request:ratio_rate6h
+        expr: |
+          (
+            sum by (job) (rate(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[6h]))
+            or sum by (job) (rate(http_server_request_duration_seconds_count[6h])) * 0
+          )
+          / sum by (job) (rate(http_server_request_duration_seconds_count[6h]))
+      - record: job:slo_errors_per_request:ratio_rate3d
+        expr: |
+          (
+            sum by (job) (rate(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[3d]))
+            or sum by (job) (rate(http_server_request_duration_seconds_count[3d])) * 0
+          )
+          / sum by (job) (rate(http_server_request_duration_seconds_count[3d]))
+
+  - name: slo-sli-latency
+    rules:
+      # Slow means "not in the le=0.25 bucket": 1 minus the share of requests
+      # that finished within 250 ms. 0.25 is one of the bucket boundaries
+      # otelhttp uses; an SLI threshold must be a boundary, or it cannot be
+      # computed exactly from the histogram.
+      - record: job:slo_slow_requests:ratio_rate5m
+        expr: |
+          1 - (
+            sum by (job) (rate(http_server_request_duration_seconds_bucket{le="0.25"}[5m]))
+            / sum by (job) (rate(http_server_request_duration_seconds_count[5m]))
+          )
+      - record: job:slo_slow_requests:ratio_rate30m
+        expr: |
+          1 - (
+            sum by (job) (rate(http_server_request_duration_seconds_bucket{le="0.25"}[30m]))
+            / sum by (job) (rate(http_server_request_duration_seconds_count[30m]))
+          )
+      - record: job:slo_slow_requests:ratio_rate1h
+        expr: |
+          1 - (
+            sum by (job) (rate(http_server_request_duration_seconds_bucket{le="0.25"}[1h]))
+            / sum by (job) (rate(http_server_request_duration_seconds_count[1h]))
+          )
+      - record: job:slo_slow_requests:ratio_rate6h
+        expr: |
+          1 - (
+            sum by (job) (rate(http_server_request_duration_seconds_bucket{le="0.25"}[6h]))
+            / sum by (job) (rate(http_server_request_duration_seconds_count[6h]))
+          )
+      - record: job:slo_slow_requests:ratio_rate3d
+        expr: |
+          1 - (
+            sum by (job) (rate(http_server_request_duration_seconds_bucket{le="0.25"}[3d]))
+            / sum by (job) (rate(http_server_request_duration_seconds_count[3d]))
+          )
