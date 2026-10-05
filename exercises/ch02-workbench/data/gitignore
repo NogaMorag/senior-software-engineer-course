@@ -1,0 +1,15 @@
+# ~/senior-course/.gitignore (chapter 2, section 2.9): build output and local secrets stay out of Git.
+.venv/
+__pycache__/
+*.py[oc]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.env
+bin/
+*.test
+coverage.out
+.terraform/
+*.tfstate
+*.tfstate.backup
+.DS_Store

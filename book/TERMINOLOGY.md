@@ -98,10 +98,24 @@ stay English and which are translated**, and the one rendering each translated c
 | load test | בדיקת עומס | |
 | table-driven test | בדיקה טבלאית | |
 | benchmark | בנצ'מרק | |
+| cache hit / miss | פגיעה / פספוס | hit ratio: יחס פגיעות |
+| eviction | פינוי | |
+| TTL | זמן חיים (TTL) | |
+| negative caching | מטמון שלילי | |
+| router | נתב | |
+| request ID | מזהה בקשה | |
+| access log | לוג גישה | |
+| grace period | זמן חסד | |
+| cooperative cancellation | ביטול שיתופי | |
+| snapshot | תמונת מצב | |
+| sequential scan | סריקה מלאה | index-only scan: סריקת אינדקס בלבד; keyset stays English |
+| write skew | write skew | glossed once as הטיית כתיבה |
 | interface (Go, and the general concept) | ממשק | the keyword stays `interface`; Rust's trait stays trait |
 | method | מתודה | receiver stays English |
 | event loop | לולאת האירועים | asyncio's loop; the identifier stays English |
 | task (asyncio, background job) | משימה | the class `asyncio.Task` stays an identifier |
+
+Appendices are named with Hebrew letters in prose: נספח א … נספח ו (never נספח C).
 
 ## 4. Words to avoid
 

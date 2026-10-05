@@ -1,0 +1,16 @@
+דוגמה סינתטית. נכתבה בשביל הספר כדי לבדוק את skilltally. זו אינה מודעת דרושים אמיתית,
+ו־"Example Logistics" אינה חברה אמיתית. החליפי את הקבצים האלה במודעות אמיתיות.
+
+מהנדס/ת Backend בכיר/ה, Example Logistics (פתח תקווה)
+
+מה תעשי
+- פיתוח שירותים בPython וב־FastAPI מעל PostgreSQL וRedis.
+- תכנון REST APIs לשותפים חיצוניים, כולל authentication.
+- עבודה עם תורים (RabbitMQ) ועם background jobs.
+- הובלת system design לפיצ'רים חדשים וכתיבת unit tests ו־integration tests.
+
+דרישות
+- 5 שנות ניסיון לפחות בפיתוח backend.
+- ניסיון בDocker וב־Kubernetes.
+- ניסיון עם CI/CD.
+- יתרון: ניסיון עם Go או Rust.

@@ -1,0 +1,23 @@
+SYNTHETIC SAMPLE. Written for this book to test skilltally. This is not a real job posting,
+and "Example Ad Analytics" is not a real company. Replace these files with real postings.
+
+Senior Data Infrastructure Engineer, Example Ad Analytics (Herzliya)
+
+We ingest billions of events a day and need a senior engineer to make the pipeline faster,
+cheaper and more reliable.
+
+Responsibilities
+- Own our event streaming platform built on Kafka, and the services around it.
+- Build ingestion services in Java or Kotlin, and tooling in Python.
+- Design storage layouts and SQL models for analytics workloads.
+- Improve scalability and cost; lead architecture reviews.
+- Mentor engineers and drive code reviews.
+
+Requirements
+- 6+ years of backend or data engineering.
+- Production experience with Kafka and with distributed systems.
+- Strong SQL; PostgreSQL or a columnar store.
+- Experience with Docker, Kubernetes and a public cloud (AWS or GCP).
+
+Advantage
+- Experience using LLMs or other AI tools to speed up development.

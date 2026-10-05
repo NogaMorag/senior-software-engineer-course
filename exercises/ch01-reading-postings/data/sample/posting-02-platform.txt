@@ -1,0 +1,23 @@
+SYNTHETIC SAMPLE. Written for this book to test skilltally. This is not a real job posting,
+and "Example Cloud Tools" is not a real company. Replace these files with real postings.
+
+Senior Platform Engineer, Example Cloud Tools (remote within Israel)
+
+We are looking for a platform engineer to build the internal developer platform that 200
+engineers deploy through every day.
+
+Responsibilities
+- Own our Kubernetes clusters (EKS) and the Helm charts every service ships with.
+- Manage infrastructure as code with Terraform across several AWS accounts.
+- Build CI/CD pipelines with GitHub Actions and Argo CD.
+- Write tooling and operators in Go; automate with Python and Bash.
+- Improve observability with OpenTelemetry and Prometheus; define SLOs with service teams.
+
+Requirements
+- 5+ years in platform, DevOps or infrastructure roles.
+- Strong Linux and networking fundamentals.
+- Hands-on Kubernetes and Terraform in production.
+- Clear written communication; you will write design docs and lead technical decisions.
+
+Bonus
+- Experience with security hardening and OIDC-based authentication.

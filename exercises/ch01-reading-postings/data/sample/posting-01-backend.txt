@@ -1,0 +1,24 @@
+SYNTHETIC SAMPLE. Written for this book to test skilltally. This is not a real job posting,
+and "Example Payments" is not a real company. Replace these files with real postings.
+
+Senior Backend Engineer, Example Payments (Tel Aviv, hybrid)
+
+About the role
+You will own services that move money for thousands of merchants. The team builds in Go,
+runs on Kubernetes in AWS, and treats reliability as a feature.
+
+What you will do
+- Design, build and operate backend services in Go with PostgreSQL and Redis.
+- Lead the design of an event-driven settlement flow on Kafka.
+- Write design docs, review code, and mentor two mid-level engineers.
+- Take part in the on-call rotation and run blameless postmortems.
+
+Requirements
+- 6+ years building backend systems; 2+ years with Go or a similar language.
+- Deep experience with relational databases and SQL performance.
+- Experience with distributed systems: idempotency, retries, consistency.
+- Docker and Kubernetes in production.
+
+Nice to have
+- Terraform, Prometheus and Grafana.
+- Rust or C++ background.

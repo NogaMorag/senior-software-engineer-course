@@ -1,0 +1,212 @@
+# skills.toml: the keyword table for skilltally (chapter 1, section 1.3).
+#
+# One [[skill]] per skill:
+#   name      the row label in the matrix; profile.toml refers to it by this name
+#   area      a grouping, for your own reading
+#   chapter   the chapter of this book that teaches it (0 = this book does not)
+#   keywords  matched in any letter case, as whole words ("java" does not match "JavaScript")
+#   exact     matched only as written ("Go" counts, "go ahead" does not)
+#
+# This table is a starting point. When your postings name a skill that is missing here,
+# add a [[skill]] for it; when a keyword catches the wrong thing, narrow it.
+
+[[skill]]
+name = "Go"
+area = "languages"
+chapter = 3
+keywords = ["golang"]
+exact = ["Go"]
+
+[[skill]]
+name = "Python"
+area = "languages"
+chapter = 7
+keywords = ["python", "fastapi", "django", "asyncio"]
+
+[[skill]]
+name = "Rust"
+area = "languages"
+chapter = 33
+keywords = ["rust"]
+
+[[skill]]
+name = "C++"
+area = "languages"
+chapter = 33
+keywords = ["c++"]
+
+[[skill]]
+name = "Java"
+area = "languages"
+chapter = 0
+keywords = ["java", "kotlin", "spring boot"]
+
+[[skill]]
+name = "TypeScript"
+area = "languages"
+chapter = 0
+keywords = ["typescript", "node.js", "nodejs"]
+
+[[skill]]
+name = "REST APIs"
+area = "backend"
+chapter = 9
+keywords = ["restful", "rest api", "rest apis", "openapi", "api design"]
+exact = ["REST"]
+
+[[skill]]
+name = "gRPC"
+area = "backend"
+chapter = 9
+keywords = ["grpc", "protobuf"]
+
+[[skill]]
+name = "PostgreSQL"
+area = "data"
+chapter = 10
+keywords = ["postgresql", "postgres"]
+
+[[skill]]
+name = "SQL"
+area = "data"
+chapter = 10
+keywords = ["sql", "relational database", "relational databases"]
+
+[[skill]]
+name = "MongoDB"
+area = "data"
+chapter = 0
+keywords = ["mongodb", "mongo", "document store", "nosql"]
+
+[[skill]]
+name = "Redis"
+area = "data"
+chapter = 12
+keywords = ["redis", "caching"]
+
+[[skill]]
+name = "Kafka"
+area = "data"
+chapter = 13
+keywords = ["kafka", "redpanda", "event streaming"]
+
+[[skill]]
+name = "Message queues"
+area = "data"
+chapter = 14
+keywords = ["rabbitmq", "sqs", "message queue", "message queues", "background jobs"]
+
+[[skill]]
+name = "Microservices"
+area = "systems"
+chapter = 29
+keywords = ["microservices", "microservice", "service-oriented"]
+
+[[skill]]
+name = "Distributed systems"
+area = "systems"
+chapter = 15
+keywords = ["distributed systems", "distributed system", "high availability", "scalability"]
+
+[[skill]]
+name = "Docker"
+area = "cloud"
+chapter = 19
+keywords = ["docker", "containers", "containerization"]
+
+[[skill]]
+name = "Kubernetes"
+area = "cloud"
+chapter = 20
+keywords = ["kubernetes", "k8s", "eks", "gke", "aks"]
+
+[[skill]]
+name = "Helm"
+area = "cloud"
+chapter = 21
+keywords = ["helm"]
+
+[[skill]]
+name = "Terraform"
+area = "cloud"
+chapter = 22
+keywords = ["terraform", "infrastructure as code", "iac", "pulumi"]
+
+[[skill]]
+name = "AWS"
+area = "cloud"
+chapter = 22
+keywords = ["aws", "amazon web services"]
+
+[[skill]]
+name = "GCP or Azure"
+area = "cloud"
+chapter = 0
+keywords = ["gcp", "google cloud", "azure"]
+
+[[skill]]
+name = "CI/CD"
+area = "cloud"
+chapter = 23
+keywords = ["ci/cd", "github actions", "gitlab ci", "jenkins", "argo cd", "argocd"]
+
+[[skill]]
+name = "Observability"
+area = "operations"
+chapter = 24
+keywords = ["observability", "opentelemetry", "prometheus", "grafana", "datadog", "monitoring"]
+
+[[skill]]
+name = "SLOs and on-call"
+area = "operations"
+chapter = 25
+keywords = ["slo", "slos", "on-call", "on call", "incident", "incidents", "postmortem"]
+
+[[skill]]
+name = "Linux"
+area = "operations"
+chapter = 2
+keywords = ["linux", "bash", "shell scripting"]
+
+[[skill]]
+name = "Testing"
+area = "quality"
+chapter = 26
+keywords = ["unit tests", "integration tests", "tdd", "test automation", "load testing"]
+
+[[skill]]
+name = "Code review"
+area = "quality"
+chapter = 27
+keywords = ["code review", "code reviews"]
+
+[[skill]]
+name = "Security"
+area = "quality"
+chapter = 28
+keywords = ["security", "oauth", "oidc", "authentication", "authorization"]
+
+[[skill]]
+name = "System design"
+area = "craft"
+chapter = 29
+keywords = ["system design", "architecture", "design docs", "design documents"]
+
+[[skill]]
+name = "Mentoring and leadership"
+area = "craft"
+chapter = 31
+keywords = ["mentor", "mentoring", "mentorship", "technical leadership", "tech lead"]
+
+[[skill]]
+name = "AI-assisted engineering"
+area = "craft"
+chapter = 32
+keywords = ["ai-assisted", "ai tools", "ai coding", "ai-powered development", "copilot", "claude code"]
+exact = ["Cursor"]  # exact: lowercase "cursor" is also a pagination word (chapter 9)
+
+[[skill]]
+name = "LLM features"
+area = "craft"
+chapter = 0
+keywords = ["llm", "llms", "rag", "agentic", "genai", "generative ai"]

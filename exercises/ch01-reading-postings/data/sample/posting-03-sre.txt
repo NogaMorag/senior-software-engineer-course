@@ -1,0 +1,20 @@
+SYNTHETIC SAMPLE. Written for this book to test skilltally. This is not a real job posting,
+and "Example Health Data" is not a real company. Replace these files with real postings.
+
+Senior Site Reliability Engineer, Example Health Data (Haifa)
+
+The SRE team keeps a data platform for hospitals available around the clock.
+
+What you will do
+- Define SLOs and error budgets with product teams, and build the alerting behind them.
+- Lead incident response, and turn every incident into a postmortem with follow-ups.
+- Run and tune Kubernetes, Kafka and PostgreSQL at scale.
+- Build monitoring with Prometheus, Grafana and Loki.
+- Automate toil in Python and Go.
+
+What we look for
+- 5+ years in SRE or production engineering.
+- Excellent Linux troubleshooting skills.
+- Experience with load testing and capacity planning.
+- Understanding of distributed systems failure modes.
+- Willingness to join an on-call rotation (compensated).

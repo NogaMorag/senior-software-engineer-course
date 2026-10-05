@@ -1,0 +1,6 @@
+# profile.toml: where you stand today (chapter 1, exercise ch01-reading-postings).
+# Copy this file to profile.toml and edit it. Use the skill names from skills.toml exactly;
+# skilltally warns about a name it does not know. Every skill not listed here counts as missing.
+
+have = ["Rust", "Python", "Linux", "Code review"]
+partial = ["C++", "SQL", "REST APIs", "Docker", "Testing"]

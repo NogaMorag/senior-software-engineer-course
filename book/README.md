@@ -28,9 +28,9 @@ title: "תוכן העניינים הראשי"
 
 | פרק | קובץ | מצב |
 | --- | --- | --- |
-| פרק 0: איך ללמוד מהספר הזה | [`00-how-to-study.md`](00-how-to-study.md) | ⏳ |
-| פרק 1: מה זה „בכירה” ב־2026 | [`01-senior-in-2026.md`](01-senior-in-2026.md) | ⏳ |
-| פרק 2: סביבת העבודה: WSL2, Docker, Go ו־uv | [`02-workbench-wsl2.md`](02-workbench-wsl2.md) | ⏳ |
+| פרק 0: איך ללמוד מהספר הזה | [`00-how-to-study.md`](00-how-to-study.md) | ✅ |
+| פרק 1: מה זה „בכירה” ב־2026 | [`01-senior-in-2026.md`](01-senior-in-2026.md) | ✅ |
+| פרק 2: סביבת העבודה: WSL2, Docker, Go ו־uv | [`02-workbench-wsl2.md`](02-workbench-wsl2.md) | ✅ |
 
 ## חלק א: Go
 
