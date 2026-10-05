@@ -247,7 +247,7 @@ curl -s -i localhost:8080/v1/events -H "Authorization: Bearer $KEY" -H 'Content-
 <div dir="ltr" align="left">
 
 ```bash
-DATABASE_URL= go test -race -skip 'Invalidat|Deliver|Replay|ActiveSubscriptions|RateLimit|OverItsLimit|LimiterFailure|Shed|Trace' ./internal/api/ ./internal/store/... ./internal/admin/
+DATABASE_URL= go test -race -skip 'Invalidat|Deliver|Replay|ActiveSubscriptions|RateLimit|OverItsLimit|LimiterFailure|Shed|Trace|PrivateAddress' ./internal/api/ ./internal/store/... ./internal/admin/
 ```
 
 </div>
@@ -405,7 +405,7 @@ schema version: 4
 
 ```bash
 go test -race -count=1 -run 'TestConformance/(Tenant|Endpoint|Subscription)' ./internal/store/postgres/
-go test -race -count=1 ./internal/api/
+go test -race -count=1 -skip 'Invalidat|Deliver|Replay|ActiveSubscriptions|RateLimit|OverItsLimit|LimiterFailure|Shed|Trace|PrivateAddress' ./internal/api/
 ```
 
 </div>
@@ -514,7 +514,7 @@ The key is shown once and only its hash is stored. Keep it now.
 ```bash
 make db-up
 export DATABASE_URL=postgres://hookline:change-me@localhost:5438/hookline
-go test -race -count=1 -skip 'Invalidat|Deliver|Replay|ActiveSubscriptions|RateLimit|OverItsLimit|LimiterFailure|Shed|Trace' ./internal/api/ ./internal/store/... ./internal/admin/ ./internal/db/ ./migrations/
+go test -race -count=1 -skip 'Invalidat|Deliver|Replay|ActiveSubscriptions|RateLimit|OverItsLimit|LimiterFailure|Shed|Trace|PrivateAddress' ./internal/api/ ./internal/store/... ./internal/admin/ ./internal/db/ ./migrations/
 ```
 
 </div>
@@ -741,7 +741,7 @@ curl -s localhost:8091/stats
 
 ```bash
 make up
-go test -race -count=1 -skip 'Deliver|Replay|RateLimit|OverItsLimit|LimiterFailure|Shed|Trace' ./internal/cache/ ./internal/subcache/ ./internal/api/ ./internal/store/...
+go test -race -count=1 -skip 'Deliver|Replay|RateLimit|OverItsLimit|LimiterFailure|Shed|Trace|PrivateAddress' ./internal/cache/ ./internal/subcache/ ./internal/api/ ./internal/store/...
 make sink-test
 ```
 
@@ -845,7 +845,7 @@ ok  	example.com/hookline/internal/subcache	3.270s
 <div dir="ltr" align="left">
 
 ```bash
-go test -race -count=1 -skip 'StaleRelay|Trace' ./internal/outbox/
+go test -race -count=1 -skip 'StaleRelay|Trace|PrivateAddress' ./internal/outbox/
 ```
 
 </div>
@@ -906,7 +906,7 @@ make dispatcher   # in a third terminal
 
 ```bash
 make up
-go test -race -count=1 -skip 'StaleRelay|Trace' ./internal/outbox/ ./internal/dispatch/ ./internal/bus/
+go test -race -count=1 -skip 'StaleRelay|Trace|PrivateAddress' ./internal/outbox/ ./internal/dispatch/ ./internal/bus/
 ```
 
 </div>
@@ -1025,7 +1025,7 @@ func Classify(status int) (retryable bool, err error) {
 <div dir="ltr" align="left">
 
 ```bash
-DATABASE_URL= go test -race -run 'Vectors|Classify|Send' ./internal/delivery/
+DATABASE_URL= go test -race -run 'Vectors|Classify|Send' -skip 'PrivateAddress' ./internal/delivery/
 go test -race ./internal/backoff/
 ```
 
@@ -1100,7 +1100,7 @@ go test -race -count=1 -run 'TestClaim|TestRetry|TestPermanent|TestExpiredLease|
 
 ```bash
 make up
-go test -race -count=1 -skip 'RateLimit|OverItsLimit|LimiterFailure|Shed|Breaker|Bulkhead|Trace' ./internal/backoff/ ./internal/delivery/ ./internal/api/ ./internal/store/... ./internal/e2e/
+go test -race -count=1 -skip 'RateLimit|OverItsLimit|LimiterFailure|Shed|Breaker|Bulkhead|Trace|PrivateAddress' ./internal/backoff/ ./internal/delivery/ ./internal/api/ ./internal/store/... ./internal/e2e/
 ```
 
 </div>
@@ -1156,8 +1156,8 @@ $ curl -s localhost:8091/stats
 
 ```bash
 make up
-go test -race -count=1 -skip 'RateLimit|OverItsLimit|LimiterFailure|Shed|Breaker|Bulkhead|Trace' ./internal/backoff/ ./internal/delivery/ ./internal/api/ ./internal/store/... ./internal/e2e/
-go test -race -count=1 -skip 'StaleRelay|Trace' ./internal/outbox/ ./internal/dispatch/ ./internal/bus/ ./internal/cache/ ./internal/subcache/
+go test -race -count=1 -skip 'RateLimit|OverItsLimit|LimiterFailure|Shed|Breaker|Bulkhead|Trace|PrivateAddress' ./internal/backoff/ ./internal/delivery/ ./internal/api/ ./internal/store/... ./internal/e2e/
+go test -race -count=1 -skip 'StaleRelay|Trace|PrivateAddress' ./internal/outbox/ ./internal/dispatch/ ./internal/bus/ ./internal/cache/ ./internal/subcache/
 make sink-test
 make down
 ```
@@ -1903,7 +1903,7 @@ make stage-incident
 ```bash
 make promtool
 make up
-go test -race -count=1 ./internal/metrics/ ./internal/telemetry/ ./internal/api/ ./internal/delivery/ ./migrations/
+go test -race -count=1 -skip 'PrivateAddress' ./internal/metrics/ ./internal/telemetry/ ./internal/api/ ./internal/delivery/ ./migrations/
 make down
 make obs-up
 make check-telemetry
@@ -1978,7 +1978,406 @@ deliveries=___ delivered=___ dead=___ late_over_30s=___ max_lag_s=___ attempts=_
 
 ## 38.9 M9: בדיקות ואבטחה
 
-יושלם עם אבן הדרך.
+### 38.9.1 המטרה
+
+להוכיח את מה שהמפרט מבטיח, ולסגור את הדלתות שדיירת עוינת יכולה לפתוח. בסוף אבן הדרך, ה־worker לא מתחבר לכתובת
+פרטית, גם כששם המארח מחליף כתובת בין הרישום לשליחה. מפתחות API וסודות חתימה לא מופיעים באף שורת לוג. גוף
+ה־webhook מתואר בסכמה, ושני הצדדים נבדקים מולה. בדיקות עומס מודדות את N1 ואת N5. סורקי חולשות בודקים את הקוד ואת
+ה־images, ומודל איומים מחבר כל איום לבדיקה שמוכיחה את ההגנה עליו.
+
+### 38.9.2 המושגים, והיכן נלמדו
+
+| מושג | איפה בספר | איפה בפרויקט |
+| --- | --- | --- |
+| ‏SSRF, ובדיקה של הכתובת בזמן החיבור | פרק 28 | `internal/ssrf`, ‏`delivery.NewClient` |
+| ‏DNS rebinding | פרק 28 | `Policy.Control` |
+| הסתרת סודות בלוג, והטיפוס `Secret` | פרק 28 | `internal/redact`, ‏`platform.NewLogger` |
+| מפתח API שנשמר כגיבוב | פרק 28 | `internal/domain/apikey.go`, מאבן הדרך הראשונה |
+| ‏STRIDE ומודל איומים | פרק 28 | `docs/threat-model.md` |
+| בדיקות חוזה עם JSON Schema | פרק 26 | `contract/`, ‏`sink/tests/test_contract.py` |
+| בדיקות תכונה עם rapid | פרק 26 | `internal/page`, ‏`contract` |
+| בדיקות עומס עם k6, במודל פתוח | פרק 26 | `loadtest/`, ‏`scripts/load.sh` |
+| ‏govulncheck | פרק 27 | `scripts/supply-chain.sh`, ה־workflow |
+| ‏SBOM עם Syft, וסריקה עם Grype | פרקים 19 ו־28 | `scripts/supply-chain.sh`, ה־workflow |
+
+### 38.9.3 הקבצים
+
+| קובץ | מצב ב־starter | מה עושים |
+| --- | --- | --- |
+| `internal/ssrf/ssrf.go` | שלם | המדיניות של פרק 28, ועוד `Transport` |
+| `internal/ssrf/hookline.go` | שלם | המדיניות של Hookline לפי מצב הפיתוח, והבדיקה אחרי פענוח השם |
+| `internal/api/endpoints.go` | המימוש שלך מאבן הדרך הראשונה | בדיקת הכתובת ביצירת endpoint |
+| `internal/delivery/send.go` | המימוש שלך מאבן הדרך החמישית | לקוח עם החיבור המוגן, וחסימה שהיא תשובה סופית |
+| `internal/redact/redact.go` | שלם | הכלים של פרק 28, ועוד `Handler` לפני כל פלט |
+| `contract/` | שלם | הסכמה, הדוגמאות והבדיקות בצד של Go |
+| `sink/tests/test_contract.py` | שלם | אותן דוגמאות, בצד של המקבל |
+| `loadtest/*.js`, ‏`scripts/load.sh` | שלמים | שני תרחישי k6, והסקריפט שמכין דיירות |
+| `scripts/supply-chain.sh` | שלם | ‏govulncheck, ‏SBOM לכל image וסריקה |
+| `docs/threat-model.md` | מלא | לקרוא, להוסיף שורה משלך, ולמלא את הכותרת |
+
+ה־logger מאבן הדרך הראשונה כבר עובר דרך `redact.Handler`. לכן החבילה שלמה ב־starter, ואת ההוכחה שלה תריצי היום.
+
+### 38.9.4 הצעדים
+
+**יום 85: כתובות, סודות ואיומים.** דיירת רושמת URL, ו־Hookline שולח אליו בקשה מתוך הרשת שלנו. זו בדיוק ההגדרה
+של SSRF מפרק 28. הכתובת `https://169.254.169.254/` מגיעה לשירות המטא־דאטה של הענן, ושם שמצביע על 10.0.0.5 מגיע
+למסד.
+ההגנה של Hookline בודקת פעמיים, ומכל פעם מצפה לדבר אחר:
+
+| מתי | מה נבדק | למה |
+| --- | --- | --- |
+| ביצירת endpoint | ה־URL, וכל כתובת שהשם מתפענח אליה | תשובה ברורה מוקדם, לטעות תמימה ולהתקפה גלויה |
+| בכל חיבור של ה־worker | הכתובת שמתחברים אליה בפועל | השם יכול להתפענח אחרת בזמן השליחה, וזה ה־DNS rebinding |
+
+הבדיקה הראשונה היא `CheckResolved`, מהקובץ `internal/ssrf/hookline.go`:
+
+<div dir="ltr" align="left">
+
+```go
+	addrs, err := lookup(ctx, u.Hostname())
+	if err != nil || len(addrs) == 0 {
+		return fmt.Errorf("%w: %s", ErrUnresolvable, u.Hostname())
+	}
+	for _, a := range addrs {
+		if err := p.CheckAddr(a); err != nil {
+			return err
+		}
+	}
+	return nil
+```
+
+</div>
+
+כל כתובת צריכה לעבור, ולא רק הראשונה. שם עם שתי כתובות, אחת ציבורית ואחת פרטית, נדחה. ה־handler מחזיר לדיירת
+תשובה כללית, ואת הסיבה כותב רק ללוג שלנו. זה הקוד מהקובץ `internal/api/endpoints.go`:
+
+<div dir="ltr" align="left">
+
+```go
+	if s.vetURL != nil {
+		if err := s.vetURL(r.Context(), url); err != nil {
+			// The reason stays in our log: telling the tenant which internal address a name resolves to
+			// would make this endpoint a scanner of our network.
+			s.log.InfoContext(r.Context(), "endpoint URL refused", slog.String("error", err.Error()))
+			validation(w, r, []problem.FieldError{{Detail: "must resolve to a public address", Pointer: "#/url"}})
+			return
+		}
+	}
+```
+
+</div>
+
+הבדיקה השנייה יושבת ב־dialer. הפונקציה `Control` רצה אחרי הפענוח ולפני החיבור, עם הכתובת של החיבור הזה. לכן אין
+רווח בין הבדיקה לשימוש. כך בונה ה־worker את הלקוח שלו:
+
+<div dir="ltr" align="left">
+
+```go
+func NewClient(policy *ssrf.Policy) *http.Client {
+	var base http.RoundTripper = http.DefaultTransport
+	if policy != nil {
+		base = policy.Transport()
+	}
+	return &http.Client{
+		Transport:     otelhttp.NewTransport(base),
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}
+}
+```
+
+</div>
+
+ב־`Transport` אין proxy. עם שרת ביניים, הבדיקה הייתה רואה את הכתובת שלו ולא את היעד. חיבור שנחסם הוא תשובה
+סופית, בלי ניסיון חוזר: ניסיון נוסף לא יהפוך כתובת פרטית לציבורית.
+
+ומה עם הפיתוח? ה־sink רץ על המחשב שלך, וזו בדיוק כתובת פרטית. במצב פיתוח, `ForMode` מתיר גם http, ורק את
+הטווחים שבאמת צריך:
+
+- כתובות ה־loopback, בשביל המקבלים שעל המחשב שלך.
+- הטווחים של Docker, בשביל שירותי ה־compose.
+- שני הטווחים של kind, בשביל ה־sink שבתוך האשכול.
+
+בייצור לא מותר אף טווח פרטי, ורק https. כל הסקריפטים המקומיים מגדירים `HOOKLINE_DEV_MODE=true`. באשכול של kind,
+הערך `devMode` עושה אותו דבר.
+
+<div dir="ltr" align="left">
+
+```bash
+go test -race ./internal/ssrf/
+DATABASE_URL= go test -race -run 'PrivateAddress' ./internal/api/ ./internal/delivery/
+```
+
+</div>
+
+עכשיו הסודות. הפונקציה `ReplaceAttr` של פרק 28 היא אפשרות של ה־handlers המובנים. הגשר ל־Loki מאבן הדרך
+השמינית לא מכיר אותה. לכן `redact.Handler` עוטף את כל הפלטים יחד, לפני שהם מתפצלים:
+
+<div dir="ltr" align="left">
+
+```go
+func (h handler) Handle(ctx context.Context, r slog.Record) error {
+	out := slog.NewRecord(r.Time, r.Level, secretShapes.ReplaceAllString(r.Message, Redacted), r.PC)
+	r.Attrs(func(a slog.Attr) bool {
+		out.AddAttrs(redactAttr(a))
+		return true
+	})
+	return h.next.Handle(ctx, out)
+}
+```
+
+</div>
+
+הוא מסתיר לפי שלושה סימנים:
+
+- שם המפתח, למשל `secret` או `api_key`.
+- צורת הערך: ‏`hk_` או `whsec_` עם 43 תווים אחריהם. גם אסימון אחרי המילה Bearer נתפס. הצורה תופסת גם הודעה
+  שמישהו הדביק לתוכה מפתח.
+- הצורה המודפסת של map או struct, כי הפונקציה של פרק 28 לא נכנסת לתוכם.
+
+ההוכחה היא סריקת לוגים, הבדיקה של N7. הבדיקה `TestLogsNeverContainKeysOrSecrets` מריצה את ה־API עם רישום
+הלוגים האמיתי, ברמה הכי מפורטת. היא יוצרת endpoint, קוראת עם המפתח, קולטת, ונכשלת בכוונה כמה פעמים. בסוף היא
+כותבת שורה רשלנית שמכילה את המפתח ואת הסוד. אף אחד מהם לא מופיע בפלט. בדיקה תאומה עושה אותו דבר ל־worker, עם
+ניסיון שנכשל וניסיון שמצליח.
+
+<div dir="ltr" align="left">
+
+```bash
+DATABASE_URL= go test -race -run 'Redact|LogsNever' ./internal/redact/ ./internal/api/
+```
+
+</div>
+
+שני דברים לא השתנו, וזו החלטה. המפתחות נשארים בפורמט של אבן הדרך הראשונה: ‏`hk_` ועוד 256 ביטים אקראיים, שמורים
+כגיבוב ונמצאים לפי הגיבוב. החבילה `apikey` של פרק 28 מוסיפה מזהה מפתח והשוואה בזמן קבוע. כאן לא משווים בקוד שום
+דבר סודי, ולכן אין צורך בה. אין מיגרציה, וכל דיירת קיימת ממשיכה לעבוד. גם החבילה `jwtauth` לא נכנסה, כי אין
+ממשק של מנהלים. המפעילים עובדים עם `hookline-admin`, ישר מול המסד.
+
+לבסוף, מודל האיומים. הקובץ `docs/threat-model.md` בנוי מהתבנית של פרק 28. יש בו תרשים זרימה עם גבולות האמון, טבלת נכסים,
+ואחד־עשר איומים לפי STRIDE. לכל איום יש הגנה, הבדיקה שמוכיחה אותה, והסיכון שנשאר:
+
+| # | האיום | ההגנה | ההוכחה |
+| --- | --- | --- | --- |
+| T1 | ‏SSRF | בדיקה ביצירה ובחיבור, ושגיאה כללית | ארבע בדיקות `ssrf`, ‏`api` ו־`delivery` |
+| T2 | ‏BOLA | הדיירת בכל שאילתה, ו־404 אחד | `TestTenantIsolation`, ‏`TestReplayIsTenantScoped` |
+| T3 | שליחה חוזרת של webhook חתום | חותמת זמן, 300 שניות, וסינון לפי מזהה האירוע | וקטורי החתימה, ובדיקות ה־sink |
+| T4 | סודות בלוג | `redact.Handler` לפני כל פלט | שתי סריקות הלוגים |
+| T5 | שכנה רועשת | הגבלת קצב, השלת עומס, מחיצה לכל endpoint | `TestTenantOverItsLimitGets429OthersDoNot`, ו־k6 |
+| T6 | הרעלת ה־broker | רשומה שלא מתפענחת נרשמת ומדולגת | `TestPoisonRecordIsSkipped` |
+
+השאר הם גניבת מפתח, שרשרת האספקה, הכחשה, גופים ענקיים, וגיבוי של המסד. האחרון הוא הסיכון הגבוה שנשאר: סודות
+החתימה שמורים בטקסט גלוי, כי ה־worker צריך אותם לחישוב ה־HMAC. הוא רשום עם ההחלטות, ובמשימות ההמשך. קראי את
+המודל, ומלאי את הכותרת. אחר כך הוסיפי איום אחד שלא חשבנו עליו, עם הבדיקה שלו.
+
+**יום 86: חוזה, תכונות, עומס ושרשרת אספקה.** הגוף של ה־webhook הוא חוזה עם קוד שלא כתבת. הקובץ
+`contract/webhook-event.schema.json` הוא הסכמה של פרק 26, מותאמת לגוף של Hookline:
+
+| שדה | הכלל | השינוי מפרק 26 |
+| --- | --- | --- |
+| `id` | ‏uuid | אותו דבר; ה־uuidv7 של Hookline הוא uuid רגיל |
+| `type` | מילים קטנות עם נקודות, עד 128 תווים | מילה אחת מותרת, כמו בקליטה |
+| `created_at` | ‏RFC 3339 | אותו דבר |
+| `payload` | אובייקט | השם `data` הפך ל־`payload`, כמו ב־API |
+
+שני הצדדים בודקים את אותן דוגמאות, ואף צד לא מייבא את השני:
+
+| צד | מה נבדק | הפרט שחשוב |
+| --- | --- | --- |
+| ‏Go | כל הדוגמאות, וגם הגוף ש־`Job.Body` מייצר | בלי `AssertFormat`, ‏`evt_123` עובר כ־uuid |
+| ‏Python | אותן דוגמאות, וה־sink מקבל כל דוגמה תקינה כשהיא חתומה | בלי `format_checker`, אותה בעיה |
+
+הקבצים הם כל ההסכם.
+
+שתי בדיקות התכונה החדשות הולכות בדרך של פרק 26:
+
+- **הקליטה והסכמה מסכימות.** לכל מחרוזת סוג, הקליטה מקבלת אותה בדיוק כשהסכמה מקבלת גוף איתה. חצי מההגרלות תואמות
+  את התבנית, וחצי הן מחרוזות שרירותיות.
+- **סמן העימוד חוזר לאותו מקום.** כל סמן שה־API מחזיר מתפענח לאותו פריט. כאן מצאה הספרייה rapid, בהרצה הראשונה,
+  את תחילת שנת 1970: הפענוח קורא זמן אפס כזמן חסר. אף פריט לא נוצר אז, ולכן התחום מתחיל שנייה אחרי, עם הערה.
+
+<div dir="ltr" align="left">
+
+```bash
+go test -race ./contract/ ./internal/page/
+make sink-test
+```
+
+</div>
+
+עכשיו העומס. שני התרחישים בנויים כמו `shorty.js` של פרק 26: ‏constant-arrival-rate, חימום מתויג שאף סף לא קורא,
+וספים שהופכים את ההרצה לבדיקה:
+
+| תרחיש | פרופיל | הספים |
+| --- | --- | --- |
+| `loadtest/ingest.js` | ‏`RATE` אירועים בשנייה (ברירת מחדל 100), דקה אחרי עשר שניות חימום | ‏p99 מתחת ל־200 מילישניות, פחות מ־1% כשלים, אפס איטרציות שנפלו |
+| `loadtest/two-tenants.js` | רועשת שולחת פי חמישה מהמגבלה שלה, ושקטה שולחת 20 בשנייה | לרועשת יש 429 עם `Retry-After`; לשקטה אין אף 429, וה־p99 שלה מתחת ל־200 |
+
+זה גוש הספים של התרחיש השני, מהקובץ `loadtest/two-tenants.js`:
+
+<div dir="ltr" align="left">
+
+```js
+  thresholds: {
+    // The noisy tenant is limited, and every limited answer says when to come back.
+    'ingest_429{tenant:noisy}': ['count>0'],
+    'checks{tenant:noisy}': ['rate==1'],
+    // The quiet tenant is not affected: never limited, every event accepted, and as fast as N1 asks.
+    'ingest_429{tenant:quiet}': ['count==0'],
+    'checks{tenant:quiet}': ['rate==1'],
+    'http_req_duration{tenant:quiet}': ['p(99)<200'],
+    'dropped_iterations': ['count==0'],
+  },
+```
+
+</div>
+
+כל דגימה מתויגת בשם הדיירת שלה, ולכן כל סף שופט דיירת אחת. האפשרות `responseCallback` מסמנת 429 כתשובה צפויה,
+ולא ככשל. הסקריפט `scripts/load.sh` מעלה את כל הסביבה, כולל הטלמטריה. הוא יוצר דיירות עם מגבלות ידועות, ומריץ את
+התרחיש מולן. כך אפשר לראות את לוח ה־RED בזמן ההרצה.
+
+<div dir="ltr" align="left">
+
+```bash
+make load-ingest
+make load-two-tenants
+```
+
+</div>
+
+שימי לב ל־`preAllocatedVUs`. מספר הבקשות באוויר הוא הקצב כפול זמן התגובה: 100 בשנייה ב־200 מילישניות הן 20.
+אם הקצאת בדיוק 20, עיכוב קצר אחד גורם ל־k6 להפיל איטרציות, ואת זה ה־API בכלל לא ראה. התרחישים מקצים חצי שנייה של
+בקשות. ועוד דבר: על מחשב עמוס, עיכובים כאלה הם של המחשב ולא של Hookline. אם סף נכשל, בדקי את העומס על המחשב,
+והריצי שוב כשהוא שקט. את המספרים, עם התאריך והמחשב, רשמי ב־`docs/EVALUATION.md`.
+
+ולסיום, שרשרת האספקה:
+
+<div dir="ltr" align="left">
+
+```bash
+make images
+make supply-chain
+```
+
+</div>
+
+הסקריפט `scripts/supply-chain.sh` עושה שלושה דברים:
+
+1. מריץ את govulncheck על המודול, שנכשל רק על חולשה שהקוד באמת קורא לה.
+2. שומר כל image לקובץ, ומפיק ממנו רשימת חבילות עם Syft.
+3. סורק את ה־SBOM עם Grype, ונכשל על ממצא בחומרה גבוהה ומעלה שיש לו תיקון.
+
+ממצאים בלי תיקון מופיעים בטבלה, ולא מכשילים. זו המדיניות של פרק 19: שער שנכשל על מה שאי אפשר לתקן נכשל כל הזמן,
+והצוות לומד לעקוף אותו. ממצא עם תיקון בחבילה של תמונת הבסיס אומר שצריך בסיס חדש יותר, ולא סף נמוך יותר.
+
+הסורקים רצים בקונטיינרים, בלי גישה לשקע של Docker. גם ה־workflow השתנה:
+
+| ‏job | הצעד החדש |
+| --- | --- |
+| ‏unit | ‏govulncheck על המודול |
+| ‏images | אחרי הדחיפה, ‏Syft קורא את ה־image לפי ה־digest, וה־SBOM נשמר כ־artifact |
+
+<div dir="ltr" align="left">
+
+```bash
+cp -r hookline/.github/. .github/ && actionlint
+```
+
+</div>
+
+שתי החלטות נוספות, שגם אותן כדאי לנמק. הספרייה testcontainers לא נכנסה. החבילה `testdb` מתחברת למסד של
+ה־compose. גם ה־CI מריץ את אותו קובץ, כמו המחשב שלך. כך יש סביבה אחת ולא שתיים. גם Trivy לא נכנס לסקריפט, כי
+סורק כללי אחד מספיק כאן. כדעה שנייה, הוא הרחבה טובה.
+
+### 38.9.5 הבדיקות שצריכות להוריק
+
+<div dir="ltr" align="left">
+
+```bash
+DATABASE_URL= go test -race ./internal/ssrf/ ./internal/redact/ ./internal/page/ ./contract/ ./internal/api/
+make up
+go test -race -count=1 ./...
+make sink-test
+make load-ingest
+make load-two-tenants
+make down
+make images
+make supply-chain
+```
+
+</div>
+
+### 38.9.6 הפלט הצפוי
+
+<div dir="ltr" align="left">
+
+```text
+$ go test -race ./internal/ssrf/ ./internal/redact/ ./internal/page/ ./contract/
+ok  	example.com/hookline/internal/ssrf	...
+ok  	example.com/hookline/internal/redact	...
+ok  	example.com/hookline/internal/page	...
+ok  	example.com/hookline/contract	...
+$ make load-two-tenants
+...
+  █ THRESHOLDS
+    checks{tenant:noisy}
+    ✓ 'rate==1' rate=100.00%
+    checks{tenant:quiet}
+    ✓ 'rate==1' rate=100.00%
+    dropped_iterations
+    ✓ 'count==0' count=___
+    http_req_duration{tenant:quiet}
+    ✓ 'p(99)<200' p(99)=___
+    ingest_429{tenant:noisy}
+    ✓ 'count>0' count=___
+    ingest_429{tenant:quiet}
+    ✓ 'count==0' count=0
+...
+$ make supply-chain
+== govulncheck (the module's code, only what it calls)
+...
+No vulnerabilities found.
+== hookline:dev
+sbom   /tmp/hookline-supply-chain/hookline.spdx.json (___ SPDX elements)
+grype  /tmp/hookline-supply-chain/hookline.grype.txt
+== hookline-sink:dev
+...
+```
+
+</div>
+
+המספרים במקום הקווים הם שלך. השורה `No vulnerabilities found` נכונה ליום שבו הספר נכתב. המאגר מתעדכן, ומחר אולי תהיה
+שורה. אז מעדכנים את התלות, ולא את הסף.
+
+בהרצה שבה נכתב הספר, ה־image של Hookline יצא נקי. בתמונת הבסיס של ה־sink נמצא ממצא אחד בחומרה גבוהה שיש לו
+תיקון ב־Debian, והשער נכשל עליו. התיקון עוד לא הגיע לתמונת הבסיס. הצעד הנכון הוא לחכות לבנייה החדשה שלה, ואז לבנות
+מחדש עם `docker build --pull`. רשמי מה מצאת אצלך, ומה החלטת.
+
+### 38.9.7 קריטריון סיום
+
+- endpoint שהשם שלו מתפענח לכתובת פרטית נדחה ביצירה, וחיבור לכתובת כזו נחסם גם בזמן השליחה.
+- שתי סריקות הלוגים ירוקות, ואין מפתח או סוד באף פלט.
+- הסכמה נבדקת משני הצדדים, ובדיקות התכונה ירוקות.
+- שני תרחישי k6 רצו, והמספרים שלך רשומים ב־`docs/EVALUATION.md`, עם תאריך ומחשב.
+- הסריקה של govulncheck נקייה, ולכל image יש רשימת חבילות וסריקה.
+- מודל האיומים כולל את השורה שלך, וה־workflow עובר actionlint. קומיט של אבן הדרך, ו־`make down`.
+
+### 38.9.8 טעויות נפוצות
+
+- **לבדוק את הכתובת רק ביצירה.** השם יכול להתפענח לכתובת אחרת בזמן השליחה. רק הבדיקה ב־dialer רואה את הכתובת
+  שמתחברים אליה.
+- **לספר לדיירת למה הכתובת נדחתה.** תשובה מפורטת הופכת את ה־endpoint לסורק של הרשת שלנו.
+- **לקבל proxy מהסביבה.** עם `HTTPS_PROXY`, הבדיקה רואה את שרת הביניים, והיעד עובר בלי בדיקה.
+- **מצב פיתוח רחב מדי.** להתיר את כל 10.0.0.0/8 נוח, ופותח בייצור את המסד. מתירים רק את הטווחים שצריך.
+- **הסתרה רק בפלט של JSON.** פלט שני, כמו הגשר ל־Loki, עוקף אותה. ההסתרה עוטפת את כולם.
+- **סכמה בלי בדיקת פורמט.** בלי `AssertFormat` בצד של Go, כל מחרוזת עוברת. ב־Python זה `format_checker`.
+- **להוריד את הסף כשהסריקה נכשלת.** ממצא עם תיקון דורש עדכון של התלות או של תמונת הבסיס.
+- **מעט מדי VUs מוקצים.** הכלי מפיל איטרציות, וההרצה מחמיאה ל־API שלא ראה אותן.
+
+### 38.9.9 הרחבה
+
+- החלפת מפתח API בלי השבתה: שני גיבובים תקפים בחלון זמן, ופקודה ב־`hookline-admin`.
+- החלפת סוד חתימה: חתימה בשני הסודות בחלון זמן, עם שני ערכי `v1=` בכותרת.
+- תרחיש k6 מעל הקיבולת, שמראה את N6: תשובות 503 מההשלה, בלי תור שגדל בלי גבול.
+- סריקה שנייה עם Trivy, והשוואה בין הממצאים של שני הסורקים.
 
 ## 38.10 M10: הערכה והדגמה
 
@@ -1998,7 +2397,9 @@ deliveries=___ delivered=___ dead=___ late_over_30s=___ max_lag_s=___ attempts=_
   שמתקין את אותו chart, ו־workflow שמריץ את הכול, כולל kind.
 - אבן הדרך השמינית: מעקב אחד מהקליטה ועד המקבל דרך עמודה במסד, מדדים של מסירה, ‏SLO של פיגור עם התראה שנייה
   על כשלים, ‏runbook לכל התראה, ותחקיר על גרסה ששברת בכוונה.
-- הסיכום יושלם עם אבני הדרך הבאות.
+- אבן הדרך התשיעית: כתובת שנבדקת ביצירה ושוב בכל חיבור, הסתרת סודות לפני כל פלט עם סריקת לוגים שמוכיחה אותה, חוזה
+  לגוף ה־webhook שנבדק משני הצדדים, בדיקות תכונה ועומס, סריקה של שרשרת האספקה, ומודל איומים.
+- הסיכום יושלם עם אבן הדרך האחרונה.
 
 ## מונחים לזכור
 
@@ -2020,8 +2421,12 @@ deliveries=___ delivered=___ dead=___ late_over_30s=___ max_lag_s=___ attempts=_
 | בדיקת עשן | smoke test | בדיקה קצרה מקצה לקצה שמראה שהמערכת בכלל עובדת אחרי פריסה |
 | הקשר מעקב | trace context | מזהה המעקב וה־span שעוברים בין תהליכים, כאן בכותרת `traceparent` |
 | התראה על סיבה | cause-based alert | התראה על אות פנימי, למשל כשלים או outbox תקוע, שה־SLO רואה מאוחר או בכלל לא |
+| בדיקה בזמן החיבור | dial-time check | בדיקה של הכתובת שמתחברים אליה בפועל, אחרי הפענוח; רק היא עומדת מול DNS rebinding |
+| סריקת לוגים | log scan | בדיקה שמריצה את הקוד עם ה־logger האמיתי, ומוודאת שסוד ידוע לא מופיע בפלט |
+| בדיקת חוזה | contract test | בדיקה של שני צדדים מול אותה סכמה ואותן דוגמאות, בלי שאחד מייבא את השני |
+| ‏SBOM | software bill of materials | רשימת כל החבילות ב־image, שסורקים אותה גם אחרי שה־image כבר נדחף |
 
-הטבלה תושלם עם אבני הדרך הבאות.
+הטבלה תושלם עם אבן הדרך האחרונה.
 
 ## טעויות נפוצות
 
@@ -2033,7 +2438,8 @@ deliveries=___ delivered=___ dead=___ late_over_30s=___ max_lag_s=___ attempts=_
 - **‏SLO שבנוי רק מהצלחות.** כשאף דבר לא מצליח אין לו נתונים, והוא שותק בדיוק בזמן התקלה.
 - **סוד ב־values של chart.** הוא נשמר בהיסטוריה של ה־release; ה־chart מקבל שם של Secret, לא את הערך.
 - **הגנה שעולה יותר ממה שהיא חוסכת.** מחיצה שמחכה, או השלת עומס אחרי קריאה למסד, מחזירות את העומס מהדלת האחורית.
-- הרשימה תושלם עם אבני הדרך הבאות.
+- **הגנה בלי בדיקה שמוכיחה אותה.** שורה במודל האיומים בלי שם של בדיקה היא תקווה, ולא הגנה.
+- הרשימה תושלם עם אבן הדרך האחרונה.
 
 ## שאלות ראיון
 
@@ -2074,6 +2480,13 @@ deliveries=___ delivered=___ dead=___ late_over_30s=___ max_lag_s=___ attempts=_
    כותב אותה לכותרות של הרשומה ב־Kafka, וה־worker קורא אותה שוב מהאירוע. המחיר הוא עמודה ועוד קוד בכל קפיצה.
    היתרון: ניסיון חוזר אחרי עשר דקות עדיין באותו מעקב, וכשמשהו נכשל רואים את כל הדרך.
 
+8. **השירות שלך שולח בקשות לכתובות שהלקוחות בוחרים. איך את מגינה עליו?** בודקת פעמיים. ביצירה, את ה־URL ואת כל
+   הכתובות שהשם מתפענח אליהן, עם תשובה כללית ללקוח. ובכל חיבור, ב־`Control` של ה־dialer, את הכתובת שמתחברים אליה
+   בפועל. השנייה היא שעומדת מול DNS rebinding, כי בין הרישום לשליחה השם יכול להצביע למקום אחר. בנוסף, אין proxy
+   מהסביבה, אין הפניות, ומצב הפיתוח מתיר רק טווחים מוגדרים.
+   **המשך:** ולמה לא רשימה של כתובות מותרות? כי היעדים הם של הלקוחות, ואי אפשר לדעת אותם מראש. לכן חוסמים את מה
+   שמסוכן, ומשאירים את הבדיקה בחיבור עצמו.
+
 ## פתק Obsidian
 
 הפתק המוכן נמצא גם כקובץ: `obsidian/38-hookline-milestones.md`. זה תוכנו:
@@ -2086,14 +2499,15 @@ deliveries=___ delivered=___ dead=___ late_over_30s=___ max_lag_s=___ attempts=_
 - **‏M6:** מחיצה בלי המתנה ומפסק לכל endpoint; דחייה בלי ניסיון; מגבלה לכל דיירת, נכשלת פתוח; השלה לפני האימות.
 - **‏M7:** ‏image אחד עם כל הבינאריים; משתמש מספרי; מיגרציות ב־hook; ‏Secret מבחוץ; ‏compose גם ב־CI.
 - **‏M8:** ‏`traceparent` בשורת האירוע; ‏SLI של פיגור על גבול 30; התראה על כשלים כי ה־SLI שותק; תחקיר עם מספרים שלי.
+- **‏M9:** ‏SSRF נבדק ביצירה ובחיבור; הסתרה לפני כל פלט, וסריקה; סכמה משני הצדדים; ‏VUs לפי קצב כפול זמן תגובה.
 - **שאלה פתוחה:** ___
 
 <div dir="ltr" align="left">
 
 ```text
-M1 tests  DATABASE_URL= go test -race -skip 'Invalidat|Deliver|Replay|ActiveSubscriptions|RateLimit|OverItsLimit|LimiterFailure|Shed|Trace' ./internal/api/ ./internal/store/... ./internal/admin/
+M1 tests  DATABASE_URL= go test -race -skip 'Invalidat|Deliver|Replay|ActiveSubscriptions|RateLimit|OverItsLimit|LimiterFailure|Shed|Trace|PrivateAddress' ./internal/api/ ./internal/store/... ./internal/admin/
 M2 db     make db-up && export DATABASE_URL=postgres://hookline:change-me@localhost:5438/hookline
-M2 tests  go test -race -count=1 -skip 'Invalidat|Deliver|Replay|ActiveSubscriptions|RateLimit|OverItsLimit|LimiterFailure|Shed|Trace' ./internal/api/ ./internal/store/... ./internal/admin/ ./internal/db/ ./migrations/
+M2 tests  go test -race -count=1 -skip 'Invalidat|Deliver|Replay|ActiveSubscriptions|RateLimit|OverItsLimit|LimiterFailure|Shed|Trace|PrivateAddress' ./internal/api/ ./internal/store/... ./internal/admin/ ./internal/db/ ./migrations/
 admin     go run ./cmd/hookline-admin migrate up | create-tenant -name <name> | create-topic -partitions 6
 stack     make up   (postgres, redis, redpanda, console :8098, sink :8091)   make down
 env       REDIS_ADDR=localhost:6438 KAFKA_BROKERS=localhost:19438 SINK_URL=http://localhost:8091
@@ -2105,10 +2519,12 @@ kube      export KUBECONFIG=/tmp/hookline-kind.kubeconfig; kubectl -n hookline g
 ci        cp -r hookline/.github/. .github/ && actionlint
 m8        make obs-up | make promtool | make check-telemetry | make stage-incident | make obs-down
 grafana   http://localhost:3000 (folder Hookline)   prometheus :9090   tempo :3200   loki :3100
+m9        make load-ingest | make load-two-tenants | make images && make supply-chain   (RATE= NOISY_RATE= QUIET_RATE=)
+m9 tests  DATABASE_URL= go test -race ./internal/ssrf/ ./internal/redact/ ./internal/page/ ./contract/ ./internal/api/
 lab       make lab-n3      GUARDS=off make lab-n3      (record your p50/p99, date, machine)
 guards    HOOKLINE_ENDPOINT_CONCURRENCY=2 HOOKLINE_BREAKER_FAILURES=5 HOOKLINE_BREAKER_OPEN=30s HOOKLINE_MAX_IN_FLIGHT=256
-m5 tests  go test -race -count=1 -skip 'RateLimit|OverItsLimit|LimiterFailure|Shed|Breaker|Bulkhead|Trace' ./internal/backoff/ ./internal/delivery/ ./internal/api/ ./internal/store/... ./internal/e2e/
-skip      -skip drops later milestones' tests: Invalidat ActiveSubscriptions (M3), Deliver Replay (M5), StaleRelay RateLimit OverItsLimit LimiterFailure Shed Breaker Bulkhead (M6), Trace (M8)
+m5 tests  go test -race -count=1 -skip 'RateLimit|OverItsLimit|LimiterFailure|Shed|Breaker|Bulkhead|Trace|PrivateAddress' ./internal/backoff/ ./internal/delivery/ ./internal/api/ ./internal/store/... ./internal/e2e/
+skip      -skip drops later milestones' tests: Invalidat ActiveSubscriptions (M3), Deliver Replay (M5), StaleRelay RateLimit OverItsLimit LimiterFailure Shed Breaker Bulkhead (M6), Trace (M8), PrivateAddress (M9)
 ```
 
 </div>
@@ -2129,7 +2545,8 @@ skip      -skip drops later milestones' tests: Invalidat ActiveSubscriptions (M3
 - אחרי אבן הדרך השישית: ניסוי N3 רץ בשתי הגרסאות, והמספרים שמדדת רשומים, עם תאריך ומחשב.
 - אחרי אבן הדרך השביעית: ‏`make kind-smoke` מסתיים ב־PASS, וה־workflow ירוק במאגר שלך ב־GitHub.
 - אחרי אבן הדרך השמינית: מעקב שלם ב־Tempo, ‏promtool ירוק, והתחקיר שלך כתוב עם המספרים שמדדת.
-- הרשימה המלאה תושלם עם אבני הדרך הבאות.
+- אחרי אבן הדרך התשיעית: סריקות הלוגים והחוזה ירוקות, שני תרחישי k6 רשומים, ו־govulncheck נקי.
+- הרשימה המלאה תושלם עם אבן הדרך האחרונה.
 
 ## העשרה אופציונלית
 

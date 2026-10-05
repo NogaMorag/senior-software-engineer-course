@@ -45,6 +45,12 @@ KEEP_WHOLE = {
     "internal/testenv/testenv.go",  # test infrastructure
     "internal/testenv/fixtures.go",  # test infrastructure
     "internal/telemetry/telemetry.go",
+    "internal/telemetry/start.go",  # M8: the no-op switch around Setup
+    "internal/platform/route.go",  # chapter 24, unchanged
+    "internal/oteltest/oteltest.go",  # test infrastructure
+    "internal/ssrf/ssrf.go",  # chapter 28, plus Transport; cmd/worker's main calls it from M5 on
+    "internal/ssrf/hookline.go",  # M9: Hookline's policy and resolver; cmd/api's main calls them
+    "internal/redact/redact.go",  # chapter 28, plus Handler; platform.NewLogger wraps every output in it
 }
 KEEP_PY = {"__init__.py", "settings.py"}
 IGNORE = shutil.ignore_patterns(".venv", "__pycache__", ".pytest_cache", ".ruff_cache", ".mypy_cache", "bin", "out", ".terraform", "*.tfstate*", "coverage.out")

@@ -26,6 +26,7 @@ import (
 	"example.com/hookline/internal/delivery"
 	"example.com/hookline/internal/dispatch"
 	"example.com/hookline/internal/outbox"
+	"example.com/hookline/internal/ssrf"
 	"example.com/hookline/internal/store/postgres"
 	"example.com/hookline/internal/store/storetest"
 	"example.com/hookline/internal/subcache"
@@ -35,7 +36,10 @@ import (
 
 func TestMain(m *testing.M) { os.Exit(testdb.Main(m)) }
 
-var quiet = slog.New(slog.NewTextHandler(io.Discard, nil))
+var (
+	quiet     = slog.New(slog.NewTextHandler(io.Discard, nil))
+	devPolicy = ssrf.ForMode(true)
+)
 
 // client calls one HTTP service and decodes JSON answers.
 type client struct {
@@ -121,7 +125,8 @@ func TestPipelineEndToEnd(t *testing.T) {
 	relay := &outbox.Relay{DB: pool, Publisher: bus.KafkaPublisher{Client: producer, Topic: topic}}
 	dispatcher := &dispatch.Dispatcher{DB: pool, Matcher: subs, Log: quiet}
 	workers := &delivery.Pool{
-		DB: pool, Sender: delivery.Sender{Timeout: 2 * time.Second}, Workers: 4, Lease: 10 * time.Second,
+		// The real address guard, in dev mode: the sink is on localhost (milestone M9).
+		DB: pool, Sender: delivery.Sender{Timeout: 2 * time.Second, Policy: &devPolicy}, Workers: 4, Lease: 10 * time.Second,
 		Poll: 50 * time.Millisecond, MaxAttempts: 30, Log: quiet, // room for the outage of subtest 2
 		Backoff: backoff.Policy{Base: 100 * time.Millisecond, Cap: 500 * time.Millisecond},
 	}

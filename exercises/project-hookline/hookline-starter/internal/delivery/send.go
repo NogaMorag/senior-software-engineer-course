@@ -7,6 +7,8 @@ import (
 	"net/http"
 
 	"time"
+
+	"example.com/hookline/internal/ssrf"
 )
 
 // Job is a claimed delivery with what sending it needs: the endpoint and the event.
@@ -50,7 +52,8 @@ func (r Result) OK() bool { panic("TODO: see chapter 38") }
 
 // Sender makes one HTTP attempt.
 type Sender struct {
-	Client  *http.Client     // nil means NewClient()
+	Client  *http.Client     // nil means NewClient(Policy)
+	Policy  *ssrf.Policy     // the address guard for every connection (milestone M9); nil means none
 	Timeout time.Duration    // per attempt; 0 means 10 seconds
 	Now     func() time.Time // nil means time.Now; the signature timestamp comes from it
 }
@@ -58,8 +61,10 @@ type Sender struct {
 // NewClient returns the client a Sender should use: no redirects (a 3xx is the receiver's answer,
 // not an instruction to post the signed body somewhere else), no global timeout (each attempt has its
 // own, from the context), and otelhttp's transport, which makes a client span per attempt and sends
-// traceparent, so a receiver that traces continues Hookline's trace (milestone M8).
-func NewClient() *http.Client {
+// traceparent, so a receiver that traces continues Hookline's trace (milestone M8). With a policy,
+// every connection goes through its dialer check, after DNS resolution: an endpoint whose name now
+// resolves to a private address is refused at send time, whatever it resolved to at creation (M9).
+func NewClient(policy *ssrf.Policy) *http.Client {
 	panic("TODO: see chapter 38")
 
 }

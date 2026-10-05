@@ -1,6 +1,6 @@
-# CI for Hookline (milestone M7, chapter 23). This file belongs at the root of your repository, in
-# .github/workflows/, next to the go-checks action from chapter 23 (.github/actions/go-checks); the
-# project lives in hookline/. Copy both with:
+# CI for Hookline (milestone M7, chapter 23; govulncheck and the SBOM since M9). This file belongs at the
+# root of your repository, in .github/workflows/, next to the go-checks action from chapter 23
+# (.github/actions/go-checks); the project lives in hookline/. Copy both with:
 #   cp -r ~/senior-course/hookline/.github/. ~/senior-course/.github/
 name: hookline
 
@@ -42,6 +42,9 @@ jobs:
       - uses: ./.github/actions/go-checks
         with:
           working-directory: hookline
+      - name: govulncheck
+        # Milestone M9: fails on a known vulnerability that the code actually calls.
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
 
   integration:
     # The real stack, from the same compose file you use: PostgreSQL, Redis, Redpanda and the sinks.
@@ -180,6 +183,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push
+        id: build
         uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.context }}
@@ -189,3 +193,21 @@ jobs:
           build-args: GIT_SHA=${{ github.sha }}
           cache-from: type=gha,scope=${{ matrix.name }}
           cache-to: type=gha,scope=${{ matrix.name }},mode=max
+      - name: SBOM of the pushed image
+        # Milestone M9: Syft reads the image from the registry by digest, so the SBOM describes exactly
+        # what was pushed. It runs as a container, without the Docker socket.
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}@${{ steps.build.outputs.digest }}
+          SYFT_REGISTRY_AUTH_AUTHORITY: ghcr.io
+          SYFT_REGISTRY_AUTH_USERNAME: ${{ github.actor }}
+          SYFT_REGISTRY_AUTH_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          docker run --rm -v "$RUNNER_TEMP:/work" \
+            -e SYFT_REGISTRY_AUTH_AUTHORITY -e SYFT_REGISTRY_AUTH_USERNAME -e SYFT_REGISTRY_AUTH_PASSWORD \
+            anchore/syft:v1.54.0 "registry:${IMAGE,,}" -o "spdx-json=/work/sbom.spdx.json" -q
+      - name: Keep the SBOM with the run
+        uses: actions/upload-artifact@v7
+        with:
+          name: sbom-${{ matrix.name }}
+          path: ${{ runner.temp }}/sbom.spdx.json
+          if-no-files-found: error

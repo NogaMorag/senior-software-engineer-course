@@ -39,6 +39,10 @@ type Options struct {
 	Shedder *shed.Shedder
 	// Metrics records Hookline's own instruments (milestone M8). nil means a no-op set.
 	Metrics *metrics.Metrics
+	// CheckEndpoint, when set, vets a new endpoint's URL beyond its syntax (milestone M9): cmd/api
+	// passes the SSRF policy's CheckResolved, so a URL resolving to a private address is refused at
+	// creation. nil skips it (the handler tests run without DNS).
+	CheckEndpoint func(ctx context.Context, rawURL string) error
 }
 
 // Invalidator drops cached state of a tenant; *subcache.Cache satisfies it.
@@ -77,6 +81,7 @@ type server struct {
 	limiter ratelimit.Limiter
 	onLimit func(error)
 	metrics *metrics.Metrics
+	vetURL  func(ctx context.Context, rawURL string) error
 }
 
 // New wires the routes and the middleware. Outermost first: request id, access log, recover; then, per
@@ -95,7 +100,7 @@ func New(st store.Store, opt Options) http.Handler {
 		opt.Metrics, _ = metrics.NewWith(noop.Meter{}) // cannot fail on a no-op meter
 	}
 	s := &server{store: st, log: opt.Logger, devMode: opt.DevMode, now: opt.Now, subs: opt.Subscriptions,
-		limiter: opt.Limiter, onLimit: opt.OnLimiterError, metrics: opt.Metrics}
+		limiter: opt.Limiter, onLimit: opt.OnLimiterError, metrics: opt.Metrics, vetURL: opt.CheckEndpoint}
 	auth := s.authenticate
 	body := func(h http.HandlerFunc) http.Handler { return auth(limitBody(opt.MaxBodyBytes, h)) }
 

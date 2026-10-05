@@ -9,7 +9,7 @@ KAFKA_BROKERS ?= localhost:19438
 SINK_URL      ?= http://localhost:8091
 export DATABASE_URL REDIS_ADDR KAFKA_BROKERS SINK_URL
 
-.PHONY: all build test test-unit lint up down db-up db-down migrate topic tenant run run-dev relay dispatcher worker sink-test lab-n3 images chart-check kind-smoke kind-down tf-check clean
+.PHONY: all build test test-unit lint up down db-up db-down migrate topic tenant run run-dev relay dispatcher worker sink-test lab-n3 images chart-check kind-smoke kind-down tf-check obs-up obs-down promtool check-telemetry stage-incident load-ingest load-two-tenants supply-chain clean
 
 all: lint test-unit build
 
@@ -94,6 +94,34 @@ tf-check:
 
 sink-test:
 	cd sink && uv sync --frozen && uv run ruff check . && uv run mypy src && uv run pytest -q
+
+# Milestone M8: the stack with the collector, Prometheus, Loki, Tempo and Grafana; the rule tests; the
+# end-to-end telemetry check; the staged incident.
+obs-up:
+	$(COMPOSE) -f deploy/compose.observability.yaml up -d --wait --build
+
+obs-down:
+	$(COMPOSE) -f deploy/compose.observability.yaml down -v
+
+promtool:
+	scripts/promtool.sh
+
+check-telemetry:
+	scripts/check-telemetry.sh
+
+stage-incident:
+	scripts/stage-incident.sh
+
+# Milestone M9: the k6 tests of spec N1 and N5 (RATE=, NOISY_RATE=, QUIET_RATE= to change the load), and
+# govulncheck, SBOMs and Grype on the two images (make images first).
+load-ingest:
+	scripts/load.sh ingest
+
+load-two-tenants:
+	scripts/load.sh two-tenants
+
+supply-chain:
+	scripts/supply-chain.sh
 
 clean:
 	rm -rf bin

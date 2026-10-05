@@ -15,7 +15,7 @@ database:
 redisAddr: redis.hookline.svc.cluster.local:6379
 kafkaBrokers: redpanda.hookline.svc.cluster.local:9092
 logLevel: info            # debug, info, warn or error
-devMode: false            # true accepts http:// endpoint URLs, as the in-cluster sink needs
+devMode: false            # true accepts http:// endpoints and the dev ranges (ssrf.DevAllow), as the in-cluster sink needs
 
 # OpenTelemetry (milestone M8): an empty endpoint turns telemetry off; set it to the collector's OTLP/HTTP
 # address, for example http://otel-collector.observability.svc.cluster.local:4318.

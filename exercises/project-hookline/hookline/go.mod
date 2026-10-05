@@ -6,6 +6,7 @@ require (
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/pressly/goose/v3 v3.28.0
 	github.com/redis/go-redis/v9 v9.22.0
+	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
 	github.com/twmb/franz-go v1.22.1
 	github.com/twmb/franz-go/pkg/kmsg v1.14.0
 	github.com/twmb/franz-go/plugin/kotel v1.7.1

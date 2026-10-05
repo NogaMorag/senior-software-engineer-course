@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"example.com/hookline/internal/domain"
@@ -32,6 +33,15 @@ func (s *server) createEndpoint(w http.ResponseWriter, r *http.Request) {
 	if reason := domain.ValidateEndpointURL(url, s.devMode); reason != "" {
 		validation(w, r, []problem.FieldError{{Detail: reason, Pointer: "#/url"}})
 		return
+	}
+	if s.vetURL != nil {
+		if err := s.vetURL(r.Context(), url); err != nil {
+			// The reason stays in our log: telling the tenant which internal address a name resolves to
+			// would make this endpoint a scanner of our network.
+			s.log.InfoContext(r.Context(), "endpoint URL refused", slog.String("error", err.Error()))
+			validation(w, r, []problem.FieldError{{Detail: "must resolve to a public address", Pointer: "#/url"}})
+			return
+		}
 	}
 	now := domain.Now(s.now)
 	e := domain.Endpoint{

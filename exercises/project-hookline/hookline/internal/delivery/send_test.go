@@ -3,15 +3,18 @@ package delivery_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"example.com/hookline/internal/delivery"
+	"example.com/hookline/internal/ssrf"
 )
 
 var fixedNow = time.Unix(1791201600, 0)
@@ -144,4 +147,23 @@ func must[T any](v T, err error) T {
 		panic(err)
 	}
 	return v
+}
+
+// TestSendRefusesPrivateAddressesAtConnectTime is the DNS-rebinding case of milestone M9: the endpoint
+// was accepted at creation, but its name now resolves to a private address. The dialer refuses, no
+// request leaves, and the failure is final (retrying cannot make the address public).
+func TestSendRefusesPrivateAddressesAtConnectTime(t *testing.T) {
+	var hits atomic.Int64
+	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { hits.Add(1) }))
+	defer srv.Close()
+	prod := ssrf.ForMode(false)
+	j := job(strings.Replace(srv.URL, "127.0.0.1", "localhost", 1)) // a name, resolved by the dialer
+	res := delivery.Sender{Policy: &prod}.Send(context.Background(), j)
+	if res.OK() || res.Retryable || !errors.Is(res.Err, ssrf.ErrBlocked) || hits.Load() != 0 {
+		t.Fatalf("Send = %+v, hits %d; want a final ErrBlocked and no request", res, hits.Load())
+	}
+	dev := ssrf.ForMode(true)
+	if res := (delivery.Sender{Policy: &dev}).Send(context.Background(), j); !res.OK() || hits.Load() != 1 {
+		t.Fatalf("dev mode = %+v, hits %d; loopback is allowed in dev mode", res, hits.Load())
+	}
 }

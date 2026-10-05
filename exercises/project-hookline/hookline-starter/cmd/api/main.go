@@ -19,6 +19,7 @@ import (
 	"example.com/hookline/internal/metrics"
 	"example.com/hookline/internal/platform"
 	"example.com/hookline/internal/shed"
+	"example.com/hookline/internal/ssrf"
 	"example.com/hookline/internal/store"
 	"example.com/hookline/internal/store/memory"
 	"example.com/hookline/internal/store/postgres"
@@ -72,6 +73,11 @@ func run() error {
 		Limiter:        wire.Limiter(rdb), // fails open, with a log line and a metric
 		OnLimiterError: func(error) { m.LimiterError(context.Background()) },
 		Metrics:        m,
+		// SSRF (milestone M9): every address the endpoint's host resolves to must be public; in dev mode
+		// also loopback, Docker's and kind's ranges.
+		CheckEndpoint: func(ctx context.Context, raw string) error {
+			return ssrf.ForMode(cfg.DevMode).CheckResolved(ctx, ssrf.LookupIP, raw)
+		},
 	}
 	if cfg.MaxInFlight > 0 {
 		opts.Shedder = shed.New(shed.Options{Limit: cfg.MaxInFlight, RetryAfter: time.Second})

@@ -21,6 +21,9 @@ mkdir -p "$OUT"
 
 export DATABASE_URL=postgres://hookline:change-me@localhost:5438/hookline
 export REDIS_ADDR=localhost:6438 KAFKA_BROKERS=localhost:19438
+# Dev mode for every binary: the lab receivers are plain http on localhost, which the SSRF policy
+# allows only in dev mode (milestone M9).
+export HOOKLINE_DEV_MODE=true
 export HOOKLINE_WORKERS=$WORKERS HOOKLINE_ATTEMPT_TIMEOUT=${ATTEMPT_TIMEOUT:-5s} HOOKLINE_LEASE=30s
 export HOOKLINE_BACKOFF_BASE=500ms HOOKLINE_BACKOFF_CAP=5s HOOKLINE_MAX_ATTEMPTS=20
 if [ "$GUARDS" = off ]; then
@@ -46,8 +49,7 @@ cleanup() {
   if [ "${DOWN:-0}" = 1 ]; then $COMPOSE down -v > /dev/null 2>&1; fi
 }
 trap cleanup EXIT
-# Dev mode: the lab receivers are plain http on localhost.
-HOOKLINE_DEV_MODE=true HOOKLINE_ADDR=127.0.0.1:18080 HOOKLINE_DEBUG_ADDR=off "$OUT/bin/api" > "$OUT/api.log" 2>&1 & pids+=($!)
+HOOKLINE_ADDR=127.0.0.1:18080 HOOKLINE_DEBUG_ADDR=off "$OUT/bin/api" > "$OUT/api.log" 2>&1 & pids+=($!)
 "$OUT/bin/relay" > "$OUT/relay.log" 2>&1 & pids+=($!)
 "$OUT/bin/dispatcher" > "$OUT/dispatcher.log" 2>&1 & pids+=($!)
 "$OUT/bin/worker" > "$OUT/worker.log" 2>&1 & pids+=($!)

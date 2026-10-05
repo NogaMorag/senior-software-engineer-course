@@ -1,7 +1,9 @@
 package delivery_test
 
 import (
+	"bytes"
 	"context"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -13,6 +15,8 @@ import (
 	"example.com/hookline/internal/delivery"
 	"example.com/hookline/internal/domain"
 	"example.com/hookline/internal/oteltest"
+	"example.com/hookline/internal/platform"
+	"example.com/hookline/internal/testenv"
 )
 
 func pool(w *world) *delivery.Pool {
@@ -155,5 +159,38 @@ func TestDeliveryContinuesTheIngestTrace(t *testing.T) {
 	}
 	if !deliver {
 		t.Fatal("no hookline.deliver span as a child of the ingest span")
+	}
+}
+
+// TestWorkerLogsNeverContainTheSigningSecret: the worker signs with the endpoint's secret on every
+// attempt and logs every failure; with the service's logger, the secret appears in no line (spec N7).
+func TestWorkerLogsNeverContainTheSigningSecret(t *testing.T) {
+	w := newWorld(t)
+	var out bytes.Buffer
+	log := platform.NewLogger(&out, slog.LevelDebug)
+	var calls atomic.Int64
+	srv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
+		if calls.Add(1) == 1 {
+			rw.WriteHeader(http.StatusServiceUnavailable)
+		}
+	}))
+	defer srv.Close()
+	secret := domain.NewSigningSecret()
+	ep := testenv.Endpoint(t, w.st, w.tenant.ID, srv.URL, secret)
+	ev := w.deliveries(ep)
+	p := pool(w)
+	p.Log = log
+	for range 2 { // a failure, then the success
+		p.RunOne(context.Background(), w.claimMine(time.Minute, 5))
+		if _, err := w.pool.Exec(context.Background(), `UPDATE deliveries SET next_attempt_at = now() WHERE event_id = $1`, ev.ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	logs := out.String()
+	if !strings.Contains(logs, "delivery attempt failed") {
+		t.Fatalf("the failure was not logged:\n%s", logs)
+	}
+	if strings.Contains(logs, secret) {
+		t.Fatalf("the worker's logs contain the signing secret:\n%s", logs)
 	}
 }

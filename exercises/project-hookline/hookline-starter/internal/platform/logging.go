@@ -6,6 +6,8 @@ import (
 	"log/slog"
 
 	"go.opentelemetry.io/otel/trace"
+
+	"example.com/hookline/internal/redact"
 )
 
 // NewLogger returns a JSON logger. Every record logged through a ...Context
@@ -21,7 +23,9 @@ func NewLogger(w io.Writer, level slog.Leveler, also ...slog.Handler) *slog.Logg
 	if len(also) > 0 {
 		h = slog.NewMultiHandler(append([]slog.Handler{h}, also...)...)
 	}
-	return slog.New(minLevel{h, level})
+	// Redaction in front of every output (milestone M9, spec N7): API keys, signing secrets and bearer
+	// tokens never reach stdout or Loki, whoever logs them by mistake.
+	return slog.New(minLevel{redact.Handler(h), level})
 }
 
 // contextHandler decorates another handler with values taken from the context.

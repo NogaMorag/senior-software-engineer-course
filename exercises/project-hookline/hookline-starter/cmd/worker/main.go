@@ -15,6 +15,7 @@ import (
 	"example.com/hookline/internal/config"
 	"example.com/hookline/internal/delivery"
 	"example.com/hookline/internal/metrics"
+	"example.com/hookline/internal/ssrf"
 	"example.com/hookline/internal/wire"
 )
 
@@ -41,6 +42,7 @@ func run() error {
 	}
 	defer flush()
 	m := metrics.Must()
+	policy := ssrf.ForMode(cfg.DevMode)
 
 	pool, err := wire.Pool(ctx, cfg.DatabaseURL)
 	if err != nil {
@@ -49,8 +51,9 @@ func run() error {
 	defer pool.Close()
 
 	p := &delivery.Pool{
-		DB:          pool,
-		Sender:      delivery.Sender{Timeout: cfg.AttemptTimeout},
+		DB: pool,
+		// Every connection is checked after DNS resolution (milestone M9, DNS rebinding).
+		Sender:      delivery.Sender{Timeout: cfg.AttemptTimeout, Policy: &policy},
 		Workers:     cfg.Workers,
 		Lease:       cfg.Lease,
 		Poll:        cfg.Poll,

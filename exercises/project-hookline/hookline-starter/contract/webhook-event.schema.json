@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/hookline/webhook-event.schema.json",
+  "title": "Hookline webhook event",
+  "description": "The JSON body of every Hookline delivery (milestone M9). Receivers must ignore properties they do not know: new optional properties may be added without a new version.",
+  "type": "object",
+  "required": ["id", "type", "created_at", "payload"],
+  "properties": {
+    "id": {
+      "description": "The event id; the same in every delivery and retry of this event (Hookline-Event-Id).",
+      "type": "string",
+      "format": "uuid"
+    },
+    "type": {
+      "description": "Dot-separated lowercase words, such as invoice.paid; the tenant chose it at ingest.",
+      "type": "string",
+      "maxLength": 128,
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
+      "$comment": "Python's re lets $ match before a final newline; Go's regexp does not. The not-pattern makes both sides reject it.",
+      "not": {"pattern": "\\n"}
+    },
+    "created_at": {
+      "description": "When Hookline accepted the event, RFC 3339.",
+      "type": "string",
+      "format": "date-time"
+    },
+    "payload": {
+      "description": "The tenant's payload, exactly as ingested; its shape depends on type.",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true
+}
