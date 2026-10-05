@@ -39,6 +39,7 @@ type Config struct {
 	BreakerFailures     int           // HOOKLINE_BREAKER_FAILURES, consecutive failures that open an endpoint's breaker
 	BreakerOpen         time.Duration // HOOKLINE_BREAKER_OPEN, how long it stays open before a probe
 	MaxInFlight         int           // HOOKLINE_MAX_IN_FLIGHT, /v1 requests before shedding; 0 disables
+	HealthAddr          string        // HOOKLINE_HEALTH_ADDR, /healthz of relay, dispatcher and worker; "off" disables
 }
 
 // Load reads and validates the configuration. It reports every problem at once; main refuses to start
@@ -68,6 +69,7 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 		BreakerFailures:     int(env.Int64("HOOKLINE_BREAKER_FAILURES", 5)),
 		BreakerOpen:         env.Duration("HOOKLINE_BREAKER_OPEN", 30*time.Second),
 		MaxInFlight:         int(env.Int64("HOOKLINE_MAX_IN_FLIGHT", 256)),
+		HealthAddr:          env.String("HOOKLINE_HEALTH_ADDR", "off"),
 	}
 	switch v := env.String("HOOKLINE_DEV_MODE", "false"); v {
 	case "true", "1":

@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"example.com/hookline/internal/backoff"
 	"example.com/hookline/internal/delivery"
 	"example.com/hookline/internal/domain"
+	"example.com/hookline/internal/oteltest"
 )
 
 func pool(w *world) *delivery.Pool {
@@ -123,5 +125,35 @@ func TestPoolDrainsOnShutdown(t *testing.T) {
 	}
 	if d := w.history(ev)[0]; d.Status != domain.Delivered {
 		t.Fatalf("after the drain: %+v, want delivered", d)
+	}
+}
+
+// TestDeliveryContinuesTheIngestTrace: the attempt's span is a child of the trace stored with the event,
+// and the receiver gets traceparent, so a tracing receiver joins the same trace (milestone M8).
+func TestDeliveryContinuesTheIngestTrace(t *testing.T) {
+	spans := oteltest.Traces(t)
+	w := newWorld(t)
+	got := make(chan string, 1)
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) { got <- r.Header.Get("traceparent") }))
+	defer srv.Close()
+	ev := w.deliveries(w.endpoint(srv.URL))
+	const traceID = "4bf92f3577b34da6a3ce929d0e0e4736"
+	if _, err := w.pool.Exec(context.Background(), `UPDATE events SET trace_context = $1 WHERE id = $2`,
+		oteltest.Traceparent(traceID, "00f067aa0ba902b7"), ev.ID); err != nil {
+		t.Fatal(err)
+	}
+	j := w.claimMine(time.Minute, 5)
+	pool(w).RunOne(context.Background(), j)
+	if tp := <-got; !strings.HasPrefix(tp, "00-"+traceID+"-") {
+		t.Fatalf("the receiver got traceparent %q, want trace %s", tp, traceID)
+	}
+	var deliver bool
+	for _, s := range spans.Ended() {
+		if s.Name() == "hookline.deliver" && s.SpanContext().TraceID().String() == traceID && s.Parent().SpanID().String() == "00f067aa0ba902b7" {
+			deliver = true
+		}
+	}
+	if !deliver {
+		t.Fatal("no hookline.deliver span as a child of the ingest span")
 	}
 }

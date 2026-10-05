@@ -2,10 +2,14 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"net/http"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 
 	"example.com/hookline/internal/domain"
 	"example.com/hookline/internal/problem"
@@ -59,6 +63,7 @@ func (s *server) ingestEvent(w http.ResponseWriter, r *http.Request) {
 	e := domain.Event{
 		ID: domain.NewID(now), TenantID: tenantFrom(r.Context()).ID, Type: typ, Payload: req.Payload,
 		IdempotencyKey: key, BodyHash: sha256.Sum256(body), CreatedAt: now,
+		TraceContext: traceparent(r.Context()),
 	}
 	stored, replayed, err := s.store.IngestEvent(r.Context(), e)
 	switch {
@@ -69,6 +74,7 @@ func (s *server) ingestEvent(w http.ResponseWriter, r *http.Request) {
 		s.internal(w, r, err)
 		return
 	}
+	s.metrics.Ingested(r.Context(), replayed)
 	if replayed {
 		w.Header().Set(ReplayedHeader, "true")
 	}
@@ -85,6 +91,14 @@ func (s *server) getEvent(w http.ResponseWriter, r *http.Request) {
 	}
 	e, err := s.store.GetEvent(r.Context(), tenantFrom(r.Context()).ID, id)
 	s.respond(w, r, "event", id, e, err)
+}
+
+// traceparent is the W3C trace context of ctx as a header value, "" when ctx has no sampled span. It is
+// stored with the event, so the processes that handle the event later continue this trace.
+func traceparent(ctx context.Context) string {
+	carrier := propagation.MapCarrier{}
+	otel.GetTextMapPropagator().Inject(ctx, carrier)
+	return carrier.Get("traceparent")
 }
 
 // parseKey accepts a bare token or the quoted Structured Fields string form the IETF draft specifies.

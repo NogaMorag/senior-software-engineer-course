@@ -231,11 +231,11 @@ func (s *Store) IngestEvent(ctx context.Context, e domain.Event) (domain.Event, 
 	var replayed bool
 	err := pgx.BeginTxFunc(ctx, s.pool, pgx.TxOptions{IsoLevel: pgx.ReadCommitted}, func(tx pgx.Tx) error {
 		row := tx.QueryRow(ctx, `
-			INSERT INTO events (id, tenant_id, type, payload, idempotency_key, body_hash, created_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7)
+			INSERT INTO events (id, tenant_id, type, payload, idempotency_key, body_hash, created_at, trace_context)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8, ''))
 			ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
 			RETURNING `+eventColumns,
-			e.ID, e.TenantID, e.Type, []byte(e.Payload), e.IdempotencyKey, e.BodyHash[:], e.CreatedAt)
+			e.ID, e.TenantID, e.Type, []byte(e.Payload), e.IdempotencyKey, e.BodyHash[:], e.CreatedAt, e.TraceContext)
 		got, err := scanEvent(row)
 		if err == nil {
 			stored = got
@@ -266,12 +266,12 @@ func (s *Store) IngestEvent(ctx context.Context, e domain.Event) (domain.Event, 
 	return stored, replayed, nil
 }
 
-const eventColumns = `id, tenant_id, type, payload, idempotency_key, body_hash, created_at`
+const eventColumns = `id, tenant_id, type, payload, idempotency_key, body_hash, created_at, COALESCE(trace_context, '')`
 
 func scanEvent(row pgx.Row) (domain.Event, error) {
 	var e domain.Event
 	var payload, hash []byte
-	err := row.Scan(&e.ID, &e.TenantID, &e.Type, &payload, &e.IdempotencyKey, &hash, &e.CreatedAt)
+	err := row.Scan(&e.ID, &e.TenantID, &e.Type, &payload, &e.IdempotencyKey, &hash, &e.CreatedAt, &e.TraceContext)
 	e.Payload = payload
 	copy(e.BodyHash[:], hash)
 	e.CreatedAt = e.CreatedAt.UTC()

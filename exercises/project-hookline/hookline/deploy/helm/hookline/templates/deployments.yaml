@@ -1,7 +1,7 @@
 {{- /*
 One Deployment per binary. They share the image, the ConfigMap and the Secret; they differ in command,
-replicas, resources, and (for the API) ports and probes. The relay, dispatcher and worker serve no HTTP
-yet, so they have no probes until milestone M8 gives them a metrics listener.
+replicas, resources and probes. The API's probes use its own port; the relay, dispatcher and worker
+answer /healthz on a small listener at :8081 (milestone M8). Their metrics leave by OTLP push.
 */ -}}
 {{- $components := dict
       "api" (dict "values" .Values.api "grace" 30)
@@ -54,19 +54,18 @@ spec:
                 name: {{ include "hookline.fullname" $ }}
           env:
             {{- include "hookline.databaseEnv" $ | nindent 12 }}
-          {{- if eq $name "api" }}
+          {{- $port := ternary "http" "health" (eq $name "api") }}
           ports:
-            - name: http
-              containerPort: 8080
+            - name: {{ $port }}
+              containerPort: {{ ternary 8080 8081 (eq $name "api") }}
           readinessProbe:
-            httpGet: {path: /healthz, port: http}
+            httpGet: {path: /healthz, port: {{ $port }}}
             periodSeconds: 5
             failureThreshold: 2
           livenessProbe:
-            httpGet: {path: /healthz, port: http}
+            httpGet: {path: /healthz, port: {{ $port }}}
             periodSeconds: 10
             failureThreshold: 3
-          {{- end }}
           resources:
             {{- toYaml $v.resources | nindent 12 }}
           securityContext:

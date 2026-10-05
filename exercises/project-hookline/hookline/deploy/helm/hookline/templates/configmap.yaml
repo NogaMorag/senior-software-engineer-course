@@ -16,3 +16,6 @@ data:
   HOOKLINE_LEASE: {{ .Values.worker.lease | quote }}
   REDIS_ADDR: {{ .Values.redisAddr | quote }}
   KAFKA_BROKERS: {{ .Values.kafkaBrokers | quote }}
+  HOOKLINE_HEALTH_ADDR: ":8081" # /healthz of the relay, the dispatcher and the worker, for their probes
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.telemetry.otlpEndpoint | quote }} # empty: telemetry off
+  OTEL_METRIC_EXPORT_INTERVAL: {{ .Values.telemetry.metricExportInterval | quote }}

@@ -68,12 +68,13 @@ func Claim(ctx context.Context, db *pgxpool.Pool, lease time.Duration, maxAttemp
 					RETURNING id, tenant_id, event_id, endpoint_id, attempts, attempt_base, lease_until
 				)
 				SELECT c.id, c.tenant_id, c.event_id, c.endpoint_id, c.attempts, c.attempts - c.attempt_base,
-				       c.lease_until, ep.url, ep.secret, ep.enabled, ev.type, ev.created_at, ev.payload
+				       c.lease_until, ep.url, ep.secret, ep.enabled, ev.type, ev.created_at, ev.payload,
+				       COALESCE(ev.trace_context, '')
 				FROM claimed c
 				JOIN endpoints ep ON ep.id = c.endpoint_id
 				JOIN events ev ON ev.id = c.event_id`, id, lease).Scan(
 				&j.DeliveryID, &j.TenantID, &j.EventID, &j.EndpointID, &j.Attempt, &j.Round, &j.LeaseExpiry,
-				&j.URL, &j.Secret, &j.Enabled, &j.EventType, &j.EventAt, &j.Payload)
+				&j.URL, &j.Secret, &j.Enabled, &j.EventType, &j.EventAt, &j.Payload, &j.TraceContext)
 			if err != nil {
 				return fmt.Errorf("claim delivery %s: %w", id, err)
 			}

@@ -4,14 +4,16 @@ package main
 
 import (
 	"fmt"
+
+	"golang.org/x/sync/errgroup"
 	"log/slog"
 	"os"
 
 	"example.com/hookline/internal/bus"
 	"example.com/hookline/internal/config"
 	"example.com/hookline/internal/dispatch"
+	"example.com/hookline/internal/metrics"
 	"example.com/hookline/internal/outbox"
-	"example.com/hookline/internal/platform"
 	"example.com/hookline/internal/store/postgres"
 	"example.com/hookline/internal/wire"
 )
@@ -31,9 +33,13 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	log := platform.NewLogger(os.Stdout, cfg.LogLevel)
 	ctx, stop := wire.SignalContext()
 	defer stop()
+	log, flush, err := wire.Telemetry(ctx, "hookline-dispatcher", cfg.LogLevel)
+	if err != nil {
+		return err
+	}
+	defer flush()
 
 	pool, err := wire.Pool(ctx, cfg.DatabaseURL)
 	if err != nil {
@@ -45,15 +51,24 @@ func run() error {
 		defer rdb.Close()
 	}
 	subs := wire.Subscriptions(rdb, postgres.New(pool))
-	consumer, err := bus.NewGroupConsumer(bus.ParseBrokers(cfg.KafkaBrokers), cfg.ConsumerGroup, outbox.Topic)
+	// kotel: a receive span per record whose parent comes from the headers; Handle adds the process span.
+	hooks, tracer := bus.Tracing()
+	consumer, err := bus.NewGroupConsumer(bus.ParseBrokers(cfg.KafkaBrokers), cfg.ConsumerGroup, outbox.Topic, hooks)
 	if err != nil {
 		return err
 	}
 	defer consumer.Close()
 
-	d := &dispatch.Dispatcher{DB: pool, Matcher: subs, Log: log}
+	d := &dispatch.Dispatcher{DB: pool, Matcher: subs, Log: log, Tracer: tracer, Metrics: metrics.Must()}
 	log.Info("dispatcher running", slog.String("group", cfg.ConsumerGroup), slog.Bool("cache", cfg.RedisAddr != ""))
-	err = dispatch.Run(ctx, consumer, d.Handle, log)
+	g, gctx := errgroup.WithContext(ctx)
+	g.Go(func() error { return wire.Health(gctx, cfg.HealthAddr, log) })
+	g.Go(func() error {
+		err := dispatch.Run(gctx, consumer, d.Handle, log)
+		stop()
+		return err
+	})
+	err = g.Wait()
 	log.Info("dispatcher stopped", slog.Any("cache", subs.Stats()))
 	return err
 }

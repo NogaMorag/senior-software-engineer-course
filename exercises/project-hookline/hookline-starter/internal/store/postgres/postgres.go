@@ -142,7 +142,7 @@ func (s *Store) IngestEvent(ctx context.Context, e domain.Event) (domain.Event, 
 
 }
 
-const eventColumns = `id, tenant_id, type, payload, idempotency_key, body_hash, created_at`
+const eventColumns = `id, tenant_id, type, payload, idempotency_key, body_hash, created_at, COALESCE(trace_context, '')`
 
 func scanEvent(row pgx.Row) (domain.Event, error) {
 	panic("TODO: see chapter 38")

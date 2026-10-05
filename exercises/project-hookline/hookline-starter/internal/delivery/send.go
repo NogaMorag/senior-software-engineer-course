@@ -24,6 +24,8 @@ type Job struct {
 	EventAt     time.Time
 	Payload     json.RawMessage
 	LeaseExpiry time.Time
+	// TraceContext is the ingest request's traceparent (milestone M8), "" without telemetry.
+	TraceContext string
 }
 
 // Body is the JSON every receiver gets. It is built from the stored event, so every attempt and every
@@ -54,8 +56,9 @@ type Sender struct {
 }
 
 // NewClient returns the client a Sender should use: no redirects (a 3xx is the receiver's answer,
-// not an instruction to post the signed body somewhere else) and no global timeout (each attempt has
-// its own, from the context).
+// not an instruction to post the signed body somewhere else), no global timeout (each attempt has its
+// own, from the context), and otelhttp's transport, which makes a client span per attempt and sends
+// traceparent, so a receiver that traces continues Hookline's trace (milestone M8).
 func NewClient() *http.Client {
 	panic("TODO: see chapter 38")
 

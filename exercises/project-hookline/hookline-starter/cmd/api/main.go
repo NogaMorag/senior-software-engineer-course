@@ -16,6 +16,7 @@ import (
 	"example.com/hookline/internal/admin"
 	"example.com/hookline/internal/api"
 	"example.com/hookline/internal/config"
+	"example.com/hookline/internal/metrics"
 	"example.com/hookline/internal/platform"
 	"example.com/hookline/internal/shed"
 	"example.com/hookline/internal/store"
@@ -44,10 +45,15 @@ func run() error {
 	if err != nil {
 		return err // refuse to start with a bad configuration
 	}
-	log := platform.NewLogger(os.Stdout, cfg.LogLevel)
-
 	ctx, stop := wire.SignalContext()
 	defer stop()
+	// Telemetry first: the logger, otelhttp and the metrics all use the providers it installs.
+	log, flush, err := wire.Telemetry(ctx, "hookline-api", cfg.LogLevel)
+	if err != nil {
+		return err
+	}
+	defer flush()
+	m := metrics.Must()
 
 	st, closeStore, err := openStore(ctx, cfg)
 	if err != nil {
@@ -62,8 +68,10 @@ func run() error {
 	opts := api.Options{
 		MaxBodyBytes: cfg.MaxBodyBytes, DevMode: cfg.DevMode, Logger: log,
 		// The API never reads the subscription cache; it only drops a tenant's entry after each change.
-		Subscriptions: wire.Subscriptions(rdb, st),
-		Limiter:       wire.Limiter(rdb), // fails open; the log line is the signal until milestone M8's metric
+		Subscriptions:  wire.Subscriptions(rdb, st),
+		Limiter:        wire.Limiter(rdb), // fails open, with a log line and a metric
+		OnLimiterError: func(error) { m.LimiterError(context.Background()) },
+		Metrics:        m,
 	}
 	if cfg.MaxInFlight > 0 {
 		opts.Shedder = shed.New(shed.Options{Limit: cfg.MaxInFlight, RetryAfter: time.Second})

@@ -3,7 +3,7 @@
   "title": "Values for the Hookline chart",
   "type": "object",
   "additionalProperties": false,
-  "required": ["image", "database", "redisAddr", "kafkaBrokers", "logLevel", "devMode", "migrations", "api", "service", "relay", "dispatcher", "worker"],
+  "required": ["image", "database", "redisAddr", "kafkaBrokers", "logLevel", "devMode", "telemetry", "migrations", "api", "service", "relay", "dispatcher", "worker"],
   "properties": {
     "image": {
       "type": "object",
@@ -28,6 +28,15 @@
     "kafkaBrokers": {"type": "string", "pattern": "^[^:,]+:[0-9]+(,[^:,]+:[0-9]+)*$"},
     "logLevel": {"enum": ["debug", "info", "warn", "error"]},
     "devMode": {"type": "boolean"},
+    "telemetry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["otlpEndpoint", "metricExportInterval"],
+      "properties": {
+        "otlpEndpoint": {"type": "string", "pattern": "^$|^https?://"},
+        "metricExportInterval": {"type": "string", "pattern": "^[0-9]+$"}
+      }
+    },
     "migrations": {
       "type": "object",
       "additionalProperties": false,

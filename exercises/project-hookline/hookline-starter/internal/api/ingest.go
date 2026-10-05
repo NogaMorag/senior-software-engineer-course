@@ -1,6 +1,8 @@
 package api
 
 import (
+	"context"
+
 	"encoding/json"
 
 	"net/http"
@@ -28,6 +30,13 @@ func (s *server) ingestEvent(w http.ResponseWriter, r *http.Request) {
 
 // getEvent handles GET /v1/events/{id}.
 func (s *server) getEvent(w http.ResponseWriter, r *http.Request) {
+	panic("TODO: see chapter 38")
+
+}
+
+// traceparent is the W3C trace context of ctx as a header value, "" when ctx has no sampled span. It is
+// stored with the event, so the processes that handle the event later continue this trace.
+func traceparent(ctx context.Context) string {
 	panic("TODO: see chapter 38")
 
 }

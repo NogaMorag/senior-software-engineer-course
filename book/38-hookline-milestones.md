@@ -247,14 +247,14 @@ curl -s -i localhost:8080/v1/events -H "Authorization: Bearer $KEY" -H 'Content-
 <div dir="ltr" align="left">
 
 ```bash
-DATABASE_URL= go test -race -skip 'Invalidat|Deliver|Replay|ActiveSubscriptions|RateLimit|OverItsLimit|LimiterFailure|Shed' ./internal/api/ ./internal/store/... ./internal/admin/
+DATABASE_URL= go test -race -skip 'Invalidat|Deliver|Replay|ActiveSubscriptions|RateLimit|OverItsLimit|LimiterFailure|Shed|Trace' ./internal/api/ ./internal/store/... ./internal/admin/
 ```
 
 </div>
 
 ההשמה הריקה של `DATABASE_URL` מבטיחה שבדיקות ה־API רצות על המאגר בזיכרון, גם אם הגדרת את המשתנה בחלון אחר.
 הדגל `-skip` מדלג על הבדיקות של אבני דרך מאוחרות שכבר נמצאות באותן חבילות: המטמון של אבן הדרך השלישית
-(`Invalidat`, ‏`ActiveSubscriptions`), המסירות של החמישית (`Deliver`, ‏`Replay`), וההגנות של השישית (`RateLimit`, ‏`Shed` ועוד שתיים).
+(`Invalidat`, ‏`ActiveSubscriptions`), המסירות של החמישית (`Deliver`, ‏`Replay`), ההגנות של השישית (`RateLimit`, ‏`Shed` ועוד שתיים), והמעקב של השמינית (`Trace`).
 כל אבן דרך מורידה ממנו את מה שהיא מממשת.
 
 ### 38.1.6 הפלט הצפוי
@@ -421,11 +421,11 @@ go test -race -count=1 ./internal/api/
 ```go
 	err := pgx.BeginTxFunc(ctx, s.pool, pgx.TxOptions{IsoLevel: pgx.ReadCommitted}, func(tx pgx.Tx) error {
 		row := tx.QueryRow(ctx, `
-			INSERT INTO events (id, tenant_id, type, payload, idempotency_key, body_hash, created_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7)
+			INSERT INTO events (id, tenant_id, type, payload, idempotency_key, body_hash, created_at, trace_context)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8, ''))
 			ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
 			RETURNING `+eventColumns,
-			e.ID, e.TenantID, e.Type, []byte(e.Payload), e.IdempotencyKey, e.BodyHash[:], e.CreatedAt)
+			e.ID, e.TenantID, e.Type, []byte(e.Payload), e.IdempotencyKey, e.BodyHash[:], e.CreatedAt, e.TraceContext)
 		got, err := scanEvent(row)
 		if err == nil {
 			stored = got
@@ -450,6 +450,8 @@ go test -race -count=1 ./internal/api/
 ```
 
 </div>
+
+העמודה `trace_context` בקוד הזה נוספת רק באבן הדרך השמינית (סעיף 38.8). באבן הדרך השנייה ההכנסה כוללת שבע עמודות.
 
 כך זה עובד כששתי בקשות עם אותו מפתח מגיעות יחד:
 
@@ -512,7 +514,7 @@ The key is shown once and only its hash is stored. Keep it now.
 ```bash
 make db-up
 export DATABASE_URL=postgres://hookline:change-me@localhost:5438/hookline
-go test -race -count=1 -skip 'Invalidat|Deliver|Replay|ActiveSubscriptions|RateLimit|OverItsLimit|LimiterFailure|Shed' ./internal/api/ ./internal/store/... ./internal/admin/ ./internal/db/ ./migrations/
+go test -race -count=1 -skip 'Invalidat|Deliver|Replay|ActiveSubscriptions|RateLimit|OverItsLimit|LimiterFailure|Shed|Trace' ./internal/api/ ./internal/store/... ./internal/admin/ ./internal/db/ ./migrations/
 ```
 
 </div>
@@ -739,7 +741,7 @@ curl -s localhost:8091/stats
 
 ```bash
 make up
-go test -race -count=1 -skip 'Deliver|Replay|RateLimit|OverItsLimit|LimiterFailure|Shed' ./internal/cache/ ./internal/subcache/ ./internal/api/ ./internal/store/...
+go test -race -count=1 -skip 'Deliver|Replay|RateLimit|OverItsLimit|LimiterFailure|Shed|Trace' ./internal/cache/ ./internal/subcache/ ./internal/api/ ./internal/store/...
 make sink-test
 ```
 
@@ -843,7 +845,7 @@ ok  	example.com/hookline/internal/subcache	3.270s
 <div dir="ltr" align="left">
 
 ```bash
-go test -race -count=1 -skip 'StaleRelay' ./internal/outbox/
+go test -race -count=1 -skip 'StaleRelay|Trace' ./internal/outbox/
 ```
 
 </div>
@@ -862,7 +864,7 @@ go test -race -count=1 -skip 'StaleRelay' ./internal/outbox/
 
 </div>
 
-- **פקודה אחת לכל האירוע.** כל השורות של אירוע נכנסות יחד, או אף אחת. אין מצב של חצי פריסה.
+- **פקודה אחת לכל האירוע.** כל השורות של אירוע נכנסות יחד, או אף אחת. אין מצב של חצי פיזור.
 - **‏`ON CONFLICT DO NOTHING`.** פרסום כפול מה־relay, או רשומה שחוזרת אחרי קריסה לפני אישור ה־offset, לא מוסיפים
   שורה. זו ההגנה של שתי שורות בטבלת הכשלים.
 - **הפונקציה `uuidv7()` מובנית ב־PostgreSQL 18.** היא נותנת את אותו סוג מזהים ש־`domain.NewID` נותן.
@@ -904,7 +906,7 @@ make dispatcher   # in a third terminal
 
 ```bash
 make up
-go test -race -count=1 -skip 'StaleRelay' ./internal/outbox/ ./internal/dispatch/ ./internal/bus/
+go test -race -count=1 -skip 'StaleRelay|Trace' ./internal/outbox/ ./internal/dispatch/ ./internal/bus/
 ```
 
 </div>
@@ -1098,7 +1100,7 @@ go test -race -count=1 -run 'TestClaim|TestRetry|TestPermanent|TestExpiredLease|
 
 ```bash
 make up
-go test -race -count=1 -skip 'RateLimit|OverItsLimit|LimiterFailure|Shed|Breaker|Bulkhead' ./internal/backoff/ ./internal/delivery/ ./internal/api/ ./internal/store/... ./internal/e2e/
+go test -race -count=1 -skip 'RateLimit|OverItsLimit|LimiterFailure|Shed|Breaker|Bulkhead|Trace' ./internal/backoff/ ./internal/delivery/ ./internal/api/ ./internal/store/... ./internal/e2e/
 ```
 
 </div>
@@ -1154,8 +1156,8 @@ $ curl -s localhost:8091/stats
 
 ```bash
 make up
-go test -race -count=1 -skip 'RateLimit|OverItsLimit|LimiterFailure|Shed|Breaker|Bulkhead' ./internal/backoff/ ./internal/delivery/ ./internal/api/ ./internal/store/... ./internal/e2e/
-go test -race -count=1 -skip 'StaleRelay' ./internal/outbox/ ./internal/dispatch/ ./internal/bus/ ./internal/cache/ ./internal/subcache/
+go test -race -count=1 -skip 'RateLimit|OverItsLimit|LimiterFailure|Shed|Breaker|Bulkhead|Trace' ./internal/backoff/ ./internal/delivery/ ./internal/api/ ./internal/store/... ./internal/e2e/
+go test -race -count=1 -skip 'StaleRelay|Trace' ./internal/outbox/ ./internal/dispatch/ ./internal/bus/ ./internal/cache/ ./internal/subcache/
 make sink-test
 make down
 ```
@@ -1258,14 +1260,14 @@ ok  	example.com/hookline/internal/subcache	3.270s
 	g := p.Guards.get(j.EndpointID)
 	if g.bulkhead != nil {
 		if err := g.bulkhead.Acquire(ctx); err != nil {
-			p.postpone(ctx, j, busyWait(), err)
+			p.postpone(ctx, j, busyWait(), "bulkhead", err)
 			return Result{}, false
 		}
 		defer g.bulkhead.Release()
 	}
 	done, err := g.breaker.Allow()
 	if err != nil {
-		p.postpone(ctx, j, p.Guards.openWait(), err)
+		p.postpone(ctx, j, p.Guards.openWait(), "breaker", err)
 		return Result{}, false
 	}
 	res = attempt()
@@ -1335,7 +1337,7 @@ DATABASE_URL= go test -race -run 'RateLimited|OverItsLimit|OnlyIngest|FailsOpen|
 </div>
 
 **יום 55: relay אחד פעיל, וניסוי הבידוד.** העתיקי את `leader` מפרק 18. הטבלה `leader_terms` נוצרת עכשיו במיגרציה
-`00006`, ולא ב־`EnsureSchema`. ה־relay עוטף את הלולאה שלו בבחירה: מי שמחזיק את הנעילה המייעצת מפרסם, והשאר מחכים.
+`00006`, ולא ב־`EnsureSchema`. ה־relay עוטף את הלולאה שלו בבחירה: מי שמחזיק את ה־advisory lock מפרסם, והשאר מחכים.
 
 הקדנציה של המנהיג היא גם fencing token, כמו בפרק 18, סעיף 18.4. ‏relay שאיבד את המנהיגות ולא יודע עדיין, למשל אחרי
 עצירה ארוכה, יכול עוד לפרסם. זו כפילות, וה־dispatcher סופג אותה. אבל הסימון שלו נדחה, כי הוא בודק את הקדנציה. זה
@@ -1408,7 +1410,7 @@ ___
 
 ```bash
 make up
-go test -race -count=1 ./internal/breaker/ ./internal/bulkhead/ ./internal/ratelimit/ ./internal/shed/ \
+go test -race -count=1 -skip 'Trace' ./internal/breaker/ ./internal/bulkhead/ ./internal/ratelimit/ ./internal/shed/ \
   ./internal/leader/ ./internal/outbox/ ./internal/delivery/ ./internal/api/ ./internal/e2e/ ./migrations/
 make lab-n3
 ```
@@ -1710,7 +1712,269 @@ Destroy complete! Resources: 3 destroyed.
 
 ## 38.8 M8: תצפיתיות ו־SLO
 
-יושלם עם אבן הדרך.
+### 38.8.1 המטרה
+
+לראות את Hookline מבפנים, ולדעת מתי הוא שובר הבטחה. בסוף אבן הדרך, מעקב אחד עובר מבקשת הקליטה, דרך ה־relay,
+‏Redpanda, ה־dispatcher וה־worker, ועד ה־sink. יש מדדים שאומרים מה שה־HTTP לא יודע להגיד, כמו פיגור המסירה וגיל
+ה־outbox. יש יעד רמת שירות (SLO) למסירה עם התראות קצב שריפה, ו־runbook לכל התראה. ויש תחקיר על גרסה ששברת בכוונה,
+עם המספרים שמדדת.
+
+### 38.8.2 המושגים, והיכן נלמדו
+
+| מושג | איפה בספר | איפה בפרויקט |
+| --- | --- | --- |
+| שלושת האותות ו־OTLP דרך collector | פרק 24 | `internal/telemetry`, ‏`deploy/compose.observability.yaml` |
+| ‏otelhttp ו־`RoutePattern` | פרק 24 | `internal/api/server.go` |
+| מעקב דרך Kafka עם kotel | פרק 24 | `bus.Tracing`, ‏`dispatch.Handle` |
+| לוגים עם מזהה המעקב, ל־Loki | פרק 24 | `wire.Telemetry`, ‏`platform.NewLogger` |
+| ‏RED ו־USE | פרק 24 | שני לוחות הבקרה |
+| ‏SLI, ‏SLO ותקציב שגיאות | פרק 25 | `deploy/observability/rules/` |
+| התראות קצב שריפה בכמה חלונות | פרק 25 | `slo-alerts.yml`, ‏`delivery-slo.yml` |
+| בדיקות לכללים עם promtool | פרק 25 | `deploy/observability/tests/rules_test.yml` |
+| ‏runbook ותחקיר ללא האשמה | פרק 25 | `docs/runbooks/`, ‏`docs/postmortem-*.md` |
+
+### 38.8.3 הקבצים
+
+| קובץ | מצב ב־starter | מה עושים |
+| --- | --- | --- |
+| `internal/telemetry/telemetry.go`, ‏`start.go` | שלמים | ה־`Setup` של פרק 24, ו־`Start` שלא עושה כלום בלי collector |
+| `internal/metrics/metrics.go` | גופים ריקים | המכשירים של Hookline |
+| `migrations/00007_events_trace_context.sql` | שלם | העמודה שמחזיקה את המעקב של הקליטה |
+| `internal/api`, ‏`internal/bus`, ‏`internal/dispatch`, ‏`internal/delivery` | גופים ריקים | העברת ההקשר של המעקב בכל קפיצה |
+| `deploy/compose.observability.yaml`, ‏`deploy/observability/` | שלמים | ה־collector, ‏Prometheus, ‏Loki, ‏Tempo ו־Grafana |
+| `deploy/observability/rules/`, ‏`tests/` | שלמים | הכללים והבדיקות שלהם |
+| `docs/runbooks/` | שלמים | ‏runbook לכל התראה; לקרוא, ולעדכן אחרי התקרית שלך |
+| `scripts/check-telemetry.sh`, ‏`scripts/stage-incident.sh` | שלמים | הבדיקה מקצה לקצה, והתקרית המבוימת |
+
+### 38.8.4 הצעדים
+
+**יום 77: מעקב אחד לכל אירוע.** הקושי של Hookline הוא שהאירוע עובר בין תהליכים **לא באותו זמן**. ה־API מחזיר
+202 ומסיים, וה־relay מפרסם רק אחר כך, בטרנזקציה אחרת. ההקשר של המעקב לא יכול לעבור בזיכרון, ולכן הוא נשמר עם
+האירוע: עמודה חדשה, `events.trace_context`, מחזיקה את הכותרת `traceparent` של בקשת הקליטה. זו הפונקציה מהקובץ
+`internal/api/ingest.go`:
+
+<div dir="ltr" align="left">
+
+```go
+func traceparent(ctx context.Context) string {
+	carrier := propagation.MapCarrier{}
+	otel.GetTextMapPropagator().Inject(ctx, carrier)
+	return carrier.Get("traceparent")
+}
+```
+
+</div>
+
+מכאן כל קפיצה ממשיכה את אותו מעקב:
+
+| קפיצה | איך ההקשר עובר | ה־span |
+| --- | --- | --- |
+| ‏API | ‏otelhttp, ו־`RoutePattern` לפניו כדי שהנתיב יופיע | `POST /v1/events` |
+| ‏relay | ‏`traceparent` מהשורה, ואז kotel כותב אותו לכותרות של הרשומה | `hookline.events publish` |
+| ‏dispatcher | ‏kotel קורא את הכותרות; ‏`WithProcessSpan` | `hookline.events receive`, ‏`process` |
+| ‏worker | ‏`traceparent` מהשורה של האירוע, ו־otelhttp בלקוח שולח אותו הלאה | `hookline.deliver`, ‏`HTTP POST` |
+| ‏sink | ה־instrumentation של FastAPI מפרק 24 | `POST /hooks/{name}` |
+
+ה־span של ה־worker הוא ילד של ה־span של הקליטה, ולא של ה־dispatcher. הסיבה: ה־worker קורא את ההקשר מהאירוע. זו
+פשרה: ניסיון חוזר אחרי עשר דקות עדיין שייך לאותו מעקב, ונראה בו בדיוק מתי ניסו. זה הקוד מהקובץ
+`internal/delivery/worker.go`:
+
+<div dir="ltr" align="left">
+
+```go
+	ctx, span := otel.Tracer(metrics.Scope).Start(withTraceparent(ctx, j.TraceContext), "hookline.deliver",
+		trace.WithAttributes(attribute.String("hookline.delivery.id", j.DeliveryID),
+			attribute.String("hookline.event.id", j.EventID), attribute.String("hookline.endpoint.id", j.EndpointID),
+			attribute.Int("hookline.attempt", j.Attempt)))
+	defer span.End()
+```
+
+</div>
+
+בלי collector, `telemetry.Start` לא עושה כלום, וכל המכשירים הם no-op. כך הבדיקות, ה־compose של אבני הדרך הקודמות
+והניסויים רצים כמו קודם, בלי שגיאות ייצוא בלוג.
+
+<div dir="ltr" align="left">
+
+```bash
+DATABASE_URL= go test -race -run 'Trace|Health' ./internal/api/ ./internal/telemetry/
+go test -race -count=1 -run 'TestDeliveryContinuesTheIngestTrace' ./internal/delivery/
+```
+
+</div>
+
+**יום 78: מדדים, כללים ולוחות.** המדדים של HTTP אומרים אם ה־API עונה. הם לא אומרים אם webhooks מגיעים. אלה
+המכשירים שהחבילה `internal/metrics` מוסיפה:
+
+| מדד ב־Prometheus | סוג | מה הוא אומר |
+| --- | --- | --- |
+| `hookline_delivery_lag_seconds` | histogram | מקליטה ועד 2xx, לכל מסירה שנמסרה; ה־SLI של N2 |
+| `hookline_delivery_attempts_total` | counter, לפי תוצאה | ‏delivered, ‏retry או dead |
+| `hookline_delivery_postponed_total` | counter, לפי סיבה | דחיות של מפסק פתוח או מחיצה מלאה |
+| `hookline_breaker_transitions_total` | counter | מעברי מצב של מפסקים, בלי endpoint כ־label |
+| `hookline_ingest_events_total` | counter, לפי תוצאה | אירועים חדשים, וחזרות עם אותו מפתח |
+| `hookline_ratelimit_errors_total` | counter | בקשות שעברו בלי מגבלה כי Redis לא ענה |
+| `hookline_dispatch_deliveries_total` | counter | שורות מסירה שה־dispatcher יצר |
+| `hookline_outbox_pending`, ‏`hookline_outbox_oldest_age_seconds` | gauge | כמה מחכים ב־outbox, וכמה זמן הוותיק מחכה |
+
+שתי החלטות בטבלה. **‏30 הוא גבול של דלי** בהיסטוגרמה של הפיגור, כי ה־SLI סופר מסירות בתוך 30 שניות, ואת זה אפשר
+לחשב בדיוק רק על גבול (פרק 25). ו**אין endpoint כ־label** במעברי המפסק, כי סדרה לכל endpoint גדלה בלי גבול. המזהה
+נמצא בשורת הלוג.
+
+המדדים נדחפים אל ה־collector, ומשם ל־Prometheus, כמו בפרק 24, ואין נקודת `/metrics` לגירוד. לשלושת הבינאריים
+שאינם ה־API יש עכשיו מאזין קטן עם `/healthz`, בשביל ה־probes של ה־chart.
+
+עכשיו ה־SLO של המסירה, מהקובץ `deploy/observability/rules/delivery-slo.yml`:
+
+<div dir="ltr" align="left">
+
+```yaml
+      - record: job:slo_late_deliveries:ratio_rate5m
+        expr: |
+          1 - (
+            sum by (job) (rate(hookline_delivery_lag_seconds_bucket{le="30"}[5m]))
+            / sum by (job) (rate(hookline_delivery_lag_seconds_count[5m]))
+          )
+```
+
+</div>
+
+שימי לב למה שה־SLI הזה **לא** רואה: הוא סופר רק מסירות שהגיעו. כשאף מסירה לא מגיעה, אין לו נתונים, וההתראה שלו
+שותקת בדיוק כשהמצב הכי גרוע. לכן יש התראה שנייה, `DeliveryAttemptsFailing`: יותר מחצי מהניסיונות נכשלים במשך
+שלוש דקות. מקבל אחד לא יכול לגרום לזה. כשרובם נכשלים יחד, כנראה הבעיה אצלנו. ויש `OutboxStalled`: אירועים
+מתקבלים, אבל לא יוצאים מה־outbox.
+
+<div dir="ltr" align="left">
+
+```bash
+make promtool
+```
+
+</div>
+
+הבדיקות ב־`deploy/observability/tests/rules_test.yml` מריצות שישה תרחישים, וכל אחד מוכיח שהתראה נדלקת בזמן הנכון
+ושותקת לפניו. התרחיש הרביעי הוא הלב: כל הניסיונות נכשלים, ה־SLO של הפיגור שותק, ו־`DeliveryAttemptsFailing` נדלקת.
+אחרי הבדיקות, הסקריפט בודק שלכל `runbook_url` יש קובץ.
+
+לבסוף, העלי את הסביבה עם הטלמטריה, והריצי את הבדיקה מקצה לקצה:
+
+<div dir="ltr" align="left">
+
+```bash
+make obs-up
+make check-telemetry
+```
+
+</div>
+
+‏`scripts/check-telemetry.sh` מריץ את ארבעת הבינאריים עם ייצוא ל־collector, שולח אירוע עם מזהה מעקב שהוא בחר, ושואל
+כל מערכת את השאלה שלה:
+
+| מערכת | השאלה |
+| --- | --- |
+| Tempo | האם המעקב עובר דרך כל הקפיצות? |
+| Prometheus | האם כל הסדרות של הטבלה קיימות, וגם כללי ה־SLO? |
+| Loki | האם יש שורות לוג עם מזהה המעקב? |
+| Grafana | האם שני הלוחות נטענו? | פתחי אחר כך את Grafana
+בכתובת `http://localhost:3000`, בתיקייה Hookline.
+
+**יום 79: הגרסה השבורה והתחקיר.** הריצי את התקרית המבוימת:
+
+<div dir="ltr" align="left">
+
+```bash
+make stage-incident
+```
+
+</div>
+
+הסקריפט שולח בערך חמישה אירועים בשנייה, ואחרי שתי דקות „משחרר” worker שבו `HOOKLINE_ATTEMPT_TIMEOUT=1ms`, טעות של
+יחידה במקום `1s`. כל ניסיון נגמר בזמן קצוב. הקליטה נשארת ירוקה, וה־API עונה 202 לכל אירוע. הסקריפט מחכה ש־`DeliveryAttemptsFailing`
+תידלק, מחזיר את הגרסה הקודמת, ומדפיס ציר זמן ומספרים: כמה מסירות, כמה הגיעו מאוחר מ־30 שניות, ומה הפיגור המרבי.
+
+עם הפלט הזה, כתבי את התחקיר בקובץ `docs/postmortem-<date>.md`, לפי התבנית `docs/postmortem-TEMPLATE.md`. בקובץ
+שבמימוש המלא יש סעיף מסומן „Author's run”, עם הריצה של כותב הפרויקט, ומקומות ריקים לריצה שלך. המספרים שלך יהיו אחרים,
+ורק הם נכנסים לתחקיר שלך.
+
+### 38.8.5 הבדיקות שצריכות להוריק
+
+<div dir="ltr" align="left">
+
+```bash
+make promtool
+make up
+go test -race -count=1 ./internal/metrics/ ./internal/telemetry/ ./internal/api/ ./internal/delivery/ ./migrations/
+make down
+make obs-up
+make check-telemetry
+make stage-incident
+make obs-down
+```
+
+</div>
+
+### 38.8.6 הפלט הצפוי
+
+<div dir="ltr" align="left">
+
+```text
+$ make promtool
+Checking rules/delivery-slo.yml
+  SUCCESS: 8 rules found
+...
+  SUCCESS
+runbook ok: docs/runbooks/delivery-attempts-failing.md
+...
+$ make check-telemetry
+...
+PASS  Tempo: trace 0cfe9befa3c7a3acd4b02b3ac7e97adb has 7 spans:
+        1 hookline-api:POST /v1/events
+        1 hookline-dispatcher:hookline.events process
+        1 hookline-dispatcher:hookline.events receive
+        1 hookline-relay:hookline.events publish
+        1 hookline-sink:POST /hooks/{name}
+        1 hookline-worker:HTTP POST
+        1 hookline-worker:hookline.deliver
+...
+PASS  Loki: 3 lines carry trace_id=0cfe9befa3c7a3acd4b02b3ac7e97adb
+PASS  dashboard hookline-api
+PASS  dashboard hookline-pipeline
+
+ALL CHECKS PASSED
+$ make stage-incident
+hh:mm:ss  CHANGE: worker redeployed with HOOKLINE_ATTEMPT_TIMEOUT=1ms
+hh:mm:ss  DeliveryAttemptsFailing=pending ...
+hh:mm:ss  PAGE: DeliveryAttemptsFailing is firing
+hh:mm:ss  MITIGATION: worker rolled back to the default attempt timeout
+...
+deliveries=___ delivered=___ dead=___ late_over_30s=___ max_lag_s=___ attempts=___
+```
+
+</div>
+
+### 38.8.7 קריטריון סיום
+
+- המעקב של אירוע אחד עובר ב־Tempo דרך כל הקפיצות, מהקליטה ועד המקבל.
+- ‏Prometheus מקבל את כל המדדים של הטבלה, ו־Loki את השורות עם מזהה המעקב.
+- שני הלוחות נטענים ב־Grafana, ומראים את הקליטה ואת המסירה.
+- ‏`make promtool` ירוק: כל התרחישים, וכל ה־runbooks קיימים.
+- התקרית המבוימת רצה, ההתראה נדלקה, והתחקיר שלך כתוב עם המספרים שמדדת.
+- קומיט של אבן הדרך, ו־`make obs-down`.
+
+### 38.8.8 טעויות נפוצות
+
+- **להעביר את ההקשר רק בזיכרון.** ‏`context` לא שורד את ה־outbox. בלי `events.trace_context`, ה־relay מתחיל מעקב חדש,
+  והמסלול נשבר לשניים.
+- **‏SLI שרואה רק הצלחות.** כשאף מסירה לא מגיעה, אין לו נתונים, ושום SLO לא נדלק. צריך גם אות על כשלים.
+- **‏label עם מזהה של endpoint או דיירת.** כל ערך הוא סדרה חדשה, ו־Prometheus נחנק.
+- **לגבול של SLI שאינו גבול של דלי.** אי אפשר לחשב „בתוך 200 מילישניות” מהיסטוגרמה שהגבולות שלה 0.1 ו־0.25.
+- **להעתיק לתחקיר את מספרי הדוגמה.** התחקיר מתעד את מה שקרה אצלך, עם השעות והמספרים שלך.
+
+### 38.8.9 הרחבה
+
+- הוסיפי מדד של גיל המסירה הוותיקה שעוד מחכה, והגדירי ממנו SLI שרואה גם מסירות שלא הגיעו.
+- העבירי את המדדים גם ל־exemplars, וקשרי מנקודה בגרף הפיגור אל המעקב שלה ב־Tempo.
+- כתבי בדיקת promtool לתרחיש שבו מקבל אחד בלבד נכשל, והראי ש־`DeliveryAttemptsFailing` לא נדלקת.
 
 ## 38.9 M9: בדיקות ואבטחה
 
@@ -1725,13 +1989,15 @@ Destroy complete! Resources: 3 destroyed.
 - אבן הדרך הראשונה: ‏API מלא מעל מאגר בזיכרון, מאחורי ממשקים, עם אימות, עימוד, פרטי בעיה ובדיקות בידוד.
 - אבן הדרך השנייה: אותם ממשקים מעל PostgreSQL, עם מיגרציות לכל מודל הנתונים וקליטה שהאילוץ מכריע בה.
 - אבן הדרך השלישית: מטמון של מנויים, רשומה אחת לכל דיירת, שה־API מוחק אחרי כל שינוי; וה־sink ב־compose.
-- אבן הדרך הרביעית: ‏relay שמפרסם את ה־outbox לפי הסדר, ו־dispatcher שפורש כל אירוע לשורות מסירה בלי כפילויות.
+- אבן הדרך הרביעית: ‏relay שמפרסם את ה־outbox לפי הסדר, ו־dispatcher שמפזר כל אירוע לשורות מסירה בלי כפילויות.
 - אבן הדרך החמישית: ‏workers שתופסים מסירות בחכירה, שולחים חתום, מנסים שוב רק כשזה הגיוני, ומתים כשצריך.
 - הפעלה חוזרת לא מאפסת את מספר הניסיונות; העמודה `attempt_base` מסמנת איפה הסבב החדש מתחיל.
 - אבן הדרך השישית: מפסק ומחיצה לכל endpoint שדוחים מסירה בלי לבזבז ניסיון, הגבלת קצב לכל דיירת שנכשלת פתוח,
   השלת עומס לפני האימות, ו־relay יחיד פעיל שהקדנציה שלו מגדרת את הסימון.
 - אבן הדרך השביעית: ‏image אחד לחמשת הבינאריים ו־image ל־sink, ‏chart עם מיגרציות ב־hook ו־Secret מבחוץ, ‏Terraform
   שמתקין את אותו chart, ו־workflow שמריץ את הכול, כולל kind.
+- אבן הדרך השמינית: מעקב אחד מהקליטה ועד המקבל דרך עמודה במסד, מדדים של מסירה, ‏SLO של פיגור עם התראה שנייה
+  על כשלים, ‏runbook לכל התראה, ותחקיר על גרסה ששברת בכוונה.
 - הסיכום יושלם עם אבני הדרך הבאות.
 
 ## מונחים לזכור
@@ -1742,7 +2008,7 @@ Destroy complete! Resources: 3 destroyed.
 | בדיקות התאמה | conformance tests | סוויטה אחת שכל מימוש של ממשק חייב לעבור |
 | ‏keyset | keyset pagination | עימוד לפי ערכי המיון של הפריט האחרון במקום לפי היסט |
 | אי־תוקף אחרי שמירה | invalidate after commit | מחיקת רשומת מטמון רק אחרי שהשינוי נשמר, כדי שקורא לא יחזיר ערך ישן |
-| פריסה לשורות מסירה | fan-out | הפיכת אירוע אחד לשורה לכל יעד מתאים, בפקודה אחת |
+| פיזור | fan-out | הפיכת אירוע אחד לשורת מסירה לכל יעד מתאים, בפקודה אחת |
 | הודעה רעילה | poison message | רשומה שאי אפשר לעבד לעולם; מדלגים עליה כדי לא לחסום את המחיצה |
 | אסימון גידור | fencing token | מספר שעולה בכל תפיסה, כך שתוצאה של מחזיק ישן נדחית |
 | סבב ניסיונות | attempt round | הניסיונות מאז ההפעלה החוזרת האחרונה, שמושווים למקסימום |
@@ -1752,6 +2018,8 @@ Destroy complete! Resources: 3 destroyed.
 | פיגור מסירה | delivery lag | הזמן מקליטת האירוע ועד שהמקבל אישר אותו; היעד של N2 |
 | ‏hook של Helm | Helm hook | משאב שרץ בנקודה במחזור של release, למשל Job לפני כל התקנה |
 | בדיקת עשן | smoke test | בדיקה קצרה מקצה לקצה שמראה שהמערכת בכלל עובדת אחרי פריסה |
+| הקשר מעקב | trace context | מזהה המעקב וה־span שעוברים בין תהליכים, כאן בכותרת `traceparent` |
+| התראה על סיבה | cause-based alert | התראה על אות פנימי, למשל כשלים או outbox תקוע, שה־SLO רואה מאוחר או בכלל לא |
 
 הטבלה תושלם עם אבני הדרך הבאות.
 
@@ -1762,6 +2030,7 @@ Destroy complete! Resources: 3 destroyed.
   אבן הדרך החמישית היא שמוכיחה את ההבטחה.
 - **לסמוך על Kafka לסינון כפילויות.** ה־offset של פרסום כפול שונה. הכפילות נעצרת באילוץ במסד, ובמקבל לפי מזהה האירוע.
 - **לנסות שוב כל כישלון.** תשובת 4xx סופית; ניסיון חוזר שלה רק מאריך את התור של כולם.
+- **‏SLO שבנוי רק מהצלחות.** כשאף דבר לא מצליח אין לו נתונים, והוא שותק בדיוק בזמן התקלה.
 - **סוד ב־values של chart.** הוא נשמר בהיסטוריה של ה־release; ה־chart מקבל שם של Secret, לא את הערך.
 - **הגנה שעולה יותר ממה שהיא חוסכת.** מחיצה שמחכה, או השלת עומס אחרי קריאה למסד, מחזירות את העומס מהדלת האחורית.
 - הרשימה תושלם עם אבני הדרך הבאות.
@@ -1800,6 +2069,11 @@ Destroy complete! Resources: 3 destroyed.
    שה־chart עוד לא התקין, והמיגרציה חייבת להתאים גם לגרסה הישנה שעוד רצה, כי בעדכון מתגלגל שתיהן חיות יחד
    (פרק 30). לכן מיגרציה שמוחקת עמודה נכנסת רק אחרי שאף גרסה לא קוראת אותה.
 
+7. **איך עוקבים אחרי אירוע שעובר דרך תור, כשכל תהליך מטפל בו בזמן אחר?** ההקשר לא יכול לעבור בזיכרון, ולכן הוא
+   עובר עם הנתונים: ב־Hookline הכותרת `traceparent` של בקשת הקליטה נשמרת בשורת האירוע, ה־relay ממשיך ממנה, ‏kotel
+   כותב אותה לכותרות של הרשומה ב־Kafka, וה־worker קורא אותה שוב מהאירוע. המחיר הוא עמודה ועוד קוד בכל קפיצה.
+   היתרון: ניסיון חוזר אחרי עשר דקות עדיין באותו מעקב, וכשמשהו נכשל רואים את כל הדרך.
+
 ## פתק Obsidian
 
 הפתק המוכן נמצא גם כקובץ: `obsidian/38-hookline-milestones.md`. זה תוכנו:
@@ -1811,14 +2085,15 @@ Destroy complete! Resources: 3 destroyed.
 - **‏M5:** ‏`SKIP LOCKED` וחכירה; 408, 429 ו־5xx מנוסים שוב, שאר 4xx לא; ‏`attempt_base` בהפעלה חוזרת.
 - **‏M6:** מחיצה בלי המתנה ומפסק לכל endpoint; דחייה בלי ניסיון; מגבלה לכל דיירת, נכשלת פתוח; השלה לפני האימות.
 - **‏M7:** ‏image אחד עם כל הבינאריים; משתמש מספרי; מיגרציות ב־hook; ‏Secret מבחוץ; ‏compose גם ב־CI.
+- **‏M8:** ‏`traceparent` בשורת האירוע; ‏SLI של פיגור על גבול 30; התראה על כשלים כי ה־SLI שותק; תחקיר עם מספרים שלי.
 - **שאלה פתוחה:** ___
 
 <div dir="ltr" align="left">
 
 ```text
-M1 tests  DATABASE_URL= go test -race -skip 'Invalidat|Deliver|Replay|ActiveSubscriptions|RateLimit|OverItsLimit|LimiterFailure|Shed' ./internal/api/ ./internal/store/... ./internal/admin/
+M1 tests  DATABASE_URL= go test -race -skip 'Invalidat|Deliver|Replay|ActiveSubscriptions|RateLimit|OverItsLimit|LimiterFailure|Shed|Trace' ./internal/api/ ./internal/store/... ./internal/admin/
 M2 db     make db-up && export DATABASE_URL=postgres://hookline:change-me@localhost:5438/hookline
-M2 tests  go test -race -count=1 -skip 'Invalidat|Deliver|Replay|ActiveSubscriptions|RateLimit|OverItsLimit|LimiterFailure|Shed' ./internal/api/ ./internal/store/... ./internal/admin/ ./internal/db/ ./migrations/
+M2 tests  go test -race -count=1 -skip 'Invalidat|Deliver|Replay|ActiveSubscriptions|RateLimit|OverItsLimit|LimiterFailure|Shed|Trace' ./internal/api/ ./internal/store/... ./internal/admin/ ./internal/db/ ./migrations/
 admin     go run ./cmd/hookline-admin migrate up | create-tenant -name <name> | create-topic -partitions 6
 stack     make up   (postgres, redis, redpanda, console :8098, sink :8091)   make down
 env       REDIS_ADDR=localhost:6438 KAFKA_BROKERS=localhost:19438 SINK_URL=http://localhost:8091
@@ -1828,10 +2103,12 @@ retry     408 429 5xx timeout refused -> retry      other 4xx 3xx -> dead      r
 m7        make images | make chart-check | KEEP=1 make kind-smoke | make tf-check | make kind-down
 kube      export KUBECONFIG=/tmp/hookline-kind.kubeconfig; kubectl -n hookline get pods
 ci        cp -r hookline/.github/. .github/ && actionlint
+m8        make obs-up | make promtool | make check-telemetry | make stage-incident | make obs-down
+grafana   http://localhost:3000 (folder Hookline)   prometheus :9090   tempo :3200   loki :3100
 lab       make lab-n3      GUARDS=off make lab-n3      (record your p50/p99, date, machine)
 guards    HOOKLINE_ENDPOINT_CONCURRENCY=2 HOOKLINE_BREAKER_FAILURES=5 HOOKLINE_BREAKER_OPEN=30s HOOKLINE_MAX_IN_FLIGHT=256
-m5 tests  go test -race -count=1 -skip 'RateLimit|OverItsLimit|LimiterFailure|Shed|Breaker|Bulkhead' ./internal/backoff/ ./internal/delivery/ ./internal/api/ ./internal/store/... ./internal/e2e/
-skip      -skip drops later milestones' tests: Invalidat ActiveSubscriptions (M3), StaleRelay RateLimit OverItsLimit LimiterFailure Shed Breaker Bulkhead (M6), Deliver Replay (M5)
+m5 tests  go test -race -count=1 -skip 'RateLimit|OverItsLimit|LimiterFailure|Shed|Breaker|Bulkhead|Trace' ./internal/backoff/ ./internal/delivery/ ./internal/api/ ./internal/store/... ./internal/e2e/
+skip      -skip drops later milestones' tests: Invalidat ActiveSubscriptions (M3), Deliver Replay (M5), StaleRelay RateLimit OverItsLimit LimiterFailure Shed Breaker Bulkhead (M6), Trace (M8)
 ```
 
 </div>
@@ -1851,6 +2128,7 @@ skip      -skip drops later milestones' tests: Invalidat ActiveSubscriptions (M3
 - אחרי אבן הדרך החמישית: ‏`TestPipelineEndToEnd` עוברת מול ה־compose, וארבעת הבינאריים מוסרים אירועים ל־sink.
 - אחרי אבן הדרך השישית: ניסוי N3 רץ בשתי הגרסאות, והמספרים שמדדת רשומים, עם תאריך ומחשב.
 - אחרי אבן הדרך השביעית: ‏`make kind-smoke` מסתיים ב־PASS, וה־workflow ירוק במאגר שלך ב־GitHub.
+- אחרי אבן הדרך השמינית: מעקב שלם ב־Tempo, ‏promtool ירוק, והתחקיר שלך כתוב עם המספרים שמדדת.
 - הרשימה המלאה תושלם עם אבני הדרך הבאות.
 
 ## העשרה אופציונלית

@@ -41,6 +41,9 @@ type Message struct {
 	EventID  string `json:"event_id"`
 	TenantID string `json:"tenant_id"`
 	Type     string `json:"type"`
+	// TraceContext is the ingest request's traceparent; it travels in the record headers (kotel), not
+	// in the value.
+	TraceContext string `json:"-"`
 }
 
 // Value is the record value: the message as JSON.
@@ -96,7 +99,7 @@ func (r *Relay) RunOnce(ctx context.Context) (int, error) {
 	marked := 0
 	err := pgx.BeginFunc(ctx, r.DB, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `
-			SELECT o.id, e.id, e.tenant_id, e.type
+			SELECT o.id, e.id, e.tenant_id, e.type, COALESCE(e.trace_context, '')
 			FROM outbox o JOIN events e ON e.id = o.event_id
 			WHERE o.published_at IS NULL
 			ORDER BY o.id
@@ -107,7 +110,7 @@ func (r *Relay) RunOnce(ctx context.Context) (int, error) {
 		}
 		msgs, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (Message, error) {
 			var m Message
-			err := row.Scan(&m.Seq, &m.EventID, &m.TenantID, &m.Type)
+			err := row.Scan(&m.Seq, &m.EventID, &m.TenantID, &m.Type, &m.TraceContext)
 			return m, err
 		})
 		if err != nil {
@@ -183,9 +186,20 @@ func (r *Relay) Run(ctx context.Context, idle time.Duration, log *slog.Logger) e
 	}
 }
 
-// Pending counts rows that are not yet published; the outbox-age alert of milestone M8 builds on it.
+// Pending counts rows that are not yet published.
 func Pending(ctx context.Context, db *pgxpool.Pool) (int, error) {
-	var n int
-	err := db.QueryRow(ctx, `SELECT count(*) FROM outbox WHERE published_at IS NULL`).Scan(&n)
-	return n, err
+	n, _, err := Stats(ctx, db)
+	return int(n), err
+}
+
+// Stats returns how many rows wait and how old the oldest is (0 when none): the two outbox gauges of
+// milestone M8, and the signal of the OutboxStalled alert. The partial index on unpublished rows keeps
+// this cheap however long the published history grows.
+func Stats(ctx context.Context, db *pgxpool.Pool) (int64, time.Duration, error) {
+	var n int64
+	var oldest float64
+	err := db.QueryRow(ctx, `
+		SELECT count(*), COALESCE(EXTRACT(EPOCH FROM now() - min(created_at)), 0)::float8
+		FROM outbox WHERE published_at IS NULL`).Scan(&n, &oldest)
+	return n, time.Duration(oldest * float64(time.Second)), err
 }

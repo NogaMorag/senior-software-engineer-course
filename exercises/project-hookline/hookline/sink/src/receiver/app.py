@@ -140,6 +140,7 @@ def create_app(
             return JSONResponse({"detail": "injected failure"}, status_code=control.failure_status)
 
         duplicate = state.store.record(name, event_id, delivery_id, attempt, state.clock())
+        log.info("delivery accepted hook=%s event_id=%s duplicate=%s", name, event_id, duplicate)
         return Accepted(duplicate=duplicate)
 
     @app.get("/stats")

@@ -40,6 +40,9 @@ type Message struct {
 	EventID  string `json:"event_id"`
 	TenantID string `json:"tenant_id"`
 	Type     string `json:"type"`
+	// TraceContext is the ingest request's traceparent; it travels in the record headers (kotel), not
+	// in the value.
+	TraceContext string `json:"-"`
 }
 
 // Value is the record value: the message as JSON.
@@ -96,8 +99,16 @@ func (r *Relay) Run(ctx context.Context, idle time.Duration, log *slog.Logger) e
 
 }
 
-// Pending counts rows that are not yet published; the outbox-age alert of milestone M8 builds on it.
+// Pending counts rows that are not yet published.
 func Pending(ctx context.Context, db *pgxpool.Pool) (int, error) {
+	panic("TODO: see chapter 38")
+
+}
+
+// Stats returns how many rows wait and how old the oldest is (0 when none): the two outbox gauges of
+// milestone M8, and the signal of the OutboxStalled alert. The partial index on unpublished rows keeps
+// this cheap however long the published history grows.
+func Stats(ctx context.Context, db *pgxpool.Pool) (int64, time.Duration, error) {
 	panic("TODO: see chapter 38")
 
 }

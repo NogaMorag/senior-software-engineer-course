@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 // Job is a claimed delivery with what sending it needs: the endpoint and the event.
@@ -27,6 +29,8 @@ type Job struct {
 	EventAt     time.Time
 	Payload     json.RawMessage
 	LeaseExpiry time.Time
+	// TraceContext is the ingest request's traceparent (milestone M8), "" without telemetry.
+	TraceContext string
 }
 
 // Body is the JSON every receiver gets. It is built from the stored event, so every attempt and every
@@ -62,10 +66,14 @@ type Sender struct {
 }
 
 // NewClient returns the client a Sender should use: no redirects (a 3xx is the receiver's answer,
-// not an instruction to post the signed body somewhere else) and no global timeout (each attempt has
-// its own, from the context).
+// not an instruction to post the signed body somewhere else), no global timeout (each attempt has its
+// own, from the context), and otelhttp's transport, which makes a client span per attempt and sends
+// traceparent, so a receiver that traces continues Hookline's trace (milestone M8).
 func NewClient() *http.Client {
-	return &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	return &http.Client{
+		Transport:     otelhttp.NewTransport(http.DefaultTransport),
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}
 }
 
 // Send posts j's body to its endpoint, signed, with the four Hookline headers, and classifies the outcome.

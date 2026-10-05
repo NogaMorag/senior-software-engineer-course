@@ -12,6 +12,9 @@ import (
 	"github.com/twmb/franz-go/pkg/kerr"
 	"github.com/twmb/franz-go/pkg/kgo"
 	"github.com/twmb/franz-go/pkg/kmsg"
+	"github.com/twmb/franz-go/plugin/kotel"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 
 	"example.com/hookline/internal/outbox"
 )
@@ -89,9 +92,20 @@ func (p KafkaPublisher) Publish(ctx context.Context, msgs []outbox.Message) erro
 			Key:     []byte(m.TenantID),
 			Value:   m.Value(),
 			Headers: []kgo.RecordHeader{{Key: outbox.HeaderEventID, Value: []byte(m.EventID)}},
+			// The ingest request's trace, so kotel's publish span (when the producer has its hooks)
+			// joins it and writes traceparent into the headers for the dispatcher (milestone M8).
+			Context: withTraceparent(ctx, m.TraceContext),
 		}
 	}
 	return p.Client.ProduceSync(ctx, recs...).FirstErr()
+}
+
+// withTraceparent returns ctx with the remote span context of traceparent, or ctx unchanged.
+func withTraceparent(ctx context.Context, traceparent string) context.Context {
+	if traceparent == "" {
+		return ctx
+	}
+	return otel.GetTextMapPropagator().Extract(ctx, propagation.MapCarrier{"traceparent": traceparent})
 }
 
 // CreateTopic creates topic with the given partition count (replication factor 1, the only value a
@@ -114,4 +128,14 @@ func CreateTopic(ctx context.Context, brokers []string, topic string, partitions
 		return fmt.Errorf("create topic %s: %w", topic, err)
 	}
 	return nil
+}
+
+// Tracing returns the kotel hooks for a client and the tracer behind them (chapter 24): a publish span
+// per produced record, whose context is injected into the record headers, and a receive span per
+// fetched record, whose parent is extracted from them. It uses the global providers, so call it after
+// telemetry.Start; without a collector they are no-ops.
+func Tracing() (kgo.Opt, *kotel.Tracer) {
+	tracer := kotel.NewTracer()
+	k := kotel.NewKotel(kotel.WithTracer(tracer))
+	return kgo.WithHooks(k.Hooks()...), tracer
 }

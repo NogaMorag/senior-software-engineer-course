@@ -20,7 +20,9 @@ endpoint מנוי, עם בידוד בין מקבלים, ניסיונות חוז�
 השלישית: המקבל מפרק 8 (`ch08-receiver`), המטמון מפרק 12 (`ch12-cache-aside`), ה־outbox והלקוחות של Kafka מפרק 13
 (`ch13-outbox`), וההמתנה, התור וה־workers מפרק 14 (`ch14-jobqueue`). מאבן הדרך השישית: המפסק והמחיצה מפרק 15
 (`ch15-resilience-lab`), הגבלת הקצב וההשלה מפרק 16 (`ch16-ratelimit`), ובחירת המנהיג מפרק 18 (`ch18-leader`).
-מאבן הדרך השביעית: ה־Dockerfiles מפרק 19, ‏kind מפרק 20, ה־chart מפרק 21, ‏Terraform מפרק 22 וה־CI מפרק 23. הגרסאות של הספריות ושל המסד מקובעות ב־`go.mod` ובקובץ
+מאבן הדרך השביעית: ה־Dockerfiles מפרק 19, ‏kind מפרק 20, ה־chart מפרק 21, ‏Terraform מפרק 22 וה־CI מפרק 23.
+מאבן הדרך השמינית: הטלמטריה מפרק 24 (`ch24-telemetry`, כולל ה־sink עם OpenTelemetry), והכללים, התבניות וסקריפט
+התקרית מפרק 25 (`ch25-slo`). הגרסאות של הספריות ושל המסד מקובעות ב־`go.mod` ובקובץ
 ה־compose, נכון לאוקטובר 2026 (נספח ג).
 
 ## מה בתיקייה הזאת
@@ -70,6 +72,10 @@ endpoint מנוי, עם בידוד בין מקבלים, ניסיונות חוז�
 | `deploy/terraform/` | ‏Terraform שמתקין את ה־chart, עם קובץ נעילה לארבע פלטפורמות | M7 |
 | `.github/` | ה־workflow ו־action הבדיקות של פרק 23; מקומם בשורש המאגר שלך | M7 |
 | `scripts/check-chart.sh`, ‏`scripts/kind-smoke.sh` | בדיקות ה־chart, ובדיקת העשן על kind | M7 |
+| `internal/telemetry`, ‏`internal/metrics` | ‏OpenTelemetry מפרק 24, והמדדים של Hookline | M8 |
+| `deploy/compose.observability.yaml`, ‏`deploy/observability/` | ה־collector, ‏Prometheus, ‏Loki, ‏Tempo, ‏Grafana, הכללים והבדיקות שלהם | M8 |
+| `docs/runbooks/`, ‏`docs/postmortem-*.md` | ‏runbook לכל התראה, ותבנית ודוגמה של תחקיר | M8 |
+| `scripts/promtool.sh`, ‏`check-telemetry.sh`, ‏`stage-incident.sh` | בדיקות הכללים, בדיקת הטלמטריה, והתקרית המבוימת | M8 |
 | `Makefile` | כל הפקודות: `test-unit`, ‏`test`, ‏`lint`, ‏`up`, ‏`down`, ‏`migrate`, ‏`run`, ‏`relay`, ‏`dispatcher`, ‏`worker`, ‏`sink-test` | M1 |
 | `docs/` | יקבל runbooks, תחקיר, מודל איומים ותוצאות הערכה | M8 עד M10 |
 
@@ -103,7 +109,8 @@ make test-unit
 | ‏M5: מסירה, חתימה וניסיונות חוזרים | 43 ו־44 | 38.5 | הפקודה בסעיף 38.5.5, כולל הבדיקה מקצה לקצה |
 | ‏M6: חוסן ועומס | 54 ו־55 | 38.6 | הפקודה בסעיף 38.6.5, ו־`make lab-n3` בשתי הגרסאות |
 | ‏M7: קונטיינרים, Kubernetes ו־CI | 68 עד 70 | 38.7 | הפקודות בסעיף 38.7.5, כולל `make kind-smoke` |
-| ‏M8 עד M10 | לפי הטבלה בפרק 37 | 38.8 עד 38.10 | יפורסמו עם אבני הדרך |
+| ‏M8: תצפיתיות ו־SLO | 77 עד 79 | 38.8 | הפקודות בסעיף 38.8.5, כולל התקרית המבוימת |
+| ‏M9 ו־M10 | לפי הטבלה בפרק 37 | 38.9 ו־38.10 | יפורסמו עם אבני הדרך |
 
 הפקודות של כל אבן דרך מונות את החבילות שלה בלבד, ובדגל `-skip` מדלגות על בדיקות של אבני דרך מאוחרות שכבר נמצאות
 באותן חבילות. ה־starter מכיל את כל העץ, ולכן `go test ./...` ירוק רק בסוף.
@@ -212,6 +219,7 @@ ok  	example.com/hookline/migrations	3.585s
 - [ ] ‏M6: ‏`make lab-n3` ו־`GUARDS=off make lab-n3` רצו, והמספרים שלך רשומים ב־`docs/EVALUATION.md`.
 - [ ] ‏M7: שלוש הבדיקות של סעיף 38.7.5 עוברות, ו־Terraform התקין והסיר את ה־release על kind.
 - [ ] ‏M7: ה־workflow בשורש המאגר, ‏actionlint נקי, והוא ירוק ב־GitHub.
+- [ ] ‏M8: ‏`make check-telemetry` ו־`make promtool` עוברים, והתחקיר שלך כתוב עם המספרים שמדדת.
 - [ ] ‏M2: ‏`make lint` נקי, כולל staticcheck.
 - [ ] קומיט לכל אבן דרך שהסתיימה, ו־`make down` בסוף כל יום.
 

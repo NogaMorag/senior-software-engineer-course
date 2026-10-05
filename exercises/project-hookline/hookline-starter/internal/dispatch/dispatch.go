@@ -11,6 +11,9 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/twmb/franz-go/pkg/kgo"
+	"github.com/twmb/franz-go/plugin/kotel"
+
+	"example.com/hookline/internal/metrics"
 
 	"example.com/hookline/internal/outbox"
 )
@@ -25,6 +28,11 @@ type Dispatcher struct {
 	DB      *pgxpool.Pool
 	Matcher Matcher
 	Log     *slog.Logger
+	// Tracer, when set, is the kotel tracer of the consuming client: each record gets a process span
+	// that continues the trace from its headers (milestone M8).
+	Tracer *kotel.Tracer
+	// Metrics counts the created rows; nil means none.
+	Metrics *metrics.Metrics
 }
 
 // Fanout inserts one pending delivery per endpoint and reports how many rows are new. uuidv7() is

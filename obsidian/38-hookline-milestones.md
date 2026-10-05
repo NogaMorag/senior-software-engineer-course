@@ -12,14 +12,15 @@ chapter: 38
 - **‏M5:** ‏`SKIP LOCKED` וחכירה; 408, 429 ו־5xx מנוסים שוב, שאר 4xx לא; ‏`attempt_base` בהפעלה חוזרת.
 - **‏M6:** מחיצה בלי המתנה ומפסק לכל endpoint; דחייה בלי ניסיון; מגבלה לכל דיירת, נכשלת פתוח; השלה לפני האימות.
 - **‏M7:** ‏image אחד עם כל הבינאריים; משתמש מספרי; מיגרציות ב־hook; ‏Secret מבחוץ; ‏compose גם ב־CI.
+- **‏M8:** ‏`traceparent` בשורת האירוע; ‏SLI של פיגור על גבול 30; התראה על כשלים כי ה־SLI שותק; תחקיר עם מספרים שלי.
 - **שאלה פתוחה:** ___
 
 <div dir="ltr" align="left">
 
 ```text
-M1 tests  DATABASE_URL= go test -race -skip 'Invalidat|Deliver|Replay|ActiveSubscriptions|RateLimit|OverItsLimit|LimiterFailure|Shed' ./internal/api/ ./internal/store/... ./internal/admin/
+M1 tests  DATABASE_URL= go test -race -skip 'Invalidat|Deliver|Replay|ActiveSubscriptions|RateLimit|OverItsLimit|LimiterFailure|Shed|Trace' ./internal/api/ ./internal/store/... ./internal/admin/
 M2 db     make db-up && export DATABASE_URL=postgres://hookline:change-me@localhost:5438/hookline
-M2 tests  go test -race -count=1 -skip 'Invalidat|Deliver|Replay|ActiveSubscriptions|RateLimit|OverItsLimit|LimiterFailure|Shed' ./internal/api/ ./internal/store/... ./internal/admin/ ./internal/db/ ./migrations/
+M2 tests  go test -race -count=1 -skip 'Invalidat|Deliver|Replay|ActiveSubscriptions|RateLimit|OverItsLimit|LimiterFailure|Shed|Trace' ./internal/api/ ./internal/store/... ./internal/admin/ ./internal/db/ ./migrations/
 admin     go run ./cmd/hookline-admin migrate up | create-tenant -name <name> | create-topic -partitions 6
 stack     make up   (postgres, redis, redpanda, console :8098, sink :8091)   make down
 env       REDIS_ADDR=localhost:6438 KAFKA_BROKERS=localhost:19438 SINK_URL=http://localhost:8091
@@ -29,10 +30,12 @@ retry     408 429 5xx timeout refused -> retry      other 4xx 3xx -> dead      r
 m7        make images | make chart-check | KEEP=1 make kind-smoke | make tf-check | make kind-down
 kube      export KUBECONFIG=/tmp/hookline-kind.kubeconfig; kubectl -n hookline get pods
 ci        cp -r hookline/.github/. .github/ && actionlint
+m8        make obs-up | make promtool | make check-telemetry | make stage-incident | make obs-down
+grafana   http://localhost:3000 (folder Hookline)   prometheus :9090   tempo :3200   loki :3100
 lab       make lab-n3      GUARDS=off make lab-n3      (record your p50/p99, date, machine)
 guards    HOOKLINE_ENDPOINT_CONCURRENCY=2 HOOKLINE_BREAKER_FAILURES=5 HOOKLINE_BREAKER_OPEN=30s HOOKLINE_MAX_IN_FLIGHT=256
-m5 tests  go test -race -count=1 -skip 'RateLimit|OverItsLimit|LimiterFailure|Shed|Breaker|Bulkhead' ./internal/backoff/ ./internal/delivery/ ./internal/api/ ./internal/store/... ./internal/e2e/
-skip      -skip drops later milestones' tests: Invalidat ActiveSubscriptions (M3), StaleRelay RateLimit OverItsLimit LimiterFailure Shed Breaker Bulkhead (M6), Deliver Replay (M5)
+m5 tests  go test -race -count=1 -skip 'RateLimit|OverItsLimit|LimiterFailure|Shed|Breaker|Bulkhead|Trace' ./internal/backoff/ ./internal/delivery/ ./internal/api/ ./internal/store/... ./internal/e2e/
+skip      -skip drops later milestones' tests: Invalidat ActiveSubscriptions (M3), Deliver Replay (M5), StaleRelay RateLimit OverItsLimit LimiterFailure Shed Breaker Bulkhead (M6), Trace (M8)
 ```
 
 </div>

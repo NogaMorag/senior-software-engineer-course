@@ -9,7 +9,11 @@ import (
 	"strings"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/metric/noop"
+
 	"example.com/hookline/internal/domain"
+	"example.com/hookline/internal/metrics"
 	"example.com/hookline/internal/platform"
 	"example.com/hookline/internal/problem"
 	"example.com/hookline/internal/ratelimit"
@@ -33,6 +37,8 @@ type Options struct {
 	OnLimiterError func(error)
 	// Shedder sheds /v1 requests over its in-flight limit with 503 (spec N6). nil means no shedding.
 	Shedder *shed.Shedder
+	// Metrics records Hookline's own instruments (milestone M8). nil means a no-op set.
+	Metrics *metrics.Metrics
 }
 
 // Invalidator drops cached state of a tenant; *subcache.Cache satisfies it.
@@ -70,6 +76,7 @@ type server struct {
 	subs    Invalidator
 	limiter ratelimit.Limiter
 	onLimit func(error)
+	metrics *metrics.Metrics
 }
 
 // New wires the routes and the middleware. Outermost first: request id, access log, recover; then, per
@@ -84,8 +91,11 @@ func New(st store.Store, opt Options) http.Handler {
 	if opt.Now == nil {
 		opt.Now = time.Now
 	}
+	if opt.Metrics == nil {
+		opt.Metrics, _ = metrics.NewWith(noop.Meter{}) // cannot fail on a no-op meter
+	}
 	s := &server{store: st, log: opt.Logger, devMode: opt.DevMode, now: opt.Now, subs: opt.Subscriptions,
-		limiter: opt.Limiter, onLimit: opt.OnLimiterError}
+		limiter: opt.Limiter, onLimit: opt.OnLimiterError, metrics: opt.Metrics}
 	auth := s.authenticate
 	body := func(h http.HandlerFunc) http.Handler { return auth(limitBody(opt.MaxBodyBytes, h)) }
 
@@ -126,7 +136,21 @@ func New(st store.Store, opt Options) http.Handler {
 	if opt.Shedder != nil {
 		h = shedV1(opt.Shedder, mux)
 	}
-	return platform.Chain(h, platform.RequestID, platform.AccessLog(opt.Logger), platform.Recover(opt.Logger))
+	// RoutePattern is outermost, so every layer sees the matched route (chapter 24); otelhttp comes
+	// next, so the server span and http.server.request.duration cover everything else, shedding included.
+	return platform.Chain(h,
+		platform.RoutePattern(mux),
+		otelhttp.NewMiddleware("hookline-api",
+			otelhttp.WithFilter(func(r *http.Request) bool { return r.URL.Path != "/healthz" }),
+			// The mux pattern already holds the method ("POST /v1/events"): a low-cardinality span name.
+			otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
+				if r.Pattern == "" {
+					return r.Method
+				}
+				return r.Pattern
+			}),
+		),
+		platform.RequestID, platform.AccessLog(opt.Logger), platform.Recover(opt.Logger))
 }
 
 // shedV1 puts the shedder in front of every /v1 route and leaves /healthz alone: a probe must answer

@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"example.com/hookline/internal/backoff"
+	"example.com/hookline/internal/metrics"
 )
 
 // Pool is a set of delivery workers sharing one database pool (chapter 14's worker, on deliveries).
@@ -25,6 +26,8 @@ type Pool struct {
 	Log         *slog.Logger   // nil discards
 	// Guards are the per-endpoint breakers and bulkheads (milestone M6). nil means none.
 	Guards *Guards
+	// Metrics records lag, attempts and postponements (milestone M8). nil means none.
+	Metrics *metrics.Metrics
 }
 
 // Run starts the workers and blocks until ctx is cancelled and every worker has finished and recorded
@@ -60,7 +63,19 @@ func (p *Pool) guardedSend(ctx context.Context, j *Job) (res Result, sent bool) 
 
 }
 
-func (p *Pool) postpone(ctx context.Context, j *Job, after time.Duration, why error) {
+func (p *Pool) postpone(ctx context.Context, j *Job, after time.Duration, reason string, why error) {
+	panic("TODO: see chapter 38")
+
+}
+
+// metrics runs record when the pool has Metrics.
+func (p *Pool) metrics(record func(*metrics.Metrics)) {
+	panic("TODO: see chapter 38")
+
+}
+
+// withTraceparent returns ctx with the remote span context of traceparent, or ctx unchanged.
+func withTraceparent(ctx context.Context, traceparent string) context.Context {
 	panic("TODO: see chapter 38")
 
 }

@@ -3,7 +3,10 @@
 package main
 
 import (
+	"context"
 	"fmt"
+
+	"golang.org/x/sync/errgroup"
 	"log/slog"
 	"os"
 
@@ -11,7 +14,7 @@ import (
 	"example.com/hookline/internal/breaker"
 	"example.com/hookline/internal/config"
 	"example.com/hookline/internal/delivery"
-	"example.com/hookline/internal/platform"
+	"example.com/hookline/internal/metrics"
 	"example.com/hookline/internal/wire"
 )
 
@@ -30,9 +33,14 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	log := platform.NewLogger(os.Stdout, cfg.LogLevel)
 	ctx, stop := wire.SignalContext()
 	defer stop()
+	log, flush, err := wire.Telemetry(ctx, "hookline-worker", cfg.LogLevel)
+	if err != nil {
+		return err
+	}
+	defer flush()
+	m := metrics.Must()
 
 	pool, err := wire.Pool(ctx, cfg.DatabaseURL)
 	if err != nil {
@@ -49,16 +57,26 @@ func run() error {
 		MaxAttempts: cfg.MaxAttempts,
 		Backoff:     backoff.Policy{Base: cfg.BackoffBase, Cap: cfg.BackoffCap},
 		Log:         log,
+		Metrics:     m,
 		Guards: &delivery.Guards{
 			Breaker:     breaker.Settings{FailureThreshold: cfg.BreakerFailures, OpenTimeout: cfg.BreakerOpen},
 			Concurrency: cfg.EndpointConcurrency,
 			OnStateChange: func(endpointID string, from, to breaker.State) {
+				// Called with the breaker's lock held: a counter and a log line, nothing that blocks.
+				m.BreakerTransition(context.Background(), from.String(), to.String())
 				log.Info("endpoint breaker", slog.String("endpoint_id", endpointID), slog.String("from", from.String()), slog.String("to", to.String()))
 			},
 		},
 	}
 	log.Info("worker running", slog.String("config", cfg.String()))
-	err = p.Run(ctx) // returns after the drain: every claimed delivery has its result recorded
+	g, gctx := errgroup.WithContext(ctx)
+	g.Go(func() error { return wire.Health(gctx, cfg.HealthAddr, log) })
+	g.Go(func() error {
+		err := p.Run(gctx) // returns after the drain: every claimed delivery has its result recorded
+		stop()
+		return err
+	})
+	err = g.Wait()
 	log.Info("worker stopped")
 	return err
 }

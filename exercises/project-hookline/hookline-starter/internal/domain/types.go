@@ -52,6 +52,8 @@ type Event struct {
 	IdempotencyKey string          `json:"-"`
 	BodyHash       [32]byte        `json:"-"`
 	CreatedAt      time.Time       `json:"created_at"`
+	// TraceContext is the W3C traceparent of the ingest request (milestone M8), "" without telemetry.
+	TraceContext string `json:"-"`
 }
 
 // DeliveryStatus is where a delivery is in its life (chapter 37, section 37.4).

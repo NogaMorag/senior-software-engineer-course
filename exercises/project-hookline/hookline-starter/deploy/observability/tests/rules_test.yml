@@ -1,0 +1,154 @@
+# Unit tests for Hookline's rules: scripts/promtool.sh runs `promtool test rules` on this file in the
+# prom/prometheus image. Series notation: "a+bxn" is a, then a+b, ... n more samples, one per interval;
+# counters only go up, so 100 per minute is "0+100x60". Every scenario runs at 100 per minute.
+rule_files:
+  - ../rules/slo-recording.yml
+  - ../rules/slo-objectives.yml
+  - ../rules/slo-alerts.yml
+  - ../rules/delivery-slo.yml
+  - ../rules/operations.yml
+
+evaluation_interval: 1m
+
+tests:
+  # 1. A healthy API and healthy deliveries: ratios are an explicit 0 and nothing fires.
+  - name: healthy pipeline records zero and stays quiet
+    interval: 1m
+    input_series:
+      - series: 'http_server_request_duration_seconds_count{job="hookline-api", http_route="/v1/events", http_response_status_code="202"}'
+        values: "0+100x120"
+      - series: 'http_server_request_duration_seconds_bucket{job="hookline-api", http_route="/v1/events", http_response_status_code="202", le="0.25"}'
+        values: "0+100x120"
+      - series: 'hookline_delivery_lag_seconds_bucket{job="hookline-worker", le="30"}'
+        values: "0+100x120"
+      - series: 'hookline_delivery_lag_seconds_count{job="hookline-worker"}'
+        values: "0+100x120"
+      - series: 'hookline_delivery_attempts_total{job="hookline-worker", outcome="delivered"}'
+        values: "0+100x120"
+      - series: 'hookline_outbox_oldest_age_seconds{job="hookline-relay"}'
+        values: "0x120"
+    promql_expr_test:
+      - expr: job:slo_errors_per_request:ratio_rate5m
+        eval_time: 1h
+        exp_samples:
+          - labels: 'job:slo_errors_per_request:ratio_rate5m{job="hookline-api"}'
+            value: 0
+      - expr: job:slo_late_deliveries:ratio_rate5m
+        eval_time: 1h
+        exp_samples:
+          - labels: 'job:slo_late_deliveries:ratio_rate5m{job="hookline-worker"}'
+            value: 0
+      - expr: job:delivery_attempt_failures:ratio_rate5m
+        eval_time: 1h
+        exp_samples:
+          - labels: 'job:delivery_attempt_failures:ratio_rate5m{job="hookline-worker"}'
+            value: 0
+    alert_rule_test:
+      - {eval_time: 2h, alertname: SLOAvailabilityBudgetBurn, exp_alerts: []}
+      - {eval_time: 2h, alertname: DeliveryLagBudgetBurn, exp_alerts: []}
+      - {eval_time: 2h, alertname: DeliveryAttemptsFailing, exp_alerts: []}
+      - {eval_time: 2h, alertname: OutboxStalled, exp_alerts: []}
+
+  # 2. The API answers 10% 5xx from minute 60: 100 times its 0.1% budget. The 5m window is above the
+  #    14.4 threshold (1.44%) within a minute; the 1h window crosses it after 0.0144 / 0.1 x 60 = 8.6
+  #    minutes. At 63m: no page yet; at 75m: page.
+  - name: API fast burn pages within minutes
+    interval: 1m
+    input_series:
+      - series: 'http_server_request_duration_seconds_count{job="hookline-api", http_route="/v1/events", http_response_status_code="202"}'
+        values: "0+100x60 6090+90x29"
+      - series: 'http_server_request_duration_seconds_count{job="hookline-api", http_route="/v1/events", http_response_status_code="503"}'
+        values: "0+0x60 10+10x29"
+    alert_rule_test:
+      - {eval_time: 63m, alertname: SLOAvailabilityBudgetBurn, exp_alerts: []}
+      - eval_time: 75m
+        alertname: SLOAvailabilityBudgetBurn
+        exp_alerts:
+          - exp_labels: {job: hookline-api, severity: page, slo: availability}
+            exp_annotations:
+              summary: hookline-api is spending its availability error budget fast
+              description: "hookline-api answers 5xx at 6 to 14.4 times the rate its SLO allows, over a long and a short window. At this rate the 30-day budget is gone in days or hours. The current ratio is on the RED dashboard and in job:slo_errors_per_request:ratio_rate5m."
+              runbook_url: docs/runbooks/slo-availability-budget-burn.md
+
+  # 3. From minute 60, one delivery in five arrives later than 30 s: 20 times the 1% budget. The 1h
+  #    window crosses 14.4% after 0.144 / 0.2 x 60 = 43 minutes; at 110m both windows are above it.
+  - name: late deliveries page through the delivery SLO
+    interval: 1m
+    input_series:
+      - series: 'hookline_delivery_lag_seconds_bucket{job="hookline-worker", le="30"}'
+        values: "0+100x60 6080+80x59"
+      - series: 'hookline_delivery_lag_seconds_count{job="hookline-worker"}'
+        values: "0+100x119"
+    # (No exact check of the 0.2 ratio here: 1 - 80/100 is not exactly 0.2 in floating point.)
+    alert_rule_test:
+      - {eval_time: 80m, alertname: DeliveryLagBudgetBurn, exp_alerts: []}
+      - eval_time: 110m
+        alertname: DeliveryLagBudgetBurn
+        exp_alerts:
+          - exp_labels: {job: hookline-worker, severity: page, slo: delivery}
+            exp_annotations:
+              summary: hookline-worker is delivering late and spending the delivery error budget fast
+              description: "More deliveries arrive later than 30 s after ingest than the delivery SLO allows, at 6 to 14.4 times the budget rate, over a long and a short window. The lag is on the Hookline delivery pipeline dashboard."
+              runbook_url: docs/runbooks/delivery-lag-budget-burn.md
+
+  # 4. A bad worker release: from minute 60 every attempt fails and nothing is delivered. The lag SLO has
+  #    no new data and stays silent; the failure share passes 50% at about 63m and has stayed above it
+  #    for 3 minutes by 66m, so the page fires by 67m.
+  - name: every attempt failing pages although the lag SLO is silent
+    interval: 1m
+    input_series:
+      - series: 'hookline_delivery_attempts_total{job="hookline-worker", outcome="delivered"}'
+        values: "0+100x60 6000x29"
+      - series: 'hookline_delivery_attempts_total{job="hookline-worker", outcome="retry"}'
+        values: "0x60 100+100x29"
+      - series: 'hookline_delivery_lag_seconds_bucket{job="hookline-worker", le="30"}'
+        values: "0+100x60 6000x29"
+      - series: 'hookline_delivery_lag_seconds_count{job="hookline-worker"}'
+        values: "0+100x60 6000x29"
+    alert_rule_test:
+      - {eval_time: 62m, alertname: DeliveryAttemptsFailing, exp_alerts: []}
+      - {eval_time: 70m, alertname: DeliveryLagBudgetBurn, exp_alerts: []}
+      - eval_time: 70m
+        alertname: DeliveryAttemptsFailing
+        exp_alerts:
+          - exp_labels: {job: hookline-worker, severity: page}
+            exp_annotations:
+              summary: Most delivery attempts of hookline-worker fail
+              description: "More than half of the delivery attempts over 5 minutes got no 2xx, for 3 minutes. Many receivers failing at once points at Hookline, not at them."
+              runbook_url: docs/runbooks/delivery-attempts-failing.md
+
+  # 5. The relay stops at minute 60: the oldest row ages by a minute per minute. It passes 60 s at 61m
+  #    and has been above it for 2 minutes at 63m.
+  - name: a stalled outbox pages
+    interval: 1m
+    input_series:
+      - series: 'hookline_outbox_oldest_age_seconds{job="hookline-relay"}'
+        values: "0x60 60+60x20"
+    alert_rule_test:
+      - {eval_time: 61m, alertname: OutboxStalled, exp_alerts: []}
+      - eval_time: 64m
+        alertname: OutboxStalled
+        exp_alerts:
+          - exp_labels: {severity: page}
+            exp_annotations:
+              summary: The outbox is not being published
+              description: "The oldest unpublished outbox row has been older than 60 s for 2 minutes: accepted events are not reaching Redpanda."
+              runbook_url: docs/runbooks/outbox-stalled.md
+
+  # 6. Redis goes away at minute 60 and every ingest request is served without a limit: a ticket after
+  #    10 minutes, not a page.
+  - name: a failing-open limiter opens a ticket
+    interval: 1m
+    input_series:
+      - series: 'hookline_ratelimit_errors_total{job="hookline-api"}'
+        values: "0x60 50+50x30"
+    alert_rule_test:
+      - {eval_time: 65m, alertname: RateLimiterFailingOpen, exp_alerts: []}
+      - eval_time: 75m
+        alertname: RateLimiterFailingOpen
+        exp_alerts:
+          - exp_labels: {severity: ticket}
+            exp_annotations:
+              summary: The ingest rate limiter is failing open
+              description: "For 10 minutes the API could not ask Redis for rate-limit decisions and served requests without a limit."
+              runbook_url: docs/runbooks/rate-limiter-failing-open.md

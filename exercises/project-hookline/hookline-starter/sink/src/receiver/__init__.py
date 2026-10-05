@@ -1,1 +1,1 @@
-"""receiver: the webhook receiver from chapter 8, later Hookline's `sink`."""
+"""receiver: the chapter 8 webhook receiver (later Hookline's `sink`), instrumented in ch. 24."""

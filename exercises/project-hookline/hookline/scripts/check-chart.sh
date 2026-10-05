@@ -22,14 +22,16 @@ if [ -n "$all" ] && printf '%s\n' "$all" | kubeconform -; then pass "helm templa
 for want in "name: hookline-api" "name: hookline-relay" "name: hookline-dispatcher" "name: hookline-worker" \
             "kind: HorizontalPodAutoscaler" "\"helm.sh/hook\": pre-install,pre-upgrade" "checksum/config:" \
             "readOnlyRootFilesystem: true" "runAsNonRoot: true" "enableServiceLinks: false" \
-            "secretKeyRef:" "terminationGracePeriodSeconds: 60" "/usr/local/bin/hookline-admin"; do
+            "secretKeyRef:" "terminationGracePeriodSeconds: 60" "/usr/local/bin/hookline-admin" \
+            "containerPort: 8081" "HOOKLINE_HEALTH_ADDR" "OTEL_EXPORTER_OTLP_ENDPOINT"; do
   if printf '%s\n' "$all" | grep -qF "$want"; then pass "rendered chart has $want"; else fail "rendered chart has $want"; fi
 done
 if helm template hookline "$CHART" | grep -qF "kind: HorizontalPodAutoscaler"; then fail "HPAs off by default"; else pass "HPAs off by default"; fi
 if helm template hookline "$CHART" | grep -qE "postgres://|change-me"; then fail "no credential in the rendered chart"; else pass "no credential in the rendered chart"; fi
 if grep -qE "image: .*:latest|image: [^:]+$" deploy/kind/infra.yaml; then fail "infra images are pinned"; else pass "infra images are pinned"; fi
 
-for bad in "api.replicas=two" "logLevel=chatty" "image.pullPolicy=Sometimes" "worker.lease=30" "kafkaBrokers=nope" "replicas=3"; do
+for bad in "api.replicas=two" "logLevel=chatty" "image.pullPolicy=Sometimes" "worker.lease=30" "kafkaBrokers=nope" "replicas=3" \
+           "telemetry.otlpEndpoint=collector:4318"; do
   if helm template hookline "$CHART" --set "$bad" > /dev/null 2>&1; then fail "schema rejects $bad"; else pass "schema rejects $bad"; fi
 done
 

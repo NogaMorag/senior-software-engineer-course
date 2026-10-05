@@ -1,0 +1,40 @@
+# Alerts on causes that the SLOs see late or not at all. Each has a runbook in docs/runbooks/.
+groups:
+  - name: hookline-operations
+    rules:
+      # Most attempts fail, across all receivers: one bad receiver cannot do that, so it is more likely
+      # Hookline (a bad worker release, the network, DNS). The delivery SLO stays silent meanwhile,
+      # because nothing is delivered and so nothing is late yet.
+      - alert: DeliveryAttemptsFailing
+        expr: job:delivery_attempt_failures:ratio_rate5m > 0.5
+        for: 3m
+        labels:
+          severity: page
+        annotations:
+          summary: "Most delivery attempts of {{ $labels.job }} fail"
+          description: "More than half of the delivery attempts over 5 minutes got no 2xx, for 3 minutes. Many receivers failing at once points at Hookline, not at them."
+          runbook_url: docs/runbooks/delivery-attempts-failing.md
+
+      # Events are accepted (202) but nothing leaves the outbox: the relay is down, not leading, or
+      # cannot reach Redpanda. Ingest keeps working, so no API SLO notices.
+      - alert: OutboxStalled
+        expr: max(hookline_outbox_oldest_age_seconds) > 60
+        for: 2m
+        labels:
+          severity: page
+        annotations:
+          summary: "The outbox is not being published"
+          description: "The oldest unpublished outbox row has been older than 60 s for 2 minutes: accepted events are not reaching Redpanda."
+          runbook_url: docs/runbooks/outbox-stalled.md
+
+      # The rate limiter cannot reach Redis and serves every request without a limit (fail open, by
+      # design). Nothing is broken for tenants yet; the protection of N5 is gone.
+      - alert: RateLimiterFailingOpen
+        expr: sum(rate(hookline_ratelimit_errors_total[5m])) > 0
+        for: 10m
+        labels:
+          severity: ticket
+        annotations:
+          summary: "The ingest rate limiter is failing open"
+          description: "For 10 minutes the API could not ask Redis for rate-limit decisions and served requests without a limit."
+          runbook_url: docs/runbooks/rate-limiter-failing-open.md

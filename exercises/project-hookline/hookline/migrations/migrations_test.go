@@ -30,8 +30,8 @@ func files(t *testing.T) []string {
 // Every file has both halves, so every migration can be rolled back (runs without a database).
 func TestEveryMigrationHasUpAndDown(t *testing.T) {
 	names := files(t)
-	if len(names) != 6 {
-		t.Fatalf("migrations = %v, want 6 files", names)
+	if len(names) != 7 {
+		t.Fatalf("migrations = %v, want 7 files", names)
 	}
 	for _, name := range names {
 		b, _ := fs.ReadFile(migrations.FS, name)

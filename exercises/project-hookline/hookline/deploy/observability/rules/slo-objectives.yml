@@ -1,0 +1,22 @@
+# Hookline's objectives, one constant series per service and SLO (the pattern of chapter 25). The alert
+# rules divide by these, so a stricter objective is a one-number change. All are measured over 30 days.
+groups:
+  - name: slo-objectives
+    rules:
+      # hookline-api: 99.9% of requests are not answered 5xx. 429 (a tenant over its limit) and 4xx are
+      # the client's, not ours, and do not count against the budget; 503 from shedding does.
+      - record: job:slo_availability:objective
+        expr: vector(0.999)
+        labels:
+          job: hookline-api
+      # hookline-api: 99% of requests finish within 250 ms. N1 asks 200 ms for ingest at a fixed load;
+      # k6 measures that (milestone M9). The alert needs a histogram bucket, and otelhttp's nearest is 0.25.
+      - record: job:slo_latency:objective
+        expr: vector(0.99)
+        labels:
+          job: hookline-api
+      # hookline-worker (spec N2): 99% of delivered deliveries arrive within 30 s of ingest.
+      - record: job:slo_delivery:objective
+        expr: vector(0.99)
+        labels:
+          job: hookline-worker

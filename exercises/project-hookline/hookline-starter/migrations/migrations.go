@@ -3,8 +3,9 @@
 //
 // The first four files create the whole data model of chapter 37, section 37.4, at milestone M2.
 // Milestone M5 adds one column (00005, attempt_base), the additive change chapter 29, section 29.5
-// designs, and milestone M6 one table (00006, leader_terms) for the relay's leader election. No
-// milestone rewrites a table.
+// designs; milestone M6 one table (00006, leader_terms) for the relay's leader election; milestone M8
+// one column (00007, events.trace_context) to carry the trace across processes. No milestone rewrites
+// a table.
 package migrations
 
 import "embed"

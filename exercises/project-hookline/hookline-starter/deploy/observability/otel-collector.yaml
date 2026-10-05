@@ -1,0 +1,54 @@
+# OpenTelemetry Collector (contrib 0.162.0): one OTLP entry point for every
+# service, one exporter per backend. Services know only the collector; moving
+# a backend means editing this file, not redeploying the services.
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # Refuse data before the process runs out of memory (the container has 256 MiB).
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 200
+    spike_limit_mib: 50
+  batch: {}
+
+exporters:
+  # Prometheus 3 receives OTLP itself (--web.enable-otlp-receiver); the
+  # exporter appends /v1/metrics to this endpoint.
+  otlp_http/prometheus:
+    endpoint: http://prometheus:9090/api/v1/otlp
+  # Loki 3 has an OTLP endpoint too; /v1/logs is appended.
+  otlp_http/loki:
+    endpoint: http://loki:3100/otlp
+  otlp_grpc/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true # plain gRPC inside the compose network
+  # Uncomment and add to a pipeline to see raw data in `docker compose logs collector`.
+  # debug:
+  #   verbosity: detailed
+
+service:
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp_grpc/tempo]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp_http/prometheus]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp_http/loki]

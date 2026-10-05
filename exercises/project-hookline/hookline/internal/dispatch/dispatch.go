@@ -12,6 +12,10 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/twmb/franz-go/pkg/kgo"
+	"github.com/twmb/franz-go/plugin/kotel"
+	"go.opentelemetry.io/otel/trace"
+
+	"example.com/hookline/internal/metrics"
 
 	"example.com/hookline/internal/outbox"
 )
@@ -26,6 +30,11 @@ type Dispatcher struct {
 	DB      *pgxpool.Pool
 	Matcher Matcher
 	Log     *slog.Logger
+	// Tracer, when set, is the kotel tracer of the consuming client: each record gets a process span
+	// that continues the trace from its headers (milestone M8).
+	Tracer *kotel.Tracer
+	// Metrics counts the created rows; nil means none.
+	Metrics *metrics.Metrics
 }
 
 // Fanout inserts one pending delivery per endpoint and reports how many rows are new. uuidv7() is
@@ -47,6 +56,12 @@ func Fanout(ctx context.Context, db *pgxpool.Pool, m outbox.Message, endpointIDs
 // Handle processes one record. A record that cannot be decoded is logged and skipped: retrying it
 // would block its partition forever (a poison message). Any other error is returned, and Run retries.
 func (d *Dispatcher) Handle(ctx context.Context, r *kgo.Record) error {
+	if d.Tracer != nil {
+		// The process span's parent comes from the record headers; keep ctx's cancellation, take the span.
+		_, span := d.Tracer.WithProcessSpan(r)
+		defer span.End()
+		ctx = trace.ContextWithSpan(ctx, span)
+	}
 	m, err := outbox.Decode(r.Value)
 	if err != nil {
 		d.Log.Error("skipping undecodable record", slog.String("topic", r.Topic), slog.Int("partition", int(r.Partition)),
@@ -61,7 +76,10 @@ func (d *Dispatcher) Handle(ctx context.Context, r *kgo.Record) error {
 	if err != nil {
 		return err
 	}
-	d.Log.Debug("dispatched", slog.String("event_id", m.EventID), slog.Int("endpoints", len(ids)), slog.Int("new", n))
+	if d.Metrics != nil {
+		d.Metrics.Fanout(ctx, n)
+	}
+	d.Log.DebugContext(ctx, "dispatched", slog.String("event_id", m.EventID), slog.Int("endpoints", len(ids)), slog.Int("new", n))
 	return nil
 }
 

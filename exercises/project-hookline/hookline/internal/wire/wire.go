@@ -5,17 +5,24 @@ package wire
 
 import (
 	"context"
+	"log/slog"
+	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
+	"go.opentelemetry.io/contrib/bridges/otelslog"
 
 	"example.com/hookline/internal/cache"
 	"example.com/hookline/internal/db"
+	"example.com/hookline/internal/platform"
 	"example.com/hookline/internal/ratelimit"
 	"example.com/hookline/internal/subcache"
+	"example.com/hookline/internal/telemetry"
 )
 
 // SignalContext is cancelled by the first SIGINT or SIGTERM, which starts the graceful shutdown; a
@@ -60,4 +67,41 @@ func Limiter(rdb *redis.Client) ratelimit.Limiter {
 		return &ratelimit.Local{}
 	}
 	return &ratelimit.Redis{Client: rdb, Prefix: "hookline:rl:ingest:"}
+}
+
+// Telemetry starts OpenTelemetry for service when a collector is configured (telemetry.Start) and
+// returns the logger every binary uses: JSON lines on stdout and, with a collector, the same records
+// through the OpenTelemetry bridge to Loki (chapter 24). Call the returned flush on the way out.
+func Telemetry(ctx context.Context, service string, level slog.Leveler) (*slog.Logger, func(), error) {
+	shutdown, err := telemetry.Start(ctx, service)
+	if err != nil {
+		return nil, nil, err
+	}
+	flush := func() {
+		flushCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = shutdown(flushCtx)
+	}
+	if !telemetry.Enabled() {
+		return platform.NewLogger(os.Stdout, level), flush, nil
+	}
+	return platform.NewLogger(os.Stdout, level, otelslog.NewHandler(service)), flush, nil
+}
+
+// Health serves GET /healthz on addr until ctx is done, for the probes of the relay, the dispatcher
+// and the worker (milestone M8); "off" or "" serves nothing. Liveness only: the process answers. The
+// metrics leave by OTLP push, not from a scrape endpoint (chapter 24).
+func Health(ctx context.Context, addr string, log *slog.Logger) error {
+	if addr == "" || addr == "off" {
+		<-ctx.Done()
+		return nil
+	}
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		return err
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("ok\n")) })
+	log.Info("health listener", slog.String("addr", ln.Addr().String()))
+	return platform.Serve(ctx, platform.NewServer(mux, log), ln, 5*time.Second)
 }
