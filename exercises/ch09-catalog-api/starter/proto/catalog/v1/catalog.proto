@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package catalog.v1;
+
+option go_package = "example.com/ch09-catalog-api/gen/catalog/v1;catalogv1";
+
+// CatalogService is the internal, service-to-service face of the catalog.
+// The public face is the HTTP API described in api/openapi.yaml.
+service CatalogService {
+  // Ping answers immediately; callers use it to check reachability.
+  rpc Ping(PingRequest) returns (PingResponse);
+  // GetItem returns one item by id, or NOT_FOUND.
+  rpc GetItem(GetItemRequest) returns (GetItemResponse);
+}
+
+message PingRequest {}
+
+message PingResponse {
+  string message = 1;
+}
+
+message GetItemRequest {
+  string id = 1;
+}
+
+message GetItemResponse {
+  Item item = 1;
+}
+
+message Item {
+  string id = 1;
+  string sku = 2;
+  string name = 3;
+  int64 price_cents = 4;
+  // Field 5 was "double price" in an early draft. Removed fields are reserved, never reused.
+  reserved 5;
+  reserved "price";
+  // Unix time in milliseconds.
+  int64 created_at_unix_ms = 6;
+}

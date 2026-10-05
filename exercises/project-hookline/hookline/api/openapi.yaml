@@ -1,0 +1,617 @@
+openapi: 3.1.0
+info:
+  title: Hookline API
+  version: 1.0.0
+  summary: Send each event once; Hookline delivers it, signed, to every subscribed endpoint.
+  description: |
+    The source of truth for Hookline's HTTP contract (the capstone of the course, chapters 37 to 39).
+    Handlers implement this file, `internal/api/spec_test.go` checks that every served route is listed
+    here, and a change to the API starts here.
+
+    Authentication: every `/v1` route needs `Authorization: Bearer <API key>`. Keys look like
+    `hk_` followed by 43 base64url characters; the operator creates a tenant and its key with
+    `hookline-admin create-tenant`, which prints the key once. The server stores only its SHA-256.
+
+    Tenancy: a tenant sees only its own resources. An id that belongs to another tenant gets the same
+    404 as an id that does not exist.
+
+    Errors: every 4xx and 5xx response is a problem details object (RFC 9457) with media type
+    `application/problem+json`. The `type` URI identifies the problem; `title` is fixed per type;
+    `detail` explains this occurrence.
+
+    Idempotency: `POST /v1/events` requires an `Idempotency-Key` header, scoped to the tenant. The same
+    key with the same body returns the original event (202, with `Idempotent-Replayed: true`); the same
+    key with a different body is 422. Concurrent requests with one key store exactly one event and all
+    get it back. Keys do not expire in this version.
+
+    Delivery (from milestone M5): every event is delivered at least once to every enabled endpoint with
+    a matching subscription. Receivers must deduplicate by the `Hookline-Event-Id` header.
+  license:
+    name: MIT
+    identifier: MIT
+security:
+  - apiKey: []
+servers:
+  - url: http://localhost:8080
+    description: Local development
+tags:
+  - name: tenant
+    description: The authenticated tenant.
+  - name: endpoints
+    description: Receiver URLs and their signing secrets.
+  - name: subscriptions
+    description: Which event types an endpoint receives.
+  - name: events
+    description: Event ingest and lookup.
+  - name: ops
+    description: Operational endpoints.
+paths:
+  /healthz:
+    get:
+      tags: [ops]
+      operationId: getHealth
+      summary: Liveness check
+      security: []
+      responses:
+        "200":
+          description: The process is serving.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    const: ok
+        default:
+          $ref: "#/components/responses/Error"
+  /v1/tenant:
+    get:
+      tags: [tenant]
+      operationId: getTenant
+      summary: The tenant that owns the API key
+      responses:
+        "200":
+          description: The tenant and its ingest limits.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tenant"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        default:
+          $ref: "#/components/responses/Error"
+  /v1/endpoints:
+    get:
+      tags: [endpoints]
+      operationId: listEndpoints
+      summary: List endpoints, newest first
+      description: |
+        Cursor pagination. Pass the `next_cursor` of one page as `cursor` to get the next page; a page
+        without `next_cursor` is the last. Signing secrets are never listed.
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: One page of endpoints.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EndpointPage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      tags: [endpoints]
+      operationId: createEndpoint
+      summary: Register an endpoint
+      description: |
+        The response is the only place the endpoint's signing secret appears. Store it now; it cannot
+        be read again. Production accepts only `https` URLs; dev mode also accepts `http`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewEndpoint"
+      responses:
+        "201":
+          description: Created.
+          headers:
+            Location:
+              description: The URL of the new endpoint.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatedEndpoint"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/TooLarge"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        default:
+          $ref: "#/components/responses/Error"
+  /v1/endpoints/{id}:
+    get:
+      tags: [endpoints]
+      operationId: getEndpoint
+      summary: Get one endpoint
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: The endpoint, without its secret.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Endpoint"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        default:
+          $ref: "#/components/responses/Error"
+  /v1/endpoints/{id}/disable:
+    post:
+      tags: [endpoints]
+      operationId: disableEndpoint
+      summary: Disable an endpoint
+      description: No new deliveries are created for a disabled endpoint. Disabling twice is not an error.
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: The endpoint, now with `enabled` false.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Endpoint"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        default:
+          $ref: "#/components/responses/Error"
+  /v1/subscriptions:
+    get:
+      tags: [subscriptions]
+      operationId: listSubscriptions
+      summary: List subscriptions, newest first
+      parameters:
+        - name: endpoint_id
+          in: query
+          description: Only the subscriptions of this endpoint.
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: One page of subscriptions.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriptionPage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      tags: [subscriptions]
+      operationId: createSubscription
+      summary: Subscribe an endpoint to an event type
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewSubscription"
+      responses:
+        "201":
+          description: Created.
+          headers:
+            Location:
+              description: The URL of the new subscription.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: The endpoint is already subscribed to this event type (`conflict`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "413":
+          $ref: "#/components/responses/TooLarge"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        default:
+          $ref: "#/components/responses/Error"
+  /v1/subscriptions/{id}:
+    get:
+      tags: [subscriptions]
+      operationId: getSubscription
+      summary: Get one subscription
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: The subscription.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        default:
+          $ref: "#/components/responses/Error"
+    delete:
+      tags: [subscriptions]
+      operationId: deleteSubscription
+      summary: Delete a subscription
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Deleted.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        default:
+          $ref: "#/components/responses/Error"
+  /v1/events:
+    post:
+      tags: [events]
+      operationId: ingestEvent
+      summary: Send an event
+      description: |
+        Accepted means stored: the event and its outbox row are committed in one transaction before
+        the response, so a 202 is never lost. Delivery happens afterwards (milestones M4 and M5).
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewEvent"
+      responses:
+        "202":
+          description: Accepted. A replay of an earlier request carries `Idempotent-Replayed`.
+          headers:
+            Location:
+              description: The URL of the event.
+              schema:
+                type: string
+            Idempotent-Replayed:
+              description: Present, with value `true`, when this is the original event returned again.
+              schema:
+                type: string
+                enum: ["true"]
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Event"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/TooLarge"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "422":
+          description: The Idempotency-Key was already used with a different body (`idempotency-key-reused`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        default:
+          $ref: "#/components/responses/Error"
+  /v1/events/{id}:
+    get:
+      tags: [events]
+      operationId: getEvent
+      summary: Get one event
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: The event.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Event"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        default:
+          $ref: "#/components/responses/Error"
+components:
+  securitySchemes:
+    apiKey:
+      type: http
+      scheme: bearer
+      description: A tenant API key, `hk_` followed by 43 base64url characters.
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      description: A UUID (version 7) in canonical lowercase form.
+      schema:
+        type: string
+        format: uuid
+        pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    Limit:
+      name: limit
+      in: query
+      description: Page size.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    Cursor:
+      name: cursor
+      in: query
+      description: Opaque; copy it from `next_cursor`. Do not build or parse it.
+      schema:
+        type: string
+        maxLength: 512
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: A unique value per logical event, such as a UUID. Quoted or bare; 1 to 255 visible ASCII characters.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 257
+  schemas:
+    Tenant:
+      type: object
+      required: [id, name, rate_per_sec, burst, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        rate_per_sec:
+          type: integer
+          description: Sustained ingest rate allowed for this tenant (enforced from milestone M6).
+        burst:
+          type: integer
+          description: Requests allowed above the rate in a burst (milestone M6).
+        created_at:
+          type: string
+          format: date-time
+    NewEndpoint:
+      type: object
+      additionalProperties: false
+      required: [url]
+      properties:
+        url:
+          type: string
+          format: uri
+          maxLength: 2048
+          description: Absolute `https` URL without credentials or fragment (`http` in dev mode).
+          examples: ["https://example.com/webhooks/hookline"]
+    Endpoint:
+      type: object
+      description: Clients must ignore fields they do not know; new fields may be added in v1.
+      required: [id, url, enabled, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+        enabled:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+    CreatedEndpoint:
+      allOf:
+        - $ref: "#/components/schemas/Endpoint"
+        - type: object
+          required: [secret]
+          properties:
+            secret:
+              type: string
+              description: The signing secret, `whsec_` and 43 base64url characters. Shown only here.
+    EndpointPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Endpoint"
+        next_cursor:
+          type: string
+          description: Absent on the last page.
+    NewSubscription:
+      type: object
+      additionalProperties: false
+      required: [endpoint_id, event_type]
+      properties:
+        endpoint_id:
+          type: string
+          format: uuid
+        event_type:
+          $ref: "#/components/schemas/SubscriptionType"
+    SubscriptionType:
+      description: An exact event type, or `*` for every type.
+      oneOf:
+        - $ref: "#/components/schemas/EventType"
+        - type: string
+          const: "*"
+    EventType:
+      type: string
+      maxLength: 128
+      pattern: "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$"
+      examples: [invoice.paid]
+    Subscription:
+      type: object
+      required: [id, endpoint_id, event_type, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        endpoint_id:
+          type: string
+          format: uuid
+        event_type:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    SubscriptionPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Subscription"
+        next_cursor:
+          type: string
+          description: Absent on the last page.
+    NewEvent:
+      type: object
+      additionalProperties: false
+      required: [type, payload]
+      properties:
+        type:
+          $ref: "#/components/schemas/EventType"
+        payload:
+          type: object
+          description: Any JSON object; it is delivered to receivers as it was sent.
+          examples: [{ "invoice": "inv_1", "amount": 4200 }]
+    Event:
+      type: object
+      required: [id, type, payload, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Also sent to receivers as `Hookline-Event-Id`; deduplicate by it.
+        type:
+          type: string
+        payload:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+    Problem:
+      type: object
+      description: Problem details (RFC 9457). Clients must ignore members they do not know.
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri
+          description: |
+            Identifies the problem type. One of https://hookline.example.com/problems/ followed by
+            validation, malformed-json, invalid-cursor, idempotency-key-missing, unauthorized,
+            not-found, method-not-allowed, conflict, body-too-large, unsupported-media-type,
+            idempotency-key-reused or internal.
+          examples: ["https://hookline.example.com/problems/validation"]
+        title:
+          type: string
+          description: Short summary of the problem type; the same for every occurrence.
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+          description: The HTTP status code, repeated for clients that lose the status line.
+        detail:
+          type: string
+          description: Explanation of this occurrence, for a human. Do not parse it.
+        instance:
+          type: string
+          description: The request path this problem occurred on.
+        errors:
+          type: array
+          description: For the validation type, one entry per invalid input.
+          items:
+            type: object
+            required: [detail, pointer]
+            properties:
+              detail:
+                type: string
+              pointer:
+                type: string
+                description: A JSON Pointer into the body ("#/url") or "query:<parameter>".
+  responses:
+    BadRequest:
+      description: Invalid input (`validation`, `malformed-json`, `invalid-cursor`, `idempotency-key-missing`).
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Unauthorized:
+      description: The API key is missing or not valid (`unauthorized`). Carries `WWW-Authenticate`.
+      headers:
+        WWW-Authenticate:
+          description: Always `Bearer realm="hookline"`.
+          schema:
+            type: string
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    NotFound:
+      description: No such resource for this tenant (`not-found`).
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    TooLarge:
+      description: The body is larger than the server accepts (64 KiB by default).
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    UnsupportedMediaType:
+      description: The body is not `application/json`.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Error:
+      description: Any other error, including 405 and 500.
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"

@@ -25,6 +25,8 @@ EXERCISES = ROOT / "exercises"
 HOME = Path.home()
 ENV = dict(os.environ, PATH=f"{HOME}/.local/go/bin:{HOME}/.local/bin:{os.environ['PATH']}", GOFLAGS="-mod=readonly")
 SKIP_DIRS = {".venv", "node_modules", ".terraform", "testdata"}
+# Starters that must fail lint by design (the exercise is to fix what the tools report).
+EXPECTED_LINT_FAIL = {"ch27-review/starter/seeded", "ch27-review/starter/seeded-py"}
 
 
 def run(cmd: list[str], cwd: Path) -> tuple[bool, str]:
@@ -134,7 +136,8 @@ def main(argv: list[str]) -> int:
             for mod in modules(base, "pyproject.toml"):
                 res = check_py(mod, side == "solution")
                 lines += [f"{mod.relative_to(EXERCISES)}: {r}" for r in res]
-        bad = [l for l in lines if any(k in l for k in ("FAILED", "gofmt:", "vet:", "staticcheck:", "build:", "ruff", "mypy:", "uv sync", "not identical"))]
+        bad = [l for l in lines if any(k in l for k in ("FAILED", "gofmt:", "vet:", "staticcheck:", "build:", "ruff", "mypy:", "uv sync", "not identical"))
+               and not any(l.startswith(e + ":") for e in EXPECTED_LINT_FAIL)]
         failures += len(bad)
         print(("FAIL " if bad else "ok   ") + folder.name)
         for line in lines:

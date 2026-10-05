@@ -1,0 +1,31 @@
+# Preview only: chapter 14 reads this file, chapter 20 runs things like it on kind.
+# A Kubernetes CronJob that enqueues the nightly report instead of doing the work itself.
+# Kubernetes documents that a CronJob can occasionally create two Jobs for one schedule,
+# or none, so the command must be idempotent: here the unique slot key does that.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: nightly-report
+spec:
+  schedule: "0 2 * * *"            # 02:00 every day
+  timeZone: "Asia/Jerusalem"
+  concurrencyPolicy: Forbid        # skip a run while the previous one is still going
+  startingDeadlineSeconds: 600     # missed by more than 10 minutes: skip it, do not catch up
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: enqueue
+              image: ghcr.io/YOUR-USER/jobqueue-tools:1.0.0   # placeholder image
+              args: ["enqueue-due", "-name", "nightly-report", "-every", "24h"]
+              env:
+                - name: DATABASE_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: jobqueue-db
+                      key: url

@@ -23,10 +23,23 @@ DST = ROOT / "exercises/project-hookline/hookline-starter"
 # Scaffolding the reader receives whole: config, wiring, generated code and small shared types.
 KEEP_WHOLE = {
     "internal/config/config.go",
-    "internal/platform/server.go",
+    "internal/platform/env.go",
+    "internal/platform/logging.go",
     "internal/platform/middleware.go",
+    "internal/platform/server.go",
+    "internal/platform/debug.go",
+    "internal/platform/json.go",
+    "internal/problem/problem.go",  # chapter 9, unchanged
+    "internal/page/page.go",  # chapter 9, unchanged
     "internal/domain/types.go",
     "internal/domain/errors.go",
+    "internal/domain/id.go",
+    "internal/domain/apikey.go",
+    "internal/domain/validate.go",
+    "internal/api/server.go",  # routes and middleware order: the wiring
+    "internal/db/db.go",  # chapter 11, unchanged
+    "internal/testdb/testdb.go",  # test infrastructure
+    "internal/store/storetest/storetest.go",  # the conformance suite is a specification
     "internal/telemetry/telemetry.go",
 }
 KEEP_PY = {"__init__.py", "settings.py"}

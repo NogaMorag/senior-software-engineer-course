@@ -1,0 +1,8 @@
+# Lint configuration for api/openapi.yaml: Redocly's recommended rules with one deliberate exception.
+# The single accepted finding (/healthz has no 4xx response to document) is listed, by location, in
+# .redocly.lint-ignore.yaml, so the rule still guards every other operation.
+extends:
+  - recommended
+rules:
+  # The only server of this exercise is the local one.
+  no-server-example.com: off

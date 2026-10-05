@@ -1,0 +1,20 @@
+# PostgreSQL for chapter 14. Start: docker compose -p ch14 -f data/compose.yaml up -d --wait
+name: ch14
+services:
+  db:
+    image: postgres:18.6
+    environment:
+      POSTGRES_USER: course
+      POSTGRES_PASSWORD: change-me # local practice password, not a secret
+      POSTGRES_DB: jobs
+    ports:
+      - "127.0.0.1:5414:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "course", "-d", "jobs"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+volumes:
+  pgdata:

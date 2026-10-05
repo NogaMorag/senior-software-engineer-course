@@ -1,0 +1,22 @@
+# PostgreSQL for chapter 10. Start: docker compose -p ch10 -f data/compose.yaml up -d
+name: ch10
+services:
+  db:
+    image: postgres:18.6
+    environment:
+      POSTGRES_USER: course
+      POSTGRES_PASSWORD: change-me # local practice password, not a secret
+      POSTGRES_DB: orders
+    ports:
+      - "127.0.0.1:5410:5432"
+    shm_size: 256mb # parallel queries need more than Docker's 64 MB default
+    volumes:
+      - ../:/work:ro # the exercise directory is visible inside the container as /work
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "course", "-d", "orders"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+volumes:
+  pgdata:

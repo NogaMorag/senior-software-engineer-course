@@ -1,0 +1,281 @@
+---
+direction: rtl
+lang: he
+---
+
+<div dir="rtl" lang="he">
+
+# תרגיל פרק 10: `orders-db`, מאגר הזמנות, חמש שאילתות איטיות ו־repository ב־pgx
+
+**מטרה:** להריץ PostgreSQL בקונטיינר, לטעון לתוכו מאגר הזמנות מציאותי של מיליון הזמנות, לתקן חמש שאילתות
+איטיות באינדקסים ולמדוד בעצמך את ההבדל, ואז לכתוב מעליו repository ב־Go עם pgx שלא נופל ל־N+1 ומעמד
+ב־keyset.
+
+**זמן משוער:** שני ימי לימוד. יום 24: כ־40 דקות בנייה (טעינה, Q1 ו־Q2). יום 25: כ־70 דקות בנייה (Q3 עד Q5,
+‏N+1, עימוד ובדיקות).
+
+**ידע מקדים:** פרק 10; Docker Desktop פועל (פרק 2, סעיף 2.4); Go (פרק 2, סעיף 2.7); מודולים ובדיקות טבלאיות
+(פרק 3, סעיפים 3.3 ו־3.8); עטיפת שגיאות ו־generics (פרק 4, סעיפים 4.5 ו־4.7); context (פרק 5, סעיף 5.4);
+עימוד מפרק 9, סעיף 9.4. התרגיל לא מייבא קוד מפרקים קודמים. הספרייה היחידה היא pgx, בגרסה שמקובעת
+ב־`go.mod` (נכון לאוקטובר 2026, ראי נספח ג).
+
+## מה בתיקייה הזאת
+
+| קובץ | תפקיד |
+| --- | --- |
+| `data/compose.yaml` | שרת PostgreSQL 18 בפרויקט `ch10`, בפורט 5410 של המחשב שלך |
+| `data/seed.sql` | הזרע: 50 אלף לקוחות, אלפיים מוצרים, מיליון הזמנות, כשני מיליון שורות הזמנה |
+| `data/queries/q1-order-items.sql` עד `q5-customer-monthly.sql` | חמש השאילתות האיטיות, כל אחת עם `EXPLAIN (ANALYZE, BUFFERS)` |
+| `data/queries/joins.sql` | שתי שאילתות חיבור: Nested Loop מול Hash Join (לקריאה, לא לתיקון) |
+| `data/queries/pagination.sql` | אותו עמוד, פעם עם `OFFSET` ופעם עם keyset |
+| `data/queries/explain-write.sql` | ‏`EXPLAIN ANALYZE` על עדכון, בתוך טרנזקציה שמבוטלת |
+| `starter/schema.sql` | הסכמה: ארבע טבלאות, מפתחות ראשיים, בלי אינדקסים נוספים |
+| `starter/indexes.sql` | כאן את כותבת את האינדקסים שלך, בלוק לכל שאילתה |
+| `starter/db.go` | `Config`, ‏`Connect`, ו־`QueryCounter` שסופר שאילתות (שלם) |
+| `starter/orders.go` | ה־repository: `RecentOrders` ו־`OrdersWithItemsNPlusOne` שלמים; `OrdersWithItems` ו־`OrdersPage` עם `TODO` |
+| `starter/cmd/nplus1/main.go` | מודד את שתי הגרסאות על המאגר המלא (שלם) |
+| `tests/orders_test.go` | הבדיקות, מול המסד; עותק זהה ב־`starter/` וב־`solution/` |
+| `solution/` | הפתרון המלא, כולל `indexes.sql` |
+
+## יום 24: המסד, הזרע, ושתי השאילתות הראשונות
+
+**1. העתקה לתיקיית העבודה.** הכול רץ מתוך `~/senior-course/ch10`, שבו נמצא המודול שלך ולידו תיקיית הנתונים:
+
+<div dir="ltr" align="left">
+
+```bash
+mkdir -p ~/senior-course/ch10
+cp -r $COURSE/exercises/ch10-orders-db/starter/. ~/senior-course/ch10/
+cp -r $COURSE/exercises/ch10-orders-db/data ~/senior-course/ch10/data
+cd ~/senior-course/ch10
+```
+
+</div>
+
+**2. הפעלת השרת.** הפעם הראשונה מורידה את ה־image, וזה לוקח דקה או שתיים:
+
+<div dir="ltr" align="left">
+
+```bash
+docker compose -p ch10 -f data/compose.yaml up -d --wait
+docker compose -p ch10 -f data/compose.yaml ps
+```
+
+</div>
+
+בעמודה `STATUS` צריך להופיע `healthy`. בתוך הקונטיינר, התיקייה `~/senior-course/ch10` נראית בנתיב `/work`.
+
+**3. סכמה וזרע, עם מדידה.** הסכמה מהירה. את הזרע מריצים עם `time`, כדי לדעת כמה הוא לוקח אצלך:
+
+<div dir="ltr" align="left">
+
+```bash
+docker compose -p ch10 -f data/compose.yaml exec -T db psql -U course -d orders -f /work/schema.sql
+time docker compose -p ch10 -f data/compose.yaml exec -T db psql -U course -d orders -f /work/data/seed.sql
+```
+
+</div>
+
+הסכמה מדפיסה ארבע שורות `NOTICE` על טבלאות שעוד לא קיימות, וזה תקין. רשמי בפתק את שורת ה־`real` של `time`. הזרע מסתיים בספירה, שצריכה להיראות כך (המספרים זהים אצל כולן, כי
+הזרע דטרמיניסטי):
+
+<div dir="ltr" align="left">
+
+```text
+ customers | orders  | order_items 
+-----------+---------+-------------
+     50000 | 1000000 |     1999847
+(1 row)
+```
+
+</div>
+
+**4. היכרות עם psql.** פתחי psql אינטראקטיבי, והריצי את פקודות ההיכרות בזו אחר זו:
+
+<div dir="ltr" align="left">
+
+```bash
+docker compose -p ch10 -f data/compose.yaml exec db psql -U course -d orders
+```
+
+</div>
+
+<div dir="ltr" align="left">
+
+```text
+\dt
+\d orders
+\di+
+\timing on
+SELECT status, count(*) FROM orders GROUP BY 1 ORDER BY 2 DESC;
+SELECT customer_id, count(*) FROM orders GROUP BY 1 ORDER BY 2 DESC LIMIT 5;
+```
+
+</div>
+
+שתי השאילתות האחרונות מראות את ההטיה: כמעט כל ההזמנות נמסרו, ולקוח 1 מחזיק עשרות אלפי הזמנות.
+
+**5. ‏Q1 לפני.** עדיין בתוך psql:
+
+<div dir="ltr" align="left">
+
+```text
+\i /work/data/queries/q1-order-items.sql
+```
+
+</div>
+
+העתיקי את התוכנית לפתק. סמני את הצומת שקורא את `order_items`, את `Rows Removed by Filter` ואת `Execution Time`.
+הריצי את הקובץ פעמיים או שלוש, ורשמי את הזמן של ההרצה האחרונה: הראשונה קוראת מהדיסק, הבאות מהזיכרון, וזה
+נראה בשורות ה־`Buffers`.
+
+**6. ‏Q1 אחרי.** כתבי ב־`indexes.sql`, תחת הבלוק של Q1, את האינדקס שלדעתך חסר (רמז: מפתח זר). הדביקי את
+הפקודה ל־psql, הריצי שוב את הקובץ של Q1, ורשמי.
+
+**7. ‏Q2 לפני ואחרי.** אותו דבר עם `q2-orders-one-day.sql`. שימי לב איזה צומת מופיע אחרי האינדקס, ולמה לא
+Index Scan פשוט (סעיף 10.4.3).
+
+## יום 25: אינדקסים מרוכבים, חלקיים ומכסים; N+1; עימוד
+
+**8. ‏Q3, בשני שלבים.** קודם נסי אינדקס על `customer_id` לבד, והריצי את Q3 גם ללקוח 4242 וגם ללקוח 1 (שני את
+המספר בקובץ או הקלידי את השאילתה). אחר כך החליפי אותו באינדקס מרוכב בסדר הנכון, כולל `id` בסוף, כי העימוד
+בצעד 12 צריך אותו. רשמי את התוכנית של כל שלב.
+
+**9. ‏Q4.** אינדקס חלקי לשאילתה של ההזמנות הממתינות. השווי את הגודל שלו ב־`\di+` לגודל של אינדקס מלא
+על `created_at` מ־Q2.
+
+**10. ‏Q5.** במקום להוסיף אינדקס חדש, החליפי את האינדקס של Q3 בגרסה מכסה. אחרי ההחלפה הריצי את השורה האחרונה
+של `indexes.sql` (`VACUUM`), ואז את Q5. חפשי בתוכנית `Index Only Scan` ו־`Heap Fetches: 0`. הריצי שוב את Q3
+וודאי שגם הוא משתמש באינדקס החדש.
+
+**11. טבלת הזמנים שלך.** מלאי את הטבלה. העמודה „צומת” היא הצומת שקורא את הטבלה הגדולה. הזמן הוא
+`Execution Time` של ההרצה השלישית. אין כאן מספרים מוכנים: אלה המדידות שלך.
+
+| שאילתה | צומת לפני | זמן לפני (ms) | האינדקס שלך | צומת אחרי | זמן אחרי (ms) |
+| --- | --- | --- | --- | --- | --- |
+| Q1 שורות הזמנה | ___ | ___ | ___ | ___ | ___ |
+| Q2 הזמנות של יום | ___ | ___ | ___ | ___ | ___ |
+| Q3 אחרונות של לקוח 4242 | ___ | ___ | ___ | ___ | ___ |
+| Q4 ממתינות ותיקות | ___ | ___ | ___ | ___ | ___ |
+| Q5 סיכום חודשי של לקוח 1 | ___ | ___ | ___ | ___ | ___ |
+
+ועוד שתי מדידות לפתק, מתוך `pagination.sql`: זמן העמוד עם `OFFSET` ___ ms, וזמן העמוד עם keyset ___ ms.
+
+**12. הקוד.** פתחי את `orders.go` ומלאי את שני ה־`TODO`:
+
+| פונקציה | מה היא צריכה לעשות |
+| --- | --- |
+| `OrdersWithItems` | ‏`RecentOrders`, ואז שאילתה אחת עם `WHERE order_id = ANY($1)`; לכל הזמנה slice לא ריק של פריטים, גם בלי פריטים |
+| `OrdersPage` | שגיאה על `limit` לא חיובי; ‏`limit+1` שורות ממוינות `created_at DESC, id DESC`; עם cursor, תנאי `(created_at, id) < ($2, $3)`; ‏cursor חוזר רק אם יש שורה עודפת |
+
+**13. בדיקות.** הבדיקות יוצרות לעצמן סכמה פרטית עם 25 הזמנות, ולא נוגעות במאגר הגדול:
+
+<div dir="ltr" align="left">
+
+```bash
+export DATABASE_URL=postgres://course:change-me@localhost:5410/orders
+go test -race ./...
+```
+
+</div>
+
+**14. מדידת N+1 על המאגר המלא.** רשמי את שתי השורות בפתק:
+
+<div dir="ltr" align="left">
+
+```bash
+go run ./cmd/nplus1 -customer 1 -limit 200
+```
+
+</div>
+
+**15. התחייבות וכיבוי.** הכיבוי עם `-v` מוחק את הנתונים; מחר הם לא נחוצים, ואפשר לטעון שוב בחצי דקה עד כמה
+דקות:
+
+<div dir="ltr" align="left">
+
+```bash
+cd ~/senior-course
+git add ch10
+git commit -m "Chapter 10: orders dataset, five indexes, pgx repository"
+docker compose -p ch10 -f ch10/data/compose.yaml down -v
+```
+
+</div>
+
+## פלט צפוי
+
+בדיקות ירוקות, עם `-race`:
+
+<div dir="ltr" align="left">
+
+```text
+ok  	example.com/ch10-orders-db	…s
+?   	example.com/ch10-orders-db/cmd/nplus1	[no test files]
+```
+
+</div>
+
+הזמן בשורת `ok` יהיה שונה אצלך. בלי `DATABASE_URL` אותה פקודה מסתיימת ב־`ok` מהר מאוד, כי כל הבדיקות
+מדלגות; עם `-v` רואים `SKIP` ליד כל אחת. הפלט של `cmd/nplus1` נראה כך, עם הזמנים שלך במקום הסימנים:
+
+<div dir="ltr" align="left">
+
+```text
+N+1      orders=200 queries=201 median=___
+batched  orders=200 queries=2 median=___
+```
+
+</div>
+
+## רשימת בדיקה
+
+- [ ] הזרע נטען, הספירה תואמת, וזמן הזרע שלך רשום.
+- [ ] טבלת הזמנים מלאה בחמש שורות, עם תוכנית לפני ואחרי לכל שאילתה בפתק.
+- [ ] ב־`indexes.sql` יש בדיוק חמישה בלוקים; האינדקס המכסה מחליף את המרוכב ואינו נוסף לידו.
+- [ ] ‏Q5 מראה `Index Only Scan` ו־`Heap Fetches: 0`.
+- [ ] ‏`go test -race ./...` עובר עם `DATABASE_URL` מוגדר, בלי דילוגים.
+- [ ] ‏`gofmt -l .` ריק, ו־`go vet ./...` ו־`staticcheck ./...` נקיים.
+- [ ] הפלט של `cmd/nplus1` רשום בפתק.
+
+## טעויות נפוצות ותיקונים
+
+- **הקונטיינר רץ אבל psql אומר `role "postgres" does not exist`.** המשתמש בתרגיל הוא `course`, לא `postgres`.
+  מוסיפים `-U course -d orders` לכל קריאה ל־psql.
+- **‏`\i /work/data/seed.sql` נכשל ב־`No such file or directory`.** הפקודה `docker compose` הורצה מתיקייה
+  אחרת, או שתיקיית `data` לא הועתקה לתוך `~/senior-course/ch10`. מריצים מתוך `~/senior-course/ch10`, ובודקים
+  שהקובץ `data/seed.sql` קיים שם.
+- **הבדיקות נכשלות על `connection refused`.** השרת לא רץ, או שהכתובת מצביעה לפורט 5432 במקום 5410.
+  בודקים עם `docker compose -p ch10 -f data/compose.yaml ps` שהוא `healthy`, ומתקנים את `DATABASE_URL`.
+- **‏Q5 מראה `Index Only Scan` אבל `Heap Fetches` גבוה.** מפת הנראות לא עדכנית אחרי יצירת האינדקס והניסויים.
+  מריצים `VACUUM (ANALYZE) orders;` ואז את Q5 שוב.
+- **בדיקת `OrdersPage` מוצאת הזמנה פעמיים או מפספסת את 11 או 12.** ה־cursor או ה־`ORDER BY` משתמשים
+  ב־`created_at` לבד. לשתי ההזמנות האלה אותו זמן בדיוק; משווים את הזוג `(created_at, id)` וממיינים לפי שניהם.
+- **‏`TestOrdersWithItemsUsesTwoQueries` נכשלת ב־`results differ` כשהמספרים נכונים.** הפריטים חוזרים בסדר
+  אחר מבגרסה האיטית. ממיינים את השאילתה השנייה לפי `order_id, id`.
+
+## רמזים
+
+- ‏pgx מעביר `[]int64` כמערך `bigint[]`, כך ש־`= ANY($1)` עובד בלי המרה.
+- מפה ממזהה הזמנה למצביע לתוך ה־slice (`&orders[i]`) מאפשרת לצרף כל פריט להזמנה שלו במעבר אחד.
+- ‏`pgx.ForEachRow` סורק כל שורה לאותם משתנים וקורא לפונקציה שלך; זה חוסך struct זמני לשורה של פריט עם מזהה הזמנה.
+- ב־`OrdersPage` כתבי שתי מחרוזות SQL, עם cursor ובלי, במקום תנאי „אם הפרמטר ריק”. כך כל אחת מקבלת תוכנית
+  פשוטה שמשתמשת באינדקס.
+- אם `EXPLAIN` של Q4 עדיין מראה סינון, בדקי שהתנאי באינדקס ובשאילתה זהה מילולית.
+
+## הפתרון
+
+‏`solution/indexes.sql` ו־`solution/orders.go`. **למה זה עובד:** כל אינדקס בפתרון נגזר משאילתה אחת, והאינדקס
+של Q3 נבנה מראש עם `id` בסוף, כך שבהחלפה למכסה הוא משרת שלוש שאילתות ואת העימוד בלי אינדקס נוסף.
+‏`OrdersWithItems` שולחת שתי שאילתות בלי קשר למספר ההזמנות, ומחזירה תוצאה זהה לגרסה האיטית, וזה מה שהבדיקה
+בודקת. ‏`OrdersPage` מבקשת שורה אחת יותר מהעמוד, ולכן יודעת אם יש עמוד הבא בלי ספירה, ותנאי השורות שלה
+באותו סדר כמו האינדקס, כך שכל עמוד מתחיל לקרוא מיד אחרי ה־cursor.
+
+## מה התרגיל מדגים
+
+- תיקון ביצועים כתהליך: מדידה, השערה, אינדקס אחד, מדידה שוב, ורישום של המספרים שלך.
+- התאמה בין שאילתה לאינדקס: שוויון קודם, תת־קבוצה קבועה באינדקס חלקי, ועמודות מטען ב־`INCLUDE`.
+- ‏N+1 כבעיה של קוד ולא של שאילתה, ובדיקה שהופכת אותו למספר.
+- עימוד שעלותו לא תלויה בעומק, ובדיקות repository מול מסד אמיתי בסכמה פרטית.
+
+</div>

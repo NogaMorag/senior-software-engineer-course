@@ -17,9 +17,9 @@ endpoint that gets webhooks), the **operator** (runs Hookline, watches dashboard
 ## 2. Functional requirements (each with its check)
 | ID | Requirement | Check |
 | --- | --- | --- |
-| F1 | A tenant registers endpoints (HTTPS URL in production, HTTP allowed for localhost in dev mode) with a generated signing secret shown once | API test: create, list with cursor, disable |
+| F1 | A tenant registers endpoints (HTTPS URL in production, HTTP allowed in dev mode, for the compose sink) with a generated signing secret shown once | API test: create, list with cursor, disable |
 | F2 | A tenant subscribes an endpoint to event types (exact type or `*`) | API test |
-| F3 | `POST /v1/events` accepts an event with an `Idempotency-Key`; the same key with the same body returns the original result; the same key with a different body returns 422 | Integration test against PostgreSQL |
+| F3 | `POST /v1/events` accepts an event with an `Idempotency-Key`; the same key with the same body returns the original result (a concurrent duplicate waits on the unique index and gets the same result, so no 409 is needed); the same key with a different body returns 422 | Integration test against PostgreSQL |
 | F4 | Every event is delivered to every matching, enabled endpoint **at least once**, as an HTTP POST with JSON body and headers `Hookline-Event-Id`, `Hookline-Delivery-Id`, `Hookline-Attempt`, `Hookline-Signature` | End-to-end test with the sink: sink unique count equals expected deliveries |
 | F5 | Signature: `t=<unix seconds>,v1=<hex HMAC-SHA256(secret, "<t>.<raw body>")>`; receivers reject when outside a 5-minute tolerance | Unit tests in Go (signer) and Python (sink verifier) on shared test vectors |
 | F6 | Failed deliveries (timeout, connection error, 5xx, 429) are retried with exponential backoff and full jitter, capped, up to a maximum attempt count; 4xx other than 408/429 is not retried | Property test on the backoff; worker tests with an `httptest` server |
@@ -76,10 +76,10 @@ Components (one Go module, four binaries, one Python service):
 | --- | --- | --- |
 | `tenants` | `id`, `name`, `api_key_hash` (unique), `rate_per_sec`, `burst` | key shown once at creation (`hookline-admin`) |
 | `endpoints` | `id`, `tenant_id`, `url`, `secret`, `enabled`, `created_at` | secret encrypted at rest is an extension, not M-scope |
-| `subscriptions` | `id`, `tenant_id`, `endpoint_id`, `event_type` | unique `(endpoint_id, event_type)` |
+| `subscriptions` | `id`, `tenant_id`, `endpoint_id`, `event_type`, `created_at` | unique `(tenant_id, endpoint_id, event_type)` and a composite FK to `endpoints (tenant_id, id)`: with `(endpoint_id, event_type)` alone, tenant B probing A's endpoint got 409 instead of 404 (the unique check runs before the FK), leaking existence (found in M2, 2026-10-05) |
 | `events` | `id` (uuid), `tenant_id`, `type`, `payload` (jsonb), `idempotency_key`, `body_hash`, `created_at` | unique `(tenant_id, idempotency_key)` |
 | `outbox` | `id` (bigserial), `event_id`, `created_at`, `published_at` | partial index on unpublished rows |
-| `deliveries` | `id`, `event_id`, `endpoint_id`, `status` (`pending`, `in_flight`, `delivered`, `dead`), `attempts`, `next_attempt_at`, `lease_until`, `last_error`, `delivered_at` | unique `(event_id, endpoint_id)`; partial index on due rows |
+| `deliveries` | `id`, `event_id`, `endpoint_id`, `status` (`pending`, `in_flight`, `delivered`, `dead`), `attempts`, `next_attempt_at`, `lease_until`, `last_error`, `delivered_at`, `tenant_id` | unique `(event_id, endpoint_id)`; partial indexes on due rows and on dead rows per tenant |
 | `attempts` | `id`, `delivery_id`, `n`, `started_at`, `duration_ms`, `status_code`, `error` | append-only |
 
 ## 6. Decisions (with the simpler alternative and what would change the decision)
