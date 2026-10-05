@@ -50,18 +50,19 @@ records this.
 | google.golang.org/grpc / google.golang.org/protobuf | v1.84.0 / v1.36.12 |
 | go.opentelemetry.io/otel (+ sdk, exporters) | v1.47.0; semconv package `semconv/v1.43.0` |
 | go.opentelemetry.io/contrib/.../otelhttp | v0.72.0 |
-| github.com/prometheus/client_golang | v1.24.1 |
+| github.com/prometheus/client_golang (mentioned, not imported by an exercise) | v1.24.1 |
 | github.com/testcontainers/testcontainers-go | v0.44.0 |
 | pgregory.net/rapid | v1.3.0 |
 | github.com/sony/gobreaker/v2 | v2.4.0 (shown for comparison; Hookline implements its own breaker) |
 | golang.org/x/time | v0.16.0 |
 | golang.org/x/sync | from `go get` at write time (singleflight, errgroup) |
 | github.com/golang-jwt/jwt/v5 | v5.3.1 |
-| github.com/coreos/go-oidc/v3 | v3.21.0 |
+| github.com/coreos/go-oidc/v3 (mentioned, not imported by an exercise) | v3.21.0 |
 
 ## Python packages (pinned in each `pyproject.toml`, locked in `uv.lock`)
 fastapi 0.142.2 · uvicorn 0.54.0 · pydantic 2.13.5 · httpx 0.28.1 · pytest 9.1.1 · ruff 0.16.10 · mypy 2.4.0 ·
-hypothesis 6.168.4 · psycopg 3.3.6 · redis 8.1.0 · opentelemetry-sdk 1.45.0.
+opentelemetry-sdk 1.45.0. Verified but not used by any exercise (kept for reference): hypothesis 6.168.4,
+psycopg 3.3.6, redis 8.1.0.
 
 ## Container images (pinned in compose files and charts)
 | Image | Tag |
@@ -84,7 +85,8 @@ hypothesis 6.168.4 · psycopg 3.3.6 · redis 8.1.0 · opentelemetry-sdk 1.45.0.
 actions/checkout@v7 · actions/setup-go@v7 · actions/setup-python@v7 · astral-sh/setup-uv@v10 · actions/cache@v6 ·
 actions/upload-artifact@v7 · docker/setup-buildx-action@v4 · docker/build-push-action@v7 · docker/login-action@v4 ·
 docker/metadata-action@v6 · helm/kind-action@v1 · azure/setup-helm@v5 · hashicorp/setup-terraform@v4 ·
-golangci/golangci-lint-action@v9 · grafana/setup-k6-action@v1.
+golangci/golangci-lint-action@v9 · grafana/setup-k6-action@v1. Used by the workflows: checkout, setup-go, setup-uv,
+setup-buildx, build-push, login, metadata, kind-action; the others were verified for reference only.
 
 ## Cost
 Everything is free and local. The optional AWS section of chapter 22 uses free-tier resources and tells the reader

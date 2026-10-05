@@ -19,3 +19,9 @@
 - Appendix F writes the time split "קריאה 25 / בנייה 55 / פתק 10": kept deliberately, the format is inherited from book 1's appendix F and is a fixed label, not prose (record in 09-review.md).
 - Question bank #3 recommends sync.Map, which no chapter teaches: add one line in chapter 5 §5.5 or change the answer.
 - Chapter 32 §32.1.2: verify that Claude Code, Cursor and Copilot all read AGENTS.md on their current docs pages.
+- Fact re-check batch (reviewer doubts, ch9–18): Idempotency-Key draft -07 status; Redis 8.6 `allkeys-lrm`; PG18 isolation table + PgBouncer `max_prepared_statements`; Kafka producer defaults and Redpanda dev-container; CronJob double/missed run + 30 s grace; RateLimit headers draft -11 (also add to appendix C); Redis script effects replication; Abadi PC/EC for BigTable/HBase; Redis expiry clock; DELEX in 8.4.
+- ch15 `hop.Retryable` ignores Retry-After (chapter text no longer claims it does): leave as is, or extend the exercise (follow-up).
+- "נעילה מייעצת" remains in chapters 37–38 (capstone writer's) — fix at the 37–39 review.
+- Reviewer doubts ch19–28 for the fact batch: Trivy "three Python libs, two inside pip" (ch19 §19.6.3); GO-2026-5970 / CVE-2026-56852 (ch27); k6 v2 removals table (ch26 §26.6.1); metrics-server 0.9 ↔ k8s 1.34, cloud-provider-kind Ingress ≥0.9, ingress-nginx retirement dates, Helm 4 flags (ch21); helm provider 3.3.0 → helm v3 lib, kubernetes provider v3 `_v1` deprecations, S3 `use_lockfile` (ch22); softprops major, Tempo 3 single-process, collector 0.162.0 on GHCR only, otelslog level option (ch23–24).
+- `gh` is used in chapter 20 but never installed: add it to chapter 2 §2.10 (or state it's optional).
+- ch22 README step 13 duplicates .gitignore lines from chapter 2.
