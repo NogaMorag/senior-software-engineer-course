@@ -15,3 +15,5 @@ coverage.out
 *.tfstate.backup
 .terraform.lock.hcl.bak
 node_modules/
+# compiled Go binaries named after their module directory (go build without -o)
+exercises/**/hello/hello
