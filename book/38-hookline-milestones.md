@@ -225,7 +225,17 @@ make run-dev
 
 </div>
 
-השרת מדפיס פעם אחת מפתח של דיירת פיתוח. בחלון שני:
+השרת מדפיס פעם אחת מפתח של דיירת פיתוח, בשורה כזאת. המזהה והמפתח אצלך יהיו אחרים:
+
+<div dir="ltr" align="left">
+
+```text
+memory store: development tenant 01a10d23-..., API key (shown once): hk_...
+```
+
+</div>
+
+בחלון שני:
 
 <div dir="ltr" align="left">
 
@@ -491,7 +501,7 @@ go test -race -count=1 -run 'TestIngest' ./internal/api/
 
 ```bash
 go run ./cmd/hookline-admin create-tenant -name acme
-make run
+HOOKLINE_DEV_MODE=true make run
 ```
 
 </div>
@@ -506,8 +516,8 @@ The key is shown once and only its hash is stored. Keep it now.
 
 </div>
 
-חזרי על בקשות ה־curl מסעיף 38.1.4 עם המפתח החדש. אחר כך בדקי ב־psql שהשורות נמצאות בטבלת האירועים
-ובטבלת ה־outbox.
+חזרי על בקשות ה־curl מסעיף 38.1.4 עם המפתח החדש. כתובת ה־endpoint שם היא http, ולכן השרת רץ במצב פיתוח.
+בלי מצב הפיתוח הוא דוחה אותה בתשובה 400. אחר כך בדקי ב־psql שהשורות נמצאות בטבלת האירועים ובטבלת ה־outbox.
 
 ### 38.2.5 הבדיקות שצריכות להוריק
 
@@ -1122,16 +1132,19 @@ go test -race -count=1 -skip 'RateLimit|OverItsLimit|LimiterFailure|Shed|Breaker
 <div dir="ltr" align="left">
 
 ```bash
-make run          # terminal 1: the API
-make relay        # terminal 2
-make dispatcher   # terminal 3
-make worker       # terminal 4
+HOOKLINE_DEV_MODE=true make run      # terminal 1: the API
+make relay                           # terminal 2
+make dispatcher                      # terminal 3
+HOOKLINE_DEV_MODE=true make worker   # terminal 4
 ```
 
 </div>
 
-צרי endpoint שמצביע על הכתובת `http://localhost:8091/hooks/demo`, ושלחי אירועים. כדי שה־sink יאמת את החתימה,
-ה־endpoint צריך את הסוד שה־sink מכיר. ה־API יצר לו סוד אחר, ולכן בתרגול מחליפים אותו ישירות במסד:
+ה־sink מקשיב ב־http, ורק מצב פיתוח מתיר כתובת כזאת. בלי המשתנה, ה־API דוחה אותה בתשובה 400.
+
+צרי endpoint שמצביע על הכתובת `http://localhost:8091/hooks/demo`, ומנוי אליו כמו באבן הדרך הראשונה, ושלחי
+אירועים. כדי שה־sink יאמת את החתימה, ה־endpoint צריך את הסוד שה־sink מכיר. ה־API יצר לו סוד אחר, ולכן
+בתרגול מחליפים אותו ישירות במסד:
 
 <div dir="ltr" align="left">
 
@@ -1660,6 +1673,8 @@ cd ~/senior-course && actionlint
 </div>
 
 ### 38.7.6 הפלט הצפוי
+
+זה הפלט בהרצה שבה נכתב הספר, בקיצור. מזהה האירוע אצלך יהיה אחר.
 
 <div dir="ltr" align="left">
 
@@ -2696,6 +2711,7 @@ admin     go run ./cmd/hookline-admin migrate up | create-tenant -name <name> | 
 stack     make up   (postgres, redis, redpanda, console :8098, sink :8091)   make down
 env       REDIS_ADDR=localhost:6438 KAFKA_BROKERS=localhost:19438 SINK_URL=http://localhost:8091
 run       make run | make relay | make dispatcher | make worker
+dev       HOOKLINE_DEV_MODE=true make run | HOOKLINE_DEV_MODE=true make worker   (http endpoints, local sink)
 sink      curl -s localhost:8091/stats    curl -s -X POST localhost:8091/control -d '{"failure_rate":1}'
 retry     408 429 5xx timeout refused -> retry      other 4xx 3xx -> dead      replay: dead -> pending
 m7        make images | make chart-check | KEEP=1 make kind-smoke | make tf-check | make kind-down

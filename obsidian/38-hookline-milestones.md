@@ -27,6 +27,7 @@ admin     go run ./cmd/hookline-admin migrate up | create-tenant -name <name> | 
 stack     make up   (postgres, redis, redpanda, console :8098, sink :8091)   make down
 env       REDIS_ADDR=localhost:6438 KAFKA_BROKERS=localhost:19438 SINK_URL=http://localhost:8091
 run       make run | make relay | make dispatcher | make worker
+dev       HOOKLINE_DEV_MODE=true make run | HOOKLINE_DEV_MODE=true make worker   (http endpoints, local sink)
 sink      curl -s localhost:8091/stats    curl -s -X POST localhost:8091/control -d '{"failure_rate":1}'
 retry     408 429 5xx timeout refused -> retry      other 4xx 3xx -> dead      replay: dead -> pending
 m7        make images | make chart-check | KEEP=1 make kind-smoke | make tf-check | make kind-down

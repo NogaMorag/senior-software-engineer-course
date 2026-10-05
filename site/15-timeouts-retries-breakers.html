@@ -25,6 +25,7 @@
 <li><a href="#1532">15.3.2 המתנה גדלה מעריכית עם פיזור אקראי</a></li>
 <li><a href="#1533">15.3.3 הלולאה, בתוך גבול הזמן</a></li>
 <li><a href="#1534">15.3.4 תקציב ניסיונות</a></li>
+<li><a href="#1535-retry-after">15.3.5 כשהשרת אומר מתי לחזור: Retry-After</a></li>
 </ul>
 </li>
 <li><a href="#154">15.4 סערת ניסיונות חוזרים</a><ul>
@@ -354,7 +355,8 @@ budget propagated         ___            ___            ___                ___  
 לבדוק כל תקרה בדיוק. ההזזה שמאלה של משך זמן עלולה לגלוש לערך שלילי, ובגלל זה השמירה על 62 ועל <code>d &gt; 0</code>.
 הבדיקה <code>TestBackoffCeilings</code> מנסה ניסיון מספר 80.</p>
 <h3 id="1533">15.3.3 הלולאה, בתוך גבול הזמן</h3>
-<p>הפונקציה <code>Do</code> באותו קובץ מנסה עד שאחד מחמישה תנאים עוצר אותה. הנה הגוף שלה:</p>
+<p>הפונקציה <code>Do</code> באותו קובץ מנסה עד שאחד מחמישה תנאים עוצר אותה. הנה הגוף שלה. בשורות עם <code>asked</code> נעסוק
+בסעיף 15.3.5:</p>
 <div dir="ltr" align="left">
 
 
@@ -366,8 +368,13 @@ budget propagated         ___            ___            ___                ___  
         if attempt &gt;= p.MaxAttempts || !p.Retryable(err) || ctx.Err() != nil {
             return attempt, err
         }
-        wait := Backoff(attempt, p.Base, p.Cap, p.Rand)
+        asked := serverDelay(err)
+        wait := max(Backoff(attempt, p.Base, p.Cap, p.Rand), asked)
         if dl, ok := ctx.Deadline(); ok &amp;&amp; p.Now().Add(wait).After(dl) {
+            if p.Now().Add(asked).After(dl) { // the server's wait alone does not fit
+                return attempt, fmt.Errorf(&quot;%w (asked %v, %v left): %w&quot;,
+                    ErrRetryAfterTooLong, asked, dl.Sub(p.Now()), err)
+            }
             return attempt, err // sleeping would spend the budget the caller has left
         }
         if p.Budget != nil &amp;&amp; !p.Budget.Withdraw() {
@@ -404,7 +411,7 @@ budget propagated         ___            ___            ___                ___  
 </tr>
 <tr>
 <td>ההמתנה הבאה חוצה את גבול הזמן</td>
-<td>הלקוחה לא תחכה; עדיף להחזיר את השגיאה עכשיו</td>
+<td>הלקוחה לא תחכה; עדיף להחזיר את השגיאה עכשיו (גם כשהשרת ביקש, ראי 15.3.5)</td>
 </tr>
 <tr>
 <td>התקציב סירב</td>
@@ -454,6 +461,113 @@ func (b *Budget) Withdraw() bool {
 <blockquote>
 <p><strong>שימי לב:</strong> התקציב משותף לכל הקוראות לאותה תלות בתהליך, לא לבקשה אחת. תקציב חדש לכל בקשה הוא שוב גבול
 ניסיונות לבקשה, והוא לא עוצר כלום.</p>
+</blockquote>
+<h3 id="1535-retry-after">15.3.5 כשהשרת אומר מתי לחזור: <code>Retry-After</code></h3>
+<p>לפעמים השרת יודע יותר מהנוסחה. תשובת 429 או 503 יכולה לשאת את הכותרת <code>Retry-After</code>, שאומרת ללקוחה כמה
+זמן לחכות. התקן שמגדיר אותה הוא RFC 9110, בסעיף 10.2.3, ולפיו יש לערך שתי צורות:</p>
+<table>
+<thead>
+<tr>
+<th>צורה</th>
+<th>דוגמה מהתקן</th>
+<th>משמעות</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>מספר שניות</td>
+<td><code>120</code></td>
+<td>לחכות שתי דקות</td>
+</tr>
+<tr>
+<td>תאריך</td>
+<td><code>Fri, 31 Dec 1999 23:59:59 GMT</code></td>
+<td>לחכות עד הרגע הזה</td>
+</tr>
+</tbody>
+</table>
+<p>תאריך הופך להמתנה לפי השעון של הלקוחה, ותאריך שכבר עבר פירושו שאין צורך לחכות. התקן מחייב לקוח שקורא תאריך
+להבין גם שתי צורות ישנות שלו, ו־<code>http.ParseTime</code> מהספרייה הסטנדרטית מכירה את שלושתן. הפונקציה
+<code>ParseRetryAfter</code> בקובץ <code>hop/hop.go</code> מפרקת את הערך:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func ParseRetryAfter(v string, now time.Time) (d time.Duration, ok bool) {
+    v = strings.TrimSpace(v)
+    if v == &quot;&quot; {
+        return 0, false
+    }
+    // ParseUint takes digits only (no sign); on overflow it returns the maximum value.
+    if secs, err := strconv.ParseUint(v, 10, 64); err == nil || errors.Is(err, strconv.ErrRange) {
+        if secs &gt; math.MaxInt64/uint64(time.Second) {
+            return math.MaxInt64, true // centuries: no deadline will allow it anyway
+        }
+        return time.Duration(secs) * time.Second, true
+    }
+    t, err := http.ParseTime(v) // IMF-fixdate, and the two obsolete forms recipients must accept
+    if err != nil {
+        return 0, false
+    }
+    return max(t.Sub(now), 0), true
+}
+</code></pre>
+
+
+</div>
+
+<p>הפונקציה <code>strconv.ParseUint</code> לא מקבלת סימן, ולכן ערך כמו <code>-5</code> נדחה, כמו שהתקן דורש: רק ספרות. מספר ענק לא
+גולש. הוא נהיה ההמתנה הארוכה ביותר שאפשר לייצג, ושום גבול זמן לא יאפשר אותה.</p>
+<p>ההמתנה נשמרת בשגיאה עצמה, ורק כשהקוד הוא 429 או 503. מהפונקציה <code>send</code> באותו קובץ:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    if resp.StatusCode &gt;= 500 || resp.StatusCode == http.StatusTooManyRequests {
+        se := &amp;StatusError{Code: resp.StatusCode}
+        if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusServiceUnavailable {
+            se.RetryAfter, _ = ParseRetryAfter(resp.Header.Get(&quot;Retry-After&quot;), c.now())
+        }
+        return se
+    }
+</code></pre>
+
+
+</div>
+
+<p>החבילה <code>retry</code> לא יודעת כלום על HTTP. היא מכירה רק ממשק קטן, והשגיאה <code>StatusError</code> מממשת אותו. מהקובץ
+<code>retry/retry.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// ServerDelay is implemented by an error that carries the wait a server asked for,
+// such as an HTTP Retry-After. Do waits at least that long before the next attempt.
+type ServerDelay interface{ ServerDelay() time.Duration }
+
+// serverDelay returns the wait err asks for, or 0.
+func serverDelay(err error) time.Duration {
+    var sd ServerDelay
+    if errors.As(err, &amp;sd) {
+        return sd.ServerDelay()
+    }
+    return 0
+}
+</code></pre>
+
+
+</div>
+
+<p>בלולאה של 15.3.3 זה מתורגם לשלושה כללים:</p>
+<ul>
+<li>ההמתנה היא הגדולה מבין שתיים: הנוסחה, ומה שהשרת ביקש. השרת קובע מינימום, לא מקסימום.</li>
+<li>אם הבקשה של השרת לבדה חוצה את גבול הזמן, הלולאה מוותרת מיד, עם השגיאה <code>ErrRetryAfterTooLong</code>. לישון עד
+  הגבול רק כדי להיכשל בו זה בזבוז, והשגיאה אומרת למה לא היה ניסיון נוסף.</li>
+<li>תקציב הניסיונות עדיין קובע. בקשה מהשרת לא נותנת זכות לניסיון חוזר; היא רק אומרת מתי, אם בכלל.</li>
+</ul>
+<p>השעון שמתרגם תאריך להמתנה הוא אותו <code>Now</code> שבמדיניות, ולכן תאריך נמדד מול אותו זמן שהלולאה משווה לגבול. בזכות
+זה הבדיקות <code>TestParseRetryAfter</code> ו־<code>TestCallHonorsRetryAfter</code> לא ישנות אף פעם. את הצד של השרת, שעונה 429 עם
+הכותרת הזאת, תבני בפרק 16, סעיף 16.3.5.</p>
+<blockquote>
+<p><strong>שימי לב:</strong> בלי גבול זמן על ה־context, שום דבר לא מגביל את ההמתנה שהשרת מבקש. זו עוד סיבה לכך שלכל
+קריאה יש גבול (15.2.1).</p>
 </blockquote>
 <h2 id="154">15.4 סערת ניסיונות חוזרים</h2>
 <h3 id="1541">15.4.1 החשבון</h3>
@@ -1082,6 +1196,7 @@ bulkhead: 4 slots for slow   ___      ___      ___
 <li><strong>ניסיון חוזר:</strong> רק לכשל זמני, לא לסירוב שלי, ולא מעבר לגבול הזמן.</li>
 <li><strong>פיזור אקראי מלא:</strong> הגרלה בין אפס לתקרה שמכפילה את עצמה.</li>
 <li><strong>תקציב ניסיונות:</strong> כל בקשה מפקידה עשירית, כל ניסיון חוזר מושך אחד, משותף לתלות.</li>
+<li><strong>הכותרת <code>Retry-After</code>:</strong> ב־429 וב־503 מחכים לפחות כמה שהשרת ביקש; אם זה חוצה את הגבול, מוותרים מיד.</li>
 <li><strong>סערה:</strong> ניסיונות בחזקת מספר השכבות; שכבה אחת בעלת הניסיונות.</li>
 <li><strong>מפסק זרם:</strong> סגור, פתוח, חצי־פתוח; דור מתעלם מתוצאות ישנות; ביטול לא נספר.</li>
 <li><strong>מחיצה אטומה:</strong> סמפור לכל תלות, סירוב מהיר או המתנה קצרה בתוך ה־context.</li>
@@ -1095,6 +1210,7 @@ bulkhead: 4 slots for slow   ___      ___      ___
 header X-Timeout-Ms (gRPC: grpc-timeout)
 sleep = random(0, min(cap, base * 2^attempt))      # full jitter, Brooker 2015
 retry.NewBudget(0.1, 10): Deposit per call, Withdraw per retry
+Retry-After: 120 | Fri, 31 Dec 1999 23:59:59 GMT   (RFC 9110 10.2.3; wait = max(backoff, asked))
 storm: 3 layers x 3 attempts = 27 upstream calls per request
 breaker: closed -&gt; open (N failures) -&gt; half-open (timeout) -&gt; closed (K ok) | open (1 fail)
 bulkhead: slots := make(chan struct{}, n); acquire = send, release = receive
@@ -1109,13 +1225,14 @@ my bulkhead run: fast ok without ___ with ___
 
 <h2 id="_7">תרגיל</h2>
 <p><strong>מטרה:</strong> לבנות מעבדת עמידות: שרת שמשתבש בכוונה ולקוח שכל מנגנון בו נדלק בדגל; להשלים את העברת התקציב, את
-הניסיון החוזר עם תקציב ניסיונות, את מפסק הזרם ואת המחיצה; ולרשום את מספרי המעבדה עם כל מנגנון ובלעדיו.
-<strong>זמן:</strong> שני ימי לימוד, ימים 46 ו־47, כ־35 דקות בנייה ביום 46 וכ־65 ביום 47. <strong>ידע מקדים:</strong> הפרק, ופרקים 5 ו־6.</p>
+הניסיון החוזר עם <code>Retry-After</code> ועם תקציב ניסיונות, את מפסק הזרם ואת המחיצה; ולרשום את מספרי המעבדה עם כל
+מנגנון ובלעדיו.
+<strong>זמן:</strong> שני ימי לימוד, ימים 46 ו־47, כ־45 דקות בנייה ביום 46 וכ־65 ביום 47. <strong>ידע מקדים:</strong> הפרק, ופרקים 5 ו־6.</p>
 <p>הצעדים, קוד ההתחלה, הרמזים והפתרון נמצאים
 ב־<a href="../exercises/ch15-resilience-lab/README.md"><code>exercises/ch15-resilience-lab/README.md</code></a>.</p>
 <p><strong>קריטריון סיום:</strong></p>
 <ul>
-<li>כל הבדיקות עוברות עם <code>-race</code>, כולל הבדיקה שמראה קריאה שנחתכת כשהתקציב נגמר.</li>
+<li>כל הבדיקות עוברות עם <code>-race</code>, כולל הבדיקה שמראה קריאה שנחתכת כשהתקציב נגמר, ובדיקות <code>Retry-After</code>.</li>
 <li>טבלת הסערה מההרצה שלך שמורה בפתק, כולל שורת התקציב.</li>
 <li>בדיקות המצבים של מפסק הזרם עוברות בלי לישון.</li>
 <li>מספרי המעבדה של המפסק, המחיצה וההידרדרות רשומים בפתק, עם ובלי כל מנגנון.</li>

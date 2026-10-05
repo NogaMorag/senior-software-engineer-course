@@ -56,10 +56,11 @@ were reconstructed (`03-decisions-2026-10-04.md`); this book was built and execu
 8. **Recorded exceptions to the writing contract.** Appendix F's time split "קריאה 25 / בנייה 55 / פתק 10" keeps book 1's
    label format (slashes between labels). A few multi-word product names exceed two Latin tokens in a sentence (§36.2,
    three bank answers, §38.8). §39.7 carries four follow-ups (the project drill), the apparatus sections ≤2.
-9. **Small open items.** The chapter 15 lab client ignores `Retry-After` (the chapter no longer claims it honours it).
-   The M5 smoke step `docker compose exec postgres psql … UPDATE` in §38.5.4 was run in its `docker exec` equivalent,
-   not verbatim. A few expected outputs (§38.7 kind and Terraform outputs, `make run-dev`'s key print) come from the
-   writer's runs and were not re-run in the final pass.
+9. **Small open items — closed 2026-10-05 (after Stage 3).** The chapter 15 lab client now honors `Retry-After`
+   (§15.3.5, 24 new test cases). Chapter 38's commands were re-run verbatim on a clean copy: §38.2.4 and §38.5.4 failed
+   as printed (plain `make run` rejects `http://` endpoints outside dev mode — the M9 SSRF guard working as designed);
+   both now set `HOOKLINE_DEV_MODE=true` and say why. `make run-dev`, the migrations, `chart-check`, `kind-smoke` and the
+   Terraform plan/apply/plan/destroy outputs matched and are now shown as runs on the book's machine.
 
 ## 3. Plan for the gaps (what the reader does, when)
 
