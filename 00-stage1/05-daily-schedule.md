@@ -14,7 +14,7 @@ the same change.
   verified one day and used for real on a later day.
 - **One lighter day a week**, marked "lighter day" in its title: day 1, the checkpoint days, review day 35 and a few
   concept-heavy days. A lighter day is the natural place to catch up.
-- **Six checkpoints** (days 14, 45, 56, 71, 87, 100), at the end of Parts A, C, D, E, G and the capstone. Each
+- **Six checkpoints** (days 14, 45, 56, 71, 87, 100), at the end of Parts A, C, D, E, of Parts F and G together, and of the capstone. Each
   carries a review list of what must work before you move on.
 - **Hookline milestones M1–M10** get two or three days each, right after the part that teaches them. A milestone
   day reads its section of chapter 38 and names the Hookline modules it touches: `api` (HTTP API and ingest),
@@ -38,7 +38,7 @@ the same change.
 
 ### Day 0 — Installations: WSL2, Docker, Git, VS Code, Go, uv
 - **Objective:** a working, verified workbench before any first use, installed calmly with time to troubleshoot.
-- **Read:** ch 2, sections 2.1–2.8 (on a Mac instead: ch 2, section 2.13).
+- **Read:** ch 2, sections 2.1–2.8 (on a Mac, ch 2, section 2.13 replaces 2.2–2.4; the rest is read as is).
 - **Time:** 100 min (read 25 / install 65 / note 10). Do it the weekend before Week 1; if a step fails, ch 2,
   section 2.11 and appendix B are the first stops.
 - **Exercise:** `ch02-workbench`, install half only: enable WSL2 and install Ubuntu; set up the terminal; install

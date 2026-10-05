@@ -1,0 +1,44 @@
+# A primary and a streaming hot-standby replica for chapter 17.
+# Start: docker compose -p ch17 -f data/compose.yaml up -d --wait
+name: ch17
+services:
+  primary:
+    image: postgres:18.6
+    environment:
+      POSTGRES_USER: course
+      POSTGRES_PASSWORD: change-me # local practice password, not a secret
+      POSTGRES_DB: lab
+      REPLICATION_PASSWORD: change-me-too # read by primary-init.sh
+    # wal_level=replica and max_wal_senders=10 are the defaults; spelled out so you see them.
+    command: ["postgres", "-c", "wal_level=replica", "-c", "max_wal_senders=10"]
+    ports:
+      - "127.0.0.1:5417:5432"
+    volumes:
+      - primary-data:/var/lib/postgresql
+      - ./primary-init.sh:/docker-entrypoint-initdb.d/10-replication.sh:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "course", "-d", "lab"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  replica:
+    image: postgres:18.6
+    depends_on:
+      primary:
+        condition: service_healthy
+    environment:
+      REPLICATION_PASSWORD: change-me-too
+    entrypoint: ["/usr/local/bin/replica-entrypoint.sh"]
+    ports:
+      - "127.0.0.1:5427:5432"
+    volumes:
+      - replica-data:/var/lib/postgresql
+      - ./replica-entrypoint.sh:/usr/local/bin/replica-entrypoint.sh:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "course", "-d", "lab"]
+      interval: 2s
+      timeout: 3s
+      retries: 60
+volumes:
+  primary-data:
+  replica-data:

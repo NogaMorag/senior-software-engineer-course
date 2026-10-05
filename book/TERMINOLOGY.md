@@ -103,6 +103,8 @@ stay English and which are translated**, and the one rendering each translated c
 | TTL | זמן חיים (TTL) | |
 | negative caching | מטמון שלילי | |
 | router | נתב | |
+| tenant | דיירת (plural דיירות) | Hookline's customer account; feminine throughout, with agreeing verbs and adjectives |
+| subscription | מנוי | endpoint stays English |
 | request ID | מזהה בקשה | |
 | access log | לוג גישה | |
 | grace period | זמן חסד | |
@@ -114,6 +116,16 @@ stay English and which are translated**, and the one rendering each translated c
 | method | מתודה | receiver stays English |
 | event loop | לולאת האירועים | asyncio's loop; the identifier stays English |
 | task (asyncio, background job) | משימה | the class `asyncio.Task` stays an identifier |
+| continuous integration | אינטגרציה רציפה (CI) | chapter 23; CI stays English afterwards |
+| smoke test | בדיקת עשן | chapter 2 and chapter 23 |
+| composite action | פעולה מורכבת | GitHub Actions; "action" itself stays English |
+| reusable workflow | workflow לשימוש חוזר | |
+| required reviewer (environment) | מבקר חובה | |
+| estimate | הערכת זמנים | chapter 31; given as a range (טווח) with a confidence (רמת ביטחון) |
+| mentoring | חניכה | chapter 1 and 31 |
+| agent (AI coding) | סוכן | book 1; chapter 32 |
+| prompt | הנחיה | book 1; chapter 32 |
+| spec | מפרט | chapter 32: what an agent or a person is asked to build, with its edges |
 
 Appendices are named with Hebrew letters in prose: נספח א … נספח ו (never נספח C).
 

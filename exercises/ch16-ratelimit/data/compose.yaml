@@ -1,0 +1,14 @@
+# Redis for chapter 16. Start: docker compose -p ch16 -f data/compose.yaml up -d --wait
+name: ch16
+services:
+  redis:
+    image: redis:8.10.2
+    # Limiter state is reconstructible: no persistence, and a memory limit.
+    command: ["redis-server", "--maxmemory", "64mb", "--maxmemory-policy", "volatile-ttl", "--save", "", "--appendonly", "no"]
+    ports:
+      - "127.0.0.1:6316:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
