@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>פרק 13: Kafka עם Redpanda</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="top"><a href="index.html">תוכן העניינים</a> · <a href="12-redis-caching.html">← פרק 12: Redis ומטמון</a> · <a href="14-background-jobs.html">פרק 14: עבודות רקע וניסיונות חוזרים →</a></nav>
+<main class="book">
+<div class="toc"><span class="toctitle">תוכן הפרק</span><ul>
+<li><a href="#_1">מה נלמד בפרק</a></li>
+<li><a href="#_2">ידע מקדים</a></li>
+<li><a href="#131">13.1 יומן מול תור</a></li>
+<li><a href="#132-redpanda-rpk">13.2 Redpanda בקונטיינר ו־rpk</a></li>
+<li><a href="#133-topics">13.3 topics ומחיצות</a></li>
+<li><a href="#134-producers-acks">13.4 producers: מפתחות, סדר ו־acks</a></li>
+<li><a href="#135-consumer-groups-offsets">13.5 consumer groups ו־offsets</a></li>
+<li><a href="#136-rebalance">13.6 rebalance ועיבוד „לפחות פעם אחת”</a></li>
+<li><a href="#137-outbox">13.7 תבנית ה־outbox</a></li>
+<li><a href="#138">13.8 למה „בדיוק פעם אחת” הוא חוזה</a></li>
+<li><a href="#139-franz-go-go">13.9 franz-go מ־Go</a></li>
+<li><a href="#_3">סיכום</a></li>
+<li><a href="#_4">מונחים לזכור</a></li>
+<li><a href="#_5">טעויות נפוצות</a></li>
+<li><a href="#_6">שאלות ראיון</a></li>
+<li><a href="#obsidian">פתק Obsidian</a></li>
+<li><a href="#_7">תרגיל</a></li>
+<li><a href="#_8">העשרה אופציונלית</a></li>
+</ul>
+</div>
+
+<h1 id="13-kafka-redpanda">פרק 13: Kafka עם Redpanda</h1>
+<p>כשמערכת אחת צריכה לספר לאחרות שמשהו קרה, היא כותבת אירוע ליומן משותף, ומי שמעוניין קורא אותו בקצב
+שלו. Kafka היא היומן הנפוץ ביותר לתפקיד הזה, ובראיון בכיר ישאלו אותך פחות איך שולחים הודעה ויותר מה
+קורה כשמשהו נופל באמצע. בפרק הזה תריצי Redpanda, שמדברת את הפרוטוקול של Kafka. תביני מחיצות, מיקומים
+וקבוצות צרכנים, ותבני את תבנית ה־outbox עם בדיקה שמפילה את התהליך בדיוק ברגע הלא נוח.</p>
+<h2 id="_1">מה נלמד בפרק</h2>
+<ul>
+<li>ההבדל בין יומן לתור, ולמה הוא קובע את כל השאר.</li>
+<li>להריץ Redpanda בקונטיינר ולעבוד מולה עם <code>rpk</code>.</li>
+<li>topics ומחיצות: מה מחיצה מסדרת, ומה היא לא מסדרת.</li>
+<li>producers: מפתחות, אישורי כתיבה (<code>acks</code>) ו־producer אידמפוטנטי.</li>
+<li>קבוצות צרכנים, שמירת מיקום, חלוקה מחדש ועיבוד „לפחות פעם אחת” (at-least-once).</li>
+<li>תבנית ה־outbox, ובדיקה שמפילה את ה־relay בין הפרסום לסימון.</li>
+<li>למה „בדיוק פעם אחת” (exactly-once) הוא חוזה בין שני צדדים ולא תכונה של ה־broker.</li>
+</ul>
+<h2 id="_2">ידע מקדים</h2>
+<ul>
+<li>פרק 2: Docker ו־compose, Go, והמשתנה של מאגר הקורס.</li>
+<li>פרק 5: goroutines, context וביטול.</li>
+<li>פרק 9, סעיף 9.5: מפתחות אידמפוטנטיות. הצרכן בפרק הזה משתמש באותו רעיון.</li>
+<li>פרק 10: PostgreSQL בקונטיינר, והגישה אליו מ־Go.</li>
+<li>פרק 11, סעיפים 11.1 ו־11.4: טרנזקציה כיחידה אטומית, ונעילת שורות עם <code>FOR UPDATE</code>.</li>
+</ul>
+<h2 id="131">13.1 יומן מול תור</h2>
+<p>שתי משפחות של מערכות מעבירות הודעות בין שירותים, והן נראות דומות רק מבחוץ. <strong>תור (queue)</strong>, למשל
+RabbitMQ, מחזיק הודעות עד שמישהו מטפל בהן. צרכן לוקח הודעה, מאשר אותה, והיא נמחקת. ה־broker
+זוכר כל הודעה בנפרד: מי לקח אותה, אם אושרה, ומתי לשלוח אותה שוב.</p>
+<p><strong>יומן (log)</strong>, כמו Kafka, הוא רצף שרק מוסיפים לסופו. הודעה שנכתבה נשארת שם לפי מדיניות שמירה (זמן או
+גודל), בלי קשר לשאלה אם מישהו קרא אותה. כל צרכן זוכר בעצמו מספר אחד: עד איפה הגיע. המספר הזה נקרא
+<strong>offset</strong>, המיקום של רשומה ביומן.</p>
+<table>
+<thead>
+<tr>
+<th>שאלה</th>
+<th>תור</th>
+<th>יומן</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>מה קורה להודעה אחרי טיפול</td>
+<td>נמחקת</td>
+<td>נשארת עד שתוקף השמירה פג</td>
+</tr>
+<tr>
+<td>מה ה־broker זוכר על הצרכן</td>
+<td>מצב של כל הודעה</td>
+<td>מספר אחד לכל מחיצה</td>
+</tr>
+<tr>
+<td>קוראים בלתי תלויים</td>
+<td>כל אחד צריך תור משלו</td>
+<td>כל קבוצה קוראת לבד, מאותו יומן</td>
+</tr>
+<tr>
+<td>קריאה חוזרת של העבר</td>
+<td>לא, ההודעה נמחקה</td>
+<td>כן, מזיזים את ה־offset אחורה</td>
+</tr>
+<tr>
+<td>סדר</td>
+<td>חלש, כשיש כמה צרכנים</td>
+<td>מובטח בתוך מחיצה</td>
+</tr>
+<tr>
+<td>ניסיון חוזר להודעה אחת, בעיכוב</td>
+<td>מובנה ברוב התורים</td>
+<td>אין; היומן מתקדם קדימה</td>
+</tr>
+</tbody>
+</table>
+<p>מכאן נובע כמעט כל מה שבפרק. אפשר להריץ שוב את ההיסטוריה, ולכן צרכן חדש יכול לבנות את המצב שלו מאפס.
+המצב של צרכן הוא מספר, ולכן הוא זול וקל לשמור. וגם המחיר ברור: אין ניסיון חוזר עם עיכוב להודעה בודדת.
+כשצריך דבר כזה, למשל משלוח webhook שנכשל, עדיף תור עבודות של ממש, וזה פרק 14.</p>
+<blockquote>
+<p><strong>מונח:</strong> יש שלוש הבטחות מסירה:</p>
+<ul>
+<li>„לכל היותר פעם אחת” (at-most-once): אולי תאבד, לעולם לא תוכפל.</li>
+<li>„לפחות פעם אחת” (at-least-once): לעולם לא תאבד, אולי תוכפל.</li>
+<li>„בדיוק פעם אחת” (exactly-once): הפרק מסביר למה זו הסכם ולא קסם.</li>
+</ul>
+</blockquote>
+<h2 id="132-redpanda-rpk">13.2 Redpanda בקונטיינר ו־rpk</h2>
+<p>Redpanda היא מימוש של הפרוטוקול של Kafka, שמופץ כבינארי אחד. לקוח של Kafka מדבר איתה בלי לדעת
+שזה לא אותו שרת, וזה נכון גם לספרייה של Go שנשתמש בה. היא נבחרה לספר כי broker יחיד בקונטיינר אחד עולה מהר על
+מחשב נייד. כל הסמנטיקה שנלמד כאן היא של Kafka, ותקפה גם מול אשכול Kafka אמיתי.</p>
+<p>קובץ ה־compose של התרגיל בנוי לפי קובץ ההתחלה המהירה שבתיעוד של Redpanda. הוא
+מצומצם ל־broker אחד, בלי אימות משתמשים ובלי רכיבים שהפרק לא צריך. הגרסאות מקובעות בקובץ, נכון לאוקטובר
+2026 (ראי נספח ג). אלה ההחלטות שכדאי להבין בו:</p>
+<table>
+<thead>
+<tr>
+<th>שורה</th>
+<th>למה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--kafka-addr</code></td>
+<td>שני מאזינים: הפנימי לקונטיינרים, והחיצוני לתוכניות על המחשב שלך</td>
+</tr>
+<tr>
+<td><code>--advertise-kafka-addr</code></td>
+<td>הכתובת שה־broker מוסר ללקוחות; היא חייבת להיות נגישה מהצד של הלקוח</td>
+</tr>
+<tr>
+<td><code>--mode dev-container</code></td>
+<td>הגדרות פיתוח: בלי <code>fsync</code>, בלי שריון זיכרון, יצירת topic אוטומטית</td>
+</tr>
+<tr>
+<td><code>--smp 1</code></td>
+<td>ליבת מעבד אחת מספיקה לתרגילים</td>
+</tr>
+<tr>
+<td><code>console</code></td>
+<td>ממשק דפדפן לצפייה ב־topics, בהודעות ובקבוצות</td>
+</tr>
+<tr>
+<td><code>127.0.0.1:19092</code></td>
+<td>ה־Kafka API נפתח רק למחשב שלך</td>
+</tr>
+<tr>
+<td><code>db</code></td>
+<td>ה־PostgreSQL של התרגיל, לתבנית ה־outbox</td>
+</tr>
+</tbody>
+</table>
+<p>השורה החשובה ביותר להבנה היא כתובת הפרסום. הלקוח מתחבר קודם לכתובת אחת, ומקבל ממנה את רשימת
+השרתים ואת הכתובות שלהם. משם הוא מתחבר ישירות ל־broker הנכון. אם ה־broker מפרסם כתובת שאין לה משמעות
+מבחוץ, החיבור הראשון מצליח וכל השאר נכשלים. זו התקלה הנפוצה ביותר בהרצת Kafka בקונטיינר.</p>
+<blockquote>
+<p><strong>שימי לב:</strong> המצב <code>dev-container</code> מדלג על <code>fsync</code> לדיסק, ולכן אסור בייצור. לפי התיעוד של Redpanda הוא
+גם מפעיל יצירה אוטומטית של topics, ומגדיר שלוש מחיצות לנתונים הפנימיים של הקבוצות. בבדיקות שלנו כל topic
+נוצר במפורש, כדי שמספר המחיצות לא יהיה מקרי.</p>
+</blockquote>
+<p>מפעילים מתוך תיקיית העבודה של הפרק, ובודקים שה־broker עונה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">docker compose -p ch13 -f data/compose.yaml up -d --wait
+docker compose -p ch13 -f data/compose.yaml exec redpanda rpk cluster info
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">CLUSTER
+=======
+redpanda.92bf3677-3bef-4f71-bcb0-6163f97e6b0d
+
+BROKERS
+=======
+ID    HOST      PORT
+0*    redpanda  9092
+</code></pre>
+
+
+</div>
+
+<p>הכלי <code>rpk</code> הוא שורת הפקודה של Redpanda, והוא כבר מותקן בתוך הקונטיינר. כשמריצים אותו בתוך הקונטיינר הוא
+מתחבר למאזין הפנימי בלי הגדרות. כדי לא להקליד את השורה הארוכה בכל פעם, הגדירי פונקציה במעטפת:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">rpk() { docker compose -p ch13 -f data/compose.yaml exec -T redpanda rpk &quot;$@&quot;; }
+rpk topic list
+</code></pre>
+
+
+</div>
+
+<p>הדגל <code>-T</code> מכבה את המסוף המדומה, וכך אפשר להזרים קלט לפקודה דרך צינור. ממשק הדפדפן נפתח בכתובת
+<code>http://localhost:8088</code>. שם רואים את אותם נתונים בצורה גרפית.</p>
+<h2 id="133-topics">13.3 topics ומחיצות</h2>
+<p><strong>topic</strong> הוא יומן עם שם, למשל <code>orders.placed</code>. בפועל הוא מחולק ל־<strong>partitions</strong> (מחיצות): כל מחיצה היא
+יומן נפרד, עם offsets משלה שמתחילים מ־0. הסדר מובטח רק בתוך מחיצה. בין שתי מחיצות אין שום יחס סדר, גם לא
+לפי זמן.</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-mermaid">flowchart LR
+  P[producer] --&gt;|key alice| P0[partition 0: 0 1 2 3]
+  P --&gt;|key carol| P2[partition 2: 0 1]
+  P0 --&gt; C1[consumer A]
+  P2 --&gt; C2[consumer B]
+</code></pre>
+
+
+</div>
+
+<p>מספר המחיצות הוא החלטה עם השלכות:</p>
+<ul>
+<li><strong>מקביליות.</strong> בתוך קבוצת צרכנים, כל מחיצה שייכת לצרכן אחד. שלוש מחיצות פירושן שלושה צרכנים פעילים
+  לכל היותר; רביעי יחכה בטל.</li>
+<li><strong>סדר לפי מפתח.</strong> רשומות עם אותו מפתח נוחתות באותה מחיצה, כל עוד מספר המחיצות לא משתנה.</li>
+<li><strong>הוספת מחיצות.</strong> אפשר להוסיף, ואי אפשר להפחית. אחרי הוספה חלק מהמפתחות עוברים למחיצה אחרת, ובאותו
+  רגע הסדר שלהם נשבר.</li>
+<li><strong>שכפול.</strong> לכל מחיצה יש כמה עותקים על שרתים שונים (replication factor). אצלנו יש broker אחד, ולכן
+  עותק אחד.</li>
+</ul>
+<p>שמירה (retention) נקבעת לכל topic לפי זמן או גודל. יש גם מצב שמירה שונה, דחיסה (compaction), שבו
+נשמרת רק הרשומה האחרונה לכל מפתח. הוא מתאים ל־topic שמייצג מצב עדכני, כמו „הכתובת האחרונה של כל לקוח”.</p>
+<p>נסי בעצמך. צרי topic עם שלוש מחיצות, כתבי אליו הודעות עם מפתח, וקראי אותן עם פורמט שמראה מחיצה ו־offset:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">rpk topic create demo -p 3
+printf 'alice-1\nalice-2\nalice-3\n' | rpk topic produce demo -k alice
+printf 'bob-1\nbob-2\n' | rpk topic produce demo -k bob
+rpk topic consume demo -n 5 -f '%p %o %k %v\n'
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">0 0 alice alice-1
+0 1 alice alice-2
+0 2 alice alice-3
+0 3 bob bob-1
+0 4 bob bob-2
+</code></pre>
+
+
+</div>
+
+<p>העמודות הן מחיצה, offset, מפתח וערך. שימי לב שגם alice וגם bob נחתו במחיצה 0. זה לא באג: שני מפתחות
+יכולים לקבל את אותה מחיצה, וההבטחה היא רק בכיוון ההפוך, שמפתח אחד לא יתפצל. בהרצה שלך המחיצות עשויות
+להיות אחרות אם בחרת מפתחות אחרים; רשמי בפתק איזה מפתח נחת איפה.</p>
+<h2 id="134-producers-acks">13.4 producers: מפתחות, סדר ו־acks</h2>
+<p><strong>producer</strong> הוא הלקוח שכותב. לכל רשומה הוא בוחר מחיצה: כשיש מפתח, לפי גיבוב של המפתח ושארית החלוקה
+במספר המחיצות. הספרייה של Go משתמשת באותו גיבוב (murmur2) כמו הלקוח הרשמי ו־<code>rpk</code>. לכן התוכנית
+<code>cmd/produce</code> של התרגיל שולחת את alice לאותה מחיצה שבה היא נחתה קודם:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">export KAFKA_BROKERS=localhost:19092
+go run ./cmd/produce -topic demo -n 6 -keys alice,bob,carol
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">key=alice  partition=0 offset=5 value=alice-0
+key=bob    partition=0 offset=6 value=bob-1
+key=carol  partition=2 offset=0 value=carol-2
+key=alice  partition=0 offset=7 value=alice-3
+key=bob    partition=0 offset=8 value=bob-4
+key=carol  partition=2 offset=1 value=carol-5
+</code></pre>
+
+
+</div>
+
+<p>רשומה בלי מפתח מתפזרת בין המחיצות, ואז אין לה הבטחת סדר מול רשומות אחרות. בחירת המפתח היא לכן החלטה
+עסקית: הוא קובע מה חייב להישאר בסדר. בתרגיל המפתח הוא הלקוחה, כי שני אירועים של אותה לקוחה צריכים להגיע
+לפי הסדר, ואירועים של לקוחות שונות לא.</p>
+<p>השאלה השנייה היא מתי הכתיבה נחשבת הצלחה. ההגדרה <code>acks</code> קובעת על אישור של מי ה־producer מחכה:</p>
+<table>
+<thead>
+<tr>
+<th>ערך</th>
+<th>ה־broker מאשר אחרי</th>
+<th>מה עלול להיאבד</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>acks=0</code></td>
+<td>לא מאשר בכלל</td>
+<td>כל רשומה, בלי שתדעי</td>
+</tr>
+<tr>
+<td><code>acks=1</code></td>
+<td>המוביל (leader) של המחיצה כתב</td>
+<td>רשומות שהמוביל כתב ונפל לפני ששוכפלו</td>
+</tr>
+<tr>
+<td><code>acks=all</code></td>
+<td>כל העותקים המסונכרנים (in-sync replicas) כתבו</td>
+<td>רק אם כל העותקים המסונכרנים נופלים</td>
+</tr>
+</tbody>
+</table>
+<p>ההגדרה <code>acks=all</code> שווה מעט בלי ההגדרה <code>min.insync.replicas</code> בצד השרת. לפי התיעוד של Kafka, אם נשאר
+עותק מסונכרן אחד בלבד, כתיבה עם <code>acks=all</code> עדיין מצליחה, ויכולה ללכת לאיבוד אם גם הוא נופל. ההגדרה
+<code>min.insync.replicas=2</code> גורמת ל־broker לסרב לכתיבה במצב כזה. אצלנו יש עותק אחד, ולכן <code>acks=all</code> פירושו
+המוביל בלבד. ובנוסף, המצב <code>dev-container</code> לא מבצע <code>fsync</code>: אישור הוא הבטחה על עותקים, לא על דיסק.</p>
+<p>הבעיה השלישית היא ניסיונות חוזרים. לקוח ששלח מנה ולא קיבל תשובה שולח אותה שוב, אבל אולי השרת
+כבר כתב אותה והתשובה אבדה. <strong>producer אידמפוטנטי</strong> (idempotent producer) פותר את זה: הוא מקבל מזהה
+מהשרת, וממספר כל מנה בכל מחיצה. השרת זורק מנה שכבר כתב, ושומר על הסדר גם כשכמה בקשות בדרך.</p>
+<blockquote>
+<p><strong>טעות נפוצה:</strong> לחשוב שה־producer האידמפוטנטי מונע כפילויות של האפליקציה. הוא מונע כפילויות של ניסיון
+חוזר של הלקוח עצמו, בתוך אותו חיבור לוגי. אם התהליך שלך קורס ושולח את אותה הודעה מחדש אחרי הפעלה, זו
+רשומה חדשה מבחינת ה־broker. סעיף 13.7 בונה בדיוק את המקרה הזה.</p>
+</blockquote>
+<p>נכון לאוקטובר 2026, לפי התיעוד של Kafka, שתי ההגדרות האלה הן ברירת המחדל:
+<code>enable.idempotence=true</code> ו־<code>acks=all</code>. גם ב־franz-go שתיהן ברירת מחדל, והקובץ <code>bus/bus.go</code> רק כותב אותן במפורש:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// NewProducer returns a client for producing. franz-go's defaults are already the safe
+// ones; they are spelled out here so that you can see them:
+//   - acks=all: the leader answers only after every in-sync replica has the record;
+//   - idempotent writes (on by default; kgo.DisableIdempotentWrite would turn them off):
+//     the broker drops a retried batch it already wrote, so client retries add no
+//     duplicates and keep per-partition order;
+//   - the default partitioner hashes the key (murmur2, as the Java client does), so one
+//     key always lands on the same partition while the partition count stays the same.
+func NewProducer(brokers []string, opts ...kgo.Opt) (*kgo.Client, error) {
+    base := []kgo.Opt{
+        kgo.SeedBrokers(brokers...),
+        kgo.RequiredAcks(kgo.AllISRAcks()),
+        kgo.ProducerLinger(5 * time.Millisecond),
+    }
+    cl, err := kgo.NewClient(append(base, opts...)...)
+    if err != nil {
+        return nil, fmt.Errorf(&quot;new producer: %w&quot;, err)
+    }
+    return cl, nil
+}
+</code></pre>
+
+
+</div>
+
+<p>ההשהיה <code>ProducerLinger</code> אוספת רשומות לכמה אלפיות שנייה לפני שליחה, כדי לשלוח batch גדול יותר. זו פשרה
+קלאסית בין תפוקה (throughput) לזמן תגובה (latency).</p>
+<h2 id="135-consumer-groups-offsets">13.5 consumer groups ו־offsets</h2>
+<p><strong>consumer</strong> הוא לקוח שקורא. <strong>consumer group</strong> (קבוצת צרכנים) היא כמה צרכנים עם אותו שם קבוצה, שמחלקים
+ביניהם את המחיצות: כל מחיצה שייכת בכל רגע לחבר אחד בדיוק. כך מקבלים עבודה במקביל עם סדר בתוך מחיצה.
+שתי קבוצות שונות קוראות את אותו topic כל אחת לגמרי לבד.</p>
+<p>הקבוצה זוכרת את ההתקדמות שלה כ־offset שמור (committed offset) לכל מחיצה. הוא נשמר אצל השרת, במחיצות
+פנימיות בשם <code>__consumer_offsets</code>. המספר השמור הוא הרשומה הבאה שצריך לקרוא, לא האחרונה שנקראה. אפשר לראות אותו,
+ואת הפיגור (lag), עם <code>rpk</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">rpk group describe demo-group
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">GROUP                  demo-group
+COORDINATOR-NODE       0
+COORDINATOR-PARTITION  __consumer_offsets/1
+STATE                  Empty
+BALANCER               
+MEMBERS                0
+TOTAL-LAG              0
+
+TOPIC  PARTITION  CURRENT-OFFSET  LOG-START-OFFSET  LOG-END-OFFSET  LAG   MEMBER-ID  CLIENT-ID  HOST
+demo   0          9               0                 9               0                           
+demo   1          -               0                 0               -                           
+demo   2          2               0                 2               0
+</code></pre>
+
+
+</div>
+
+<p>הפלט הזה נלקח אחרי שצרכן אחד קרא את כל ה־topic ויצא. המחיצה 1 ריקה, ולכן אין לה offset שמור. הפיגור
+הוא ההפרש בין סוף היומן לבין ה־offset השמור, והוא המדד הראשון שמסתכלים עליו בתקרית: פיגור שגדל אומר
+שהצרכנים לא עומדים בקצב.</p>
+<p>השאלה המכרעת היא <strong>מתי</strong> לשמור את ה־offset:</p>
+<table>
+<thead>
+<tr>
+<th>מתי שומרים</th>
+<th>מה קורה בקריסה</th>
+<th>ההבטחה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>לפני העיבוד</td>
+<td>הרשומות שנשמרו ולא עובדו הולכות לאיבוד</td>
+<td>לכל היותר פעם אחת</td>
+</tr>
+<tr>
+<td>אחרי העיבוד</td>
+<td>רשומות שעובדו ולא נשמרו מעובדות שוב</td>
+<td>לפחות פעם אחת</td>
+</tr>
+<tr>
+<td>ברקע, כל כמה שניות</td>
+<td>תלוי בתזמון; אולי זה ואולי זה</td>
+<td>לא ברורה</td>
+</tr>
+</tbody>
+</table>
+<p>שמירה אוטומטית ברקע נוחה, אבל היא שומרת לפי מה שנקרא, לא לפי מה שהסתיים. לכן התרגיל מכבה אותה, ושומר
+בעצמו רק את מה שהעיבוד שלו גמר. כך נבנה צרכן הקבוצה בקובץ <code>bus/bus.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// NewGroupConsumer returns a consumer-group member for topic. Offsets are committed by
+// the caller after processing (consumer.Run), never automatically:
+//   - DisableAutoCommit: no background commit of records you have not finished;
+//   - BlockRebalanceOnPoll: a rebalance waits until the caller calls AllowRebalance, so
+//     a commit never lands on a partition that has moved to another member;
+//   - CooperativeStickyBalancer (the franz-go default, spelled out): in a rebalance only
+//     the partitions that move are revoked, the others keep being consumed;
+//   - a new group starts at the beginning of the topic, not at its end.
+func NewGroupConsumer(brokers []string, group, topic string, opts ...kgo.Opt) (*kgo.Client, error) {
+    base := []kgo.Opt{
+        kgo.SeedBrokers(brokers...),
+        kgo.ConsumerGroup(group),
+        kgo.ConsumeTopics(topic),
+        kgo.DisableAutoCommit(),
+        kgo.BlockRebalanceOnPoll(),
+        kgo.Balancers(kgo.CooperativeStickyBalancer()),
+        kgo.ConsumeResetOffset(kgo.NewOffset().AtStart()),
+    }
+    cl, err := kgo.NewClient(append(base, opts...)...)
+    if err != nil {
+        return nil, fmt.Errorf(&quot;new consumer: %w&quot;, err)
+    }
+    return cl, nil
+}
+</code></pre>
+
+
+</div>
+
+<p>האפשרות האחרונה חשובה בהרצה הראשונה: קבוצה חדשה, בלי offset שמור, מתחילה מתחילת ה־topic. ברירת המחדל
+היא דווקא הסוף, וצרכן חדש שמתחיל מהסוף לא יראה הודעות שנכתבו לפני שעלה.</p>
+<h2 id="136-rebalance">13.6 rebalance ועיבוד „לפחות פעם אחת”</h2>
+<p><strong>rebalance</strong> הוא חלוקה מחדש של המחיצות בין חברי הקבוצה. הוא קורה כשחבר מצטרף, כשחבר עוזב, כשחבר מפסיק
+לשלוח פעימות לב (heartbeats) בזמן, וכשמספר המחיצות משתנה. ב־franz-go, חבר שלא נשמע ממנו 45 שניות מוצא
+מהקבוצה כברירת מחדל. עד אז, המחיצות שלו עומדות.</p>
+<p>יש שתי משפחות של חלוקה. בחלוקה הישנה (eager), כל חבר מוותר על כל המחיצות שלו בכל rebalance, וכולם
+עוצרים עד שהחלוקה החדשה מוכנה. בחלוקה השיתופית (cooperative-sticky), רק המחיצות שעוברות בפועל נלקחות,
+והשאר ממשיכות לעבוד. זו ברירת המחדל של franz-go, והבדיקה של התרגיל מראה אותה: צרכן שני מצטרף לקבוצה עם
+ארבע מחיצות, והראשון מוותר על שתיים בלבד.</p>
+<p>ה־rebalance יוצר שני סיכונים לעבודה שבאמצע:</p>
+<ul>
+<li><strong>שמירה על מחיצה שכבר לא שלך.</strong> חבר ששומר מיקום אחרי שהמחיצה עברה לחבר אחר עלול להחזיר אחורה את
+  מה שהבעלים החדש כבר שמר. האפשרות <code>BlockRebalanceOnPoll</code> מעכבת את החלוקה מחדש עד שהלולאה קוראת
+  ל־<code>AllowRebalance</code>, כלומר עד שהיא סיימה וגם שמרה.</li>
+<li><strong>עבודה שעובדה ולא נשמרה.</strong> רשומה שטופלה ממש לפני שהמחיצה עברה, ועוד לא נשמרה, תגיע שוב לבעלים החדש.
+  זו כפילות, וזה המחיר של „לפחות פעם אחת”.</li>
+</ul>
+<p>הלולאה בקובץ <code>consumer/consumer.go</code> מחברת את הכול. היא מטפלת ברשומות לפי הסדר, נעצרת בשגיאה הראשונה,
+שומרת רק את מה שהסתיים, ורק אז משחררת את ה־rebalance:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func Run(ctx context.Context, cl *kgo.Client, handle func(context.Context, *kgo.Record) error) error {
+    for {
+        fetches := cl.PollRecords(ctx, 100)
+        if ctx.Err() != nil {
+            cl.AllowRebalance()
+            return ctx.Err()
+        }
+        if fetches.IsClientClosed() {
+            return nil
+        }
+        if errs := fetches.Errors(); len(errs) &gt; 0 {
+            cl.AllowRebalance()
+            return fmt.Errorf(&quot;fetch %s/%d: %w&quot;, errs[0].Topic, errs[0].Partition, errs[0].Err)
+        }
+        var done []*kgo.Record
+        var handleErr error
+        iter := fetches.RecordIter()
+        for !iter.Done() {
+            r := iter.Next()
+            if err := handle(ctx, r); err != nil {
+                handleErr = fmt.Errorf(&quot;handle %s/%d@%d: %w&quot;, r.Topic, r.Partition, r.Offset, err)
+                break
+            }
+            done = append(done, r)
+        }
+        // Commit after processing: only what handle finished. The commit gets its own
+        // short deadline instead of ctx, so that work finished just before a shutdown
+        // is still committed.
+        if len(done) &gt; 0 {
+            cctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+            err := cl.CommitRecords(cctx, done...)
+            cancel()
+            if err != nil {
+                cl.AllowRebalance()
+                return fmt.Errorf(&quot;commit: %w&quot;, err)
+            }
+        }
+        cl.AllowRebalance()
+        if handleErr != nil {
+            return handleErr
+        }
+    }
+}
+</code></pre>
+
+
+</div>
+
+<p>שימי לב לשמירה עם <code>context.WithoutCancel</code>. כשמגיע אות כיבוי, ה־context של הלולאה מבוטל, אבל עבודה
+שהסתיימה רגע לפני צריכה עדיין להישמר. זה הרעיון של כיבוי מסודר (graceful shutdown) מפרק 6, סעיף 6.5:
+מפסיקים לקחת עבודה חדשה, ומסיימים בצורה נקייה את מה שכבר נלקח.</p>
+<p>הבדיקה <code>TestUncommittedRecordsAreRedelivered</code> מדמה חבר שמת אחרי שטיפל ב־<code>m-4</code> ולפני ששמר אותה. החבר השני
+מתחיל בדיוק משם:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">first member: m-0 m-1 m-2 m-3 m-4 | second member: m-4 m-5 m-6 m-7 m-8 m-9
+</code></pre>
+
+
+</div>
+
+<p>שום הודעה לא אבדה, והודעה אחת עובדה פעמיים. זה מה שהבטחנו. כל מה שנשאר הוא לדאוג שהעיבוד הכפול לא יזיק,
+וזה הנושא של שני הסעיפים הבאים.</p>
+<blockquote>
+<p><strong>טעות נפוצה:</strong> הלולאה נעצרת על שגיאה ולא מדלגת. אם הודעה אחת שבורה לתמיד (poison message), הקבוצה
+תיתקע עליה ותנסה שוב לנצח. צרכן אמיתי מבחין בין שגיאה זמנית לשגיאה קבועה, ומעביר הודעה שבורה לתור מתים
+(dead-letter queue). פרק 14, סעיף 14.5, בונה את המנגנון הזה.</p>
+</blockquote>
+<h2 id="137-outbox">13.7 תבנית ה־outbox</h2>
+<p>נניח שירות הזמנות: הוא שומר הזמנה ב־PostgreSQL, וצריך לפרסם את האירוע „הזמנה בוצעה” כדי ששירות המשלוחים
+יכין משלוח. הגרסה התמימה כותבת למסד ואז שולחת ל־Kafka. זו <strong>כתיבה כפולה</strong> (dual write): שתי מערכות
+נפרדות, בלי טרנזקציה משותפת, ולכן כל סדר נכשל באמצע:</p>
+<table>
+<thead>
+<tr>
+<th>סדר</th>
+<th>נפילה באמצע</th>
+<th>התוצאה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>קודם המסד, אחר כך Kafka</td>
+<td>אחרי ה־commit, לפני הפרסום</td>
+<td>הזמנה בלי אירוע; המשלוח לא יוצא לעולם</td>
+</tr>
+<tr>
+<td>קודם Kafka, אחר כך המסד</td>
+<td>אחרי הפרסום, לפני ה־commit</td>
+<td>אירוע על הזמנה שלא קיימת</td>
+</tr>
+</tbody>
+</table>
+<p>ניסיון חוזר לא פותר את זה, כי התהליך עצמו יכול למות בין שתי השורות. <strong>תבנית ה־outbox</strong>
+מבטלת את הכתיבה הכפולה. השירות כותב שתי שורות לאותו מסד, באותה טרנזקציה: את ההזמנה, ושורה בטבלה <code>outbox</code>
+שמתארת את ההודעה. אטומיות של טרנזקציה (פרק 11, סעיף 11.1) מבטיחה ששתיהן קיימות או ששתיהן לא. תהליך נפרד,
+ה־<strong>relay</strong>, קורא שורות שלא פורסמו, מפרסם אותן ומסמן אותן.</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-mermaid">sequenceDiagram
+  participant S as orders service
+  participant DB as PostgreSQL
+  participant R as relay
+  participant K as Redpanda
+  S-&gt;&gt;DB: BEGIN; INSERT order; INSERT outbox; COMMIT
+  R-&gt;&gt;DB: SELECT unpublished FOR UPDATE
+  R-&gt;&gt;K: produce, wait for acks
+  Note over R: crash here means a duplicate later
+  R-&gt;&gt;DB: UPDATE published_at; COMMIT
+</code></pre>
+
+
+</div>
+
+<p>הטבלה עצמה, מהקובץ <code>db/schema.sql</code>. לכל שורה יש שני מזהים: <code>id</code> קובע את סדר הפרסום, ו־<code>message_id</code> הוא
+המזהה שהצרכנים יסננו לפיו כפילויות:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-sql">CREATE TABLE outbox (
+    id            bigserial PRIMARY KEY,           -- publish order
+    message_id    uuid        NOT NULL UNIQUE DEFAULT gen_random_uuid(),
+    topic         text        NOT NULL,
+    key           text        NOT NULL,           -- the Kafka record key (ordering scope)
+    payload       jsonb       NOT NULL,
+    created_at    timestamptz NOT NULL DEFAULT now(),
+    published_at  timestamptz                     -- NULL until the relay marks it
+);
+
+-- The relay only ever looks for unpublished rows, so index exactly those.
+CREATE INDEX outbox_unpublished ON outbox (id) WHERE published_at IS NULL;
+</code></pre>
+
+
+</div>
+
+<p>הצד של השירות קצר. הפונקציה <code>Place</code> לא נוגעת בשרת ההודעות בכלל. מהקובץ <code>orders/orders.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func Place(ctx context.Context, db *pgxpool.Pool, o Order) (int64, error) {
+    var orderID int64
+    err := pgx.BeginFunc(ctx, db, func(tx pgx.Tx) error {
+        if err := tx.QueryRow(ctx, `
+            INSERT INTO orders (customer, sku, quantity) VALUES ($1, $2, $3)
+            RETURNING id`, o.Customer, o.SKU, o.Quantity).Scan(&amp;orderID); err != nil {
+            return fmt.Errorf(&quot;insert order: %w&quot;, err)
+        }
+        payload, err := json.Marshal(Placed{OrderID: orderID, Customer: o.Customer, SKU: o.SKU, Quantity: o.Quantity})
+        if err != nil {
+            return err
+        }
+        _, err = outbox.Enqueue(ctx, tx, Topic, o.Customer, payload)
+        return err
+    })
+    if err != nil {
+        return 0, fmt.Errorf(&quot;place order: %w&quot;, err)
+    }
+    return orderID, nil
+}
+</code></pre>
+
+
+</div>
+
+<p>וה־relay, מהקובץ <code>outbox/outbox.go</code>. הוא קורא עד מנה אחת של שורות לפי הסדר ונועל אותן, מפרסם את כולן
+ומחכה לאישור, ורק אז מסמן אותן באותה טרנזקציה שקראה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func (r *Relay) RunOnce(ctx context.Context) (int, error) {
+    limit := r.BatchSize
+    if limit &lt;= 0 {
+        limit = 100
+    }
+    marked := 0
+    err := pgx.BeginFunc(ctx, r.DB, func(tx pgx.Tx) error {
+        rows, err := tx.Query(ctx, `
+            SELECT id, message_id::text, topic, key, payload::text FROM outbox
+            WHERE published_at IS NULL
+            ORDER BY id
+            LIMIT $1
+            FOR UPDATE`, limit)
+        if err != nil {
+            return fmt.Errorf(&quot;read outbox: %w&quot;, err)
+        }
+        msgs, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (Message, error) {
+            var m Message
+            var payload string
+            err := row.Scan(&amp;m.Seq, &amp;m.ID, &amp;m.Topic, &amp;m.Key, &amp;payload)
+            m.Payload = []byte(payload)
+            return m, err
+        })
+        if err != nil {
+            return fmt.Errorf(&quot;read outbox: %w&quot;, err)
+        }
+        if len(msgs) == 0 {
+            return nil
+        }
+        // 1. Publish. If this fails, nothing is marked and the rows are retried later.
+        if err := r.Publisher.Publish(ctx, msgs); err != nil {
+            return fmt.Errorf(&quot;publish %d messages: %w&quot;, len(msgs), err)
+        }
+        // The dangerous gap: the broker has the messages, the database does not know yet.
+        if r.AfterPublish != nil {
+            if err := r.AfterPublish(ctx, msgs); err != nil {
+                return err
+            }
+        }
+        // 2. Mark. Only after the broker acknowledged every message.
+        seqs := make([]int64, len(msgs))
+        for i, m := range msgs {
+            seqs[i] = m.Seq
+        }
+        if _, err := tx.Exec(ctx, `UPDATE outbox SET published_at = now() WHERE id = ANY($1)`, seqs); err != nil {
+            return fmt.Errorf(&quot;mark published: %w&quot;, err)
+        }
+        marked = len(msgs)
+        return nil
+    })
+    if err != nil {
+        return 0, err
+    }
+    return marked, nil
+}
+</code></pre>
+
+
+</div>
+
+<p>השדה <code>AfterPublish</code> הוא תפר לבדיקה (test seam): בקוד אמיתי הוא ריק, ובבדיקה הוא מחזיר שגיאה בדיוק
+ברגע המסוכן. השגיאה מגלגלת אחורה את הטרנזקציה, כאילו התהליך מת: ההודעות כבר ב־broker, והסימון לא קרה.
+ה־relay הבא יפרסם אותן שוב. <strong>כפילות, ולא אובדן</strong>: זה הכיוון הנכון לטעות בו, כי אובדן אי אפשר לתקן אחר כך.</p>
+<p>למה <code>FOR UPDATE</code> ולא <code>FOR UPDATE SKIP LOCKED</code>, שהכרת בפרק 11, סעיף 11.4? עם דילוג על שורות נעולות, שני
+relays היו לוקחים מנות שונות ומפרסמים אותן במקביל, והסדר בין המנות היה נשבר. עם נעילה רגילה, ה־relay השני
+מחכה; כשהראשון מסיים, השורות כבר מסומנות, והשני מדלג עליהן. בפרויקט הגמר רץ relay פעיל אחד, שנבחר בנעילה
+של PostgreSQL (פרק 18).</p>
+<blockquote>
+<p><strong>שימי לב:</strong> הטבלה גדלה לנצח אם לא מנקים. מחיקה תקופתית של שורות שפורסמו לפני כמה ימים היא חלק מהתבנית.
+החלופה הנפוצה ל־relay שמתשאל את הטבלה היא לכידת שינויים (change data capture): כלי כמו Debezium קורא
+את יומן הכתיבה של המסד ומפרסם ממנו.</p>
+</blockquote>
+<p>נשאר הצד של הצרכן. ההודעה עלולה להגיע פעמיים: פעם בגלל ה־relay, ופעם בגלל rebalance. לכן הצרכן שומר
+טבלת סינון (dedupe table) של מזהי הודעות שכבר טופלו, וכותב אליה <strong>באותה טרנזקציה</strong> של התוצאה העסקית.
+מהקובץ <code>consumer/consumer.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func Process(ctx context.Context, db *pgxpool.Pool, consumer string, m Message, effect Effect) (bool, error) {
+    applied := false
+    err := pgx.BeginFunc(ctx, db, func(tx pgx.Tx) error {
+        tag, err := tx.Exec(ctx, `
+            INSERT INTO processed_messages (consumer, message_id) VALUES ($1, $2)
+            ON CONFLICT DO NOTHING`, consumer, m.ID)
+        if err != nil {
+            return fmt.Errorf(&quot;dedupe insert: %w&quot;, err)
+        }
+        if tag.RowsAffected() == 0 {
+            return nil // seen before: commit nothing new
+        }
+        if err := effect(ctx, tx, m); err != nil {
+            return err
+        }
+        applied = true
+        return nil
+    })
+    if err != nil {
+        return false, fmt.Errorf(&quot;process message %s: %w&quot;, m.ID, err)
+    }
+    return applied, nil
+}
+</code></pre>
+
+
+</div>
+
+<p>אם האפקט נכשל, גם שורת הסינון מתגלגלת אחורה, והמסירה הבאה תנסה שוב. אם שורת הסינון כבר קיימת, האפקט לא
+רץ בכלל. אלה שני הכיוונים שהבדיקה <code>TestFailedEffectLeavesNoDedupeRow</code> והבדיקה <code>TestProcess</code> מכסות.</p>
+<p>עכשיו בדיקת הקריסה עצמה, מהקובץ <code>e2e/crash_test.go</code>. היא רצה מול Redpanda ו־PostgreSQL אמיתיים: שלוש
+הזמנות, relay שמת אחרי הפרסום, relay שני שמפרסם שוב, וקבוצת צרכנים שקוראת הכול:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    // Run 1: publish succeeds, then the relay &quot;dies&quot; before the mark commits.
+    crash := errors.New(&quot;relay killed between publish and mark&quot;)
+    first := &amp;outbox.Relay{DB: db, Publisher: pub, AfterPublish: func(context.Context, []outbox.Message) error { return crash }}
+    if _, err := first.RunOnce(ctx); !errors.Is(err, crash) {
+        t.Fatalf(&quot;first relay: %v, want the simulated crash&quot;, err)
+    }
+    if p, _ := outbox.Pending(ctx, db); p != 3 {
+        t.Fatalf(&quot;pending after crash = %d, want 3 (no business row lost its message)&quot;, p)
+    }
+    // Run 2: a restarted relay publishes the same rows again and marks them.
+    second := &amp;outbox.Relay{DB: db, Publisher: pub}
+    if n, err := second.RunOnce(ctx); err != nil || n != 3 {
+        t.Fatalf(&quot;restarted relay = %d, %v; want 3, nil&quot;, n, err)
+    }
+</code></pre>
+
+
+</div>
+
+<p>בסוף הבדיקה יש שש רשומות ב־topic, ושלושה מזהים שונים, כל אחד פעמיים. בטבלת המשלוחים יש שלוש שורות,
+ובטבלת הסינון שלוש. אף הזמנה לא נשארה בלי הודעה, ואף הודעה לא עובדה פעמיים.</p>
+<h2 id="138">13.8 למה „בדיוק פעם אחת” הוא חוזה</h2>
+<p>„בדיוק פעם אחת” נשמע כמו תכונה שמפעילים. Kafka אכן מציעה טרנזקציות: producer טרנזקציוני כותב לכמה מחיצות
+ושומר את המיקום של צרכן כפעולה אטומית אחת. צרכן במצב <code>read_committed</code> רואה רק טרנזקציות שהושלמו. התיעוד
+של Kafka מגדיר את ההיקף במדויק: בדיוק פעם אחת כש„קוראים, מעבדים וכותבים נתונים על topics של Kafka”.
+לגבי מערכות יעד אחרות, הוא אומר שהן „בדרך כלל דורשות שיתוף פעולה מצד המערכות האלה”.</p>
+<p>גם ב־Redpanda הטרנזקציות פעילות כברירת מחדל, לפי התיעוד שלה. אבל המשלוח בתרגיל הוא שורה ב־PostgreSQL. בעולם
+אמיתי הוא קריאת HTTP, מייל או חיוב כרטיס אשראי. שום טרנזקציה של Kafka לא מגלגלת אחורה מייל שנשלח. לכן
+מה שמקבלים בפועל הוא <strong>מסירה „לפחות פעם אחת” ועוד אפקט אידמפוטנטי</strong>, ויש שמכנים את זה „בפועל פעם אחת”
+(effectively once).</p>
+<p>החוזה הוא בין שני צדדים, ולכל צד יש חובה משלו:</p>
+<table>
+<thead>
+<tr>
+<th>צד</th>
+<th>החובה</th>
+<th>בתרגיל</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>השולח</td>
+<td>מזהה יציב לכל הודעה לוגית, זהה בכל פרסום חוזר</td>
+<td>העמודה <code>message_id</code>, בכותרת <code>message-id</code></td>
+</tr>
+<tr>
+<td>הצרכן</td>
+<td>לסנן לפי המזהה, באותה טרנזקציה של האפקט</td>
+<td><code>processed_messages</code> באותו <code>BEGIN</code> של המשלוח</td>
+</tr>
+</tbody>
+</table>
+<p>שימי לב מה <strong>לא</strong> משמש מזהה: ה־offset. פרסום חוזר של אותה הודעה מקבל offset חדש, ולכן סינון לפי offset
+לא יתפוס אותו. שלושה מקורות שונים של כפילות פוגשים בתרגיל את אותה הגנה:</p>
+<table>
+<thead>
+<tr>
+<th>מקור הכפילות</th>
+<th>איפה נוצרת</th>
+<th>מי סופג אותה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ניסיון חוזר של ה־producer</td>
+<td>בין ה־producer ל־broker</td>
+<td>ה־producer האידמפוטנטי</td>
+</tr>
+<tr>
+<td>קריסת relay בין פרסום לסימון</td>
+<td>ב־relay</td>
+<td>טבלת הסינון של הצרכן</td>
+</tr>
+<tr>
+<td>rebalance או קריסת צרכן לפני שמירה</td>
+<td>בצד הקריאה</td>
+<td>טבלת הסינון של הצרכן</td>
+</tr>
+</tbody>
+</table>
+<p>לפי התיעוד של Kafka, יש גם דרך אחרת: לשמור את ה־offset באותו מקום של התוצאה, כאן באותה טרנזקציה של
+PostgreSQL, ולהתחיל לקרוא ממנו בהפעלה. זה עובד לצרכן אחד שכותב למסד אחד. טבלת הסינון כללית יותר: היא
+מגינה גם מכפילויות שנוצרו לפני ה־broker, כמו ה־relay שלנו.</p>
+<h2 id="139-franz-go-go">13.9 franz-go מ־Go</h2>
+<p>לקוחות Kafka ל־Go מתחלקים לשניים. יש עטיפות של ספריית C בשם librdkafka, ויש ספריות שכתובות כולן
+ב־Go. הספרייה franz-go, שהספר משתמש בה, שייכת לסוג השני. אין צורך במהדר של C, הבנייה פשוטה, וגלאי
+המרוצים (<code>-race</code>) רואה את כל הקוד.</p>
+<blockquote>
+<p><strong>איך Rust עושה את זה:</strong> ב־Rust הלקוח הנפוץ הוא <code>rdkafka</code>, עטיפה של ספריית ה־C, ולכן הבנייה צריכה
+אותה. הרעיונות זהים: אישורי כתיבה, צרכן בקבוצה, ושמירת מיקום ידנית אחרי עיבוד. ההבדל המעשי הוא
+בסגנון: שם מחכים ל־future של כל שליחה, וכאן קוראים ל־<code>ProduceSync</code>.</p>
+</blockquote>
+<p>ב־franz-go יש טיפוס לקוח אחד, <code>kgo.Client</code>, שמשמש גם לכתיבה וגם לקריאה. ההתנהגות נקבעת באפשרויות שמעבירים
+לבנאי, כמו שראית ב־<code>NewProducer</code> וב־<code>NewGroupConsumer</code>. אלה הקריאות שהתרגיל משתמש בהן:</p>
+<table>
+<thead>
+<tr>
+<th>קריאה</th>
+<th>מה היא עושה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>kgo.NewClient(opts...)</code></td>
+<td>בונה לקוח; החיבורים נפתחים בעצלות</td>
+</tr>
+<tr>
+<td><code>ProduceSync(ctx, recs...)</code></td>
+<td>שולחת ומחכה לאישור של כולן; <code>FirstErr()</code> מחזירה את השגיאה הראשונה</td>
+</tr>
+<tr>
+<td><code>Produce(ctx, rec, callback)</code></td>
+<td>שולחת בלי לחכות; התוצאה מגיעה ל־callback</td>
+</tr>
+<tr>
+<td><code>PollRecords(ctx, n)</code></td>
+<td>מחזירה עד n רשומות מהמחיצות שהוקצו לחבר</td>
+</tr>
+<tr>
+<td><code>CommitRecords(ctx, recs...)</code></td>
+<td>שומרת לכל מחיצה את ה־offset שאחרי הרשומה הגבוהה ביותר</td>
+</tr>
+<tr>
+<td><code>AllowRebalance()</code></td>
+<td>משחררת rebalance שמחכה, כשמשתמשים ב־<code>BlockRebalanceOnPoll</code></td>
+</tr>
+<tr>
+<td><code>Close()</code></td>
+<td>עוזבת את הקבוצה וסוגרת חיבורים; השאר מקבלים rebalance מיד</td>
+</tr>
+</tbody>
+</table>
+<p>המתאם בין ה־relay ל־broker הוא מתודה אחת. הוא בונה רשומה לכל שורת outbox, עם המפתח ועם כותרת שנושאת את
+מזהה ההודעה. מהקובץ <code>bus/bus.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func (p KafkaPublisher) Publish(ctx context.Context, msgs []outbox.Message) error {
+    recs := make([]*kgo.Record, len(msgs))
+    for i, m := range msgs {
+        recs[i] = &amp;kgo.Record{
+            Topic:   m.Topic,
+            Key:     []byte(m.Key),
+            Value:   m.Payload,
+            Headers: []kgo.RecordHeader{{Key: outbox.HeaderMessageID, Value: []byte(m.ID)}},
+        }
+    }
+    return p.Client.ProduceSync(ctx, recs...).FirstErr()
+}
+</code></pre>
+
+
+</div>
+
+<p>הממשק <code>outbox.Publisher</code> מוגדר אצל הצרכנית שלו, כמו בפרק 4. לכן בדיקות ה־relay רצות עם מפרסם מדומה
+בלי שרת הודעות, ורק בדיקת הקצה לקצה צריכה Redpanda.</p>
+<p>התוכנית <code>cmd/consume</code> מראה את הלולאה מבחוץ. היא מצטרפת לקבוצה, מדפיסה כל רשומה וכל שינוי בחלוקה, ומפסיקה
+בצורה מסודרת על אות כיבוי. כשהיא מקבלת <code>SIGTERM</code>, ה־context מבוטל והעבודה שהסתיימה נשמרת. אחר כך הקריאה
+ל־<code>Close</code> עוזבת את הקבוצה, כך שהחברים האחרים מקבלים את המחיצות שלה מיד ולא אחרי 45 שניות. זה קטע מהפלט
+בהרצה של המחבר:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">[A] assigned map[demo:[0 1 2]]
+[A] partition=0 offset=0 key=alice value=alice-1
+[A] partition=2 offset=1 key=carol value=carol-5
+[A] revoked  map[demo:[0 1 2]]
+</code></pre>
+
+
+</div>
+
+<h2 id="_3">סיכום</h2>
+<ul>
+<li>יומן שומר הודעות לפי זמן או גודל, וכל קבוצה זוכרת offset משלה. תור מוחק הודעה שטופלה.</li>
+<li>הסדר מובטח רק בתוך מחיצה. המפתח קובע מחיצה, ולכן הוא קובע מה חייב להישאר בסדר.</li>
+<li>אישור מכל העותקים, עם מינימום עותקים מסונכרנים, מגן מאובדן. ה־producer האידמפוטנטי מגן מכפילויות של
+  ניסיון חוזר.</li>
+<li>שמירת offset אחרי עיבוד נותנת „לפחות פעם אחת”: כלום לא הולך לאיבוד, ויש כפילויות.</li>
+<li>rebalance שיתופי מעביר רק מחיצות שזזות; <code>BlockRebalanceOnPoll</code> מונע שמירה על מחיצה שעברה.</li>
+<li>תבנית ה־outbox מחליפה כתיבה כפולה בטרנזקציה אחת; ה־relay מפרסם ואז מסמן, וקריסה באמצע יוצרת כפילות.</li>
+<li>„בדיוק פעם אחת” מחוץ ל־Kafka הוא חוזה: מזהה יציב בשולח, וסינון באותה טרנזקציה בצרכן.</li>
+</ul>
+<h2 id="_4">מונחים לזכור</h2>
+<table>
+<thead>
+<tr>
+<th>מונח בעברית</th>
+<th>באנגלית</th>
+<th>במשפט אחד</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>יומן</td>
+<td>log</td>
+<td>רצף שרק מוסיפים לסופו, נשמר בלי קשר לקריאה</td>
+</tr>
+<tr>
+<td>תור</td>
+<td>queue</td>
+<td>מחזיק הודעה עד שצרכן מאשר אותה, ואז מוחק</td>
+</tr>
+<tr>
+<td>topic</td>
+<td>topic</td>
+<td>יומן עם שם, מחולק למחיצות</td>
+</tr>
+<tr>
+<td>מחיצה</td>
+<td>partition</td>
+<td>יומן נפרד בתוך topic; הסדר מובטח רק בתוכו</td>
+</tr>
+<tr>
+<td>offset</td>
+<td>offset</td>
+<td>המיקום של רשומה במחיצה; ה־offset השמור הוא הבא לקריאה</td>
+</tr>
+<tr>
+<td>קבוצת צרכנים</td>
+<td>consumer group</td>
+<td>צרכנים עם שם משותף שמחלקים ביניהם את המחיצות</td>
+</tr>
+<tr>
+<td>פיגור</td>
+<td>lag</td>
+<td>כמה רשומות יש בין סוף המחיצה לבין ה־offset השמור</td>
+</tr>
+<tr>
+<td>rebalance</td>
+<td>rebalance</td>
+<td>חלוקה מחדש של המחיצות כשההרכב של הקבוצה משתנה</td>
+</tr>
+<tr>
+<td>חלוקה שיתופית</td>
+<td>cooperative-sticky</td>
+<td>rebalance שלוקח רק את המחיצות שעוברות</td>
+</tr>
+<tr>
+<td>producer אידמפוטנטי</td>
+<td>idempotent producer</td>
+<td>ה־broker זורק batch שכבר כתב, לפי מזהה ומספר רץ</td>
+</tr>
+<tr>
+<td>כתיבה כפולה</td>
+<td>dual write</td>
+<td>כתיבה לשתי מערכות בלי טרנזקציה משותפת</td>
+</tr>
+<tr>
+<td>תבנית ה־outbox</td>
+<td>outbox pattern</td>
+<td>ההודעה נכתבת כשורה באותה טרנזקציה של השינוי, ותהליך אחר מפרסם</td>
+</tr>
+<tr>
+<td>relay</td>
+<td>relay</td>
+<td>התהליך שמפרסם שורות outbox ומסמן אותן</td>
+</tr>
+<tr>
+<td>טבלת סינון</td>
+<td>dedupe table</td>
+<td>מזהי הודעות שטופלו, נכתבים באותה טרנזקציה של האפקט</td>
+</tr>
+<tr>
+<td>„לפחות פעם אחת”</td>
+<td>at-least-once</td>
+<td>שום הודעה לא אובדת, וייתכנו כפילויות</td>
+</tr>
+<tr>
+<td>„בדיוק פעם אחת”</td>
+<td>exactly-once</td>
+<td>כל הודעה משפיעה פעם אחת; מחוץ ל־Kafka זה חוזה בין שני הצדדים</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_5">טעויות נפוצות</h2>
+<ul>
+<li><strong>לפרסם ל־Kafka מתוך הטרנזקציה של המסד.</strong> זו עדיין כתיבה כפולה, רק מוסתרת. כתבי שורת outbox.</li>
+<li><strong>לסנן כפילויות לפי offset.</strong> פרסום חוזר מקבל offset חדש. סנני לפי מזהה ההודעה.</li>
+<li><strong>לכתוב לטבלת הסינון בטרנזקציה נפרדת מהאפקט.</strong> קריסה ביניהן משאירה הודעה „מטופלת” שלא טופלה.</li>
+<li><strong>לסמוך על שמירה אוטומטית של offsets.</strong> היא שומרת מה שנקרא, לא מה שהסתיים.</li>
+<li><strong>להוסיף מחיצות ל־topic קיים בלי לחשוב על מפתחות.</strong> חלק מהמפתחות עוברים מחיצה, והסדר שלהם נשבר.</li>
+<li><strong>כתובת פרסום שגויה ב־broker בקונטיינר.</strong> החיבור הראשון מצליח, והכתיבה נתקעת. בדקי את <code>--advertise-kafka-addr</code>.</li>
+</ul>
+<h2 id="_6">שאלות ראיון</h2>
+<ol>
+<li>
+<p><strong>מה ההבדל בין Kafka ל־RabbitMQ, ומתי תבחרי כל אחד?</strong> הראשונה היא יומן: הודעות נשמרות, כל קבוצה זוכרת
+   offset, ואפשר לקרוא את העבר שוב. זה מתאים לזרם אירועים שכמה מערכות צורכות, ולבנייה מחדש של מצב. תור
+   כמו RabbitMQ זוכר כל הודעה, תומך באישור לכל הודעה ובמסירה חוזרת עם עיכוב, ומתאים לעבודות בודדות עם
+   ניסיונות חוזרים. הפשרה: ביומן מקבלים סדר במחיצה ושידור חוזר, ומוותרים על טיפול גמיש בהודעה בודדת.</p>
+</li>
+<li>
+<p><strong>איך תבטיחי שאירוע יפורסם אם ורק אם הטרנזקציה של המסד הצליחה?</strong> בתבנית ה־outbox: שורת ההודעה נכתבת
+   באותה טרנזקציה של השינוי, ו־relay מפרסם ומסמן. כך אין אירוע בלי שינוי ואין שינוי בלי אירוע. המחיר הוא
+   כפילות אפשרית כשה־relay נופל בין פרסום לסימון, ולכן הצרכן חייב לסנן. חלופה היא קריאה מה־WAL, שחוסכת
+   את ה־polling אבל מוסיפה רכיב להפעיל.</p>
+</li>
+</ol>
+<p><strong>המשך:</strong> למה לא פשוט לנסות שוב את הפרסום עד שיצליח? כי התהליך עצמו יכול למות בין ה־commit לפרסום, ואז
+   אין מי שינסה שוב. רק מה שנשמר במסד שורד קריסה.</p>
+<ol start="3">
+<li>
+<p><strong>צרכן קרס באמצע batch. מה יקרה להודעות?</strong> הוא שמר offsets רק אחרי עיבוד, ולכן מה שעובד ולא נשמר יגיע
+   שוב לחבר שיקבל את המחיצה. מה שלא עובד בכלל יגיע גם הוא, ושום דבר לא יאבד. העיבוד הכפול צריך להיות
+   בטוח, בטבלת סינון או באפקט אידמפוטנטי מטבעו. אם שמירה הייתה קורית לפני העיבוד, היו הולכות לאיבוד הודעות.</p>
+</li>
+<li>
+<p><strong>האם Kafka מספקת „בדיוק פעם אחת”?</strong> בתוך Kafka, כן: טרנזקציות מחברות כתיבה לכמה מחיצות ושמירת offsets,
+   וצרכן <code>read_committed</code> רואה רק מה שהושלם. מחוץ ל־Kafka, כמו מסד, HTTP או מייל, התיעוד עצמו אומר שנדרש
+   שיתוף פעולה מהמערכת השנייה. בפועל בונים „לפחות פעם אחת” ועוד אפקט אידמפוטנטי, וקוראים לזה חוזה: מזהה
+   יציב אצל השולח, וסינון באותה טרנזקציה אצל הצרכן.</p>
+</li>
+</ol>
+<p><strong>המשך:</strong> למה לא לסנן לפי offset? כי פרסום חוזר של ה־relay יוצר רשומה חדשה עם offset חדש. רק מזהה
+   שנקבע לפני ה־broker תופס את המקרה הזה.</p>
+<ol start="5">
+<li><strong>כמה מחיצות תיתני ל־topic חדש?</strong> לפחות כמספר הצרכנים שתרצי להריץ במקביל, עם מרווח, כי הוספה מאוחרת
+   משנה את המיפוי של מפתחות. מצד שני, כל מחיצה עולה משאבים ב־broker ומאריכה rebalance. הייתי מתחילה ממספר
+   שמכסה את המקביליות הצפויה לשנה, ומודדת פיגור לפני שאני מגדילה.</li>
+</ol>
+<h2 id="obsidian">פתק Obsidian</h2>
+<p>הפתק המוכן נמצא גם כקובץ: <code>obsidian/13-kafka-redpanda.md</code>. זה תוכנו:</p>
+<ul>
+<li><strong>יומן מול תור:</strong> יומן שומר ומתקדם לפי offset; תור מוחק אחרי אישור.</li>
+<li><strong>מחיצה:</strong> הסדר מובטח רק בתוכה. המפתח קובע מחיצה, ולכן קובע מה נשאר בסדר.</li>
+<li><strong>אישורי כתיבה:</strong> אישור מכל העותקים ועוד מינימום מסונכרנים מגן מאובדן; עם עותק אחד זה רק המוביל.</li>
+<li><strong>producer אידמפוטנטי:</strong> סופג ניסיונות חוזרים של הלקוח, לא שליחה חוזרת של האפליקציה.</li>
+<li><strong>שמירת offset:</strong> אחרי עיבוד נותנת „לפחות פעם אחת”; לפני עיבוד נותנת „לכל היותר פעם אחת”.</li>
+<li><strong>rebalance:</strong> שיתופי לוקח רק מה שזז; לחסום עד שמירה, ואז לשחרר.</li>
+<li><strong>outbox:</strong> שורת הודעה באותה טרנזקציה; relay מפרסם ואז מסמן; קריסה ביניהם יוצרת כפילות, לא אובדן.</li>
+<li><strong>חוזה „בדיוק פעם אחת”:</strong> מזהה יציב בשולח, סינון באותה טרנזקציה בצרכן; לא לפי offset.</li>
+<li><strong>שאלה פתוחה:</strong> ___</li>
+</ul>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">docker compose -p ch13 -f data/compose.yaml up -d --wait
+rpk() { docker compose -p ch13 -f data/compose.yaml exec -T redpanda rpk &quot;$@&quot;; }
+rpk cluster info      rpk topic create demo -p 3      rpk topic describe demo -p
+printf 'a\nb\n' | rpk topic produce demo -k alice
+rpk topic consume demo -n 5 -f '%p %o %k %v\n'
+rpk group describe demo-group
+export KAFKA_BROKERS=localhost:19092
+export DATABASE_URL=postgres://course:change-me@localhost:5413/shop
+kgo.RequiredAcks(kgo.AllISRAcks())   kgo.DisableAutoCommit()   kgo.BlockRebalanceOnPoll()
+cl.CommitRecords(ctx, done...); cl.AllowRebalance()
+my key for alice landed on partition ___
+docker compose -p ch13 -f data/compose.yaml down -v
+</code></pre>
+
+
+</div>
+
+<h2 id="_7">תרגיל</h2>
+<p><strong>מטרה:</strong> להריץ Redpanda ולראות מחיצות ומפתחות בעיניים. לבנות צרכן בקבוצה ששומר מיקום רק אחרי עיבוד.
+לבנות outbox עם מפרסם, צרכן שמסנן כפילויות, ובדיקה שמפילה את המפרסם בין הפרסום לסימון. <strong>זמן:</strong> שלושה ימי לימוד, ימים 36 עד 38: כ־35 דקות בנייה ביום 36, כ־60 ביום 37 וכ־70 ביום 38. <strong>ידע מקדים:</strong> סעיפים 13.1 עד 13.3 ליום 36; 13.4 עד 13.6 ליום 37; 13.7 עד 13.9 ליום 38;
+פרקים 5, 10 ו־11 כמפורט בידע המקדים של הפרק.</p>
+<p>הצעדים, קוד ההתחלה, הרמזים והפתרון נמצאים ב־
+<a href="../exercises/ch13-outbox/README.md"><code>exercises/ch13-outbox/README.md</code></a>.</p>
+<p><strong>קריטריון סיום:</strong></p>
+<ul>
+<li>הודעות עם אותו מפתח נראות אצלך באותה מחיצה ובסדר, בהרצה שלך עם <code>rpk</code>.</li>
+<li>אחרי הריגת צרכן באמצע batch, הקבוצה מעבדת שוב את מה שלא נשמר, ושום הודעה לא אובדת.</li>
+<li>בדיקת הקריסה מראה כל הודעה מפורסמת פעמיים, משלוח אחד לכל הזמנה, ואף הזמנה בלי הודעה.</li>
+<li>כל הבדיקות עוברות עם <code>-race</code> מול ה־stack האמיתי, ושלושת הכלים שקטים.</li>
+</ul>
+<h2 id="_8">העשרה אופציונלית</h2>
+<ul>
+<li>הוסיפי ל־relay לולאה שרצה כל שנייה. אחר כך העירי אותה מוקדם יותר עם ההתראות של PostgreSQL
+  (<code>LISTEN</code> ו־<code>NOTIFY</code>).</li>
+<li>כתבי מחיקה תקופתית של שורות outbox שפורסמו לפני יותר משבוע, ובדקי שהאינדקס החלקי נשאר קטן.</li>
+<li>קראי בתיעוד של Kafka על share groups (KIP-932), שמוסיפות ליומן התנהגות של תור. בספרייה שלנו יש
+  להן אפשרות בשם <code>ShareGroup</code>. בדקי בתיעוד של Redpanda אם הגרסה שלך תומכת בהן.</li>
+<li>הריצי את <code>cmd/consume</code> בשני מסופים עם <code>-sleep 500ms</code>, והוסיפי שלישי. ספרי כמה מחיצות זזו בכל פעם.</li>
+</ul>
+</main>
+<nav class="bottom"><a href="index.html">תוכן העניינים</a> · <a href="12-redis-caching.html">← פרק 12: Redis ומטמון</a> · <a href="14-background-jobs.html">פרק 14: עבודות רקע וניסיונות חוזרים →</a></nav>
+<script type="module">
+  // Render ```mermaid blocks in the browser (needs internet once; cached afterwards).
+  const blocks = document.querySelectorAll("pre > code.language-mermaid");
+  if (blocks.length) {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs")).default;
+    for (const code of blocks) {
+      const div = document.createElement("div");
+      div.className = "mermaid";
+      div.textContent = code.textContent;
+      code.parentElement.replaceWith(div);
+    }
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run();
+  }
+</script>
+</body>
+</html>

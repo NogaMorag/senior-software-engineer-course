@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>פרק 19: Docker כמו שצריך</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="top"><a href="index.html">תוכן העניינים</a> · <a href="18-locks-leaders-sagas.html">← פרק 18: נעילות, בחירת מנהיג וסאגות</a> · <a href="20-kubernetes-on-kind.html">פרק 20: Kubernetes על kind →</a></nav>
+<main class="book">
+<div class="toc"><span class="toctitle">תוכן הפרק</span><ul>
+<li><a href="#_1">מה נלמד בפרק</a></li>
+<li><a href="#_2">ידע מקדים</a></li>
+<li><a href="#191-image">19.1 מה זה image: שכבות ומטמון</a><ul>
+<li><a href="#1911">19.1.1 מטמון הבנייה</a></li>
+<li><a href="#1912-dockerignore">19.1.2 הקשר הבנייה ו־.dockerignore</a></li>
+</ul>
+</li>
+<li><a href="#192-dockerfile-go">19.2 Dockerfile רב־שלבי ל־Go</a><ul>
+<li><a href="#1921">19.2.1 שלושת הדגלים של הקומפילציה</a></li>
+<li><a href="#1922-cache-mounts-image">19.2.2 cache mounts: מטמון שלא נכנס ל־image</a></li>
+<li><a href="#1923">19.2.3 שלב הריצה</a></li>
+<li><a href="#1924">19.2.4 הבנייה הנאיבית, כדי למדוד</a></li>
+</ul>
+</li>
+<li><a href="#193-distroless-root">19.3 distroless ומשתמש שאינו root</a><ul>
+<li><a href="#1931-distroless">19.3.1 מה יש ב־distroless, ומה אין</a></li>
+<li><a href="#1932-root">19.3.2 למה לא root</a></li>
+<li><a href="#1933-root">19.3.3 לבדוק שזה באמת לא root</a></li>
+<li><a href="#1934">19.3.4 מערכת קבצים לקריאה בלבד</a></li>
+</ul>
+</li>
+<li><a href="#194-image-python-uv">19.4 image ל־Python עם uv</a><ul>
+<li><a href="#1941">19.4.1 שלב הריצה</a></li>
+</ul>
+</li>
+<li><a href="#195-compose">19.5 compose לפיתוח</a><ul>
+<li><a href="#1951-image">19.5.1 בדיקת בריאות ב־image בלי מעטפת</a></li>
+<li><a href="#1952-composeyaml">19.5.2 הקובץ compose.yaml</a></li>
+</ul>
+</li>
+<li><a href="#196-sbom">19.6 סריקה ו־SBOM</a><ul>
+<li><a href="#1961">19.6.1 מה סורק עושה</a></li>
+<li><a href="#1962">19.6.2 שלושה כלים, כקונטיינרים</a></li>
+<li><a href="#1963">19.6.3 לקרוא את התוצאה ולהחליט</a></li>
+</ul>
+</li>
+<li><a href="#197">19.7 תגיות וגרסאות</a><ul>
+<li><a href="#1971">19.7.1 תגית מול תקציר</a></li>
+<li><a href="#1972-latest">19.7.2 למה latest אינה תגית פריסה</a></li>
+<li><a href="#1973">19.7.3 שתי תגיות לכל בנייה</a></li>
+</ul>
+</li>
+<li><a href="#_3">סיכום</a></li>
+<li><a href="#_4">מונחים לזכור</a></li>
+<li><a href="#_5">טעויות נפוצות</a></li>
+<li><a href="#_6">שאלות ראיון</a></li>
+<li><a href="#obsidian">פתק Obsidian</a></li>
+<li><a href="#_7">תרגיל</a></li>
+<li><a href="#_8">העשרה אופציונלית</a></li>
+</ul>
+</div>
+
+<h1 id="19-docker">פרק 19: Docker כמו שצריך</h1>
+<p>כל שירות שתכתבי בעבודה יגיע לייצור בתוך image. image טוב הוא קטן, נבנה מהר כי הוא משתמש במטמון, רץ
+כמשתמש שאינו root, ואפשר לומר בדיוק מה יש בתוכו. image רע הוא ג'יגה־בייט של קומפיילר, קוד מקור והרשאות
+root, שאף אחד לא יודע מה נכנס אליו. בראיון לתפקיד בכיר ב־backend או בתשתית, השאלה „איך תבני image לשירות
+Go?” היא שאלת פתיחה, והפרק הזה נותן לך את התשובה, עם המספרים שתמדדי בעצמך.</p>
+<h2 id="_1">מה נלמד בפרק</h2>
+<ul>
+<li>מה זה image: שכבות, תצורה, ואיך סדר ההוראות קובע מה נבנה מחדש.</li>
+<li>לבנות את shorty מפרק 6 ב־Dockerfile רב־שלבי, עם מטמון של BuildKit.</li>
+<li>להריץ על distroless כמשתמש שאינו root, עם מערכת קבצים לקריאה בלבד, ולבדוק את זה כמו שצריך.</li>
+<li>לבנות image ל־receiver מפרק 8 עם uv, בלי uv בתוצאה.</li>
+<li>להרים את שניהם ב־compose, עם בדיקות בריאות והמתנה לתלויות.</li>
+<li>לסרוק את ה־images ב־Trivy וב־Grype, להפיק SBOM ב־Syft, ולהחליט מה עושים עם ממצא.</li>
+<li>לתת ל־image שם נכון: תגית, תקציר (digest) ומזהה commit.</li>
+</ul>
+<h2 id="_2">ידע מקדים</h2>
+<ul>
+<li>פרק 2: Docker Desktop פועל, והפקודה <code>docker run hello-world</code> מסעיף 2.9.4 עבדה.</li>
+<li>פרק 6: השירות shorty, נקודות הקצה שלו והתצורה מהסביבה. התרגיל מביא עותק משלו, עם שתי תוספות קטנות
+  שהפרק מסביר.</li>
+<li>פרק 7 ופרק 8: פרויקט uv, הקובץ <code>uv.lock</code>, וה־receiver. גם ממנו התרגיל מביא עותק.</li>
+<li>אין צורך להתקין את הסורקים: הם רצים כקונטיינרים.</li>
+</ul>
+<h2 id="191-image">19.1 מה זה image: שכבות ומטמון</h2>
+<p>המונח image (תבנית שממנה מריצים קונטיינר) הוא שני דברים יחד. הראשון: ערימה של שכבות (layers), שכל אחת
+היא ארכיון של שינויים במערכת הקבצים: קבצים שנוספו, השתנו או נמחקו. השני: מסמך תצורה קטן בפורמט JSON, ובו
+פקודת ההפעלה, משתני הסביבה, המשתמש והפורטים. קונטיינר הוא ה־image ועוד שכבה אחת דקה שאפשר לכתוב אליה,
+והיא נעלמת כשהקונטיינר נמחק.</p>
+<p>כל הוראה ב־Dockerfile שמשנה קבצים, בעיקר <code>COPY</code> ו־<code>RUN</code>, יוצרת שכבה. הוראות כמו <code>ENV</code>, <code>USER</code>
+ו־<code>ENTRYPOINT</code> משנות רק את התצורה. הפקודה הבאה מראה את השכבות של ה־image שתבני בסעיף 19.2, מהעליונה
+לתחתונה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">docker history shorty:dev --format '{{.Size}}\t{{.CreatedBy}}'
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">0B  ENTRYPOINT [&quot;/shorty&quot;]
+0B  EXPOSE [8080/tcp]
+0B  ENV SHORTY_ADDR=:8080
+0B  USER 65532:65532
+7.35MB  COPY /out/shorty /shorty # buildkit
+0B  LABEL org.opencontainers.image.source=https:…
+0B  ARG GIT_SHA=unknown
+319kB   bazel build //common:cacerts_debian13_arm64_…
+16.4kB  bazel build //common:os_release_debian13
+</code></pre>
+
+
+</div>
+
+<p>השורות של 0 בתים הן תצורה; השורה של הבינארי היא השכבה היחידה שהוספת, ומתחתיה השכבות של בסיס ה־distroless.
+המספרים אצלך יהיו אחרים מעט (הם מהרצה של הכותב, על Mac עם מעבד arm64).</p>
+<h3 id="1911">19.1.1 מטמון הבנייה</h3>
+<p>מנוע הבנייה של Docker, BuildKit (ברירת המחדל בגרסאות של השנים האחרונות), שומר כל שכבה שבנה. לפני כל
+הוראה הוא שואל: האם כבר הרצתי בדיוק את ההוראה הזאת, על בדיוק אותה שכבה קודמת, עם בדיוק אותם קבצי קלט?
+עבור <code>COPY</code> הקלט הוא סכום הבדיקה (checksum) של הקבצים שמועתקים, לא תאריך השינוי שלהם. אם כן, השכבה
+נלקחת מהמטמון בלי להריץ דבר.</p>
+<p>הכלל החשוב בפרק: <strong>ברגע שהוראה אחת מחמיצה את המטמון, כל ההוראות אחריה נבנות מחדש.</strong> לכן הסדר ב־Dockerfile
+הוא החלטה הנדסית. מה שמשתנה לעתים רחוקות בא ראשון, ומה שמשתנה בכל commit בא אחרון:</p>
+<table>
+<thead>
+<tr>
+<th>סדר</th>
+<th>הוראה</th>
+<th>משתנה כש...</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>תמונת הבסיס</td>
+<td>מעדכנים גרסה, פעם בחודש</td>
+</tr>
+<tr>
+<td>2</td>
+<td>העתקת <code>go.mod</code> ו־<code>go.sum</code>, הורדת מודולים</td>
+<td>מוסיפים תלות</td>
+</tr>
+<tr>
+<td>3</td>
+<td>העתקת הקוד</td>
+<td>כל commit</td>
+</tr>
+<tr>
+<td>4</td>
+<td>הקומפילציה</td>
+<td>כל commit</td>
+</tr>
+</tbody>
+</table>
+<p>אם מעתיקים את כל הקוד לפני הורדת המודולים, כל שינוי של שורה אחת מוריד מחדש את כל התלויות. זה עדיין עובד,
+ולכן הטעות הזאת שורדת שנים במאגרים אמיתיים.</p>
+<h3 id="1912-dockerignore">19.1.2 הקשר הבנייה ו־<code>.dockerignore</code></h3>
+<p>כשמריצים <code>docker build .</code>, הנקודה היא הקשר הבנייה (build context): התיקייה שממנה <code>COPY</code> מעתיקה. הקובץ
+<code>.dockerignore</code> מוציא ממנו קבצים, וזה חשוב משתי סיבות. הראשונה, מטמון: קובץ שלא נכנס להקשר לא יכול לשבור
+את השכבה של <code>COPY . .</code>. השנייה, דליפה: תיקיית <code>.git</code>, קובץ <code>.env</code> או מפתח שהשארת בטעות לא ייכנסו ל־image.</p>
+<p>הקובץ <code>shorty/.dockerignore</code> של התרגיל מוציא גם את קובצי הבדיקות, כי הם לא משתתפים בבינארי:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text"># Only what the build needs goes into the build context. Anything listed here
+# can change without invalidating the COPY . . layer.
+.git
+bin/
+**/*_test.go
+*.out
+Dockerfile*
+.dockerignore
+</code></pre>
+
+
+</div>
+
+<blockquote>
+<p><strong>שימי לב:</strong> שכבה שמחקה קובץ לא מקטינה את ה־image. הקובץ עדיין יושב בשכבה שמתחתיה, ומי שמוריד את
+ה־image מוריד גם אותו. סוד שהועתק ונמחק בהוראה הבאה עדיין שם, וכל אחד יכול לחלץ אותו.</p>
+</blockquote>
+<h2 id="192-dockerfile-go">19.2 Dockerfile רב־שלבי ל־Go</h2>
+<p>כדי לקמפל Go צריך את כל שרשרת הכלים: מאות מגה־בייט של קומפיילר, ספרייה סטנדרטית ומטמון מודולים. כדי
+להריץ את התוצאה צריך קובץ אחד. בנייה רב־שלבית (multi-stage build) מפרידה בין השניים: שלב ראשון עם הכלים,
+ושלב שני שמתחיל מבסיס ריק כמעט ומעתיק אליו רק את הבינארי. ה־image הסופי הוא השלב האחרון בלבד.</p>
+<p>זה החלק הראשון של הקובץ <code>shorty/Dockerfile</code> בתרגיל, שלב הבנייה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-dockerfile"># syntax=docker/dockerfile:1
+# Multi-stage build for shorty: a full Go toolchain to compile, a distroless
+# base to run. Build from this directory: docker build -t shorty:dev .
+
+# ---- build stage: compiler, module cache, source ----
+FROM golang:1.27.1 AS build
+WORKDIR /src
+
+# Dependencies first: this layer stays cached until go.mod or go.sum change.
+COPY go.mod go.sum ./
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
+
+# Then the source. A change to a .go file rebuilds from here down only.
+COPY . .
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /out/shorty ./cmd/shorty
+</code></pre>
+
+
+</div>
+
+<p>השורה הראשונה בוחרת את גרסת התחביר של ה־Dockerfile, וזה מה שמאפשר את <code>--mount</code>. השם <code>build</code> אחרי
+<code>AS</code> מאפשר לשלב הבא להעתיק ממנו. התג של תמונת הבסיס נעול לגרסת Go של הספר (נכון לאוקטובר 2026; ראי
+נספח C).</p>
+<h3 id="1921">19.2.1 שלושת הדגלים של הקומפילציה</h3>
+<table>
+<thead>
+<tr>
+<th>דגל</th>
+<th>מה הוא עושה</th>
+<th>למה כאן</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CGO_ENABLED=0</code></td>
+<td>בלי קוד C, ולכן בלי תלות בספריית C של המערכת</td>
+<td>הבינארי רץ על בסיס שאין בו ספריית C בכלל</td>
+</tr>
+<tr>
+<td><code>-trimpath</code></td>
+<td>מוחק מהבינארי את הנתיבים המקומיים של הקבצים</td>
+<td>בנייה זהה מכל מכונה, ובלי לחשוף את מבנה התיקיות שלך</td>
+</tr>
+<tr>
+<td><code>-ldflags='-s -w'</code></td>
+<td>בלי טבלת סמלים ובלי מידע ניפוי (DWARF)</td>
+<td>בינארי קטן יותר</td>
+</tr>
+</tbody>
+</table>
+<p>המחיר של הדגל האחרון: דיבאגר כמו Delve לא יוכל להציג משתנים בבינארי הזה. עקבות מחסנית (stack traces)
+ב־panic עדיין כוללות שמות פונקציות ושורות, כי Go שומרת אותם בטבלה נפרדת שהדגל לא מוחק. ובשירות Go רגיל
+שאין בו <code>import "C"</code>, הכיבוי של cgo לא מוותר על כלום. מי שמשתמשת בספרייה של C, כמו מנהל התקן של SQLite,
+צריכה בסיס עם ספריית C.</p>
+<h3 id="1922-cache-mounts-image">19.2.2 cache mounts: מטמון שלא נכנס ל־image</h3>
+<p>הדגל <code>--mount=type=cache</code> מצמיד תיקייה שנשמרת בין בנייה לבנייה, אבל לא נכנסת לשכבה. ההבדל מהמטמון של
+סעיף 19.1.1 הוא בגרעיניות. מטמון השכבות הוא הכול או כלום: שינוי של קובץ אחד מריץ את <code>go build</code> מאפס. מטמון
+התיקייה שומר את התוצרים של כל חבילה בנפרד, ולכן הקומפיילר בונה מחדש רק את החבילות שהשתנו.</p>
+<p>שתי התיקיות שהתרגיל מצמיד הן מטמון המודולים של Go, ומטמון הקומפילציה שלו. אצל משתמש root בתמונת
+<code>golang</code>, אלה הנתיבים:</p>
+<table>
+<thead>
+<tr>
+<th>תיקייה</th>
+<th>מה יש בה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/go/pkg/mod</code></td>
+<td>קוד המקור של התלויות שהורדו</td>
+</tr>
+<tr>
+<td><code>/root/.cache/go-build</code></td>
+<td>תוצרי קומפילציה לפי חבילה</td>
+</tr>
+</tbody>
+</table>
+<h3 id="1923">19.2.3 שלב הריצה</h3>
+<p>החלק השני של <code>shorty/Dockerfile</code> הוא שלב הריצה. סעיף 19.3 מסביר כל שורה בו:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-dockerfile"># ---- runtime stage: the binary and almost nothing else ----
+FROM gcr.io/distroless/static-debian13:nonroot
+ARG GIT_SHA=unknown
+LABEL org.opencontainers.image.source=&quot;https://example.com/senior-course/ch19&quot; \
+      org.opencontainers.image.revision=&quot;${GIT_SHA}&quot;
+COPY --from=build /out/shorty /shorty
+# Numeric, so Kubernetes can check runAsNonRoot (65532 is distroless &quot;nonroot&quot;).
+USER 65532:65532
+ENV SHORTY_ADDR=:8080
+EXPOSE 8080
+ENTRYPOINT [&quot;/shorty&quot;]
+</code></pre>
+
+
+</div>
+
+<p>הצורה <code>["/shorty"]</code>, עם סוגריים מרובעים, נקראת צורת exec: Docker מריץ את הבינארי ישירות, והוא מקבל את
+האות <code>SIGTERM</code> כשהקונטיינר נעצר. בצורה בלי סוגריים, הפקודה רצה דרך מעטפת, והמעטפת היא שמקבלת את האות. זה
+ההבדל בין הכיבוי המסודר מפרק 6 לבין עשר שניות של המתנה ואז <code>SIGKILL</code>. וב־distroless אין מעטפת בכלל, אז
+הצורה השנייה פשוט לא תעבוד.</p>
+<h3 id="1924">19.2.4 הבנייה הנאיבית, כדי למדוד</h3>
+<p>כדי להבין מה הרווחת, התרגיל כולל גם את הקובץ <code>shorty/Dockerfile.naive</code>. אל תשתמשי בו בשום מקום אחר:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-dockerfile"># The naive single-stage build, kept only to measure against. Do not ship this:
+# it carries the whole toolchain and the source, and it runs as root.
+FROM golang:1.27.1
+WORKDIR /src
+COPY . .
+RUN go build -o /usr/local/bin/shorty ./cmd/shorty
+ENTRYPOINT [&quot;shorty&quot;]
+</code></pre>
+
+
+</div>
+
+<p>את הגודל של שני ה־images תמדדי ותרשמי בתרגיל. ההבדל צפוי להיות של שני סדרי גודל, וכדאי שתדעי לומר
+את המספרים שלך בראיון.</p>
+<blockquote>
+<p><strong>איך Rust עושה את זה:</strong> אותו עיקרון, עם שני הבדלים. בינארי סטטי ב־Rust דורש לבנות מול musl (המטרה
+<code>x86_64-unknown-linux-musl</code>), כי ברירת המחדל מקושרת ל־glibc. ומטמון התלויות נשבר כאן קל יותר, ולכן
+משתמשים בכלי כמו cargo-chef שבונה קודם רק את התלויות לשכבה נפרדת. ב־Go, הורדת המודולים ומטמון
+הקומפילציה של <code>go build</code> נותנים את זה בלי כלי נוסף.</p>
+</blockquote>
+<h2 id="193-distroless-root">19.3 distroless ומשתמש שאינו root</h2>
+<h3 id="1931-distroless">19.3.1 מה יש ב־distroless, ומה אין</h3>
+<p>הבסיס <code>gcr.io/distroless/static-debian13</code> (בסיס שמכיל רק את מה שתוכנית סטטית צריכה כדי לרוץ) מכיל
+מעט מאוד:</p>
+<table>
+<thead>
+<tr>
+<th>יש</th>
+<th>אין</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>תעודות CA, כדי שבקשת HTTPS יוצאת תעבוד</td>
+<td>מעטפת (<code>sh</code>, <code>bash</code>)</td>
+</tr>
+<tr>
+<td>נתוני אזורי זמן</td>
+<td>מנהל חבילות (<code>apt</code>)</td>
+</tr>
+<tr>
+<td>הקבצים <code>/etc/passwd</code> ו־<code>/etc/group</code>, עם המשתמשים <code>root</code>, <code>nonroot</code> ו־<code>nobody</code></td>
+<td><code>curl</code>, <code>ps</code>, <code>ls</code>, <code>id</code></td>
+</tr>
+<tr>
+<td>תיקיית <code>/tmp</code></td>
+<td>ספריית C</td>
+</tr>
+</tbody>
+</table>
+<p>התג <code>nonroot</code> של הבסיס כבר מגדיר את המשתמש 65532. התרגיל כותב את <code>USER</code> בכל זאת, ובמספרים: כך ה־image לא
+תלוי בתג של הבסיס, ו־Kubernetes יכול לוודא שהמשתמש אינו root (פרק 20, סעיף 20.7). משתמש בשם, כמו
+<code>nonroot</code>, הוא מחרוזת ש־Kubernetes לא יכול לבדוק בלי לפתוח את <code>/etc/passwd</code>, ולכן הוא מסרב להריץ אותו
+כשמבקשים ממנו לוודא.</p>
+<p>המחיר של distroless הוא בניפוי. אין לאן להיכנס עם <code>docker exec</code> ואין כלים להריץ. יש שלוש דרכים לעקוף את
+זה, לפי סדר העדפה:</p>
+<ul>
+<li><strong>לוגים ומדדים טובים</strong> (פרקים 6 ו־24), כך שלא צריך להיכנס.</li>
+<li><strong>קונטיינר ניפוי זמני</strong> שמצטרף לקונטיינר הרץ, עם הכלים שלו. ב־Kubernetes זה <code>kubectl debug</code>, בפרק 21.</li>
+<li><strong>התג <code>debug</code></strong> של distroless, שמוסיף מעטפת busybox. לניפוי מקומי בלבד, לא לייצור.</li>
+</ul>
+<h3 id="1932-root">19.3.2 למה לא root</h3>
+<p>קונטיינר אינו מכונה וירטואלית. התהליך שבתוכו רץ על הליבה של המארח, ובלי מיפוי משתמשים (user namespaces),
+המשתמש 0 בקונטיינר הוא המשתמש 0 במארח. אם תוקף מוצא פרצה בשירות וגם דרך לברוח מהקונטיינר, ההבדל בין root
+למשתמש רגיל הוא ההבדל בין שליטה במכונה לבין תקלה מקומית. זה מינימום הרשאות (least privilege) ברמת
+ה־image: השירות לא צריך root כדי להאזין לפורט 8080, ולכן הוא לא מקבל root.</p>
+<h3 id="1933-root">19.3.3 לבדוק שזה באמת לא root</h3>
+<p>הדרך הרגילה לבדוק היא להריץ את <code>id</code> בתוך ה־image. ב־distroless אין <code>id</code>, וזה מה שקורה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">docker run --rm --entrypoint id shorty:dev
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">docker: Error response from daemon: failed to create task for container: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: exec: &quot;id&quot;: executable file not found in $PATH
+</code></pre>
+
+
+</div>
+
+<p>שתי דרכים נכונות. הראשונה קוראת את התצורה של ה־image. השנייה שואלת את Docker איזה משתמש מריץ את התהליך
+בקונטיינר חי, מבחוץ, בלי צורך בכלים בפנים:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">docker image inspect --format '{{.Config.User}}' shorty:dev
+docker run -d --name shorty-check --read-only -p 127.0.0.1:18080:8080 -e SHORTY_BASE_URL=http://localhost:18080 shorty:dev
+docker top shorty-check -o pid,uid
+docker rm -f shorty-check
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">65532:65532
+PID                 UID
+41630               65532
+</code></pre>
+
+
+</div>
+
+<p>ב־image של Python, שיש בו <code>id</code>, הבדיקה הרגילה עובדת, והיא חלק מהבדיקות של התרגיל.</p>
+<h3 id="1934">19.3.4 מערכת קבצים לקריאה בלבד</h3>
+<p>הדגל <code>--read-only</code> שבפקודה למעלה מצמיד את מערכת הקבצים של הקונטיינר לקריאה בלבד. תוקף שהשיג הרצת קוד לא
+יכול להוריד כלי ולשמור אותו, ושירות שכותב לדיסק בלי שהתכוונת יתגלה מיד ולא אחרי שהדיסק התמלא. shorty לא
+כותב לדיסק בכלל, ולכן הוא רץ כך בלי שינוי.</p>
+<p>שירות שצריך מקום זמני מקבל תיקייה אחת בזיכרון ולא את כל מערכת הקבצים: ב־Docker עם הדגל <code>--tmpfs /tmp</code>,
+וב־Kubernetes עם volume מסוג <code>emptyDir</code>. אותו עיקרון יחזור בפרק 20 כשדה בשם <code>readOnlyRootFilesystem</code>.</p>
+<h2 id="194-image-python-uv">19.4 image ל־Python עם uv</h2>
+<p>ב־Go הבינארי הוא כל מה שצריך. ב־Python צריך מפרש, ספריות וקוד, ולכן אין גרסה של distroless שנוחה באותה
+מידה, והבסיס הוא <code>python:3.14.8-slim</code> (Debian מוקטן עם Python). העיקרון של השלבים נשאר: uv מתקין סביבה
+וירטואלית בשלב הבנייה, ושלב הריצה מעתיק רק את הסביבה. uv עצמו לא מגיע לייצור.</p>
+<p>הדפוס כאן לקוח ממדריך השילוב של uv עם Docker, באתר docs.astral.sh (נבדק באוקטובר 2026). זה שלב הבנייה
+בקובץ <code>receiver/Dockerfile</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-dockerfile"># ---- build stage: uv resolves and installs into /app/.venv ----
+FROM python:3.14.8-slim AS build
+COPY --from=ghcr.io/astral-sh/uv:0.12.23 /uv /bin/uv
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_PYTHON_DOWNLOADS=0
+WORKDIR /app
+
+# Dependencies first, from the lock file only: cached until uv.lock changes.
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    uv sync --locked --no-dev --no-install-project
+
+# Then the project itself, installed as a regular (non-editable) package.
+COPY . .
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-dev --no-editable
+</code></pre>
+
+
+</div>
+
+<p>שורה אחר שורה:</p>
+<table>
+<thead>
+<tr>
+<th>שורה</th>
+<th>למה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>COPY --from=ghcr.io/astral-sh/uv:0.12.23</code></td>
+<td>מעתיקה את uv מה־image הרשמי שלו, בגרסה הנעולה, בלי סקריפט התקנה</td>
+</tr>
+<tr>
+<td><code>UV_COMPILE_BYTECODE=1</code></td>
+<td>מהדר מראש את קובצי <code>.pyc</code>, כך שההפעלה הראשונה מהירה יותר</td>
+</tr>
+<tr>
+<td><code>UV_LINK_MODE=copy</code></td>
+<td>המטמון בתיקייה מוצמדת אחרת, ושם קישור קשיח לא אפשרי; העתקה שקטה במקום אזהרה</td>
+</tr>
+<tr>
+<td><code>UV_PYTHON_DOWNLOADS=0</code></td>
+<td>משתמשת ב־Python של תמונת הבסיס, ולא מורידה אחר</td>
+</tr>
+<tr>
+<td><code>--mount=type=bind</code> לשני הקבצים</td>
+<td>השכבה תלויה רק בהם, בלי להעתיק אותם לשכבה</td>
+</tr>
+<tr>
+<td><code>--no-install-project</code></td>
+<td>מתקינה רק את התלויות; הקוד שלך עוד לא כאן</td>
+</tr>
+<tr>
+<td><code>--no-dev</code></td>
+<td>בלי pytest, ruff ו־mypy</td>
+</tr>
+<tr>
+<td><code>--no-editable</code></td>
+<td>מתקינה את החבילה עצמה לתוך הסביבה, כך ששלב הריצה לא צריך את <code>src/</code></td>
+</tr>
+</tbody>
+</table>
+<p>הדגל <code>--locked</code> נכשל אם <code>uv.lock</code> לא תואם ל־<code>pyproject.toml</code>. האפשרות האחרת, <code>--frozen</code>, מתקינה מקובץ
+הנעילה בלי לבדוק את ההתאמה. בבנייה של image עדיף להיכשל: נעילה שלא עודכנה אחרי שינוי תלות היא באג שצריך
+לראות.</p>
+<h3 id="1941">19.4.1 שלב הריצה</h3>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-dockerfile"># ---- runtime stage: the same python, the virtual environment, no uv ----
+FROM python:3.14.8-slim
+ARG GIT_SHA=unknown
+LABEL org.opencontainers.image.revision=&quot;${GIT_SHA}&quot;
+# The app never installs packages at runtime, so the base image's pip (and the
+# libraries it vendors, which scanners report) goes. See section 19.6.
+RUN rm -rf /usr/local/lib/python3.14/site-packages/pip* /usr/local/bin/pip* \
+ &amp;&amp; groupadd --system --gid 10001 app \
+ &amp;&amp; useradd --system --uid 10001 --gid app --no-create-home --shell /usr/sbin/nologin app
+# Owned by root and not writable by the app user: the code cannot be changed at runtime.
+COPY --from=build /app/.venv /app/.venv
+ENV PATH=&quot;/app/.venv/bin:${PATH}&quot; \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    RECEIVER_HOST=0.0.0.0 \
+    RECEIVER_PORT=8081
+USER 10001:10001
+EXPOSE 8081
+ENTRYPOINT [&quot;receiver&quot;]
+</code></pre>
+
+
+</div>
+
+<p>ארבע החלטות כאן:</p>
+<ul>
+<li><strong>אותה תמונת בסיס בשני השלבים.</strong> בסביבה הווירטואלית יש קישור למפרש בנתיב שלו, ובסיס אחר בשלב הריצה
+  יכול לשבור אותו.</li>
+<li><strong>הסביבה שייכת ל־root.</strong> המשתמש <code>app</code> יכול לקרוא ולהריץ, אבל לא לשנות את הקוד. לא צריך <code>--chown</code>.</li>
+<li><strong><code>RECEIVER_HOST=0.0.0.0</code>.</strong> ברירת המחדל של ה־receiver היא <code>127.0.0.1</code>, וכתובת כזאת בתוך קונטיינר
+  נגישה רק מתוכו. זו הטעות הנפוצה ביותר עם image ראשון של שרת.</li>
+<li><strong>הסרת pip.</strong> ההחלטה הזאת באה מהסריקה בסעיף 19.6, והיא דוגמה לאיך ממצא הופך לשורה ב־Dockerfile.</li>
+</ul>
+<h2 id="195-compose">19.5 compose לפיתוח</h2>
+<p>ה־compose (כלי שמרים כמה קונטיינרים יחד מקובץ אחד) כבר הופיע בפרקים על PostgreSQL ו־Redis. כאן הוא מריץ
+את ה־images שלך, וזה מוסיף שתי שאלות: איך יודעים ששירות מוכן, ואיך שירות מחכה לשירות אחר.</p>
+<h3 id="1951-image">19.5.1 בדיקת בריאות ב־image בלי מעטפת</h3>
+<p>בדיקת בריאות (healthcheck) ב־Docker היא פקודה שרצה בתוך הקונטיינר כל כמה שניות. קוד יציאה 0 פירושו בריא.
+ב־image של Python אפשר להריץ שורת Python שפותחת כתובת. ב־distroless אין מעטפת ואין <code>curl</code>, ולכן הבדיקה
+חייבת להיות תוכנית שנמצאת ב־image. התרגיל מוסיף ל־shorty פקודת משנה (subcommand) קטנה, בקובץ
+<code>shorty/cmd/shorty/healthcheck.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// healthcheck GETs url and returns the process exit code: 0 for a 200 answer,
+// 1 for anything else. Errors go to w, so they show up in docker inspect.
+func healthcheck(url string, w io.Writer) int {
+    client := &amp;http.Client{Timeout: 2 * time.Second}
+    resp, err := client.Get(url)
+    if err != nil {
+        fmt.Fprintln(w, &quot;healthcheck:&quot;, err)
+        return 1
+    }
+    defer resp.Body.Close()
+    if resp.StatusCode != http.StatusOK {
+        fmt.Fprintln(w, &quot;healthcheck:&quot;, url, &quot;answered&quot;, resp.Status)
+        return 1
+    }
+    return 0
+}
+</code></pre>
+
+
+</div>
+
+<p>הפונקציה <code>main</code> קוראת לה כשהארגומנט הראשון הוא <code>healthcheck</code>, כך שאותו בינארי משמש גם כשרת וגם כבודק.
+זה לא מוסיף כמעט כלום לגודל, כי חבילת <code>net/http</code> כבר נמצאת בבינארי.</p>
+<h3 id="1952-composeyaml">19.5.2 הקובץ <code>compose.yaml</code></h3>
+<p>זה הקטע של shorty ושל שירות הבדיקה בקובץ <code>compose.yaml</code> של התרגיל:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-yaml">  shorty:
+    build: ./shorty
+    image: shorty:dev
+    environment:
+      SHORTY_BASE_URL: http://localhost:8080
+      SHORTY_LOG_LEVEL: info
+    ports:
+      - &quot;127.0.0.1:8080:8080&quot;
+    read_only: true
+    healthcheck:
+      # distroless has no shell and no curl: the binary checks itself.
+      test: [&quot;CMD&quot;, &quot;/shorty&quot;, &quot;healthcheck&quot;]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 2s
+
+  smoke:
+    image: receiver:dev
+    depends_on:
+      receiver:
+        condition: service_healthy
+      shorty:
+        condition: service_healthy
+    # &quot;receiver&quot; resolves through the compose network's DNS to the receiver container.
+    entrypoint: [&quot;receiver-send&quot;, &quot;http://receiver:8081/hooks/orders&quot;, &quot;--secret&quot;, &quot;change-me&quot;]
+    restart: &quot;no&quot;
+</code></pre>
+
+
+</div>
+
+<p>מה כל חלק נותן:</p>
+<table>
+<thead>
+<tr>
+<th>חלק</th>
+<th>משמעות</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>127.0.0.1:8080:8080</code></td>
+<td>הפורט פתוח רק למחשב שלך, לא לרשת שאת מחוברת אליה</td>
+</tr>
+<tr>
+<td><code>read_only: true</code></td>
+<td>אותה מערכת קבצים לקריאה בלבד מסעיף 19.3.4, גם בפיתוח</td>
+</tr>
+<tr>
+<td><code>start_period</code></td>
+<td>זמן חסד: כישלונות בזמן ההפעלה לא נספרים</td>
+</tr>
+<tr>
+<td><code>condition: service_healthy</code></td>
+<td>שירות הבדיקה לא עולה עד ששני השירותים בריאים, לא רק רצים</td>
+</tr>
+<tr>
+<td><code>http://receiver:8081</code></td>
+<td>ב־compose כל שירות מקבל שם ברשת הפנימית, כמו ש־Kubernetes ייתן בפרק 20</td>
+</tr>
+</tbody>
+</table>
+<p>בלי התנאי, <code>depends_on</code> מחכה רק שהקונטיינר יתחיל, ושירות שמתחבר למסד נתונים שעוד לא מקבל חיבורים נופל.
+התנאי <code>service_healthy</code> סוגר את הפער הזה בפיתוח. בייצור, שירות חייב לשרוד תלות שלא זמינה בכל רגע, עם
+ניסיונות חוזרים (פרק 15), ולכן הוא לא תחליף.</p>
+<blockquote>
+<p><strong>שימי לב:</strong> Kubernetes מתעלם מההוראה <code>HEALTHCHECK</code> של ה־image ומבדיקות הבריאות של compose. יש לו
+בדיקות משלו (probes), עם שלושה סוגים ומשמעות שונה לכל אחד: פרק 20, סעיף 20.7. לכן התרגיל מגדיר את
+הבדיקה בקובץ compose ולא ב־Dockerfile.</p>
+</blockquote>
+<h2 id="196-sbom">19.6 סריקה ו־SBOM</h2>
+<h3 id="1961">19.6.1 מה סורק עושה</h3>
+<p>סורק פגיעויות (vulnerability scanner) לא מריץ את הקוד שלך. הוא עושה שני דברים: מוציא מה־image רשימה של
+כל החבילות שבו (חבילות Debian, חבילות Python, מודולי Go שמוטמעים בבינארי), ומצליב אותה מול מאגרי פגיעויות
+ציבוריים. התוצאה טובה כמו שתי הרשימות: חבילה שהסורק לא זיהה לא תיבדק, ופגיעות שלא פורסמה לא תימצא.</p>
+<p>הרשימה עצמה נקראת SBOM (רשימת רכיבי תוכנה, software bill of materials), ויש לה פורמטים תקניים: SPDX
+ו־CycloneDX. הערך שלה מתגלה אחרי תקרית. כשמתפרסמת פגיעות חדשה בספרייה נפוצה, השאלה „באילו מהשירותים
+שלנו היא נמצאת?” נענית בחיפוש ברשימות שכבר שמרת, בלי לבנות ולסרוק מחדש כל image.</p>
+<h3 id="1962">19.6.2 שלושה כלים, כקונטיינרים</h3>
+<table>
+<thead>
+<tr>
+<th>כלי</th>
+<th>מה הוא עושה בתרגיל</th>
+<th>image (נכון לאוקטובר 2026)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Syft</td>
+<td>מפיק SBOM בפורמט SPDX JSON</td>
+<td><code>anchore/syft:v1.54.0</code></td>
+</tr>
+<tr>
+<td>Grype</td>
+<td>סורק את ה־SBOM ולא את ה־image</td>
+<td><code>anchore/grype:v0.120.0</code></td>
+</tr>
+<tr>
+<td>Trivy</td>
+<td>סורק את ה־image ישירות, רק HIGH ו־CRITICAL</td>
+<td><code>aquasec/trivy:0.75.0</code></td>
+</tr>
+</tbody>
+</table>
+<p>התגים נבדקו מול Docker Hub; הגרסאות שלהם מרוכזות בנספח C. שני סורקים שונים לא מיותרים: הם משתמשים
+במאגרים ובכללי זיהוי שונים, וההבדלים ביניהם מלמדים משהו.</p>
+<p>הדרך הנפוצה ברשת להריץ סורק כקונטיינר היא להצמיד אליו את השקע של Docker
+(<code>/var/run/docker.sock</code>). אל תעשי את זה מתוך הרגל: מי שמחזיק את השקע יכול להריץ כל קונטיינר עם כל הרשאה,
+כלומר הוא root במארח. התרגיל מייצא את ה־image לקובץ, וכל כלי מקבל רק את התיקייה. זה הלב של הקובץ
+<code>tests/scan_images.sh</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">  docker save &quot;$img&quot; -o &quot;reports/$name.tar&quot;
+
+  # SBOM: the list of every package in the image, in SPDX JSON.
+  docker run --rm -v &quot;$PWD/reports:/work&quot; &quot;$SYFT&quot; \
+    &quot;docker-archive:/work/$name.tar&quot; -o &quot;spdx-json=/work/$name.spdx.json&quot; -q
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">  # Grype reads the SBOM, not the image: a scan you can repeat later without the image.
+  docker run --rm -v &quot;$PWD/reports:/work&quot; -v ch19-grype-db:/root/.cache/grype &quot;$GRYPE&quot; \
+    &quot;sbom:/work/$name.spdx.json&quot; -o table --file &quot;/work/$name.grype.txt&quot; -q || true
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">  # Trivy scans the image archive itself; only HIGH and CRITICAL, fixed or not.
+  docker run --rm -v &quot;$PWD/reports:/work&quot; -v ch19-trivy-cache:/root/.cache/trivy &quot;$TRIVY&quot; \
+    image --quiet --input &quot;/work/$name.tar&quot; --severity HIGH,CRITICAL \
+    --format table --output &quot;/work/$name.trivy.txt&quot;
+</code></pre>
+
+
+</div>
+
+<p>שני ה־volumes בשם <code>ch19-grype-db</code> ו־<code>ch19-trivy-cache</code> שומרים את מאגרי הפגיעויות בין הרצות. בלעדיהם כל
+הרצה מורידה אותם מחדש.</p>
+<h3 id="1963">19.6.3 לקרוא את התוצאה ולהחליט</h3>
+<p>ממצא הוא לא פקודה. לכל שורה בדוח שואלים שלוש שאלות:</p>
+<ol>
+<li><strong>האם הקוד הפגיע בכלל רץ?</strong> חבילה שנמצאת ב־image אבל אף תהליך לא טוען אותה היא סיכון קטן יותר,
+   אבל גם משקל מת שעדיף להוציא.</li>
+<li><strong>האם יש תיקון?</strong> העמודה של הגרסה המתוקנת, או הסטטוס <code>fixed</code>, אומרת שיש. סטטוס כמו <code>will_not_fix</code>
+   או <code>affected</code> אומר שההפצה לא תתקן, או עוד לא.</li>
+<li><strong>מה המחיר של כל אפשרות?</strong> לעדכן את הבסיס, להסיר את החבילה, להחליף בסיס, או לתעד ולחכות.</li>
+</ol>
+<p>בהרצה של הכותב (5 באוקטובר 2026), ה־image של shorty יצא נקי בשני הכלים: יש בו בינארי אחד ומעט קבצים של
+הבסיס. ב־receiver, Trivy דיווח על פגיעויות בשלוש ספריות Python שהאפליקציה לא משתמשת בהן. החיפוש הראה ששתיים
+מהן יושבות בתוך pip של תמונת הבסיס, שמביא איתו עותקים משלו של ספריות. השירות לא מתקין חבילות בזמן ריצה,
+ולכן ההחלטה הייתה להסיר את pip בשלב הריצה, ובסריקה הבאה נעלמו שלושת הממצאים. נשארו ממצאים בחבילות Debian של
+הבסיס, ורובם בלי תיקון זמין. אצלך המספרים יהיו אחרים, כי המאגרים מתעדכנים כל יום; את מה שמצאת ואת מה
+שהחלטת תרשמי בפתק.</p>
+<blockquote>
+<p><strong>שימי לב:</strong> בצנרת CI מקובל להכשיל בנייה רק על ממצאים שיש להם תיקון, עם הדגל <code>--ignore-unfixed</code>
+של Trivy, ולטפל בשאר בתהליך מסודר. שער שנכשל על כל ממצא בלי תיקון נכשל כל הזמן, והצוות לומד לעקוף
+אותו. פרק 23 מחבר את הסריקה ל־GitHub Actions.</p>
+</blockquote>
+<h2 id="197">19.7 תגיות וגרסאות</h2>
+<h3 id="1971">19.7.1 תגית מול תקציר</h3>
+<p>שם של image בנוי מ־registry, שם ותגית: בשם <code>ghcr.io/astral-sh/uv:0.12.23</code> ה־registry הוא GHCR, השם הוא
+<code>astral-sh/uv</code> והתגית היא <code>0.12.23</code>. התגית (tag) היא מצביע שאפשר להזיז: מי שמחזיק ב־registry יכול לדחוף
+תוכן אחר תחת אותה תגית מחר. התקציר (digest) הוא גיבוב SHA-256 של התוכן עצמו, והוא לא יכול להשתנות בלי
+שהתוכן ישתנה. אפשר לראות אותו כך:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">docker buildx imagetools inspect python:3.14.8-slim
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">Name:      docker.io/library/python:3.14.8-slim
+MediaType: application/vnd.oci.image.index.v1+json
+Digest:    sha256:c3e521df8b2b498a7a682e7e18676771cb80c6b75b8699af886b2d554ce40151
+</code></pre>
+
+
+</div>
+
+<p>ה־digest הזה שייך לאינדקס (index): רשימה שמצביעה על image נפרד לכל ארכיטקטורה. לכן אותו שם עובד גם
+על מעבד אינטל וגם על arm64.</p>
+<table>
+<thead>
+<tr>
+<th>כתיבה</th>
+<th>מה מקבלים</th>
+<th>מתי</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>python:3.14.8-slim</code></td>
+<td>מה שהתגית מצביעה עליו היום; עדכוני אבטחה של הבסיס נכנסים</td>
+<td>פיתוח, ותרגילי הספר</td>
+</tr>
+<tr>
+<td><code>python:3.14.8-slim@sha256:c3e5...</code></td>
+<td>בדיוק אותם בתים, תמיד</td>
+<td>בנייה לייצור, עם כלי שמעדכן את ה־digest בבקשת מיזוג</td>
+</tr>
+<tr>
+<td><code>python:latest</code></td>
+<td>מה שמישהו דחף אחרון</td>
+<td>אף פעם, בשום מקום שחשוב</td>
+</tr>
+</tbody>
+</table>
+<p>הנעילה ב־digest קונה שחזור מלא, ומשלמת בזה שתיקוני אבטחה לא נכנסים מעצמם. בצוות שעובד כך, כלי כמו
+Renovate או Dependabot פותח בקשת מיזוג כשה־digest משתנה, וכך העדכון עובר סקירה ובדיקות. פרק 20 מראה את
+אותו רעיון בתצורה של kind, שבה ה־digest הוא חובה.</p>
+<h3 id="1972-latest">19.7.2 למה <code>latest</code> אינה תגית פריסה</h3>
+<p>התגית <code>latest</code> היא רק ברירת המחדל כשלא כותבים תגית; היא לא אומרת „האחרון”. היא לא מספרת מה רץ: אם שני
+עותקים של שירות רצים עם <code>latest</code> שנמשכה בזמנים שונים, הם יכולים להריץ קוד שונה. היא לא מאפשרת חזרה
+לאחור, כי „הגרסה הקודמת” של <code>latest</code> לא קיימת בשם. ו־Kubernetes מתייחס אליה אחרת: עם <code>latest</code> הוא מנסה
+למשוך את ה־image בכל הפעלה (פרק 20, סעיף 20.2).</p>
+<h3 id="1973">19.7.3 שתי תגיות לכל בנייה</h3>
+<p>הנוהג שהספר ממליץ עליו הוא שתי תגיות לאותו image: גרסה שבני אדם קוראים, ומזהה ה־commit שהמכונה קוראת. שניהם
+לא זזים אף פעם:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">SHA=$(git rev-parse --short=12 HEAD)
+docker build -t shorty:0.1.0 -t &quot;shorty:$SHA&quot; --build-arg GIT_SHA=&quot;$SHA&quot; shorty
+docker image inspect --format '{{index .Config.Labels &quot;org.opencontainers.image.revision&quot;}}' shorty:0.1.0
+</code></pre>
+
+
+</div>
+
+<p>התווית <code>org.opencontainers.image.revision</code> (תווית תקנית של OCI) נכנסת לתצורה של ה־image, כך שגם מי
+שמחזיקה רק את ה־image יודעת מאיזה commit הוא נבנה. ב־registry אמיתי מפעילים גם תגיות שאי אפשר לדרוס
+(immutable tags), אפשרות שקיימת ברוב שירותי ה־registry המנוהלים: ניסיון לדחוף שוב את <code>0.1.0</code> נכשל, במקום
+להחליף בשקט את מה שרץ בייצור.</p>
+<h2 id="_3">סיכום</h2>
+<ul>
+<li>image הוא שכבות ומסמך תצורה; כל <code>COPY</code> ו־<code>RUN</code> הוא שכבה, והחמצה אחת במטמון בונה מחדש את כל מה שאחריה.</li>
+<li>סדר: בסיס, קובצי תלויות, הורדת תלויות, קוד, קומפילציה; ו־<code>.dockerignore</code> שומר על המטמון ועל הסודות.</li>
+<li>בנייה רב־שלבית ל־Go: קומפיילר בשלב אחד, בינארי סטטי על distroless בשלב השני.</li>
+<li>משתמש מספרי שאינו root, מערכת קבצים לקריאה בלבד, ובדיקה מבחוץ עם <code>docker image inspect</code> ו־<code>docker top</code>.</li>
+<li>ב־Python: uv מתקין בשלב הבנייה סביבה שלמה ולא ניתנת לעריכה, ושלב הריצה מעתיק רק אותה.</li>
+<li>compose לפיתוח: בדיקת בריאות שרצה בתוך ה־image, ו־<code>depends_on</code> עם <code>service_healthy</code>.</li>
+<li>SBOM נשמר לכל image; סורקים מצליבים אותו מול מאגרים, וכל ממצא מקבל החלטה כתובה.</li>
+<li>תגיות לא זזות: גרסה ומזהה commit, ו־digest כשצריך את אותם בתים בדיוק. לא <code>latest</code>.</li>
+</ul>
+<h2 id="_4">מונחים לזכור</h2>
+<table>
+<thead>
+<tr>
+<th>מונח בעברית</th>
+<th>באנגלית</th>
+<th>במשפט אחד</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>image</td>
+<td>image</td>
+<td>שכבות של מערכת קבצים ותצורה, שמהן מריצים קונטיינר</td>
+</tr>
+<tr>
+<td>שכבה</td>
+<td>layer</td>
+<td>ארכיון של שינויים בקבצים שהוראה אחת ב־Dockerfile יצרה</td>
+</tr>
+<tr>
+<td>מטמון בנייה</td>
+<td>build cache</td>
+<td>שכבות שמורות שנלקחות מחדש כשההוראה והקלט זהים</td>
+</tr>
+<tr>
+<td>הקשר בנייה</td>
+<td>build context</td>
+<td>התיקייה שממנה <code>COPY</code> מעתיקה, בסינון של <code>.dockerignore</code></td>
+</tr>
+<tr>
+<td>בנייה רב־שלבית</td>
+<td>multi-stage build</td>
+<td>שלב עם כלים לבנייה, ושלב נפרד ונקי לריצה</td>
+</tr>
+<tr>
+<td>מטמון מוצמד</td>
+<td>cache mount</td>
+<td>תיקייה שנשמרת בין בניות ולא נכנסת ל־image</td>
+</tr>
+<tr>
+<td>distroless</td>
+<td>distroless</td>
+<td>בסיס בלי מעטפת ובלי מנהל חבילות, רק מה שהתוכנית צריכה</td>
+</tr>
+<tr>
+<td>בדיקת בריאות</td>
+<td>healthcheck</td>
+<td>פקודה שרצה בקונטיינר וקובעת אם הוא בריא</td>
+</tr>
+<tr>
+<td>סורק פגיעויות</td>
+<td>vulnerability scanner</td>
+<td>כלי שמצליב את חבילות ה־image מול מאגרי פגיעויות</td>
+</tr>
+<tr>
+<td>רשימת רכיבי תוכנה</td>
+<td>SBOM</td>
+<td>רשימה תקנית של כל החבילות ב־image</td>
+</tr>
+<tr>
+<td>תגית</td>
+<td>tag</td>
+<td>שם שמצביע על image, ואפשר להזיז אותו</td>
+</tr>
+<tr>
+<td>תקציר</td>
+<td>digest</td>
+<td>גיבוב של התוכן, שמזהה בדיוק אותם בתים</td>
+</tr>
+<tr>
+<td>תגית שאי אפשר לדרוס</td>
+<td>immutable tag</td>
+<td>הגדרה ב־registry שמונעת דחיפה חוזרת לאותה תגית</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_5">טעויות נפוצות</h2>
+<ul>
+<li><strong>להעתיק את כל הקוד לפני הורדת התלויות.</strong> כל שינוי בשורה אחת מוריד מחדש את כל המודולים. מעתיקים קודם
+  את קובצי התלויות בלבד.</li>
+<li><strong>למחוק סוד בשכבה שאחרי זו שהעתיקה אותו.</strong> הוא נשאר בשכבה הקודמת. סודות לא נכנסים ל־image בכלל.</li>
+<li><strong>צורת מעטפת ב־<code>ENTRYPOINT</code>.</strong> האות <code>SIGTERM</code> מגיע למעטפת ולא לשירות, ואין כיבוי מסודר. וב־distroless
+  זה פשוט לא רץ, כי אין מעטפת.</li>
+<li><strong>שרת שמאזין ל־<code>127.0.0.1</code> בתוך הקונטיינר.</strong> הוא עולה, אבל אף אחד מבחוץ לא מגיע אליו. מאזינים לכל
+  הכתובות בקונטיינר, ומגבילים בצד של המארח.</li>
+<li><strong><code>USER nonroot</code> בשם ולא במספר.</strong> Kubernetes עם <code>runAsNonRoot</code> לא יכול לוודא שם, ומסרב להפעיל.</li>
+<li><strong>להצמיד את השקע של Docker לכל כלי.</strong> זו הרשאת root במארח. מייצאים את ה־image לקובץ.</li>
+<li><strong>לפרוס עם <code>latest</code>.</strong> אין דרך לדעת מה רץ, ואין לאן לחזור.</li>
+</ul>
+<h2 id="_6">שאלות ראיון</h2>
+<ol>
+<li>
+<p><strong>איך תבני image לשירות Go, ולמה ככה?</strong> בנייה רב־שלבית: שלב עם תמונת <code>golang</code> שמעתיק קודם את קובצי
+   התלויות ומוריד אותם, ורק אחר כך את הקוד, כדי שהמטמון יחזיק. קומפילציה סטטית עם cgo כבוי, <code>-trimpath</code>
+   ובלי סמלים, ומטמון מוצמד לקומפילציה. שלב ריצה על distroless עם משתמש מספרי שאינו root. התמורה היא
+   image קטן עם מעט מאוד לסרוק ולתקוף, והמחיר הוא ניפוי בלי מעטפת, שמתוכנן מראש עם לוגים וקונטיינר ניפוי.</p>
+</li>
+<li>
+<p><strong>מה distroless חוסך, ומה הוא עולה לך?</strong> הוא חוסך מעטפת, מנהל חבילות וכלים: פחות חבילות לסרוק, פחות
+   כלים לתוקף שהשיג הרצת קוד, ו־image קטן. הוא עולה בניפוי: אין <code>exec</code> לתוך הקונטיינר, ובדיקת בריאות חייבת
+   להיות בינארי שב־image. מתכננים לזה מראש: לוגים ומדדים טובים, <code>kubectl debug</code> עם קונטיינר זמני, ותג
+   <code>debug</code> רק מקומית.</p>
+</li>
+</ol>
+<p><strong>המשך:</strong> ואם השירות צריך ספריית C? אז הבסיס הוא <code>distroless/base</code> או <code>cc</code>, שיש בהם ספריית C, או
+   Debian מוקטן. הכלל לא משתנה: הבסיס הקטן ביותר שהבינארי באמת צריך.</p>
+<ol start="3">
+<li>
+<p><strong>הסורק מצא 40 פגיעויות ב־image. מה עושים?</strong> קודם ממיינים: מה בחומרה גבוהה ויש לו תיקון, ומה בכלל
+   נמצא בנתיב שרץ. בדרך כלל רוב הממצאים בחבילות של הבסיס שאין להן תיקון. אפשרויות: לעדכן את הבסיס, להסיר
+   חבילה שלא צריך (כמו pip בשלב ריצה), לעבור לבסיס קטן יותר, או לתעד החרגה עם תאריך. שער CI נכשל על
+   ממצאים שיש להם תיקון, אחרת הוא נכשל תמיד וכולם לומדים לעקוף אותו.</p>
+</li>
+<li>
+<p><strong>למה לשמור SBOM לכל image אם כבר סורקים?</strong> הסריקה היא תמונת מצב של היום; פגיעויות חדשות מתפרסמות
+   מחר. עם SBOM שמור, כשמתפרסמת פגיעות בספרייה נפוצה, אפשר לענות בדקות באילו שירותים וגרסאות היא נמצאת,
+   ולסרוק מחדש את הרשימה בלי ה־image. זה גם מה שלקוחות ורגולציה מתחילים לבקש.</p>
+</li>
+<li>
+<p><strong>מה ההבדל בין תגית ל־digest, ומה תפרסי לייצור?</strong> תגית היא מצביע שאפשר להזיז; digest מזהה תוכן. לייצור
+   הייתי בונה עם שתי תגיות שלא זזות, גרסה ומזהה commit, ומפעילה תגיות שאי אפשר לדרוס ב־registry. בצנרת
+   הפריסה הייתי מעבירה את ה־digest שהבנייה החזירה, כך שמה שנבדק הוא מה שרץ. ואת תמונות הבסיס הייתי נועלת
+   ב־digest עם כלי שמעדכן אותן בבקשות מיזוג.</p>
+</li>
+</ol>
+<p><strong>המשך:</strong> מה הבעיה עם <code>latest</code> ב־Kubernetes דווקא? מדיניות המשיכה המשתמעת היא „תמיד”, ולכן כל
+   הפעלה של pod מושכת מחדש, ושני pods יכולים להריץ גרסאות שונות בלי שאף אחד יודע.</p>
+<h2 id="obsidian">פתק Obsidian</h2>
+<p>הפתק המוכן נמצא גם כקובץ: <code>obsidian/19-docker-done-right.md</code>. זה תוכנו:</p>
+<ul>
+<li><strong>image:</strong> שכבות של קבצים ומסמך תצורה; קונטיינר מוסיף שכבה אחת לכתיבה.</li>
+<li><strong>מטמון:</strong> החמצה אחת בונה מחדש את כל מה שאחריה; מה שמשתנה לעתים רחוקות בא ראשון.</li>
+<li><strong>הקשר:</strong> הקובץ <code>.dockerignore</code> שומר על המטמון ומונע דליפה; מחיקה בשכבה מאוחרת לא מוחקת.</li>
+<li><strong>Go:</strong> בנייה רב־שלבית, בינארי סטטי, <code>-trimpath</code>, בלי סמלים, מטמון מוצמד לקומפילציה.</li>
+<li><strong>distroless:</strong> בלי מעטפת ובלי כלים; ניפוי עם לוגים וקונטיינר ניפוי; בדיקת בריאות כבינארי.</li>
+<li><strong>root:</strong> משתמש מספרי שאינו root; בודקים מבחוץ, עם תצורת ה־image ועם <code>docker top</code>.</li>
+<li><strong>Python:</strong> uv בשלב הבנייה בלבד; תלויות לפני קוד; סביבה לא ניתנת לעריכה; לאזין לכל הכתובות.</li>
+<li><strong>compose:</strong> בדיקת בריאות ו־<code>service_healthy</code>; Kubernetes מתעלם משתיהן ומשתמש ב־probes.</li>
+<li><strong>סריקה:</strong> SBOM נשמר; שני סורקים; כל ממצא מקבל החלטה; בלי להצמיד את השקע של Docker.</li>
+<li><strong>שמות:</strong> גרסה ומזהה commit שלא זזים; digest לשחזור; לא <code>latest</code>.</li>
+<li><strong>שאלה פתוחה:</strong> ___</li>
+</ul>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">build        docker build -t shorty:dev --build-arg GIT_SHA=$(git rev-parse --short=12 HEAD) shorty
+layers       docker history shorty:dev --format '{{.Size}}\t{{.CreatedBy}}'
+go flags     CGO_ENABLED=0 go build -trimpath -ldflags='-s -w'
+cache mount  RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build
+uv           COPY --from=ghcr.io/astral-sh/uv:&lt;pin&gt; /uv /bin/uv ; uv sync --locked --no-dev --no-install-project
+user         USER 65532:65532 ; docker image inspect --format '{{.Config.User}}' IMG ; docker top CTR -o pid,uid
+read-only    docker run --read-only [--tmpfs /tmp] ...   compose: read_only: true
+compose      healthcheck.test [&quot;CMD&quot;, ...] ; depends_on.X.condition: service_healthy ; up --build --wait
+scan         docker save IMG -o x.tar ; syft docker-archive:x.tar ; grype sbom:x.spdx.json ; trivy image --input x.tar
+digest       docker buildx imagetools inspect IMG
+mine         shorty ___ MB  naive ___ MB  receiver ___ MB  findings kept ___  decision ___
+</code></pre>
+
+
+</div>
+
+<h2 id="_7">תרגיל</h2>
+<p><strong>מטרה:</strong> לבנות images קטנים שרצים כמשתמש שאינו root ל־shorty מפרק 6 ול־receiver מפרק 8, להרים אותם ב־compose
+עם בדיקות בריאות, לסרוק אותם, להפיק SBOM ולתייג לפי גרסה ו־commit.
+<strong>זמן:</strong> שני ימי לימוד, ימים 58 ו־59, כ־60 דקות בנייה בכל אחד.
+<strong>ידע מקדים:</strong> הפרק; פרק 6 ופרק 8 (התרגיל מביא עותקים של שני השירותים); Docker פועל.</p>
+<p>הצעדים, קבצי ההתחלה, הרמזים והפתרון נמצאים ב־
+<a href="../exercises/ch19-images/README.md"><code>exercises/ch19-images/README.md</code></a>.</p>
+<p><strong>קריטריון סיום:</strong></p>
+<ul>
+<li>שני ה־images נבנים, רצים כמשתמש שאינו root, ועונים לבקשות גם עם מערכת קבצים לקריאה בלבד.</li>
+<li>בטבלה בפתק: הגודל שמדדת ל־shorty, לבנייה הנאיבית ול־receiver.</li>
+<li>הסקריפט <code>check_images.sh</code> מסתיים ב־<code>PASS</code>, כולל compose עם שני שירותים בריאים ושליחה דרך שם השירות.</li>
+<li>קובצי SBOM ודוחות סריקה שמורים, ובפתק כתוב ממצא אחד ומה החלטת לגביו.</li>
+<li>שני ה־images מתויגים בגרסה ובמזהה commit, והתווית <code>revision</code> מראה את ה־commit.</li>
+</ul>
+<h2 id="_8">העשרה אופציונלית</h2>
+<ul>
+<li>לקרוא את מדריך השילוב של uv עם Docker באתר docs.astral.sh, ובמיוחד את הסעיף על סביבת פיתוח עם
+  <code>compose watch</code>.</li>
+<li>לבנות את shorty לשתי ארכיטקטורות בבת אחת עם <code>docker buildx build --platform linux/amd64,linux/arm64</code>,
+  ולהשוות את ה־digest של האינדקס לשל כל image בנפרד.</li>
+<li>להריץ את Trivy עם <code>--ignore-unfixed</code> ועם <code>--format cyclonedx</code>, ולהשוות את מספר הממצאים ואת הפורמט
+  ל־SPDX של Syft.</li>
+</ul>
+</main>
+<nav class="bottom"><a href="index.html">תוכן העניינים</a> · <a href="18-locks-leaders-sagas.html">← פרק 18: נעילות, בחירת מנהיג וסאגות</a> · <a href="20-kubernetes-on-kind.html">פרק 20: Kubernetes על kind →</a></nav>
+<script type="module">
+  // Render ```mermaid blocks in the browser (needs internet once; cached afterwards).
+  const blocks = document.querySelectorAll("pre > code.language-mermaid");
+  if (blocks.length) {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs")).default;
+    for (const code of blocks) {
+      const div = document.createElement("div");
+      div.className = "mermaid";
+      div.textContent = code.textContent;
+      code.parentElement.replaceWith(div);
+    }
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run();
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,1431 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>פרק 21: הפעלת Kubernetes ו־Helm</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="top"><a href="index.html">תוכן העניינים</a> · <a href="20-kubernetes-on-kind.html">← פרק 20: Kubernetes על kind</a> · <a href="22-terraform.html">פרק 22: Terraform →</a></nav>
+<main class="book">
+<div class="toc"><span class="toctitle">תוכן הפרק</span><ul>
+<li><a href="#_1">מה נלמד בפרק</a></li>
+<li><a href="#_2">ידע מקדים</a></li>
+<li><a href="#211-requests-limits">21.1 requests ו־limits</a><ul>
+<li><a href="#2111-qos">21.1.1 שלוש מחלקות QoS</a></li>
+<li><a href="#2112">21.1.2 נקודות קצה לעומס, רק בעותק של הפרק</a></li>
+<li><a href="#2113">21.1.3 חניקה, נמדדת</a></li>
+<li><a href="#2114">21.1.4 הריגה בזיכרון</a></li>
+</ul>
+</li>
+<li><a href="#212-hpa">21.2 HPA</a><ul>
+<li><a href="#2121-metrics-server-kind">21.2.1 metrics-server על kind</a></li>
+<li><a href="#2122-hpa-autoscalingv2">21.2.2 HPA בגרסה autoscaling/v2</a></li>
+<li><a href="#2123">21.2.3 עומס, ומה רואים</a></li>
+</ul>
+</li>
+<li><a href="#213-rollouts-rollbacks">21.3 rollouts ו־rollbacks</a><ul>
+<li><a href="#2131">21.3.1 גרסה שבורה</a></li>
+<li><a href="#2132">21.3.2 חזרה אחורה</a></li>
+</ul>
+</li>
+<li><a href="#214-ingress">21.4 ingress</a><ul>
+<li><a href="#2141-2026">21.4.1 מה השתנה ב־2026</a></li>
+<li><a href="#2142-cloud-provider-kind">21.4.2 להפעיל את cloud-provider-kind</a></li>
+<li><a href="#2143-ingress-shorty">21.4.3 ה־Ingress של shorty</a></li>
+</ul>
+</li>
+<li><a href="#215-describe-logs-events-exec">21.5 דיבוג: describe, logs, events ו־exec</a><ul>
+<li><a href="#2151">21.5.1 התרגיל: ארבע תקלות שתולות</a></li>
+<li><a href="#2152-exec">21.5.2 exec, ולמה הוא לא עובד כאן</a></li>
+</ul>
+</li>
+<li><a href="#216-helm-chart">21.6 Helm: chart ראשון</a><ul>
+<li><a href="#2161">21.6.1 המבנה</a></li>
+<li><a href="#2162-helm-4">21.6.2 מה השתנה ב־Helm 4</a></li>
+<li><a href="#2163-install-upgrade-rollback-uninstall">21.6.3 install, upgrade, rollback, uninstall</a></li>
+</ul>
+</li>
+<li><a href="#217-values-templates">21.7 values ו־templates</a><ul>
+<li><a href="#2171-_helperstpl">21.7.1 _helpers.tpl: שמות ותוויות במקום אחד</a></li>
+<li><a href="#2172-deployment">21.7.2 ה־Deployment, ושלושה דפוסים שכדאי להכיר</a></li>
+<li><a href="#2173-values">21.7.3 סכמה ל־values</a></li>
+<li><a href="#2174-lint-template-kubeconform">21.7.4 lint, template ו־kubeconform</a></li>
+</ul>
+</li>
+<li><a href="#_3">סיכום</a></li>
+<li><a href="#_4">מונחים לזכור</a></li>
+<li><a href="#_5">טעויות נפוצות</a></li>
+<li><a href="#_6">שאלות ראיון</a></li>
+<li><a href="#obsidian">פתק Obsidian</a></li>
+<li><a href="#_7">תרגיל</a></li>
+<li><a href="#_8">העשרה אופציונלית</a></li>
+</ul>
+</div>
+
+<h1 id="21-kubernetes-helm">פרק 21: הפעלת Kubernetes ו־Helm</h1>
+<p>פרק 20 הרים את shorty על אשכול. הפרק הזה עוסק במה שקורה אחרי שהשירות רץ: כמה זיכרון ומעבד מותר לו, מי
+מוסיף עותקים כשהעומס עולה, איך מחליפים גרסה בלי שמשתמש ירגיש ואיך חוזרים אחורה כשהגרסה שבורה, ואיך מוצאים
+תקלה בשיטה ולא בניחוש. בסוף הפרק את אורזת את כל זה ב־chart של Helm. אלה בדיוק השאלות שראיון platform או SRE
+שואל אחרי „מה זה pod”.</p>
+<h2 id="_1">מה נלמד בפרק</h2>
+<ul>
+<li>requests ו־limits, שלוש מחלקות QoS, ומה קורה בחריגה מכל אחד מהם: חניקה במעבד, הריגה בזיכרון.</li>
+<li>metrics-server על kind ו־HPA שמוסיף עותקים תחת עומס אמיתי ומוריד אותם אחריו.</li>
+<li>אסטרטגיית rolling update, גרסה שבורה שנתקעת בלי לפגוע במשתמשים, ו־<code>kubectl rollout undo</code>.</li>
+<li>ingress על kind בדרך שהתיעוד של kind ממליץ עליה היום, ולמה ingress-nginx כבר לא ברירת המחדל.</li>
+<li>סדר בדיקות קבוע לתקלה: describe, logs, events, exec ו־<code>kubectl debug</code>, על ארבע תקלות שתולות.</li>
+<li>chart ראשון של Helm: values, templates, <code>_helpers.tpl</code>, סכמת values, lint, install, upgrade ו־rollback.</li>
+</ul>
+<h2 id="_2">ידע מקדים</h2>
+<ul>
+<li>פרק 20 כולו: pods, Deployments, Services, ConfigMaps ובדיקות. הפרק מניח שאת יודעת לקרוא manifest ולהריץ
+  <code>kubectl apply</code>.</li>
+<li>פרק 19: ה־image של shorty, משתמש מספרי שאינו root ומערכת קבצים לקריאה בלבד. התרגיל מביא עותק של
+  ה־Dockerfile, עם שינוי אחד שמוסבר בסעיף 21.1.</li>
+<li>פרק 6: shorty עצמו, ומחולל העומס <code>cmd/loadgen</code> מסעיף 6.8.</li>
+<li>פרק 2, סעיף 2.10: kind, kubectl ו־Helm מותקנים בגרסאות הנעולות.</li>
+<li>כ־2 GB פנויים במכונה של Docker. כל האשכול הוא node אחד.</li>
+</ul>
+<h2 id="211-requests-limits">21.1 requests ו־limits</h2>
+<p>כל קונטיינר ב־pod יכול להצהיר על שני מספרים לכל משאב. ההבדל ביניהם הוא הבסיס של כל השאר בפרק:</p>
+<table>
+<thead>
+<tr>
+<th>שדה</th>
+<th>מי משתמש בו</th>
+<th>מה קורה בחריגה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>requests</code> (בקשה)</td>
+<td>ה־scheduler, שמציב pod רק על node שיש בו מספיק מקום פנוי</td>
+<td>אין חריגה: זו הבטחה מינימלית</td>
+</tr>
+<tr>
+<td><code>limits</code> במעבד (תקרה)</td>
+<td>ה־kernel, דרך cgroups</td>
+<td>הקונטיינר נחנק (throttling): ממתין, ולא מת</td>
+</tr>
+<tr>
+<td><code>limits</code> בזיכרון (תקרה)</td>
+<td>ה־kernel, דרך cgroups</td>
+<td>הקונטיינר נהרג (OOMKilled) ומופעל מחדש</td>
+</tr>
+</tbody>
+</table>
+<p>ההבדל בין מעבד לזיכרון נובע מהטבע של המשאב. זמן מעבד אפשר לחלק: תהליך שחרג ממכסה מחכה לחלון הזמן הבא.
+זיכרון שכבר הוקצה אי אפשר לקחת בחזרה בלי לשבור את התהליך, ולכן ה־kernel הורג אותו. יחידת המעבד היא
+millicore: <code>200m</code> פירושו חמישית ליבה.</p>
+<p>ב־Deployment של התרגיל, בקובץ <code>solution/k8s/deployment.yaml</code>, המספרים נבחרו קטנים בכוונה, כדי שיהיה קל
+לחצות אותם:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-yaml">          resources:
+            requests:
+              cpu: 50m       # what the scheduler reserves, and what the HPA divides by
+              memory: 32Mi
+            limits:
+              cpu: 200m      # above this the container is throttled, not killed
+              memory: 64Mi   # above this the container is OOM-killed
+</code></pre>
+
+
+</div>
+
+<h3 id="2111-qos">21.1.1 שלוש מחלקות QoS</h3>
+<p>מתוך שני המספרים Kubernetes גוזר לכל pod מחלקת איכות שירות (QoS class). כשה־node נגמר לו הזיכרון, ה־kubelet
+מפנה (evicts) pods לפי המחלקה, מהנמוכה לגבוהה:</p>
+<table>
+<thead>
+<tr>
+<th>מחלקה</th>
+<th>התנאי</th>
+<th>מתי מפונה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Guaranteed</code></td>
+<td>לכל קונטיינר requests שווים ל־limits, גם במעבד וגם בזיכרון</td>
+<td>אחרונה</td>
+</tr>
+<tr>
+<td><code>Burstable</code></td>
+<td>יש לפחות request אחד, אבל לא התנאי הקודם</td>
+<td>באמצע</td>
+</tr>
+<tr>
+<td><code>BestEffort</code></td>
+<td>אין requests ואין limits בכלל</td>
+<td>ראשונה</td>
+</tr>
+</tbody>
+</table>
+<p>הקובץ <code>qos-pods.yaml</code> בתרגיל מגדיר שלושה pods זהים שנבדלים רק במשאבים. אחרי <code>kubectl apply</code> המחלקה מופיעה
+בסטטוס של כל pod:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">kubectl get pods -n shorty -l demo=qos -o custom-columns=NAME:.metadata.name,QOS:.status.qosClass
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">NAME             QOS
+qos-besteffort   BestEffort
+qos-burstable    Burstable
+qos-guaranteed   Guaranteed
+</code></pre>
+
+
+</div>
+
+<p>ה־Deployment של shorty עצמו הוא <code>Burstable</code>: הוא מבקש מעט ומרשה לעצמו להתפרץ עד התקרה. זו בחירה נפוצה
+לשירותי רשת. שירות קריטי, כמו מסד נתונים, מקבל לרוב <code>Guaranteed</code>.</p>
+<h3 id="2112">21.1.2 נקודות קצה לעומס, רק בעותק של הפרק</h3>
+<p>כדי לראות חניקה והריגה צריך שירות שצורך משאבים לפי בקשה. לכן העותק של shorty בתרגיל, בתיקייה
+<code>data/shorty</code>, מוסיף שתי נקודות קצה שאינן קיימות בפרק 6 ולא ייכנסו לשום שירות אמיתי. הן נרשמות רק כשמשתנה
+הסביבה <code>SHORTY_STRESS</code> שווה <code>on</code>:</p>
+<table>
+<thead>
+<tr>
+<th>נקודת קצה</th>
+<th>מה היא עושה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>POST /stress/memory?mb=N</code></td>
+<td>מקצה N מגה־בייט, כותבת לכל עמוד, ומחזיקה אותם עד שהתהליך מת</td>
+</tr>
+<tr>
+<td><code>GET /stress/cpu?work=N</code></td>
+<td>מבצעת כמות קבועה של חישוב ומחזירה כמה זמן שעון הוא לקח</td>
+</tr>
+</tbody>
+</table>
+<p>זה הלב של נקודת הקצה למעבד, מהקובץ <code>internal/app/stress.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    start := time.Now()
+    x := uint64(1)
+    for range work * 1_000_000 {
+        x = x*6364136223846793005 + 1442695040888963407
+    }
+    fmt.Fprintf(w, &quot;work %d, wall %d ms, checksum %d\n&quot;, work, time.Since(start).Milliseconds(), x&amp;0xff)
+</code></pre>
+
+
+</div>
+
+<p>העבודה קבועה, והזמן נמדד. בלי תקרה הזמן הוא זמן החישוב; תחת תקרה החישוב זהה, אבל התהליך מחכה בין חלונות
+הזמן שלו, והזמן גדל. השינוי השני בעותק נמצא ב־Dockerfile: הוא בונה גם את <code>loadgen</code> לתוך אותו image, כך
+שמחולל העומס ירוץ בתוך האשכול, קרוב לשירות.</p>
+<h3 id="2113">21.1.3 חניקה, נמדדת</h3>
+<p>התרגיל שולח את אותה בקשה לשלושה pods: בלי תקרה, עם תקרה של <code>200m</code> ועם <code>100m</code>. אלה המספרים שנמדדו
+במחשב שעליו נכתב הספר; במחשב שלך הם יהיו אחרים, ולכן תמדדי ותרשמי את שלך:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">work 200, wall 313 ms, checksum 1     &lt;- qos-besteffort, no CPU limit
+work 200, wall 1496 ms, checksum 1    &lt;- shorty pod, limit 200m
+work 200, wall 3172 ms, checksum 1    &lt;- qos-guaranteed, limit 100m
+</code></pre>
+
+
+</div>
+
+<p>היחס הוא העיקר, לא המספרים: חמישית ליבה מאריכה פי חמישה בערך, עשירית ליבה פי עשרה. מבחוץ זה נראה כמו
+שירות איטי, בלי שגיאה אחת בלוג. זה מה שהופך חניקה לתקלה קשה למציאה: זמן התגובה בזנב (p99) מטפס, והמעבד
+של ה־node דווקא פנוי.</p>
+<blockquote>
+<p><strong>שימי לב:</strong> חלק מהצוותים לא מגדירים תקרת מעבד בכלל, רק request, בדיוק בגלל החניקה הזאת. הוויכוח אמיתי:
+בלי תקרה שירות אחד יכול לגזול זמן מעבד מהשכנים, ועם תקרה נמוכה מדי הוא נחנק כשה־node פנוי. מה שלא שנוי
+במחלוקת הוא שתקרת זיכרון צריכה להיות.</p>
+</blockquote>
+<h3 id="2114">21.1.4 הריגה בזיכרון</h3>
+<p>התקרה של shorty היא 64 מגה־בייט. התרגיל מבקש ממנו להחזיק 20, ואז עוד 60:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">kubectl -n shorty port-forward pod/$POD 18082:8080 &amp;
+curl -s -X POST &quot;localhost:18082/stress/memory?mb=20&quot;
+curl -s -X POST &quot;localhost:18082/stress/memory?mb=60&quot;
+</code></pre>
+
+
+</div>
+
+<p>הבקשה הראשונה עונה <code>holding 20 MiB</code>. השנייה לא עונה בכלל: החיבור נסגר באמצע. הסיבה רשומה בסטטוס של
+ה־pod:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">kubectl -n shorty describe pod $POD
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">    Last State:     Terminated
+      Reason:       OOMKilled
+      Exit Code:    137
+    Ready:          True
+    Restart Count:  1
+</code></pre>
+
+
+</div>
+
+<p>קוד היציאה 137 הוא 128 ועוד 9: האות <code>SIGKILL</code>. התהליך לא קיבל הזדמנות לכיבוי מסודר. ה־kubelet הפעיל את
+הקונטיינר מחדש, וה־pod חזר להיות מוכן. שימי לב גם למה שאבד: shorty שומר קישורים בזיכרון, וכל הקישורים של
+העותק הזה נעלמו. בשירות אמיתי, הריגה כזאת היא בקשות שנקטעו באמצע ומטמון שהתרוקן.</p>
+<blockquote>
+<p><strong>איך Rust עושה את זה:</strong> ב־Rust הקצאה שנכשלת קוראת ל־<code>handle_alloc_error</code>, וברירת המחדל היא abort. אבל
+תחת cgroup ההקצאה עצמה בדרך כלל מצליחה, וה־kernel הורג את התהליך רק כשהוא נוגע בעמודים. לכן גם ב־Rust וגם
+ב־Go אין טיפול בשגיאה שיציל אותך מ־OOMKilled: המגן היחיד הוא תקרה שתואמת את מה שהשירות באמת צורך.</p>
+</blockquote>
+<h2 id="212-hpa">21.2 HPA</h2>
+<p>ה־HPA (Horizontal Pod Autoscaler, בקר שמשנה את מספר העותקים לפי מדד) קורא את צריכת המעבד של כל pod, מחלק
+ב־request של אותו pod, ומשווה ליעד. החישוב פשוט, וכדאי לדעת אותו בעל פה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">desiredReplicas = ceil( currentReplicas * currentUtilization / targetUtilization )
+</code></pre>
+
+
+</div>
+
+<p>מכאן נובעת דרישה: בלי request למעבד אין מכנה, וה־HPA מציג <code>&lt;unknown&gt;</code>. ומכאן גם פיתוי מסוכן: request נמוך
+מדי גורם לכל עומס קטן להיראות כמו מאות אחוזים.</p>
+<h3 id="2121-metrics-server-kind">21.2.1 metrics-server על kind</h3>
+<p>ה־HPA לא מודד בעצמו. הוא שואל את ה־API של המדדים, ובאשכול נקי אף אחד לא עונה. הרכיב metrics-server אוסף
+צריכת מעבד וזיכרון מה־kubelet של כל node ומגיש אותה. בטבלת התאימות שלו, גרסה 0.9 תומכת ב־Kubernetes 1.34
+ומעלה (נכון לאוקטובר 2026; ראי נספח ג).</p>
+<p>על kind יש מכשול אחד. ה־kubelet מגיש את המדדים בתעודה שהוא חתם לעצמו, ו־metrics-server מסרב לה. כך זה נראה
+כשמתקינים את הקובץ הרשמי כמו שהוא:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">&quot;Failed to scrape node&quot; err=&quot;Get \&quot;https://172.28.0.2:10250/metrics/resource\&quot;: tls: failed to verify
+certificate: x509: cannot validate certificate for 172.28.0.2 because it doesn't contain any IP SANs&quot;
+</code></pre>
+
+
+</div>
+
+<p>ה־README של metrics-server מתאר את הדגל <code>--kubelet-insecure-tls</code>, שמוותר על בדיקת התעודה, ומסמן אותו
+„לבדיקות בלבד”. באשכול מקומי זה מקובל; באשכול אמיתי מתקנים את התעודות. בתרגיל ההוספה נעשית ב־kustomize
+(כלי שמשנה קבצי YAML בלי לערוך אותם, ומובנה ב־kubectl), בקובץ <code>data/metrics-server/kustomization.yaml</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-yaml">resources:
+  - https://github.com/kubernetes-sigs/metrics-server/releases/download/v0.9.0/components.yaml
+patches:
+  - target:
+      kind: Deployment
+      name: metrics-server
+      namespace: kube-system
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/args/-
+        value: --kubelet-insecure-tls
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">kubectl apply -k data/metrics-server
+kubectl -n kube-system rollout status deploy/metrics-server
+kubectl top pods -n shorty
+</code></pre>
+
+
+</div>
+
+<p>היתרון על פני עריכה ביד: הגרסה נעולה בכתובת, והשינוי היחיד כתוב בקובץ. מי שקורא את המאגר רואה בדיוק במה
+ההתקנה שלך שונה מהרשמית.</p>
+<h3 id="2122-hpa-autoscalingv2">21.2.2 HPA בגרסה autoscaling/v2</h3>
+<p>הגרסה <code>autoscaling/v2</code> היא הגרסה היציבה, והיא מאפשרת כמה מדדים והתנהגות מפורשת לגדילה ולהקטנה. זה הקובץ
+<code>solution/k8s/hpa.yaml</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-yaml">spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: shorty
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60   # percent of the CPU request (50m)
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 60  # the default is 300; shorter for the exercise
+</code></pre>
+
+
+</div>
+
+<p>חלון הייצוב (stabilization window) מונע תנודות: ה־HPA מקטין רק אחרי שההמלצה הנמוכה החזיקה לאורך כל החלון.
+ברירת המחדל היא חמש דקות; בתרגיל דקה, כדי שתראי את הירידה באותו יום.</p>
+<h3 id="2123">21.2.3 עומס, ומה רואים</h3>
+<p>מחולל העומס רץ כ־pod בתוך האשכול, מאותו image, ופונה ל־Service לפי השם שלו:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">kubectl -n shorty run loadgen --image=shorty:ch21 --restart=Never --command -- \
+  /loadgen -url &quot;http://shorty/stress/cpu?work=20&quot; -c 4 -d 150s
+kubectl -n shorty get hpa shorty --watch
+</code></pre>
+
+
+</div>
+
+<p>זה מה שנרשם בהרצה שבה נכתב הספר, שורה כל 20 שניות בערך (העמודות: יעד, מינימום, מקסימום, עותקים):</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">shorty   Deployment/shorty   cpu: 252%/60%   2     5     2     65s
+shorty   Deployment/shorty   cpu: 268%/60%   2     5     5     86s
+shorty   Deployment/shorty   cpu: 161%/60%   2     5     5     106s
+shorty   Deployment/shorty   cpu: 13%/60%    2     5     5     3m46s
+shorty   Deployment/shorty   cpu: 2%/60%     2     5     2     5m6s
+</code></pre>
+
+
+</div>
+
+<p>שלושה דברים כדאי לראות כאן. הקפיצה מ־2 ל־5 היא צעד אחד, כי הנוסחה ביקשה יותר מהמקסימום. גם ב־5 עותקים
+הניצול נשאר מעל היעד, כי התקרה היא 5 והעומס גדול ממה שהם יכולים לשאת. והירידה הגיעה רק אחרי שהעומס נגמר
+וחלון הייצוב עבר. הסיבות כתובות באירועים של ה־HPA:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">Normal  SuccessfulRescale  horizontal-pod-autoscaler  New size: 5; reason: cpu resource utilization (percentage of request) above target
+Normal  SuccessfulRescale  horizontal-pod-autoscaler  New size: 2; reason: All metrics below target
+</code></pre>
+
+
+</div>
+
+<blockquote>
+<p><strong>טעות נפוצה:</strong> להשאיר <code>replicas: 2</code> ב־manifest של Deployment שיש לו HPA. כל <code>kubectl apply</code> מחזיר את
+המספר ל־2 באמצע עומס, וה־HPA מגדיל שוב דקה אחר כך. כשיש HPA, הוא הבעלים של מספר העותקים; ה־chart בסעיף
+21.6 משמיט את השדה כשה־HPA פעיל.</p>
+</blockquote>
+<h2 id="213-rollouts-rollbacks">21.3 rollouts ו־rollbacks</h2>
+<p>כשמשנים את התבנית של Deployment, למשל את התג של ה־image, הבקר יוצר ReplicaSet חדש ומעביר אליו את העותקים
+בהדרגה. שני מספרים קובעים את הקצב:</p>
+<table>
+<thead>
+<tr>
+<th>שדה</th>
+<th>משמעות</th>
+<th>בתרגיל</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>maxSurge</code></td>
+<td>כמה pods מעבר למספר הרצוי מותר להוסיף בזמן העדכון</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>maxUnavailable</code></td>
+<td>בכמה pods מותר לרדת מתחת למספר הרצוי</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+<p>עם <code>maxUnavailable: 0</code>, pod ישן נמחק רק אחרי ש־pod חדש עבר את בדיקת המוכנות. זה החיבור שכדאי לומר בראיון:
+<strong>בדיקת המוכנות היא מה שהופך rolling update לבטוח.</strong> בלעדיה „מוכן” פירושו „התהליך עלה”, ו־pod שבור מקבל
+תעבודה ומחליף את הישנים. השדה השלישי, <code>progressDeadlineSeconds</code>, קובע אחרי כמה זמן בלי התקדמות הבקר מכריז
+על כישלון; ברירת המחדל עשר דקות, ובתרגיל דקה.</p>
+<h3 id="2131">21.3.1 גרסה שבורה</h3>
+<p>התרגיל מחליף את התג בתג שלא קיים, ומתעד את הסיבה בהערה שה־history מציג:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">kubectl -n shorty annotate deploy/shorty kubernetes.io/change-cause=&quot;first release, image shorty:ch21&quot; --overwrite
+kubectl -n shorty set image deploy/shorty shorty=shorty:ch21-typo
+kubectl -n shorty annotate deploy/shorty kubernetes.io/change-cause=&quot;image shorty:ch21-typo&quot; --overwrite
+kubectl -n shorty rollout status deploy/shorty --timeout=90s
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">Waiting for deployment &quot;shorty&quot; rollout to finish: 1 out of 2 new replicas have been updated...
+error: deployment &quot;shorty&quot; exceeded its progress deadline
+</code></pre>
+
+
+</div>
+
+<p>עכשיו המצב באשכול:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">NAME                      READY   STATUS         RESTARTS        AGE
+shorty-57fcb8b776-szlfp   0/1     ErrImagePull   0               61s
+shorty-6fd59fcc59-cbt4h   1/1     Running        1 (7m48s ago)   8m25s
+shorty-6fd59fcc59-g9v6w   1/1     Running        0               8m25s
+</code></pre>
+
+
+</div>
+
+<p>pod חדש אחד תקוע, ושני הישנים ממשיכים לשרת. המשתמשים לא הרגישו כלום, כי <code>maxUnavailable: 0</code> לא הרשה לבקר
+לגעת בישנים לפני שהחדש מוכן. את הכישלון רואים בתנאים של ה־Deployment:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">Available=True MinimumReplicasAvailable
+Progressing=False ProgressDeadlineExceeded
+</code></pre>
+
+
+</div>
+
+<p>שני התנאים יחד הם התמונה המלאה: השירות זמין, והעדכון נכשל. מערכת פריסה טובה בודקת את התנאי השני ונכשלת
+בקול, במקום להכריז „נפרס” כי <code>kubectl apply</code> הצליח.</p>
+<h3 id="2132">21.3.2 חזרה אחורה</h3>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">kubectl -n shorty rollout history deploy/shorty
+kubectl -n shorty rollout undo deploy/shorty
+kubectl -n shorty rollout status deploy/shorty
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">Warning: resource deployments/shorty was previously managed with 'kubectl apply'. Rolling back will not update
+the kubectl.kubernetes.io/last-applied-configuration annotation, which may cause unexpected behavior on future
+'kubectl apply' operations. Consider using 'kubectl apply' with your previous configuration file instead.
+deployment.apps/shorty rolled back
+deployment &quot;shorty&quot; successfully rolled out
+</code></pre>
+
+
+</div>
+
+<p>הפקודה <code>undo</code> לא מוחקת את ה־ReplicaSet השבור; היא מעתיקה את התבנית הקודמת לתבנית הנוכחית, וזו נרשמת
+כגרסה חדשה (מספר 3 בהיסטוריה). האזהרה חשובה יותר מהפקודה. הקובץ במאגר שלך עדיין אומר מה שאמר, וה־<code>apply</code>
+הבא יחזיר את מה שכתוב בו. בצוות שעובד מ־Git, <code>undo</code> הוא כפתור חירום; התיקון האמיתי הוא commit שמחזיר את
+הקובץ.</p>
+<h2 id="214-ingress">21.4 ingress</h2>
+<p>ה־Service מפרק 20 הוא כתובת בתוך האשכול. Ingress (אובייקט שמתאר ניתוב HTTP מבחוץ לפי שם ונתיב) הוא החוזה
+לגישה מבחוץ, אבל האובייקט לבדו לא עושה כלום: צריך בקר שמממש אותו. במשך שנים הבקר הנפוץ היה ingress-nginx.</p>
+<h3 id="2141-2026">21.4.1 מה השתנה ב־2026</h3>
+<p>בבלוג של Kubernetes הוכרז בנובמבר 2025 שהפרויקט ingress-nginx יפרוש במרץ 2026. אחרי הפרישה אין עוד גרסאות,
+גם לא תיקוני אבטחה, ו־SIG Network ממליצה לעבור ל־Gateway API (ממשק הניתוב החדש של Kubernetes) או לבקר
+ingress אחר. מותקנים קיימים ממשיכים לעבוד, וזו בדיוק הסכנה: הם לא מקבלים תיקונים.</p>
+<p>גם התיעוד של kind השתנה. נכון לאוקטובר 2026, העמוד Ingress באתר של kind אומר שהרכיב cloud-provider-kind,
+מגרסה 0.9.0 ומעלה, תומך ב־Ingress בעצמו, ושאין צורך בבקר נוסף. אותו רכיב מממש גם Gateway API ושירותים מסוג
+<code>LoadBalancer</code>. לכן התרגיל לא מתקין ingress-nginx בכלל. הגרסה הנעולה של cloud-provider-kind רשומה בנספח ג.</p>
+<h3 id="2142-cloud-provider-kind">21.4.2 להפעיל את cloud-provider-kind</h3>
+<p>הרכיב רץ מחוץ לאשכול, כקונטיינר שמדבר עם Docker, ומקים לכל gateway קונטיינר envoy (פרוקסי HTTP) ברשת של
+kind:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">docker run -d --name ch21-cloud-provider --network kind \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  registry.k8s.io/cloud-provider-kind/cloud-controller-manager:v0.12.0 --enable-lb-port-mapping
+</code></pre>
+
+
+</div>
+
+<p>הדגל האחרון ממפה את הפורט של ה־gateway לפורט במחשב שלך. ה־README של cloud-provider-kind מסביר למה: ב־Mac
+וב־Windows הקונטיינרים רצים במכונה וירטואלית, וכתובות ה־IP של kind לא נגישות מהמחשב. על WSL2 עם רשת NAT,
+לפי אותו README, הכתובת החיצונית אמורה להיות נגישה ישירות. הכותב בדק רק את הדרך של המיפוי; אם הכתובת לא
+עונה אצלך, השתמשי במיפוי.</p>
+<blockquote>
+<p><strong>שימי לב:</strong> הקונטיינר רץ בתוך Linux, ולכן הוא לא יכול לזהות לבד שהוא על Mac. הרצה ראשונה בלי הדגל מיפתה
+רק את פורט הניהול של envoy, ו־<code>curl</code> קיבל את דף הניהול שלו במקום את shorty. אם את רואה רשימה של פקודות
+ניהול, זה הסימן.</p>
+</blockquote>
+<h3 id="2143-ingress-shorty">21.4.3 ה־Ingress של shorty</h3>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-yaml">spec:
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: shorty
+                port:
+                  name: http
+</code></pre>
+
+
+</div>
+
+<p>אחרי <code>kubectl apply</code> מופיעה כתובת, ו־IngressClass חדש שהרכיב יצר וסימן כברירת מחדל:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">NAME     CLASS                 HOSTS   ADDRESS                            PORTS   AGE
+shorty   cloud-provider-kind   *       172.28.0.4,fc00:f853:ccd:e793::4   80      30s
+</code></pre>
+
+
+</div>
+
+<p>את הפורט במחשב שלך מוצאים בקונטיינר של ה־gateway, שהשם שלו מתחיל ב־<code>kindccm-</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">GW=$(docker ps --format '{{.Names}}' | grep '^kindccm-' | head -1)
+PORT=$(docker port &quot;$GW&quot; 80/tcp | head -1 | cut -d: -f2)
+curl -s localhost:$PORT/healthz
+</code></pre>
+
+
+</div>
+
+<p>ועכשיו ניסוי קטן שמלמד משהו על המערכת ולא רק על ingress. יוצרים קישור דרך ה־ingress, ואז מבקשים אותו עשר
+פעמים:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">302 302 404 302 302 404 302 404 302 404
+</code></pre>
+
+
+</div>
+
+<p>חצי מהבקשות מקבלות 404. ה־ingress מאזן בין שני העותקים, וכל עותק של shorty שומר קישורים בזיכרון שלו.
+הקישור קיים רק בעותק שקיבל את ה־POST. שירות עם מצב בזיכרון לא מתרחב אופקית; זו הסיבה ש־Hookline שומר מצב
+ב־PostgreSQL, וזו שאלת המשך קלאסית לכל תשובה על HPA.</p>
+<h2 id="215-describe-logs-events-exec">21.5 דיבוג: describe, logs, events ו־exec</h2>
+<p>כש־pod לא עובד, הפיתוי הוא לנחש ולשנות. הדרך המקצועית היא סדר קבוע, מהכללי לפרטני, שבו כל צעד מצמצם את
+מרחב האפשרויות:</p>
+<table>
+<thead>
+<tr>
+<th>צעד</th>
+<th>הפקודה</th>
+<th>השאלה שהיא עונה עליה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>kubectl get pods</code></td>
+<td>האם ה־pod רץ, מוכן, ומופעל מחדש?</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>kubectl describe pod</code></td>
+<td>מה ה־kubelet ניסה, ומה נכשל (בתחתית: Events)?</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>kubectl logs --previous</code></td>
+<td>מה התהליך כתב לפני שמת בפעם האחרונה?</td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>kubectl get endpointslices</code></td>
+<td>האם ה־Service מצא pods, ובאיזה פורט?</td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>kubectl get events --sort-by=.lastTimestamp</code></td>
+<td>מה קרה ב־namespace כולו, לפי הסדר?</td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>kubectl debug</code> או <code>exec</code></td>
+<td>מה רואים מבפנים: האם השירות עונה על הפורט שלו?</td>
+</tr>
+</tbody>
+</table>
+<p>הסטטוס בצעד הראשון כבר ממיין את רוב התקלות לשלוש משפחות:</p>
+<table>
+<thead>
+<tr>
+<th>מה רואים</th>
+<th>המשמעות</th>
+<th>איפה הראיה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CrashLoopBackOff</code>, מונה הפעלות עולה</td>
+<td>התהליך מת מיד אחרי שעלה</td>
+<td>לוג של ההרצה הקודמת</td>
+</tr>
+<tr>
+<td><code>Running</code> אבל <code>0/1</code></td>
+<td>התהליך חי, בדיקת המוכנות נכשלת</td>
+<td>אירועים מסוג <code>Unhealthy</code></td>
+</tr>
+<tr>
+<td><code>Running</code> ו־<code>1/1</code>, והשירות לא עונה</td>
+<td>הבעיה בין ה־Service ל־pod</td>
+<td>ה־endpoints והפורטים</td>
+</tr>
+</tbody>
+</table>
+<h3 id="2151">21.5.1 התרגיל: ארבע תקלות שתולות</h3>
+<p>בתיקייה <code>starter/drill</code> ארבעה שירותים קטנים, <code>app-a</code> עד <code>app-d</code>, כל אחד Deployment ו־Service, וכל אחד שבור
+בדרך אחרת. הסקריפט <code>tests/drill_check.sh</code> פונה לכל אחד מתוך pod באשכול ומדווח:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">FAIL  app-a
+FAIL  app-b
+FAIL  app-c
+FAIL  app-d
+4 service(s) still broken
+</code></pre>
+
+
+</div>
+
+<p>הסעיף לא מגלה מה שבור באיזה שירות; זה התרגיל. הוא כן מראה איך נראית כל אחת מארבע סוגי הראיות, כדי שתזהי
+אותן כשתגיעי אליהן. לוג של התהליך הקודם, כשהתצורה שגויה, נראה כך:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">shorty: invalid configuration:
+SHORTY_SHUTDOWN_TIMEOUT: &quot;30&quot; is not a duration (example: 10s)
+</code></pre>
+
+
+</div>
+
+<p>זה ההחזר על ההשקעה של פרק 6: שירות שבודק את התצורה בעלייה ומדווח על כל הבעיות יחד, נכשל עם הודעה אחת
+ברורה במקום להתנהג מוזר שעה אחר כך. בדיקה שנכשלת משאירה אירוע ב־describe:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">Warning  Unhealthy  1s (x13 over 61s)  kubelet  Readiness probe failed: HTTP probe failed with statuscode: 404
+</code></pre>
+
+
+</div>
+
+<p>ושני שירותים שה־pods שלהם רצים ומוכנים נבדלים ב־EndpointSlices. בראשון אין כתובות בכלל; בשני יש כתובת, אבל
+בפורט שגוי:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">NAME          ADDRESSTYPE   PORTS     ENDPOINTS     AGE
+app-a-lbwzt   IPv4          &lt;unset&gt;   &lt;unset&gt;       40s
+app-c-ct8xm   IPv4          8081      10.244.0.18   40s
+</code></pre>
+
+
+</div>
+
+<p>לשורה הראשונה יש שאלת המשך אחת: מה ה־selector של ה־Service, ואילו תוויות יש ל־pods? שתי הפקודות האלה
+מניחות אותם זה ליד זה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">kubectl -n drill get svc app-a -o jsonpath='{.spec.selector}{&quot;\n&quot;}'
+kubectl -n drill get pods -l app=app-a --show-labels
+</code></pre>
+
+
+</div>
+
+<h3 id="2152-exec">21.5.2 exec, ולמה הוא לא עובד כאן</h3>
+<p>הצעד האחרון הוא להסתכל מבפנים. אבל ה־image של shorty הוא distroless (פרק 19): אין בו shell, ולכן <code>exec</code>
+נכשל:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">OCI runtime exec failed: exec failed: unable to start container process: exec: &quot;sh&quot;: executable file not found in $PATH
+</code></pre>
+
+
+</div>
+
+<p>זו לא תקלה, זו הצלחה של פרק 19: לתוקף שנכנס לקונטיינר אין כלים. הפקודה <code>kubectl debug</code> פותרת את זה בלי לוותר
+על ה־image הקטן. היא מוסיפה ל־pod הרץ קונטיינר זמני (ephemeral container) עם image משלך, והדגל <code>--target</code>
+משתף איתו את מרחב התהליכים של הקונטיינר המקורי. ברשת הם תמיד משתפים, כי זה אותו pod.</p>
+<p>הניסיון הראשון של הכותב נתקע. הקונטיינר הזמני לא עלה, והסיבה הופיעה רק בסטטוס שלו:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">container has runAsNonRoot and image will run as root
+</code></pre>
+
+
+</div>
+
+<p>ה־pod דורש <code>runAsNonRoot</code>, הדרישה חלה גם על הקונטיינר הזמני, ו־busybox רץ כ־root. הקובץ
+<code>data/debug-nonroot.json</code> מוסיף לקונטיינר הזמני משתמש שאינו root, והדגל <code>--custom</code> מחיל אותו:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">kubectl -n drill debug -i --quiet $POD --image=busybox:1.37.0 --target=shorty \
+  --custom=data/debug-nonroot.json -- sh -c 'wget -qO- -T 2 localhost:8080/healthz'
+</code></pre>
+
+
+</div>
+
+<p>תשובה <code>ok</code> מבפנים, יחד עם כישלון מבחוץ, מוכיחה שהתהליך בסדר והבעיה בדרך אליו. זה החצי השני של כל אבחנה:
+לא רק למצוא מה שבור, אלא להוכיח מה לא.</p>
+<h2 id="216-helm-chart">21.6 Helm: chart ראשון</h2>
+<p>עד עכשיו התרגיל הוא שבעה קבצי YAML עם ערכים קבועים בתוכם. כדי להתקין את shorty פעמיים, בשני namespaces עם
+שתי רמות לוג, צריך להעתיק ולערוך. Helm (מנהל חבילות ל־Kubernetes) פותר את זה בשלוש מילים:</p>
+<table>
+<thead>
+<tr>
+<th>מונח</th>
+<th>מה הוא</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>chart</td>
+<td>תיקייה עם תבניות של manifests, ערכי ברירת מחדל ומטא־דאטה</td>
+</tr>
+<tr>
+<td>values</td>
+<td>הערכים שממלאים את התבניות; ברירות מחדל ב־chart, דריסות בהתקנה</td>
+</tr>
+<tr>
+<td>release</td>
+<td>התקנה אחת של chart באשכול, עם שם והיסטוריית גרסאות</td>
+</tr>
+</tbody>
+</table>
+<h3 id="2161">21.6.1 המבנה</h3>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">chart/shorty/
+  Chart.yaml            name, chart version, appVersion
+  values.yaml           defaults
+  values.schema.json    what values are allowed
+  .helmignore           files left out of the package
+  templates/
+    _helpers.tpl        named templates: names and labels
+    configmap.yaml
+    deployment.yaml
+    service.yaml
+    hpa.yaml            rendered only when autoscaling.enabled
+    NOTES.txt           printed after install
+</code></pre>
+
+
+</div>
+
+<p>בקובץ <code>Chart.yaml</code> יש שתי גרסאות, ומבלבלים ביניהן כל הזמן:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-yaml">apiVersion: v2
+name: shorty
+description: The shorty URL shortener from chapter 6, packaged in chapter 21.
+type: application
+version: 0.1.0        # the chart's own version; bump it on every chart change
+appVersion: &quot;ch21&quot;    # the application version; the default image tag
+</code></pre>
+
+
+</div>
+
+<p>השדה <code>version</code> שייך ל־chart ומשתנה בכל שינוי בתבניות; השדה <code>appVersion</code> שייך לתוכנה שבפנים. אפשר לשחרר
+chart חדש לאותה גרסת תוכנה, ולהפך.</p>
+<h3 id="2162-helm-4">21.6.2 מה השתנה ב־Helm 4</h3>
+<p>הספר נועל את Helm 4 (נכון לאוקטובר 2026; נספח ג). רוב מה שתקראי ברשת נכתב על Helm 3, ולכן כדאי להכיר את
+ההבדלים. הרשימה כוללת רק מה שמופיע בעמוד הסקירה של Helm 4 באתר helm.sh, או בעזרה של הקובץ הבינארי עצמו:</p>
+<table>
+<thead>
+<tr>
+<th>נושא</th>
+<th>ב־Helm 4</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>החלה</td>
+<td>התקנה חדשה משתמשת ב־server-side apply כברירת מחדל; release ישן שומר על השיטה שלו (<code>--server-side</code> ברירת מחדל <code>auto</code> ב־upgrade)</td>
+</tr>
+<tr>
+<td>המתנה</td>
+<td>הדגל <code>--wait</code> לבדו פירושו האסטרטגיה <code>watcher</code>, מבוססת kstatus; בלי הדגל, ברירת המחדל היא <code>hookOnly</code></td>
+</tr>
+<tr>
+<td>שמות דגלים</td>
+<td><code>--atomic</code> הפך ל־<code>--rollback-on-failure</code>, ו־<code>--force</code> הפך ל־<code>--force-replace</code></td>
+</tr>
+<tr>
+<td>post-renderers</td>
+<td>מומשו כתוספים (plugins); אי אפשר עוד להעביר קובץ הרצה ישירות</td>
+</tr>
+<tr>
+<td>תוספים</td>
+<td>מערכת תוספים חדשה, עם סביבת הרצה אופציונלית ב־WebAssembly</td>
+</tr>
+<tr>
+<td>charts</td>
+<td>הפורמט <code>apiVersion: v2</code> ממשיך לעבוד; v3 ניסיוני בלבד</td>
+</tr>
+</tbody>
+</table>
+<p>ההבדל הראשון נראה באשכול. אחרי התקנה, השדה <code>managedFields</code> של ה־Deployment מראה מי כתב אותו ואיך:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">kubectl -n web get deploy shorty -o jsonpath='{range .metadata.managedFields[*]}{.manager} {.operation}{&quot;\n&quot;}{end}'
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">helm Apply
+kube-controller-manager Update
+</code></pre>
+
+
+</div>
+
+<p>הפעולה <code>Apply</code> היא server-side apply: השרת זוכר אילו שדות שייכים ל־Helm, ומתריע על התנגשות כשמישהו אחר שינה
+אותם. ב־Helm 3 הייתה שם <code>Update</code>.</p>
+<h3 id="2163-install-upgrade-rollback-uninstall">21.6.3 install, upgrade, rollback, uninstall</h3>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">helm install shorty solution/chart/shorty -n web --create-namespace -f data/values-kind.yaml --wait --timeout 120s
+helm list -n web
+helm upgrade shorty solution/chart/shorty -n web -f data/values-kind.yaml --set config.logLevel=info --wait
+helm history shorty -n web
+</code></pre>
+
+
+</div>
+
+<p>כל <code>install</code> ו־<code>upgrade</code> יוצר revision (גרסה של ה־release), ו־Helm שומר את כולן כ־Secrets ב־namespace של
+ה־release. זה החלק החשוב: Helm יודע מה הוא התקין בכל גרסה, ולכן <code>rollback</code> מחזיר בדיוק אותה.</p>
+<p>עכשיו שדרוג שבור, הפעם עם רשת ביטחון. הדגל <code>--rollback-on-failure</code> מחכה שהמשאבים יהיו מוכנים, ואם לא,
+מחזיר את הגרסה הקודמת בעצמו:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">helm upgrade shorty solution/chart/shorty -n web -f data/values-kind.yaml \
+  --set image.tag=ch21-typo --rollback-on-failure --timeout 60s
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">Error: UPGRADE FAILED: release shorty failed, and has been rolled back due to rollback-on-failure being set:
+resource Deployment/web/shorty not ready. status: InProgress, message: Updated: 1/2
+context deadline exceeded
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">REVISION  STATUS      DESCRIPTION
+1         superseded  Install complete
+2         superseded  Upgrade complete
+3         failed      Upgrade &quot;shorty&quot; failed: resource Deployment/web/shorty not ready. ...
+4         deployed    Rollback to 2
+</code></pre>
+
+
+</div>
+
+<p>שימי לב להבדל מסעיף 21.3: שם ה־Deployment נשאר תקוע עד שמישהו הסתכל. כאן כלי הפריסה ראה את הכישלון, החזיר
+לבד, והחזיר קוד יציאה שאינו אפס, ש־CI יכול לעצור עליו (פרק 23). חזרה ידנית לגרסה מסוימת וניקוי:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">helm rollback shorty 1 -n web --wait
+helm get values shorty -n web
+helm uninstall shorty -n web --wait
+</code></pre>
+
+
+</div>
+
+<h2 id="217-values-templates">21.7 values ו־templates</h2>
+<p>תבנית של Helm היא YAML עם ביטויים של Go templates בתוך סוגריים מסולסלים כפולים. ההפרדה פשוטה: <strong>values הם
+מה ששונה בין התקנות, templates הם מה שזהה בכולן.</strong> הנה הקובץ <code>values.yaml</code> של ה־chart:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-yaml">replicaCount: 2
+
+image:
+  repository: shorty
+  tag: &quot;&quot;               # empty means .Chart.AppVersion
+  pullPolicy: IfNotPresent
+
+# Becomes the ConfigMap that the container reads as SHORTY_* variables.
+config:
+  baseURL: http://localhost:8080
+  logLevel: info        # debug, info, warn or error
+  stress: false         # the chapter 21 /stress routes; keep false outside the exercise
+
+service:
+  port: 80
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 32Mi
+  limits:
+    cpu: 200m
+    memory: 64Mi
+
+autoscaling:
+  enabled: false        # when true, the HPA owns the replica count
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 60
+</code></pre>
+
+
+</div>
+
+<h3 id="2171-_helperstpl">21.7.1 <code>_helpers.tpl</code>: שמות ותוויות במקום אחד</h3>
+<p>קובץ שמתחיל בקו תחתון לא מופק כ־manifest. הוא מגדיר תבניות בעלות שם, שכל קובץ אחר קורא להן. התווית החשובה
+ביותר היא זו שה־selector בוחר לפיה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-yaml">{{/* Labels that select the pods. They must never change after the first install. */}}
+{{- define &quot;shorty.selectorLabels&quot; -}}
+app.kubernetes.io/name: {{ .Chart.Name }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end -}}
+</code></pre>
+
+
+</div>
+
+<p>למה „לעולם לא משתנה”? כי ה־selector של Deployment הוא שדה שאי אפשר לשנות אחרי היצירה. chart שמכניס לתוויות
+של ה־selector את גרסת ה־chart שובר את ה־upgrade הראשון. לכן הגרסה נמצאת בתבנית השנייה, <code>shorty.labels</code>, ולא
+כאן. הקידומת <code>shorty.</code> בשם התבנית מונעת התנגשות עם תבניות של charts אחרים שנכללים כתלויות.</p>
+<h3 id="2172-deployment">21.7.2 ה־Deployment, ושלושה דפוסים שכדאי להכיר</h3>
+<p>מהקובץ <code>templates/deployment.yaml</code>, החלקים שבהם התבנית עושה יותר מהעתקה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-yaml">spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+</code></pre>
+
+
+</div>
+
+<p>זה התיקון לטעות מסעיף 21.2: כשה־HPA פעיל, השדה לא נכתב בכלל, וה־upgrade לא מתווכח עם ה־HPA.</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-yaml">      annotations:
+        # A changed ConfigMap changes this hash, and so rolls the pods.
+        checksum/config: {{ include (print $.Template.BasePath &quot;/configmap.yaml&quot;) . | sha256sum }}
+</code></pre>
+
+
+</div>
+
+<p>shorty קורא את משתני הסביבה רק בעלייה (פרק 20, סעיף 20.6). שינוי ב־ConfigMap לבדו לא מגיע ל־pods שכבר רצים.
+הגיבוב של ה־ConfigMap בהערה של התבנית הופך כל שינוי בתצורה לשינוי בתבנית, ולכן ל־rolling update.</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-yaml">          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+</code></pre>
+
+
+</div>
+
+<p>הפונקציה <code>toYaml</code> הופכת עץ של values ל־YAML, ו־<code>nindent 12</code> מוסיפה שורה חדשה והזחה של 12 רווחים. טעות
+בהזחה היא הבאג הנפוץ ביותר בתבניות, ולכן אחרי כל שינוי מריצים <code>helm template</code> וקוראים את התוצאה. בקובץ הזה גם
+ה־securityContext מפרק 19: משתמש שאינו root, מערכת קבצים לקריאה בלבד, בלי הסלמת הרשאות ובלי capabilities.</p>
+<h3 id="2173-values">21.7.3 סכמה ל־values</h3>
+<p>בלי סכמה, <code>--set replicaCount=two</code> מגיע לתבנית, מופק כמחרוזת, והשרת דוחה אותו באמצע ההתקנה. או גרוע מזה:
+<code>--set replicas=3</code>, עם שם שגוי, עובר בשקט ולא עושה כלום. הקובץ <code>values.schema.json</code> הוא JSON Schema, ו־Helm
+בודק מולו את ה־values לפני שהוא מפיק משהו. קטע ממנו:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-json">  &quot;additionalProperties&quot;: false,
+  &quot;required&quot;: [&quot;replicaCount&quot;, &quot;image&quot;, &quot;config&quot;, &quot;service&quot;, &quot;resources&quot;, &quot;autoscaling&quot;],
+  &quot;properties&quot;: {
+    &quot;replicaCount&quot;: {&quot;type&quot;: &quot;integer&quot;, &quot;minimum&quot;: 1, &quot;maximum&quot;: 10},
+</code></pre>
+
+
+</div>
+
+<p>השורה <code>additionalProperties: false</code> היא זו שתופסת שגיאות כתיב בשמות. והתוצאה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">Error: INSTALLATION FAILED: values don't meet the specifications of the schema(s) in the following chart(s):
+shorty:
+- at '/replicaCount': got string, want integer
+</code></pre>
+
+
+</div>
+
+<blockquote>
+<p><strong>שימי לב:</strong> הסכמה בתרגיל מקבלת זיכרון רק ביחידות בינאריות, כמו <code>64Mi</code>. Kubernetes מקבל גם <code>64M</code>, שהוא
+64 מיליון בתים, אבל כמעט תמיד מי שכותב אותו התכוון ל־<code>Mi</code>. סכמה יכולה להיות מחמירה יותר מהשרת, וזו החלטה
+שכותבים בה.</p>
+</blockquote>
+<h3 id="2174-lint-template-kubeconform">21.7.4 lint, template ו־kubeconform</h3>
+<p>שלושה כלים, שלוש שאלות שונות:</p>
+<table>
+<thead>
+<tr>
+<th>כלי</th>
+<th>מה הוא בודק</th>
+<th>מה הוא לא בודק</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>helm lint --strict</code></td>
+<td>מבנה ה־chart, תבניות שמופקות, סכמת values</td>
+<td>שה־manifests חוקיים ל־Kubernetes</td>
+</tr>
+<tr>
+<td><code>helm template</code></td>
+<td>מה בדיוק יישלח לשרת, בלי אשכול</td>
+<td>שום דבר; זה הפלט שקוראים</td>
+</tr>
+<tr>
+<td>kubeconform</td>
+<td>שכל manifest תואם לסכמה של גרסת Kubernetes מסוימת</td>
+<td>שה־selector תואם לתוויות, שהפורט נכון</td>
+</tr>
+</tbody>
+</table>
+<p>הסקריפט <code>tests/check_static.sh</code> מריץ את שלושתם, ואת kubeconform מתוך ה־image שלו, בתג נעול:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">helm template ch21 &quot;$CHART&quot; --set autoscaling.enabled=true | \
+  docker run --rm -i ghcr.io/yannh/kubeconform:v0.8.0 -strict -summary -kubernetes-version 1.37.0 -
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">Summary: 4 resources found parsing stdin - Valid: 4, Invalid: 0, Errors: 0, Skipped: 0
+</code></pre>
+
+
+</div>
+
+<p>הטור השלישי בטבלה הוא הלקח של סעיף 21.5: ארבעת השירותים השבורים בתרגיל הדיבוג עוברים את kubeconform בלי
+הערה. סכמה מוכיחה שהקובץ חוקי, לא שהוא נכון. את הפער סוגרים בבדיקת עשן מול אשכול אמיתי: <code>tests/smoke.sh</code>
+מתקין את ה־chart, יוצר קישור ופותר אותו, משדרג, חוזר אחורה ומסיר.</p>
+<h2 id="_3">סיכום</h2>
+<ul>
+<li>requests הם הבטחה ל־scheduler ומכנה ל־HPA; limits הם תקרה. חריגה במעבד היא חניקה ואיטיות, חריגה בזיכרון
+  היא <code>OOMKilled</code> וקוד 137.</li>
+<li>מחלקת QoS נגזרת מהמספרים וקובעת מי מפונה ראשון; shorty הוא <code>Burstable</code>.</li>
+<li>ה־HPA צריך metrics-server ו־request למעבד; על kind צריך <code>--kubelet-insecure-tls</code>, לבדיקות בלבד.</li>
+<li>כשיש HPA, הוא הבעלים של מספר העותקים, וה־manifest לא כותב <code>replicas</code>.</li>
+<li>rolling update עם <code>maxUnavailable: 0</code> ובדיקת מוכנות משאיר גרסה שבורה תקועה בלי לפגוע במשתמשים;
+  <code>ProgressDeadlineExceeded</code> מודיע על הכישלון, ו־<code>rollout undo</code> חוזר אחורה.</li>
+<li>ingress-nginx פרש במרץ 2026; על kind, cloud-provider-kind מממש Ingress ו־Gateway API בעצמו.</li>
+<li>דיבוג הוא סדר: get, describe, logs, endpoints, events, ואז <code>kubectl debug</code> מבפנים.</li>
+<li>Helm מפריד values מ־templates, שומר היסטוריית revisions, ובגרסה 4 מתקין ב־server-side apply.</li>
+<li>סכמת values תופסת טעויות לפני ההתקנה; kubeconform בודק חוקיות, ורק אשכול אמיתי בודק נכונות.</li>
+</ul>
+<h2 id="_4">מונחים לזכור</h2>
+<table>
+<thead>
+<tr>
+<th>מונח בעברית</th>
+<th>באנגלית</th>
+<th>במשפט אחד</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>בקשת משאבים</td>
+<td>resource request</td>
+<td>הכמות שה־scheduler שומר ל־pod, והמכנה של ה־HPA</td>
+</tr>
+<tr>
+<td>תקרת משאבים</td>
+<td>resource limit</td>
+<td>הכמות שה־kernel לא מרשה לקונטיינר לעבור</td>
+</tr>
+<tr>
+<td>חניקה</td>
+<td>CPU throttling</td>
+<td>קונטיינר שהגיע לתקרת המעבד ממתין לחלון הזמן הבא</td>
+</tr>
+<tr>
+<td>הריגה בזיכרון</td>
+<td>OOMKilled</td>
+<td>ה־kernel הורג קונטיינר שעבר את תקרת הזיכרון</td>
+</tr>
+<tr>
+<td>מחלקת איכות שירות</td>
+<td>QoS class</td>
+<td>Guaranteed, Burstable או BestEffort; קובעת סדר פינוי</td>
+</tr>
+<tr>
+<td>פינוי</td>
+<td>eviction</td>
+<td>ה־kubelet מוציא pods מ־node שנגמר לו משאב</td>
+</tr>
+<tr>
+<td>HPA</td>
+<td>Horizontal Pod Autoscaler</td>
+<td>בקר שמשנה מספר עותקים לפי מדד ויעד</td>
+</tr>
+<tr>
+<td>חלון ייצוב</td>
+<td>stabilization window</td>
+<td>זמן שהמלצה נמוכה צריכה להחזיק לפני הקטנה</td>
+</tr>
+<tr>
+<td>rolling update</td>
+<td>rolling update</td>
+<td>החלפה הדרגתית של pods לפי <code>maxSurge</code> ו־<code>maxUnavailable</code></td>
+</tr>
+<tr>
+<td>rollback</td>
+<td>rollback</td>
+<td>חזרה לתבנית או ל־revision קודמים</td>
+</tr>
+<tr>
+<td>Ingress</td>
+<td>Ingress</td>
+<td>אובייקט שמתאר ניתוב HTTP מבחוץ לשירותים</td>
+</tr>
+<tr>
+<td>Gateway API</td>
+<td>Gateway API</td>
+<td>ממשק הניתוב החדש של Kubernetes, יורש של Ingress</td>
+</tr>
+<tr>
+<td>קונטיינר זמני</td>
+<td>ephemeral container</td>
+<td>קונטיינר שמוסיפים ל־pod רץ לצורך דיבוג</td>
+</tr>
+<tr>
+<td>chart</td>
+<td>chart</td>
+<td>חבילה של Helm: תבניות, values ומטא־דאטה</td>
+</tr>
+<tr>
+<td>release</td>
+<td>release</td>
+<td>התקנה אחת של chart, עם היסטוריית revisions</td>
+</tr>
+<tr>
+<td>values</td>
+<td>values</td>
+<td>הערכים שממלאים את התבניות בהתקנה</td>
+</tr>
+<tr>
+<td>server-side apply</td>
+<td>server-side apply</td>
+<td>החלה שבה השרת מנהל בעלות על שדות</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_5">טעויות נפוצות</h2>
+<ul>
+<li><strong>HPA בלי request למעבד.</strong> היעד מוצג <code>&lt;unknown&gt;</code> ולא קורה כלום. ה־HPA מחלק ב־request.</li>
+<li><strong><code>replicas</code> ב־manifest של Deployment עם HPA.</strong> כל apply מחזיר את המספר אחורה באמצע עומס.</li>
+<li><strong>rolling update בלי בדיקת מוכנות.</strong> „מוכן” הופך ל־„התהליך עלה”, ו־pod שבור מחליף את הטובים.</li>
+<li><strong><code>rollout undo</code> כתיקון קבוע.</strong> הקובץ ב־Git לא השתנה, וה־apply הבא מחזיר את הגרסה השבורה.</li>
+<li><strong>לחפש באג בקוד כשהשירות רק איטי.</strong> בדקי חניקה קודם: תקרת מעבד נמוכה נראית בדיוק כמו קוד איטי.</li>
+<li><strong>תוויות גרסה ב־selector של chart.</strong> ה־selector לא ניתן לשינוי, וה־upgrade הראשון נכשל.</li>
+<li><strong>להסתפק ב־kubeconform.</strong> manifest חוקי עם selector שגוי עובר את הבדיקה ולא עובד.</li>
+</ul>
+<h2 id="_6">שאלות ראיון</h2>
+<ol>
+<li>
+<p><strong>מה ההבדל בין חריגה מתקרת מעבד לחריגה מתקרת זיכרון?</strong> מעבד אפשר לחלק בזמן, ולכן קונטיינר שחרג ממתין
+   לחלון הבא: הוא איטי, לא מת, ובלוג אין כלום. זיכרון שהוקצה אי אפשר לקחת בחזרה, ולכן ה־kernel הורג את
+   התהליך, <code>OOMKilled</code> עם קוד 137, וה־kubelet מפעיל אותו מחדש. המשמעות לתפעול: חניקה מתגלה במדדי זמן תגובה
+   ובמונה החניקה של cgroup, הריגה במונה ההפעלות ובסיבה של המצב האחרון. יש צוותים שמוותרים על תקרת מעבד
+   כדי לא לשלם בזמן תגובה, במחיר של שכן רועש; על תקרת זיכרון כמעט אף אחד לא מוותר.</p>
+</li>
+<li>
+<p><strong>איך HPA מחליט כמה עותקים להריץ, ומה יכול להשתבש?</strong> הוא מחלק את הצריכה ב־request, משווה ליעד, ומכפיל
+   את מספר העותקים ביחס, עם מינימום, מקסימום וחלון ייצוב להקטנה. משתבש: request נמוך מדי מנפח את האחוזים,
+   חסר request מבטל הכול, <code>replicas</code> ב־manifest נלחם בו, ושירות עם מצב בזיכרון נשבר כשמוסיפים עותקים. ובעיקר,
+   מעבד הוא לא תמיד צוואר הבקבוק: שירות שמחכה למסד נתונים לא יתרחב לפי מעבד.</p>
+</li>
+</ol>
+<p><strong>המשך:</strong> ומה אם צוואר הבקבוק הוא אורך תור? autoscaling/v2 תומך במדדים מותאמים וחיצוניים, למשל פיגור
+   של consumer group ב־Kafka דרך מתאם מדדים. ההיגיון זהה; המדד משתנה.</p>
+<ol start="3">
+<li>
+<p><strong>למה rolling update עם בדיקת מוכנות מגן על משתמשים?</strong> עם <code>maxUnavailable: 0</code> הבקר מוחק pod ישן רק אחרי
+   ש־pod חדש מוכן, ו־Service שולח תעבודה רק ל־pods מוכנים. גרסה שלא עוברת את הבדיקה פשוט נתקעת, הישנים
+   ממשיכים לשרת, ואחרי <code>progressDeadlineSeconds</code> התנאי <code>Progressing</code> הופך ל־<code>False</code>. בלי בדיקה, או עם בדיקה
+   שבודקת רק שהתהליך חי, המנגנון מחליף pods טובים בשבורים באותו קצב. המחיר: עדכון איטי יותר וצורך במקום
+   ל־pod נוסף.</p>
+</li>
+<li>
+<p><strong>pod לא עובד. מה סדר הבדיקות שלך?</strong> קודם <code>get</code> כדי למיין: קורס, לא מוכן, או רץ ולא עונה. ל־קורס, לוג של
+   ההרצה הקודמת; ל־לא מוכן, האירועים ב־describe; ל־רץ ולא עונה, ה־endpoints של ה־Service והפורטים. אחר כך
+   אירועי ה־namespace לפי זמן, ורק בסוף מבפנים, עם <code>kubectl debug</code> כשה־image לא מכיל shell. הנימוק: כל צעד
+   זול מהבא ומצמצם את האפשרויות, ובכל שלב אני מחפשת ראיה, לא משנה דברים כדי לראות מה קורה.</p>
+</li>
+</ol>
+<p><strong>המשך:</strong> ואם ה־image הוא distroless? <code>exec</code> לא יעבוד, ו־<code>kubectl debug</code> מוסיף קונטיינר זמני עם כלים.
+   אם ה־pod דורש משתמש שאינו root, הקונטיינר הזמני צריך לקבל משתמש כזה, אחרת הוא לא יעלה.</p>
+<ol start="5">
+<li><strong>מה Helm נותן שאין ב־manifests רגילים, ומה המחיר?</strong> חבילה עם פרמטרים, release עם היסטוריה ו־rollback
+   לגרסה מדויקת, ובגרסה 4 המתנה למוכנות וחזרה אוטומטית בכישלון. המחיר: שפת תבניות של מחרוזות, שבה טעות
+   הזחה שוברת YAML, ומצב נוסף באשכול (ה־revisions) שצריך להבין. לכן כותבים סכמה ל־values, מריצים
+   <code>helm template</code> ו־kubeconform ב־CI, ושומרים את התבניות פשוטות. לשירות פנימי אחד עם התקנה אחת, kustomize
+   יכול להספיק.</li>
+</ol>
+<h2 id="obsidian">פתק Obsidian</h2>
+<p>הפתק המוכן נמצא גם כקובץ: <code>obsidian/21-kubernetes-operations-helm.md</code>. זה תוכנו:</p>
+<ul>
+<li><strong>requests:</strong> הבטחה ל־scheduler ומכנה ל־HPA; בלי request למעבד אין autoscaling.</li>
+<li><strong>limits:</strong> מעבד נחנק ואיטי; זיכרון נהרג, <code>OOMKilled</code>, קוד 137, ומה שבזיכרון אבד.</li>
+<li><strong>QoS:</strong> Guaranteed, Burstable, BestEffort; קובע מי מפונה ראשון.</li>
+<li><strong>HPA:</strong> צריכה חלקי request מול יעד; חלון ייצוב להקטנה; הוא הבעלים של מספר העותקים.</li>
+<li><strong>metrics-server על kind:</strong> תעודת kubelet חתומה עצמית; הדגל לבדיקות בלבד.</li>
+<li><strong>rollout:</strong> <code>maxUnavailable: 0</code> ובדיקת מוכנות משאירים גרסה שבורה תקועה; <code>ProgressDeadlineExceeded</code>.</li>
+<li><strong>undo:</strong> כפתור חירום; התיקון האמיתי הוא commit.</li>
+<li><strong>ingress:</strong> ingress-nginx פרש במרץ 2026; על kind, cloud-provider-kind; ב־Mac מיפוי פורטים.</li>
+<li><strong>מצב בזיכרון:</strong> שני עותקים, שני מאגרים; חצי מהבקשות 404.</li>
+<li><strong>דיבוג:</strong> get, describe, logs <code>--previous</code>, endpointslices, events, debug.</li>
+<li><strong>Helm:</strong> values משתנים, templates זהים; revisions ו־rollback; בגרסה 4 server-side apply.</li>
+<li><strong>בדיקות:</strong> סכמת values תופסת טעויות כתיב; kubeconform חוקיות; smoke נכונות.</li>
+<li><strong>שאלה פתוחה:</strong> ___</li>
+</ul>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">cluster      kind create cluster --config data/kind-config.yaml ; kind load docker-image shorty:ch21 --name ch21
+qos          kubectl get pods -n shorty -o custom-columns=NAME:.metadata.name,QOS:.status.qosClass
+oom          curl -X POST 'localhost:18082/stress/memory?mb=60' ; describe -&gt; Reason: OOMKilled, Exit Code: 137
+throttle     curl 'localhost:PORT/stress/cpu?work=200'   no limit ___ ms   200m ___ ms   100m ___ ms
+metrics      kubectl apply -k data/metrics-server  (adds --kubelet-insecure-tls) ; kubectl top pods -n shorty
+hpa          desired = ceil(current * utilization / target) ; kubectl -n shorty get hpa --watch
+load         kubectl -n shorty run loadgen --image=shorty:ch21 --restart=Never --command -- /loadgen -url ... -c 4 -d 150s
+rollout      maxSurge 1, maxUnavailable 0, progressDeadlineSeconds 60 ; rollout status | history | undo
+ingress      docker run ... cloud-controller-manager:v0.12.0 --enable-lb-port-mapping ; docker port kindccm-... 80/tcp
+debug order  get -&gt; describe -&gt; logs --previous -&gt; get endpointslices -&gt; get events --sort-by=.lastTimestamp -&gt; debug
+debug        kubectl debug -i POD --image=busybox:1.37.0 --target=shorty --custom=data/debug-nonroot.json -- sh -c '...'
+helm         lint --strict | template | install --wait | upgrade --rollback-on-failure | history | rollback N | uninstall
+schema       values.schema.json, additionalProperties: false ; kubeconform -strict -kubernetes-version 1.37.0
+mine         HPA max replicas reached after ___ s ; drill faults: a ___  b ___  c ___  d ___
+</code></pre>
+
+
+</div>
+
+<h2 id="_7">תרגיל</h2>
+<p><strong>מטרה:</strong> להפעיל את shorty על kind כמו שירות אמיתי: משאבים ומחלקות QoS, חניקה והריגה שרואים בעיניים,
+metrics-server ו־HPA תחת עומס, rollout שבור ו־undo, ingress דרך cloud-provider-kind, תרגיל דיבוג עם ארבע תקלות
+שתולות, ו־chart של Helm עם סכמת values שעובר lint, template, install, upgrade ו־rollback.
+<strong>זמן:</strong> שני ימי לימוד, ימים 62 ו־63, כ־65 ו־75 דקות בנייה בהתאמה.
+<strong>ידע מקדים:</strong> הפרק; פרק 20 (manifests ו־kind); פרק 19 (ה־Dockerfile, שהתרגיל מביא עותק שלו); kind, kubectl
+ו־Helm מפרק 2; Docker פועל.</p>
+<p>הצעדים, קבצי ההתחלה, הרמזים והפתרון נמצאים ב־
+<a href="../exercises/ch21-ops-helm/README.md"><code>exercises/ch21-ops-helm/README.md</code></a>.</p>
+<p><strong>קריטריון סיום:</strong></p>
+<ul>
+<li>כל אחת משלוש מחלקות QoS מופיעה על pod, ורשמת בפתק את שלושת זמני החניקה שמדדת.</li>
+<li>ראית <code>OOMKilled</code> עם קוד 137 בסטטוס של pod של shorty.</li>
+<li>ה־HPA מציג ניצול נוכחי, מגדיל תחת העומס ומקטין אחריו.</li>
+<li>ה־rollout השבור נתקע עם <code>ProgressDeadlineExceeded</code> בזמן שה־pods הישנים משרתים, ו־undo מחזיר אותו.</li>
+<li>shorty עונה דרך ה־ingress, ובפתק כתוב למה חצי מהבקשות קיבלו 404.</li>
+<li>הסקריפט <code>drill_check.sh</code> מדווח שארבעת השירותים עונים, ובפתק הראיה שהובילה לכל תקלה.</li>
+<li>הסקריפטים <code>check_static.sh</code> ו־<code>smoke.sh</code> עוברים על ה־chart שלך, והאשכול נמחק בסוף.</li>
+</ul>
+<h2 id="_8">העשרה אופציונלית</h2>
+<ul>
+<li>לקרוא את ההכרזה על פרישת ingress-nginx בבלוג של Kubernetes (נובמבר 2025), ואת המדריך למעבר ל־Gateway API
+  באתר gateway-api.sigs.k8s.io; ואז לכתוב <code>Gateway</code> ו־<code>HTTPRoute</code> ל־shorty במקום ה־Ingress.</li>
+<li>לקרוא את מונה החניקה מתוך ה־node: <code>docker exec ch21-control-plane</code> ומציאת הקובץ <code>cpu.stat</code> של הקונטיינר
+  תחת <code>/sys/fs/cgroup</code>. השדה <code>nr_throttled</code> גדל בזמן שאת שולחת בקשות מעבד.</li>
+<li>להוסיף ל־chart תבנית Ingress אופציונלית, עם <code>ingress.enabled</code> בסכמה, ולבדוק אותה ב־<code>helm template</code>.</li>
+<li>לקרוא את עמוד הסקירה של Helm 4 באתר helm.sh, ולנסות <code>helm install</code> עם <code>--server-side=false</code> כדי לראות
+  את ההבדל ב־<code>managedFields</code>.</li>
+</ul>
+</main>
+<nav class="bottom"><a href="index.html">תוכן העניינים</a> · <a href="20-kubernetes-on-kind.html">← פרק 20: Kubernetes על kind</a> · <a href="22-terraform.html">פרק 22: Terraform →</a></nav>
+<script type="module">
+  // Render ```mermaid blocks in the browser (needs internet once; cached afterwards).
+  const blocks = document.querySelectorAll("pre > code.language-mermaid");
+  if (blocks.length) {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs")).default;
+    for (const code of blocks) {
+      const div = document.createElement("div");
+      div.className = "mermaid";
+      div.textContent = code.textContent;
+      code.parentElement.replaceWith(div);
+    }
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run();
+  }
+</script>
+</body>
+</html>

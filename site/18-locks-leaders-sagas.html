@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>פרק 18: נעילות, בחירת מנהיג וסאגות</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="top"><a href="index.html">תוכן העניינים</a> · <a href="17-consistency-replication-partitioning.html">← פרק 17: עקביות, שכפול וחלוקה למחיצות</a> · <a href="19-docker-done-right.html">פרק 19: Docker כמו שצריך →</a></nav>
+<main class="book">
+<div class="toc"><span class="toctitle">תוכן הפרק</span><ul>
+<li><a href="#_1">מה נלמד בפרק</a></li>
+<li><a href="#_2">ידע מקדים</a></li>
+<li><a href="#181">18.1 למה נעילה מבוזרת קשה</a><ul>
+<li><a href="#1811">18.1.1 שני סוגי נעילות</a></li>
+<li><a href="#1812">18.1.2 שלוש דרכים שבהן נעילה נשברת</a></li>
+</ul>
+</li>
+<li><a href="#182-advisory-locks-postgresql">18.2 advisory locks ב־PostgreSQL</a><ul>
+<li><a href="#1821">18.2.1 סשן מול טרנזקציה</a></li>
+<li><a href="#1822">18.2.2 המלכודת: נעילת סשן ומאגר חיבורים</a></li>
+<li><a href="#1823">18.2.3 מי מחזיק?</a></li>
+</ul>
+</li>
+<li><a href="#183-redis">18.3 נעילות ב־Redis וגבולותיהן</a><ul>
+<li><a href="#1831">18.3.1 הנעילה של מופע אחד</a></li>
+<li><a href="#1832">18.3.2 שניים מחזיקים</a></li>
+<li><a href="#1833-redlock">18.3.3 ומה עם Redlock?</a></li>
+</ul>
+</li>
+<li><a href="#184-fencing-tokens">18.4 fencing tokens</a></li>
+<li><a href="#185">18.5 בחירת מנהיג</a><ul>
+<li><a href="#1851">18.5.1 התכנון</a></li>
+<li><a href="#1852">18.5.2 להרוג את המנהיג</a></li>
+<li><a href="#1853">18.5.3 מתי יש שני מנהיגים, ומתי אף אחד</a></li>
+</ul>
+</li>
+<li><a href="#186-raft">18.6 קונצנזוס: הרעיון בלי Raft</a><ul>
+<li><a href="#1861">18.6.1 הבעיה</a></li>
+<li><a href="#1862">18.6.2 שלושה רעיונות</a></li>
+<li><a href="#1863-etcd-zookeeper">18.6.3 מתי לפנות ל־etcd או ל־ZooKeeper</a></li>
+</ul>
+</li>
+<li><a href="#187">18.7 סאגות ופעולות מפצות</a><ul>
+<li><a href="#1871">18.7.1 כשאין טרנזקציה אחת</a></li>
+<li><a href="#1872">18.7.2 תזמור מול כוריאוגרפיה</a></li>
+<li><a href="#1873">18.7.3 המתזמר</a></li>
+</ul>
+</li>
+<li><a href="#_3">סיכום</a></li>
+<li><a href="#_4">מונחים לזכור</a></li>
+<li><a href="#_5">טעויות נפוצות</a></li>
+<li><a href="#_6">שאלות ראיון</a></li>
+<li><a href="#obsidian">פתק Obsidian</a></li>
+<li><a href="#_7">תרגיל</a></li>
+<li><a href="#_8">העשרה אופציונלית</a></li>
+</ul>
+</div>
+
+<h1 id="18">פרק 18: נעילות, בחירת מנהיג וסאגות</h1>
+<p>בתוך תהליך אחד, <code>sync.Mutex</code> עושה בדיוק מה שהוא מבטיח. בין תהליכים, כל הבטחה כזאת נשענת על שעונים, על רשת
+ועל תהליכים שלא נעצרים באמצע, ושלושתם משקרים לפעמים. בפרק הזה תבני בחירת מנהיג (leader election) מעל נעילה
+של PostgreSQL ותהרגי את המנהיג באמצע, תראי נעילת Redis שמוחזקת בידי שניים בבת אחת, ותתקני את זה עם אסימון
+גידור (fencing token). בסוף תבני סאגה (saga): פעולה מרובת שלבים שמתבטלת בסדר הפוך כשאחד השלבים נכשל. החבילה
+<code>leader</code> מהתרגיל עוברת כמו שהיא לפרויקט הגמר.</p>
+<h2 id="_1">מה נלמד בפרק</h2>
+<ul>
+<li>למה נעילה מבוזרת קשה: עצירות של תהליך, שעונים שקופצים, ונעילה שפג תוקפה בזמן שמחזיקים בה.</li>
+<li>advisory locks ב־PostgreSQL ברמת סשן וברמת טרנזקציה, והמלכודת של מאגר חיבורים.</li>
+<li>נעילה ב־Redis עם <code>SET NX PX</code>, מה היא נותנת ומה לא.</li>
+<li>אסימוני גידור: מספר עולה שהאחסון בודק, והדרך היחידה לעצור כתיבה של מחזיק לשעבר.</li>
+<li>בחירת מנהיג עם advisory lock, כולל השתלטות אחרי <code>pg_terminate_backend</code>.</li>
+<li>קונצנזוס ברמת הרעיון: רוב, תקופות ושכפול יומן, ומתי לפנות ל־etcd או ל־ZooKeeper.</li>
+<li>סאגות בתזמור ובכוריאוגרפיה, ופעולות מפצות שרצות בסדר הפוך.</li>
+</ul>
+<h2 id="_2">ידע מקדים</h2>
+<ul>
+<li>פרק 11, סעיפים 11.4 ו־11.7: נעילות שורה, ומאגר החיבורים של pgx. סעיף 11.6 הראה ש־goose נועל בעצמו.</li>
+<li>פרק 12, סעיף 12.1: Redis בקונטיינר והספרייה go-redis.</li>
+<li>פרק 17, סעיף 17.7: פיצולי רשת, ולמה אי אפשר להניח שהם לא קורים.</li>
+<li>פרק 5, סעיפים 5.4 עד 5.8: goroutines, ‏channels ו־context. המנהיג מריץ את העבודה שלו ב־goroutine.</li>
+<li>פרק 15, סעיף 15.1: כשל חלקי. כל הפרק הזה הוא כשל חלקי בין תהליכים.</li>
+</ul>
+<h2 id="181">18.1 למה נעילה מבוזרת קשה</h2>
+<h3 id="1811">18.1.1 שני סוגי נעילות</h3>
+<p>מאמר של Martin Kleppmann מפברואר 2016 על נעילה מבוזרת (הכותרת בהעשרה בסוף הפרק) מבחין בין שתי מטרות:</p>
+<table>
+<thead>
+<tr>
+<th>מטרה</th>
+<th>דוגמה</th>
+<th>מה קורה כשהנעילה נכשלת</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>יעילות (efficiency)</td>
+<td>לא לחשב אותו דוח פעמיים, לא לשלוח אותה התראה פעמיים</td>
+<td>עבודה כפולה, או הודעה כפולה. מעצבן וזול</td>
+</tr>
+<tr>
+<td>נכונות (correctness)</td>
+<td>רק כותב אחד לקובץ, רק תהליך אחד שמפרסם מה־outbox</td>
+<td>נתונים משובשים, סדר שבור, כסף שזז פעמיים</td>
+</tr>
+</tbody>
+</table>
+<p>לפני שבוחרים כלי, שואלים איזו מהשתיים זו. לנעילת יעילות מספיקה כמעט כל נעילה. לנעילת נכונות לא מספיקה
+שום נעילה לבדה, ושאר הסעיף מסביר למה.</p>
+<h3 id="1812">18.1.2 שלוש דרכים שבהן נעילה נשברת</h3>
+<p>נעילה מבוזרת כמעט תמיד היא חכירה (lease): נעילה עם תוקף. בלי תוקף, מחזיק שמת משאיר את הנעילה לנצח. עם תוקף,
+הנעילה משתחררת גם אם המחזיק עדיין חושב שהיא שלו. שלושה דברים גורמים לזה:</p>
+<ul>
+<li><strong>התהליך נעצר.</strong> איסוף זבל (GC) שעוצר את העולם, מכונה וירטואלית שהוקפאה להעברה, דף זיכרון שנקרא מהדיסק,
+  <code>SIGSTOP</code>. התהליך לא יודע שעבר זמן, כי מבחינתו לא עבר.</li>
+<li><strong>השעון קופץ.</strong> התוקף נמדד בשעון. שעון קיר שמתוקן אחורה או קדימה, או שעונים שונים בשני מחשבים, מקצרים או
+  מאריכים אותו. התיעוד של Redis על נעילות מבוזרות מציין במפורש ש־Redis לא משתמש בשעון מונוטוני לתפוגה.</li>
+<li><strong>הרשת מאחרת.</strong> בקשה שיצאה כשהנעילה הייתה בתוקף מגיעה אחרי שפג. Kleppmann מביא תקרית שבה מנות נתקעו ברשת
+  כ־90 שניות.</li>
+</ul>
+<p>כך זה נראה, בתרחיש של Kleppmann, עם שני לקוחות ושרת אחסון:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-mermaid">sequenceDiagram
+  participant A as Client A
+  participant L as Lock service
+  participant B as Client B
+  participant S as Storage
+  A-&gt;&gt;L: acquire (ttl 10s)
+  L--&gt;&gt;A: ok
+  Note over A: GC pause 15s
+  L--&gt;&gt;L: lease expires
+  B-&gt;&gt;L: acquire
+  L--&gt;&gt;B: ok
+  B-&gt;&gt;S: write
+  Note over A: wakes up, still &quot;holds&quot; the lock
+  A-&gt;&gt;S: write (corrupts B's data)
+</code></pre>
+
+
+</div>
+
+<p>אף בדיקה של A לא עוזרת: גם אם A בודק שהנעילה שלו רגע לפני הכתיבה, העצירה יכולה ליפול בין הבדיקה לכתיבה.
+הפתרון חייב לשבת בצד שמקבל את הכתיבה, וזה סעיף 18.4.</p>
+<h2 id="182-advisory-locks-postgresql">18.2 advisory locks ב־PostgreSQL</h2>
+<h3 id="1821">18.2.1 סשן מול טרנזקציה</h3>
+<p>advisory lock (נעילה שהאפליקציה מגדירה את משמעותה, והמסד רק אוכף שיש לה מחזיק אחד) נלקחת על מפתח מספרי
+מטיפוס <code>bigint</code>, ולא על שורה. היא מקומית למסד: אותו מפתח בשני מסדים הוא שתי נעילות. לפי התיעוד של גרסה 18
+יש לה שתי רמות:</p>
+<table>
+<thead>
+<tr>
+<th>רמה</th>
+<th>לוקחים</th>
+<th>משתחררת</th>
+<th>הערות</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>סשן</td>
+<td><code>pg_advisory_lock</code>, או <code>pg_try_advisory_lock</code> שלא מחכה</td>
+<td>ב־<code>pg_advisory_unlock</code>, או כשהסשן נגמר</td>
+<td>נערמת: שלוש לקיחות דורשות שלושה שחרורים</td>
+</tr>
+<tr>
+<td>טרנזקציה</td>
+<td><code>pg_advisory_xact_lock</code>, או <code>pg_try_advisory_xact_lock</code></td>
+<td>בסוף הטרנזקציה, ורק אז</td>
+<td>אין שחרור ידני</td>
+</tr>
+</tbody>
+</table>
+<p>הגרסה עם <code>try</code> מחזירה מיד אמת או שקר, וזו שבחירת מנהיג צריכה: מועמדת שהפסידה ממשיכה הלאה ומנסה שוב אחר כך.
+נעילה ברמת טרנזקציה מתאימה למשימה קצרה בתוך טרנזקציה, כמו „רק מיגרציה אחת בכל רגע”. נעילה ברמת סשן מתאימה
+למה שנמשך זמן רב, כמו להיות המנהיג, וכאן מתחילה המלכודת.</p>
+<h3 id="1822">18.2.2 המלכודת: נעילת סשן ומאגר חיבורים</h3>
+<p>נעילה ברמת סשן שייכת לחיבור אחד. אבל ב־pgx, כמו ברוב הספריות, השאילתות רצות דרך <code>pgxpool</code>, וכל קריאה יכולה
+לקבל חיבור אחר מהמאגר (פרק 11, סעיף 11.7). שלושה דברים משתבשים:</p>
+<ul>
+<li><strong>השחרור הולך לחיבור אחר.</strong> ‏<code>pg_advisory_unlock</code> על חיבור שלא מחזיק מחזירה שקר עם אזהרה, והנעילה נשארת.</li>
+<li><strong>החיבור חוזר למאגר עם הנעילה.</strong> קוד אחר לגמרי מקבל אותו, ובלי לדעת מחזיק בנעילה.</li>
+<li><strong>המאגר סוגר חיבורים בעצמו.</strong> חיבור שעבר את אורך החיים המרבי שלו נסגר, והנעילה משתחררת בלי שאיש החליט.</li>
+</ul>
+<p>לכן ב־pgx (v5.11.0, נכון לאוקטובר 2026) לוקחים חיבור אחד במפורש, ומחזיקים בו לכל אורך החזקת הנעילה. הקריאה
+היא <code>pool.Acquire</code>. התרגיל הולך צעד נוסף: <code>Hijack</code> מוציא את החיבור מהמאגר לגמרי, כך שהוא לעולם לא יחזור
+אליו עם נעילה. כך מתחילה המועמדות, בקובץ <code>leader/leader.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    pc, err := e.pool.Acquire(ctx)
+    if err != nil {
+        return false, err
+    }
+    // A session lock belongs to this one session. Take the connection out of the pool so it
+    // can never be handed to other code (or returned still holding the lock), and close it at
+    // the end of the term: closing the session releases the lock even if unlocking failed.
+    conn := pc.Hijack()
+    defer conn.Close(context.Background())
+
+    var got bool
+    if err := conn.QueryRow(ctx, `SELECT pg_try_advisory_lock($1)`, e.cfg.Key).Scan(&amp;got); err != nil {
+        return false, fmt.Errorf(&quot;pg_try_advisory_lock: %w&quot;, err)
+    }
+    if !got {
+        return false, nil // someone else leads; try again later
+    }
+</code></pre>
+
+
+</div>
+
+<p>סגירת החיבור בסוף, עם <code>defer</code>, היא רשת הביטחון: כשהסשן נגמר, PostgreSQL משחרר כל נעילה שלו, גם אם השחרור
+המפורש נכשל. ועוד מקרה שבו נעילת סשן לא עובדת בכלל: proxy כמו PgBouncer במצב של מאגר לפי טרנזקציה מחליף
+את החיבור לשרת בין טרנזקציות, ולכן לנעילת סשן אין שם משמעות.</p>
+<blockquote>
+<p><strong>איך Rust עושה את זה:</strong> ב־Rust היית מחזירה אובייקט שומר, שה־<code>Drop</code> שלו משחרר ושמחזיק את החיבור בהשאלה.
+הקומפיילר היה מונע מהחיבור לחזור למאגר כל עוד ה־guard חי. ב־Go אין לזה אכיפה, ולכן הקוד מוציא את החיבור
+מהמאגר בעצמו, ו־<code>defer</code> ממלא את תפקיד ה־<code>Drop</code>.</p>
+</blockquote>
+<h3 id="1823">18.2.3 מי מחזיק?</h3>
+<p>הטבלה <code>pg_locks</code> מראה כל נעילה. מפתח <code>bigint</code> מוצג בה מפוצל: החצי העליון בעמודה <code>classid</code>, התחתון ב־<code>objid</code>,
+ו־<code>objsubid</code> שווה 1. התיעוד נותן את הנוסחה להרכבה מחדש, והפונקציה <code>HolderPID</code> משתמשת בה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    err := pool.QueryRow(ctx, `
+        SELECT pid FROM pg_locks
+        WHERE locktype = 'advisory' AND granted AND objsubid = 1
+          AND database = (SELECT oid FROM pg_database WHERE datname = current_database())
+          AND ((classid::bigint &lt;&lt; 32) | objid::bigint) = $1`, key).Scan(&amp;pid)
+</code></pre>
+
+
+</div>
+
+<p>עם מזהה התהליך ביד אפשר לסיים את הסשן מבחוץ, וכך הבדיקות מדמות מנהיג שמת, בקובץ <code>leader/leader_test.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    // The timeout (ms) makes pg_terminate_backend wait until the backend has really exited.
+    if err := admin.QueryRow(ctx, `SELECT pg_terminate_backend($1, 5000)`, pid).Scan(&amp;terminated); err != nil || !terminated {
+</code></pre>
+
+
+</div>
+
+<p>הארגומנט השני, באלפיות שנייה, הוא חדש יחסית: הפונקציה מחכה עד שהתהליך באמת יצא, ומחזירה שקר אם הזמן עבר.
+בלעדיו היא מחזירה אמת ברגע שהאות נשלח.</p>
+<h2 id="183-redis">18.3 נעילות ב־Redis וגבולותיהן</h2>
+<h3 id="1831">18.3.1 הנעילה של מופע אחד</h3>
+<p>התיעוד של Redis מתאר נעילה על מופע אחד בפקודה אחת: <code>SET resource_name my_random_value NX PX 30000</code>. הדגל
+<code>NX</code> כותב רק אם המפתח לא קיים, ו־<code>PX</code> קובע תפוגה באלפיות שנייה. מהקובץ <code>redislock/redislock.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func Acquire(ctx context.Context, rdb *redis.Client, key string, ttl time.Duration) (*Lock, error) {
+    b := make([]byte, 16)
+    if _, err := rand.Read(b); err != nil {
+        return nil, err
+    }
+    token := hex.EncodeToString(b)
+    // SET key token NX PX &lt;ttl in ms&gt;: set only if absent, expire after ttl.
+    err := rdb.SetArgs(ctx, key, token, redis.SetArgs{Mode: &quot;NX&quot;, TTL: ttl}).Err()
+    if errors.Is(err, redis.Nil) {
+        return nil, ErrNotAcquired
+    }
+    if err != nil {
+        return nil, err
+    }
+    return &amp;Lock{rdb: rdb, key: key, token: token}, nil
+}
+</code></pre>
+
+
+</div>
+
+<p>הערך האקראי חיוני. מחזיק שנעצר אחרי שהנעילה פגה, ואז מוחק את המפתח עם <code>DEL</code>, מוחק נעילה של מישהו אחר.
+לכן השחרור בודק שהערך עדיין שלו, ומוחק רק אז, בסקריפט Lua שרץ באופן אטומי:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    release = redis.NewScript(`
+if redis.call(&quot;GET&quot;, KEYS[1]) == ARGV[1] then
+    return redis.call(&quot;DEL&quot;, KEYS[1])
+end
+return 0`)
+</code></pre>
+
+
+</div>
+
+<p>לפי התיעוד, מגרסה 8.4 יש ל־Redis פקודה שעושה את זה בלי סקריפט: <code>DELEX</code> עם התנאי <code>IFEQ</code>. הסקריפט עובד בכל
+גרסה, ולכן התרגיל משתמש בו.</p>
+<h3 id="1832">18.3.2 שניים מחזיקים</h3>
+<p>הבדיקה <code>TestExpiredHolderAndNewHolderOverlap</code> מדגימה את הבעיה של כל חכירה. מהקובץ <code>redislock/redislock_test.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    a, err := Acquire(ctx, rdb, key, 200*time.Millisecond)
+    if err != nil {
+        t.Fatal(err)
+    }
+    time.Sleep(300 * time.Millisecond) // a pauses; nothing tells it the key expired
+
+    b, err := Acquire(ctx, rdb, key, 10*time.Second)
+    if err != nil {
+        t.Fatalf(&quot;b could not acquire after a's TTL: %v&quot;, err)
+    }
+    // a wakes up. It finds out only if it asks Redis, and only after the fact:
+    if err := a.Extend(ctx, 10*time.Second); !errors.Is(err, ErrNotHeld) {
+        t.Fatalf(&quot;a.Extend: err = %v, want ErrNotHeld&quot;, err)
+    }
+    if err := a.Release(ctx); !errors.Is(err, ErrNotHeld) {
+        t.Fatalf(&quot;a.Release: err = %v, want ErrNotHeld (and b's lock untouched)&quot;, err)
+    }
+    if err := b.Release(ctx); err != nil {
+        t.Fatalf(&quot;b.Release: %v; a must not have deleted b's lock&quot;, err)
+    }
+</code></pre>
+
+
+</div>
+
+<p>בין ההשתלטות של B לבין הניסיון של A להאריך, שני תהליכים מאמינים שהם מחזיקים, ו־A יודע על זה רק אם הוא
+שואל, ורק בדיעבד. שום תדירות של הארכה לא סוגרת את החלון, כי העצירה יכולה ליפול בין ההארכה לכתיבה.</p>
+<h3 id="1833-redlock">18.3.3 ומה עם Redlock?</h3>
+<p>אותו עמוד בתיעוד של Redis מוסיף שתי בעיות של מופע אחד ומציע אלגוריתם בשם Redlock:</p>
+<ul>
+<li><strong>שכפול אסינכרוני.</strong> אם הראשי של Redis נופל אחרי שנתן נעילה ולפני שהעביר אותה למשני, המשני שמקודם נותן את
+  אותה נעילה לאחר.</li>
+<li><strong>Redlock.</strong> חמישה מופעים עצמאיים; הנעילה נחשבת שלך אם קיבלת רוב, בזמן קצר מהתוקף.</li>
+</ul>
+<p>Kleppmann טוען במאמר שלו ש־Redlock נשען על הנחות תזמון: עיכובי רשת חסומים, עצירות חסומות ושעונים מדויקים.
+כשהן נשברות, שני לקוחות יכולים להחזיק. ול־Redlock אין מנגנון ליצירת אסימוני גידור. ההמלצה שלו: לנעילת יעילות
+מספיק מופע Redis אחד; לנעילת נכונות, מערכת קונצנזוס כמו ZooKeeper, יחד עם אסימוני גידור. העמוד של Redis
+מפנה לניתוח של Kleppmann ולתגובה של מחבר Redis, וממליץ בעצמו לממש אסימוני גידור כשאכפת לך מנכונות.</p>
+<h2 id="184-fencing-tokens">18.4 fencing tokens</h2>
+<p>אסימון גידור (fencing token) הוא מספר שעולה בכל פעם שהנעילה עוברת יד. המחזיק שולח אותו עם כל כתיבה, והאחסון
+זוכר את הגבוה ביותר שראה ודוחה כל כתיבה עם מספר נמוך ממנו. בתרחיש של סעיף 18.1, ‏A קיבל 33 ו־B קיבל 34. B
+כתב עם 34; כש־A מתעורר וכותב עם 33, האחסון דוחה אותו. A עדיין חושב שהוא מחזיק, ושום דבר רע לא קרה.</p>
+<p>ההגנה הזאת עובדת רק אם הבדיקה וההחלפה הן פעולה אחת, אחרת שני כותבים עוברים את הבדיקה יחד. בתרגיל זו פקודה
+אחת של PostgreSQL, מהקובץ <code>fencing/fencing.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func (s Store) Write(ctx context.Context, name, value string, token int64) error {
+    tag, err := s.DB.Exec(ctx, `
+        INSERT INTO fenced_resources (name, value, token) VALUES ($1, $2, $3)
+        ON CONFLICT (name) DO UPDATE SET value = EXCLUDED.value, token = EXCLUDED.token
+        WHERE fenced_resources.token &lt;= EXCLUDED.token`, name, value, token)
+    if err != nil {
+        return fmt.Errorf(&quot;fenced write %q: %w&quot;, name, err)
+    }
+    if tag.RowsAffected() == 0 {
+        return fmt.Errorf(&quot;write %q with token %d: %w&quot;, name, token, ErrStaleToken)
+    }
+    return nil
+}
+</code></pre>
+
+
+</div>
+
+<p>התנאי <code>WHERE</code> של <code>ON CONFLICT</code> מחליט אם השורה הקיימת מתעדכנת. כשהוא שקר, לא נכתב כלום, ו־<code>RowsAffected</code>
+מחזיר אפס. הסימן קטן או שווה מאפשר למנהיג אחד לכתוב כמה פעמים באותה תקופה. הבדיקה של החבילה עוברת על רצף:</p>
+<table>
+<thead>
+<tr>
+<th>כתיבה</th>
+<th>אסימון</th>
+<th>תוצאה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>מנהיג בתקופה 33</td>
+<td>33</td>
+<td>נכתב</td>
+</tr>
+<tr>
+<td>אותו מנהיג שוב</td>
+<td>33</td>
+<td>נכתב</td>
+</tr>
+<tr>
+<td>מנהיג חדש</td>
+<td>34</td>
+<td>נכתב</td>
+</tr>
+<tr>
+<td>המנהיג הישן מתעורר</td>
+<td>33</td>
+<td><code>ErrStaleToken</code></td>
+</tr>
+<tr>
+<td>מנהיג שקפץ תקופה</td>
+<td>36</td>
+<td>נכתב; מספרים מותר לדלג, אסור לרדת</td>
+</tr>
+</tbody>
+</table>
+<p>מאיפה מגיע המספר? הוא חייב להיות מונוטוני ולעבור יד עם הנעילה. ב־ZooKeeper, לפי Kleppmann, משמשים לזה מזהה
+הטרנזקציה או מספר הגרסה של הצומת. בתרגיל, המנהיג מגדיל מונה בטבלה, בזמן שהוא כבר מחזיק את הנעילה (סעיף 18.5).</p>
+<p>הגבול של הרעיון: האחסון חייב לשתף פעולה. מסד שלך, תור, או שירות שלך יכולים לבדוק אסימון. שירות חיצוני שמקבל
+webhook, או שרת דואר, לא יבדקו. שם ההגנה היא אידמפוטנטיות: מפתח שמאפשר לצד השני לזהות כפילות (פרק 9, סעיף 9.5).</p>
+<h2 id="185">18.5 בחירת מנהיג</h2>
+<h3 id="1851">18.5.1 התכנון</h3>
+<p>בחירת מנהיג היא נעילה שמחזיקים לאורך זמן: כמה עותקים של שירות רצים, ורק אחד מהם עושה עבודה מסוימת. ב־Hookline
+זה ה־relay, שמפרסם מה־outbox לפי הסדר: שני relays היו מפרסמים כפול ומערבבים סדר. החבילה <code>leader</code> בנויה כך:</p>
+<table>
+<thead>
+<tr>
+<th>שלב</th>
+<th>מה קורה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>מועמדות</td>
+<td>חיבור ייעודי מהמאגר, ו־<code>pg_try_advisory_lock</code>. הפסד: לחכות <code>Retry</code> ולנסות שוב</td>
+</tr>
+<tr>
+<td>תקופה חדשה</td>
+<td>המנצחת מגדילה את המונה בטבלה <code>leader_terms</code>, וזה האסימון שלה</td>
+</tr>
+<tr>
+<td>עבודה</td>
+<td>פונקציית העבודה רצה ב־goroutine עם context ועם מספר התקופה</td>
+</tr>
+<tr>
+<td>דופק</td>
+<td>כל <code>Heartbeat</code> המנהיג מריץ <code>SELECT 1</code> על החיבור שמחזיק את הנעילה</td>
+</tr>
+<tr>
+<td>ירידה</td>
+<td>הדופק נכשל, העבודה חזרה, או שה־context בוטל: מבטלים את העבודה, מחכים לה, משחררים</td>
+</tr>
+</tbody>
+</table>
+<p>הלב הוא הפונקציה <code>serve</code>, מהקובץ <code>leader/leader.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func (e *Elector) serve(ctx context.Context, conn *pgx.Conn, term int64,
+    lead func(context.Context, int64) error, log *slog.Logger) {
+    leadCtx, cancel := context.WithCancel(ctx)
+    defer cancel()
+    done := make(chan error, 1)
+    go func() { done &lt;- lead(leadCtx, term) }()
+
+    ticker := time.NewTicker(e.cfg.Heartbeat)
+    defer ticker.Stop()
+    alive := true
+    var leadErr error
+    for running := true; running; {
+        select {
+        case &lt;-ctx.Done():
+            running = false
+        case leadErr = &lt;-done:
+            done = nil // already received
+            running = false
+        case &lt;-ticker.C:
+            hbCtx, cancelHB := context.WithTimeout(ctx, e.cfg.Heartbeat)
+            _, err := conn.Exec(hbCtx, `SELECT 1`)
+            cancelHB()
+            if err != nil &amp;&amp; ctx.Err() == nil {
+                log.Warn(&quot;leader: heartbeat failed, leadership lost&quot;, &quot;err&quot;, err)
+                alive, running = false, false
+            }
+        }
+    }
+    cancel() // tell lead to stop, then wait for it: never two terms in one process
+    if done != nil {
+        leadErr = &lt;-done
+    }
+    if leadErr != nil &amp;&amp; !errors.Is(leadErr, context.Canceled) {
+        log.Warn(&quot;leader: lead returned an error&quot;, &quot;err&quot;, leadErr)
+    }
+    if alive { // a clean step-down: give the lock back now rather than at Close
+        unlockCtx, cancelUnlock := context.WithTimeout(context.Background(), e.cfg.Heartbeat)
+        defer cancelUnlock()
+        if _, err := conn.Exec(unlockCtx, `SELECT pg_advisory_unlock($1)`, e.cfg.Key); err != nil {
+            log.Warn(&quot;leader: unlock failed; closing the session releases the lock&quot;, &quot;err&quot;, err)
+        }
+    }
+}
+</code></pre>
+
+
+</div>
+
+<p>שלוש החלטות שכדאי להבין:</p>
+<ul>
+<li><strong>הדופק רץ על החיבור שמחזיק את הנעילה.</strong> כל עוד הסשן חי, הנעילה שלו; כשהסשן מת, השאילתה נכשלת. שאילתה
+  על חיבור אחר מהמאגר לא הייתה מוכיחה כלום.</li>
+<li><strong>מחכים לעבודה לפני שחוזרים.</strong> ‏<code>cancel()</code> רק מבקש לעצור. בלי ההמתנה, תהליך אחד יכול להריץ שתי תקופות במקביל.</li>
+<li><strong>שחרור מפורש רק כשהסשן חי.</strong> בירידה מסודרת הנעילה חוזרת מיד, והבאה בתור לא מחכה. כשהסשן מת, אין מה לשחרר.</li>
+</ul>
+<h3 id="1852">18.5.2 להרוג את המנהיג</h3>
+<p>הבדיקה <code>TestFollowerTakesOverWhenTheLeaderSessionIsKilled</code> מריצה שתי מועמדות, כל אחת עם מאגר משלה, כמו שני
+תהליכים. אחרי ש־A מנצחת, B מנסה כעשר פעמים ונכשלת. אז הבדיקה מסיימת את הסשן של A:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    killed := time.Now()
+    terminateHolder(t, admin, key)
+    // Two things happen, in either order: B wins term 2, and A's heartbeat notices.
+    got := map[event]bool{}
+    for range 2 {
+        got[next(t, events, 5*time.Second)] = true
+    }
+    if !got[event{&quot;A&quot;, 1, false}] || !got[event{&quot;B&quot;, 2, true}] {
+        t.Fatalf(&quot;events %v, want A stopping term 1 and B leading term 2&quot;, got)
+    }
+    t.Logf(&quot;takeover completed %v after the kill&quot;, time.Since(killed).Round(time.Millisecond))
+</code></pre>
+
+
+</div>
+
+<p>שני האירועים מגיעים בכל סדר: B יכולה לנצח לפני שהדופק של A הבחין, ובדיוק בגלל זה יש אסימון. הבדיקה
+<code>TestPausedLeaderIsFenced</code> מריצה את התרחיש של סעיף 18.1 עד הסוף: A נעצרת, הסשן שלה מסתיים, B נבחרת בתקופה 2
+וכותבת, ואז A מתעוררת וכותבת עם 1, ו־<code>fencing.Store</code> דוחה אותה.</p>
+<p>בתרגיל תריצי את אותו דבר עם שני תהליכים אמיתיים, ותהרגי אחד מהם עם <code>kill -9</code>. כשתהליך מת, מערכת ההפעלה סוגרת
+את חיבורי ה־TCP שלו, השרת רואה שהסשן נגמר, והנעילה משתחררת. מהלוג של המועמדת השנייה, בקיצור:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">level=INFO msg=campaigning name=beta key=1818
+level=INFO msg=&quot;leader: elected&quot; name=beta key=1818 term=2 backend_pid=…
+level=INFO msg=&quot;working as leader&quot; name=beta term=2 tick=1
+</code></pre>
+
+
+</div>
+
+<p>כמה זמן עבר בין המוות להשתלטות? זה תלוי ב־<code>-retry</code>, ובלוג שלך יש חותמות זמן. תמדדי ותרשמי.</p>
+<h3 id="1853">18.5.3 מתי יש שני מנהיגים, ומתי אף אחד</h3>
+<table>
+<thead>
+<tr>
+<th>מצב</th>
+<th>מה קורה</th>
+<th>כמה זמן</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>התהליך מת</td>
+<td>ה־TCP נסגר, השרת משחרר, והבאה מנצחת בניסיון הבא</td>
+<td>עד <code>Retry</code></td>
+</tr>
+<tr>
+<td>הסשן מסתיים מבחוץ</td>
+<td>הבאה מנצחת, והישנה עוד חושבת שהיא מנהיגה</td>
+<td>עד <code>Heartbeat</code>: אסימון הגידור מגן</td>
+</tr>
+<tr>
+<td>התהליך נעצר</td>
+<td>כמו קודם, רק שהישנה לא מריצה דופק בכלל</td>
+<td>כל אורך העצירה: רק האסימון מגן</td>
+</tr>
+<tr>
+<td>פיצול רשת בין המנהיג לשרת</td>
+<td>הדופק נכשל אחרי זמן קצוב והמנהיג יורד, אבל השרת עוד לא יודע שהסשן מת</td>
+<td>אין מנהיג, עד שהשרת מזהה את החיבור המת</td>
+</tr>
+</tbody>
+</table>
+<p>השורה האחרונה היא בחירה בעקביות על פני זמינות (פרק 17, סעיף 17.7): עדיף רגע בלי relay מאשר שניים. כמה זמן
+השרת לוקח לזהות חיבור מת תלוי בהגדרות keepalive של TCP, למשל <code>tcp_keepalives_idle</code> בשרת, וכדאי לקבוע אותן
+במפורש ולא להסתמך על ברירת המחדל של מערכת ההפעלה.</p>
+<h2 id="186-raft">18.6 קונצנזוס: הרעיון בלי Raft</h2>
+<h3 id="1861">18.6.1 הבעיה</h3>
+<p>הבחירה שבנית נשענת על PostgreSQL אחד: הוא מכריע מי מחזיק. אם הוא נופל, אין מנהיג; אם יש לו משני, ההכרעה עוברת
+בשכפול אסינכרוני, עם אותה בעיה של Redis. קונצנזוס (consensus) הוא הבעיה של להכריע בלי שרת אחד כזה: כמה צמתים
+מסכימים על ערך, או על רצף ערכים, גם כשחלק מהם נופלים או מנותקים.</p>
+<h3 id="1862">18.6.2 שלושה רעיונות</h3>
+<ul>
+<li><strong>רוב (quorum).</strong> החלטה מתקבלת כשרוב הצמתים מאשרים. כל שני רובים נחתכים בצומת אחד לפחות, ולכן אי אפשר לקבל
+  שתי החלטות סותרות. חמישה צמתים ממשיכים לעבוד אחרי שניים נפלו; שלושה, אחרי שאחד נפל.</li>
+<li><strong>תקופות (terms).</strong> כל בחירה של מנהיג פותחת תקופה עם מספר גבוה יותר. הודעה מתקופה ישנה נדחית. זה אסימון
+  הגידור של סעיף 18.4, בנוי לתוך הפרוטוקול.</li>
+<li><strong>שכפול יומן (log replication).</strong> המנהיג מקבל פקודות, מוסיף אותן ליומן ושולח לאחרים. רשומה נחשבת מאושרת כשרוב
+  כתבו אותה, וכל הצמתים מריצים את היומן באותו סדר, ולכן מגיעים לאותו מצב.</li>
+</ul>
+<p>האלגוריתמים המוכרים שמממשים את זה הם Raft ו־Paxos. ל־ZooKeeper יש פרוטוקול דומה משלו. הקושי הוא במקרים: מנהיג שנופל באמצע שליחה, שני
+מועמדים שמתחילים בחירות יחד, צומת שחוזר אחרי שבוע. לכן לא מממשים קונצנזוס בעצמך בשביל מוצר; משתמשים במערכת
+שעושה רק את זה, ונבדקה שנים.</p>
+<h3 id="1863-etcd-zookeeper">18.6.3 מתי לפנות ל־etcd או ל־ZooKeeper</h3>
+<table>
+<thead>
+<tr>
+<th>מצב</th>
+<th>כלי סביר</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>השירות כבר תלוי ב־PostgreSQL אחד, ומספיק שהבחירה זמינה כמוהו</td>
+<td>advisory lock, כמו בפרק</td>
+</tr>
+<tr>
+<td>תיאום בין שירותים שאין להם מסד משותף, או שהמסד עצמו מבוזר</td>
+<td>etcd או ZooKeeper</td>
+</tr>
+<tr>
+<td>בקר (controller) שרץ בתוך Kubernetes</td>
+<td>אובייקט <code>Lease</code> של Kubernetes, שנשמר ב־etcd</td>
+</tr>
+<tr>
+<td>נעילת יעילות בלבד</td>
+<td>מופע Redis אחד</td>
+</tr>
+</tbody>
+</table>
+<p>המערכת etcd מממשת את Raft. היא גם שומרת את כל המצב של Kubernetes. בפרק 20 תפגשי את Kubernetes, שבוחר מנהיג לרכיבים שלו בדיוק
+כך. בראיון, הניסוח החשוב: קונצנזוס פותר הסכמה בין צמתים, לא את העצירה של לקוח. גם עם etcd צריך אסימון גידור.</p>
+<h2 id="187">18.7 סאגות ופעולות מפצות</h2>
+<h3 id="1871">18.7.1 כשאין טרנזקציה אחת</h3>
+<p>הזמנה בחנות נוגעת בשלושה שירותים: מלאי, תשלום ומשלוח, כל אחד עם מסד משלו. אין טרנזקציה אחת שעוטפת את שלושתם,
+ושני־שלבי (two-phase commit) בין שירותים שונים נדיר ושביר. סאגה (saga), רעיון ממאמר של Garcia-Molina ו־Salem
+משנת 1987, מחליפה טרנזקציה גדולה ברצף של טרנזקציות מקומיות. לכל צעד יש פעולה מפצה (compensating action), וכשצעד
+נכשל, מריצים את הפעולות המפצות של הצעדים שהצליחו, בסדר הפוך.</p>
+<p>פעולה מפצה היא ביטול סמנטי, לא <code>ROLLBACK</code>. החיוב כבר קרה ונרשם; הפיצוי הוא זיכוי, שגם הוא נרשם. מכאן כמה כללים:</p>
+<ul>
+<li><strong>פיצוי חייב להיות אידמפוטנטי.</strong> אחרי קריסה הוא ירוץ שוב, ושני זיכויים הם באג חדש.</li>
+<li><strong>מה שאי אפשר לבטל בא אחרון.</strong> מייל ללקוחה לא חוזר. שמים אותו אחרי כל צעד שעלול להיכשל.</li>
+<li><strong>אין בידוד.</strong> בין הצעדים, שירותים אחרים רואים מצב ביניים: מלאי שמור להזמנה שעוד תבוטל. מסמנים אותו כזמני,
+  למשל בסטטוס <code>PENDING</code>, ומתכננים את הקוראים בהתאם.</li>
+</ul>
+<h3 id="1872">18.7.2 תזמור מול כוריאוגרפיה</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>תזמור (orchestration)</th>
+<th>כוריאוגרפיה (choreography)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>מי מחליט</td>
+<td>מתזמר אחד קורא לכל שירות לפי הסדר</td>
+<td>כל שירות מגיב לאירוע של הקודם ומפרסם אירוע משלו</td>
+</tr>
+<tr>
+<td>איפה הלוגיקה</td>
+<td>במקום אחד, קל לקרוא ולבדוק</td>
+<td>מפוזרת בין השירותים</td>
+</tr>
+<tr>
+<td>צימוד</td>
+<td>המתזמר מכיר את כולם</td>
+<td>כל שירות מכיר רק אירועים</td>
+</tr>
+<tr>
+<td>כשמשהו נכשל</td>
+<td>המתזמר יודע בדיוק מה לפצות</td>
+<td>כל שירות צריך להאזין גם לאירועי כישלון</td>
+</tr>
+<tr>
+<td>מתאים ל</td>
+<td>תהליך עסקי עם כמה צעדים ותנאים</td>
+<td>שתיים־שלוש תגובות פשוטות לאירוע</td>
+</tr>
+</tbody>
+</table>
+<p>בכוריאוגרפיה, ה־outbox מפרק 13 הוא הדרך לפרסם אירוע יחד עם הכתיבה המקומית. התרגיל מממש תזמור, בתוך תהליך אחד.</p>
+<h3 id="1873">18.7.3 המתזמר</h3>
+<p>צעד הוא שם, פעולה ופיצוי. מהקובץ <code>saga/saga.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func Run(ctx context.Context, steps []Step) error {
+    for i, s := range steps {
+        err := ctx.Err()
+        if err == nil {
+            err = s.Do(ctx)
+        }
+        if err != nil {
+            return compensate(context.WithoutCancel(ctx), steps[:i], &amp;Error{Step: s.Name, Err: err})
+        }
+    }
+    return nil
+}
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func compensate(ctx context.Context, done []Step, sagaErr *Error) error {
+    for i := len(done) - 1; i &gt;= 0; i-- {
+        s := done[i]
+        if s.Compensate == nil {
+            continue
+        }
+        if err := s.Compensate(ctx); err != nil {
+            // keep going: the other steps still need undoing
+            sagaErr.Compensation = append(sagaErr.Compensation, fmt.Errorf(&quot;compensate %q: %w&quot;, s.Name, err))
+            continue
+        }
+        sagaErr.Compensated = append(sagaErr.Compensated, s.Name)
+    }
+    return sagaErr
+}
+</code></pre>
+
+
+</div>
+
+<p>שלושה פרטים קטנים שהם רוב העבודה:</p>
+<ul>
+<li><strong>‏<code>steps[:i]</code> הם רק הצעדים שהצליחו.</strong> הצעד שנכשל לא מפוצה, כי הוא לא קרה. אם הוא קרה בחלקו, זה עניינו
+  לנקות, בתוך הטרנזקציה המקומית שלו.</li>
+<li><strong>הפיצויים רצים עם <code>context.WithoutCancel</code>.</strong> לקוחה שסגרה את הדפדפן באמצע לא אמורה להשאיר כסף מחויב בלי מלאי.</li>
+<li><strong>כשל בפיצוי לא עוצר את האחרים.</strong> הוא נאסף לתוך השגיאה, כי מישהו יצטרך לטפל בו ידנית או בניסיון חוזר.</li>
+</ul>
+<p>הדוגמה בקובץ <code>saga/example_test.go</code> היא גם בדיקה, ולכן הפלט מאומת בכל הרצה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">do reserve-stock
+do book-courier
+do charge-card
+undo book-courier
+undo reserve-stock
+saga: step &quot;charge-card&quot; failed: card declined; compensated [book-courier reserve-stock]
+</code></pre>
+
+
+</div>
+
+<p>הבדיקה הטבלאית <code>TestCompensationRunsInReverseOrder</code> מזריקה כשל בכל אחד מארבעת הצעדים, ובודקת את רצף הקריאות
+המדויק. מתזמר בייצור עושה עוד שני דברים שהתרגיל משאיר בחוץ: שומר במסד אילו צעדים הסתיימו, כדי שאחרי קריסה ימשיך
+או יפצה, ומנסה שוב צעדים ופיצויים שנכשלו, עם המתנה גדלה (פרק 14).</p>
+<h2 id="_3">סיכום</h2>
+<ul>
+<li>נעילה מבוזרת היא חכירה עם תוקף. עצירת תהליך, שעון שקופץ ורשת שמאחרת גורמים לשני מחזיקים בבת אחת.</li>
+<li>שאלי קודם אם זו נעילת יעילות או נכונות. לנעילת נכונות אין מספיק בלי בדיקה בצד האחסון.</li>
+<li>נעילת סשן ב־PostgreSQL שייכת לחיבור אחד. ב־pgx לוקחים חיבור ייעודי ומחזיקים בו, ובתרגיל מוציאים אותו מהמאגר.</li>
+<li>נעילת Redis היא <code>SET NX PX</code> עם ערך אקראי ושחרור בהשוואה. היא טובה ליעילות, ואינה מגינה מפני מחזיק שהתעורר.</li>
+<li>אסימון גידור הוא מספר עולה שהאחסון בודק בפעולה אחת עם הכתיבה; הוא עוצר כתיבות מאוחרות של מחזיק לשעבר.</li>
+<li>בחירת מנהיג: נעילה, תקופה חדשה, עבודה ב־goroutine ודופק על אותו חיבור. בין מוות להשתלטות יכולים להיות שניים.</li>
+<li>קונצנזוס נשען על רוב, תקופות ושכפול יומן. לא מממשים אותו לבד; etcd ו־ZooKeeper קיימים בשביל זה.</li>
+<li>סאגה מחליפה טרנזקציה מבוזרת בצעדים מקומיים ופיצויים בסדר הפוך. פיצויים אידמפוטנטיים, ומה שלא מתבטל בא אחרון.</li>
+</ul>
+<h2 id="_4">מונחים לזכור</h2>
+<table>
+<thead>
+<tr>
+<th>מונח בעברית</th>
+<th>באנגלית</th>
+<th>במשפט אחד</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>נעילה</td>
+<td>lock</td>
+<td>הבטחה שרק מחזיק אחד ניגש למשאב</td>
+</tr>
+<tr>
+<td>חכירה</td>
+<td>lease</td>
+<td>נעילה עם תוקף, שמשתחררת גם אם המחזיק חי</td>
+</tr>
+<tr>
+<td>advisory lock</td>
+<td>advisory lock</td>
+<td>נעילה של PostgreSQL על מפתח מספרי שהאפליקציה מגדירה את משמעותו</td>
+</tr>
+<tr>
+<td>נעילת סשן</td>
+<td>session-level lock</td>
+<td>נעילה שחיה עד שחרור מפורש או סוף הסשן</td>
+</tr>
+<tr>
+<td>אסימון גידור</td>
+<td>fencing token</td>
+<td>מספר עולה שהאחסון בודק כדי לדחות כתיבה של מחזיק לשעבר</td>
+</tr>
+<tr>
+<td>בחירת מנהיג</td>
+<td>leader election</td>
+<td>הכרעה איזה עותק אחד של שירות עושה עבודה מסוימת</td>
+</tr>
+<tr>
+<td>תקופה</td>
+<td>term</td>
+<td>מספר של כהונת מנהיג; עולה בכל בחירה</td>
+</tr>
+<tr>
+<td>דופק</td>
+<td>heartbeat</td>
+<td>בדיקה תקופתית שהמנהיג עדיין מחזיק</td>
+</tr>
+<tr>
+<td>קונצנזוס</td>
+<td>consensus</td>
+<td>הסכמה של כמה צמתים על ערך, למרות כשלים</td>
+</tr>
+<tr>
+<td>רוב</td>
+<td>quorum</td>
+<td>מספר הצמתים שאישורם מכריע; שני רובים תמיד נחתכים</td>
+</tr>
+<tr>
+<td>שכפול יומן</td>
+<td>log replication</td>
+<td>הפצה של רצף פקודות לכל הצמתים באותו סדר</td>
+</tr>
+<tr>
+<td>סאגה</td>
+<td>saga</td>
+<td>רצף טרנזקציות מקומיות עם פעולה מפצה לכל אחת</td>
+</tr>
+<tr>
+<td>פעולה מפצה</td>
+<td>compensating action</td>
+<td>ביטול סמנטי של צעד שכבר התבצע</td>
+</tr>
+<tr>
+<td>תזמור</td>
+<td>orchestration</td>
+<td>סאגה שמתזמר אחד מנהל</td>
+</tr>
+<tr>
+<td>כוריאוגרפיה</td>
+<td>choreography</td>
+<td>סאגה שבה כל שירות מגיב לאירועים של האחרים</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_5">טעויות נפוצות</h2>
+<ul>
+<li><strong>נעילת סשן דרך <code>pgxpool</code> בלי חיבור ייעודי.</strong> השחרור הולך לחיבור אחר והנעילה נתקעת. ‏<code>Acquire</code> ומחזיקים.</li>
+<li><strong>להאמין שהארכה תכופה סוגרת את החלון.</strong> העצירה יכולה ליפול בין ההארכה לכתיבה. רק האחסון יכול לבדוק.</li>
+<li><strong>לשחרר נעילת Redis עם <code>DEL</code>.</strong> מוחקים נעילה של מישהו אחר. משווים את הערך ומוחקים בפעולה אחת.</li>
+<li><strong>לבדוק אסימון ואז לכתוב, בשתי פקודות.</strong> שני כותבים עוברים את הבדיקה יחד. התנאי בתוך פקודת הכתיבה.</li>
+<li><strong>דופק על חיבור אחר מזה שמחזיק.</strong> הדופק מצליח אחרי שהנעילה כבר אבדה. דופקים על אותו חיבור.</li>
+<li><strong>פיצוי שאינו אידמפוטנטי.</strong> אחרי קריסה הוא רץ פעמיים, ומחזירים כסף פעמיים.</li>
+<li><strong>לבטל פיצויים עם ה־context של הבקשה.</strong> הלקוחה התנתקה, והסאגה נשארת באמצע. ‏<code>context.WithoutCancel</code>.</li>
+</ul>
+<h2 id="_6">שאלות ראיון</h2>
+<ol>
+<li><strong>נעילה עם TTL של 30 שניות. איך היא יכולה להיות מוחזקת בידי שני תהליכים בבת אחת?</strong> התוקף נמדד בזמן,
+   והמחזיק לא חווה את הזמן הזה אם הוא נעצר: GC, מכונה וירטואלית מוקפאת, דיסק איטי. אחרי 30 שניות הנעילה
+   משתחררת ומישהו אחר לוקח אותה, והראשון מתעורר וממשיך לכתוב. גם שעון שקופץ, או בקשה שתקועה ברשת, יוצרים את
+   אותו חלון. אי אפשר לסגור את החלון מצד המחזיק, ולכן לנעילת נכונות מוסיפים אסימון גידור שהאחסון בודק.</li>
+</ol>
+<p><strong>המשך:</strong> ואם האחסון לא יודע לבדוק אסימון, כמו שירות חיצוני? אז אין לנעילה ערבות נכונות, והכתיבה חייבת
+   להיות אידמפוטנטית, עם מפתח שמאפשר לצד השני לזהות כפילות.</p>
+<ol start="2">
+<li>
+<p><strong>הסבירי advisory lock ב־PostgreSQL, ולמה צריך זהירות עם מאגר חיבורים.</strong> זו נעילה על מפתח מספרי
+   שהאפליקציה מגדירה, ברמת סשן או ברמת טרנזקציה. ברמת סשן היא שייכת לחיבור שלקח אותה, ומשתחררת כשהוא נסגר,
+   וזה מה שהופך אותה לטובה לבחירת מנהיג: תהליך שמת משחרר אוטומטית. במאגר, כל שאילתה יכולה לרוץ על חיבור אחר,
+   ולכן השחרור יכול ללכת לחיבור הלא נכון, והחיבור הנועל יכול לחזור למאגר. לוקחים חיבור ייעודי, ומאחורי
+   PgBouncer במצב טרנזקציה עוברים לנעילה ברמת טרנזקציה או לחיבור ישיר.</p>
+</li>
+<li>
+<p><strong>תכנני הרצה של עותק פעיל אחד של worker מתוך שלושה. מה קורה כשהמנהיג מת?</strong> שלושתם מנסים advisory lock עם
+   <code>try</code> כל שנייה; המנצח מגדיל מונה תקופה ומתחיל לעבוד, ומריץ דופק על החיבור שמחזיק. כשהתהליך מת, השרת משחרר
+   ומישהו אחר מנצח בניסיון הבא. כשהסשן מת אבל התהליך חי, יכולים להיות שני מנהיגים עד הדופק הבא, ולכן כל כתיבה
+   נושאת את מספר התקופה. ובפיצול רשת, המנהיג יורד והשרת עוד מחזיק את הסשן, כך שלזמן מה אין מנהיג; זו בחירה
+   בעקביות, וקיצור הזמן הזה הוא עניין של keepalive.</p>
+</li>
+<li>
+<p><strong>מתי סאגה, ומתי טרנזקציה?</strong> אם כל הנתונים במסד אחד, טרנזקציה: היא נותנת אטומיות ובידוד בחינם. סאגה
+   מתאימה כשהצעדים בשירותים שונים, או כשהם ארוכים מכדי להחזיק נעילות לאורכם. המחיר הוא שאין בידוד, ולכן
+   צריך מצבי ביניים גלויים, פיצויים אידמפוטנטיים, וסדר שבו מה שלא מתבטל בא אחרון. תזמור קל יותר לקרוא ולבדוק;
+   כוריאוגרפיה מפחיתה צימוד אבל מפזרת את הלוגיקה.</p>
+</li>
+</ol>
+<p><strong>המשך:</strong> מה קורה אם הפיצוי עצמו נכשל? מנסים שוב, כי הוא אידמפוטנטי, ואם הוא ממשיך להיכשל, הסאגה נעצרת
+   במצב שדורש התערבות, עם התראה.</p>
+<ol start="5">
+<li><strong>מתי היית מוסיפה etcd או ZooKeeper למערכת?</strong> כשצריך הכרעה בין שירותים שאין להם מסד משותף, או כשהזמינות של
+   הבחירה חייבת להיות גבוהה מזו של מסד אחד. הם מממשים קונצנזוס: רוב, תקופות ושכפול יומן, ונותנים חכירות
+   ומספרי גרסה שמשמשים כאסימוני גידור. אם השירות כבר נופל כשה־PostgreSQL שלו נופל, advisory lock נותן אותה
+   זמינות בלי רכיב חדש לתפעל.</li>
+</ol>
+<h2 id="obsidian">פתק Obsidian</h2>
+<p>הפתק המוכן נמצא גם כקובץ: <code>obsidian/18-locks-leaders-sagas.md</code>. זה תוכנו:</p>
+<ul>
+<li><strong>יעילות מול נכונות:</strong> לנעילת יעילות מספיק Redis אחד; לנעילת נכונות צריך בדיקה בצד האחסון.</li>
+<li><strong>למה זה נשבר:</strong> עצירת תהליך, שעון שקופץ, רשת שמאחרת. חכירה משתחררת גם כשהמחזיק חי.</li>
+<li><strong>advisory lock:</strong> סשן או טרנזקציה; נעילת סשן שייכת לחיבור אחד, ולכן חיבור ייעודי ולא המאגר.</li>
+<li><strong>Redis:</strong> ערך אקראי, תפוגה, ושחרור רק אם הערך שלך. ‏Redlock לא נותן אסימונים.</li>
+<li><strong>אסימון גידור:</strong> מספר עולה; האחסון דוחה נמוך מהגבוה שראה, בפקודה אחת עם הכתיבה.</li>
+<li><strong>בחירת מנהיג:</strong> <code>try</code>, תקופה חדשה, עבודה ב־goroutine, דופק על אותו חיבור. השתלטות אצלי אחרי ___.</li>
+<li><strong>קונצנזוס:</strong> רוב, תקופות, שכפול יומן. etcd ו־ZooKeeper, לא מימוש עצמי.</li>
+<li><strong>סאגה:</strong> צעדים מקומיים, פיצויים בסדר הפוך, אידמפוטנטיים; מה שלא מתבטל אחרון.</li>
+<li><strong>שאלה פתוחה:</strong> ___</li>
+</ul>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">SELECT pg_try_advisory_lock(k)        -- session lock, no wait; true/false
+SELECT pg_advisory_unlock(k)          -- same session only
+SELECT pg_advisory_xact_lock(k)       -- released at COMMIT/ROLLBACK
+pg_locks: (classid::bigint &lt;&lt; 32) | objid::bigint = k, objsubid = 1
+SELECT pg_terminate_backend(pid, 5000)
+pgx: pc, _ := pool.Acquire(ctx); conn := pc.Hijack(); defer conn.Close(ctx)
+Redis: SET key token NX PX ttl ; release = Lua GET==token then DEL  (8.4+: DELEX key IFEQ token)
+fence: INSERT ... ON CONFLICT (name) DO UPDATE ... WHERE t.token &lt;= EXCLUDED.token ; 0 rows = stale
+go run ./cmd/elect -name alpha | -name beta ; kill -9 &lt;leader pid&gt; ; takeover after ___
+saga: do 1..n ; on failure at i: undo i-1..1 with context.WithoutCancel(ctx)
+quorum of 5 = 3, tolerates ___ failures
+</code></pre>
+
+
+</div>
+
+<h2 id="_7">תרגיל</h2>
+<p><strong>מטרה:</strong> לבנות בחירת מנהיג מעל נעילה של PostgreSQL ולראות השתלטות אמיתית, להראות נעילת Redis שמוחזקת
+בידי שניים ולעצור כתיבה מאוחרת באסימון גידור, ולכתוב סאגה מתוזמרת עם פיצויים ובדיקות. <strong>זמן:</strong> שני ימי לימוד, ימים 52 ו־53, כ־55 דקות בנייה ביום 52 וכ־60 ביום 53.
+<strong>ידע מקדים:</strong> סעיפים 18.1 עד 18.4 ליום 52 ו־18.5 עד 18.7 ליום 53;
+פרקים 11 ו־12 למסד ול־Redis.</p>
+<p>הצעדים, קוד ההתחלה, הרמזים והפתרון נמצאים ב־
+<a href="../exercises/ch18-leader/README.md"><code>exercises/ch18-leader/README.md</code></a>.</p>
+<p><strong>קריטריון סיום:</strong></p>
+<ul>
+<li>הבדיקה <code>TestPausedLeaderIsFenced</code> עוברת: כתיבה של מנהיג לשעבר נדחית.</li>
+<li>שני תהליכים של <code>elect</code> רצים, אחד נהרג, והשני משתלט; הלוג של ההשתלטות שמור בפתק.</li>
+<li>בדיקות הסאגה עוברות לכשל בכל צעד, עם הפיצויים הנכונים בסדר הפוך.</li>
+<li>כל הבדיקות ירוקות עם <code>-race</code>, בלי דילוגים.</li>
+<li>כלי העיצוב והניתוח הסטטי שקטים.</li>
+</ul>
+<h2 id="_8">העשרה אופציונלית</h2>
+<table>
+<thead>
+<tr>
+<th>מקור</th>
+<th>למה כדאי</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>„How to do distributed locking” של Martin Kleppmann, 2016</td>
+<td>הטיעון המלא של סעיפים 18.1 עד 18.4</td>
+</tr>
+<tr>
+<td>העמוד „Distributed Locks with Redis” בתיעוד של Redis</td>
+<td>‏Redlock, וקישור לתגובה של מחבר Redis למאמר של Kleppmann</td>
+</tr>
+<tr>
+<td>„In Search of an Understandable Consensus Algorithm” של Ongaro ו־Ousterhout</td>
+<td>המאמר של Raft; בחירת מנהיג ושכפול יומן, קריא בלי רקע פורמלי</td>
+</tr>
+<tr>
+<td>„Sagas” של Garcia-Molina ו־Salem, 1987</td>
+<td>המקור של סעיף 18.7</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>הוסיפי ל־<code>saga</code> שמירת מצב בטבלה של PostgreSQL, והמשך אחרי קריסה: בדיקה שעוצרת את התהליך באמצע וממשיכה.</li>
+<li>הוסיפי ל־<code>redislock</code> נעילה עם <code>DELEX</code> במקום הסקריפט, ובדקי שהיא עובדת מול Redis 8.10.</li>
+</ul>
+</main>
+<nav class="bottom"><a href="index.html">תוכן העניינים</a> · <a href="17-consistency-replication-partitioning.html">← פרק 17: עקביות, שכפול וחלוקה למחיצות</a> · <a href="19-docker-done-right.html">פרק 19: Docker כמו שצריך →</a></nav>
+<script type="module">
+  // Render ```mermaid blocks in the browser (needs internet once; cached afterwards).
+  const blocks = document.querySelectorAll("pre > code.language-mermaid");
+  if (blocks.length) {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs")).default;
+    for (const code of blocks) {
+      const div = document.createElement("div");
+      div.className = "mermaid";
+      div.textContent = code.textContent;
+      code.parentElement.replaceWith(div);
+    }
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run();
+  }
+</script>
+</body>
+</html>

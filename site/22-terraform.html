@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>פרק 22: Terraform</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="top"><a href="index.html">תוכן העניינים</a> · <a href="21-kubernetes-operations-helm.html">← פרק 21: הפעלת Kubernetes ו־Helm</a> · <a href="23-github-actions.html">פרק 23: GitHub Actions →</a></nav>
+<main class="book">
+<div class="toc"><span class="toctitle">תוכן הפרק</span><ul>
+<li><a href="#_1">מה נלמד בפרק</a></li>
+<li><a href="#_2">ידע מקדים</a></li>
+<li><a href="#221">22.1 תשתית כקוד</a></li>
+<li><a href="#222-providers-resources-state">22.2 providers, resources ו־state</a><ul>
+<li><a href="#2221">22.2.1 נעילת גרסאות</a></li>
+<li><a href="#2222-provider-resources">22.2.2 provider ו־resources</a></li>
+<li><a href="#2223-state">22.2.3 מה יש ב־state</a></li>
+</ul>
+</li>
+<li><a href="#223-plan-apply-kind">22.3 plan ו־apply מול kind</a><ul>
+<li><a href="#2231-plan">22.3.1 ה־plan הראשון</a></li>
+<li><a href="#2232-apply">22.3.2 apply, ושינוי אחד</a></li>
+<li><a href="#2233">22.3.3 סטייה</a></li>
+<li><a href="#2234-destroy">22.3.4 destroy</a></li>
+</ul>
+</li>
+<li><a href="#224-outputs">22.4 משתנים, outputs ומודולים</a><ul>
+<li><a href="#2241">22.4.1 משתנים</a></li>
+<li><a href="#2242-outputs">22.4.2 outputs</a></li>
+<li><a href="#2243">22.4.3 מודול מקומי</a></li>
+</ul>
+</li>
+<li><a href="#225-state">22.5 state מרוחק ונעילות</a></li>
+<li><a href="#226-provider-helm">22.6 ה־provider של Helm</a><ul>
+<li><a href="#2261">22.6.1 שתי עובדות שכדאי לבדוק בעצמך</a></li>
+<li><a href="#2262-terraform-releases-helm">22.6.2 מתי Terraform צריך לנהל releases של Helm</a></li>
+</ul>
+</li>
+<li><a href="#227-aws-free-tier">22.7 אופציונלי: AWS free tier</a></li>
+<li><a href="#_3">סיכום</a></li>
+<li><a href="#_4">מונחים לזכור</a></li>
+<li><a href="#_5">טעויות נפוצות</a></li>
+<li><a href="#_6">שאלות ראיון</a></li>
+<li><a href="#obsidian">פתק Obsidian</a></li>
+<li><a href="#_7">תרגיל</a></li>
+<li><a href="#_8">העשרה אופציונלית</a></li>
+</ul>
+</div>
+
+<h1 id="22-terraform">פרק 22: Terraform</h1>
+<p>בפרק 21 יצרת אובייקטים באשכול בפקודות: <code>kubectl apply</code>, <code>helm install</code>. זה עובד כל עוד את זוכרת מה הרצת.
+Terraform מחליף את הזיכרון הזה בקבצים: את כותבת מה צריך להתקיים, הכלי משווה למה שקיים, מראה לך את ההבדל,
+ורק אז משנה. המילה Terraform הופיעה ב־12 מתוך 30 המודעות הבכירות שנבדקו ביד לספר, ובשבע מתוך שמונה מודעות
+ה־DevOps וה־SRE (סעיף 1.4 בקובץ המחקר <code>00-stage1/01-market-research.md</code>). הפרק מריץ אותו מול אשכול kind,
+כך שכל מה שתלמדי רץ באמת ובחינם.</p>
+<h2 id="_1">מה נלמד בפרק</h2>
+<ul>
+<li>מה זה תשתית כקוד, ומה היא נותנת מעבר לסקריפט של פקודות.</li>
+<li>providers, resources ו־state: שלושת המושגים שכל השאר נשען עליהם.</li>
+<li><code>plan</code> ו־<code>apply</code> מול kind: namespace ו־ConfigMap, שינוי אחד, סטייה שנוצרה ביד, ו־<code>destroy</code>.</li>
+<li>משתנים, outputs ומודול מקומי שאפשר להשתמש בו שוב.</li>
+<li>state מרוחק ונעילות: למה צוותים לא שומרים state במחשב, ולמה לא ב־Git.</li>
+<li>ה־provider של Helm: להתקין את ה־chart מפרק 21 דרך Terraform, ומתי לא כדאי.</li>
+<li>אופציונלי: תצורה קטנה ל־AWS, עם אזהרות על עלות.</li>
+</ul>
+<h2 id="_2">ידע מקדים</h2>
+<ul>
+<li>פרק 21: ה־chart של shorty וה־image <code>shorty:ch21</code>. התרגיל מעתיק את ה־chart לתוך מודול, ובונה את ה־image
+  מהתיקייה של תרגיל 21.</li>
+<li>פרק 20: namespaces, ConfigMaps וההקשר <code>kind-…</code> בקובץ <code>~/.kube/config</code>.</li>
+<li>פרק 2, סעיף 2.10: Terraform מותקן בגרסה הנעולה. בהרצה הראשונה של <code>terraform init</code> הוא מוריד providers
+  מהאינטרנט.</li>
+<li>כ־2 GB פנויים במכונה של Docker. האשכול הוא node אחד.</li>
+</ul>
+<h2 id="221">22.1 תשתית כקוד</h2>
+<p>תשתית כקוד (infrastructure as code) פירושה שהמצב הרצוי של התשתית כתוב בקבצים שנמצאים ב־Git, ושכלי אחד
+אחראי להביא את העולם למצב הזה. את המונח „מצב רצוי” פגשת בפרק 20: זה אותו רעיון, מחוץ לאשכול.</p>
+<table>
+<thead>
+<tr>
+<th>דרך</th>
+<th>מה נשמר</th>
+<th>מה קורה בהרצה השנייה</th>
+<th>מי יודע מה קיים</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>פקודות ביד</td>
+<td>כלום, או היסטוריה של shell</td>
+<td>תלוי בזיכרון שלך</td>
+<td>אף אחד</td>
+</tr>
+<tr>
+<td>סקריפט של פקודות</td>
+<td>רצף פעולות</td>
+<td>לרוב נכשל, כי המשאב כבר קיים</td>
+<td>הסקריפט, אם הצליח</td>
+</tr>
+<tr>
+<td>תשתית כקוד</td>
+<td>מצב רצוי</td>
+<td>לא עושה כלום, אם אין הבדל</td>
+<td>הקבצים וה־state</td>
+</tr>
+</tbody>
+</table>
+<p>הטור השלישי הוא העיקר. תצורה של Terraform היא הצהרתית (declarative): היא לא אומרת „צור namespace”, היא אומרת
+„צריך להתקיים namespace בשם הזה”. לכן הרצה שנייה בלי שינוי היא פעולה ריקה, ושינוי של שורה אחת מתורגם לפעולה
+אחת. זו אידמפוטנטיות (פרק 9) של תשתית שלמה.</p>
+<p>התמורה בעבודת צוות היא סקירה. שינוי בתשתית הוא שינוי בקובץ, הוא נסקר ב־pull request כמו קוד, ולפני שמישהו
+מאשר, <code>terraform plan</code> מראה בדיוק מה ייווצר, ישתנה וימחק. זה ההבדל בין „אני חושבת שזה מוסיף רק כלל אחד”
+לבין רשימה כתובה.</p>
+<h2 id="222-providers-resources-state">22.2 providers, resources ו־state</h2>
+<p>שלושה מושגים, וכל אחד מהם הוא שאלת ראיון בפני עצמו:</p>
+<table>
+<thead>
+<tr>
+<th>מושג</th>
+<th>מה הוא</th>
+<th>בתרגיל</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>provider</td>
+<td>תוסף שיודע לדבר עם API אחד ולתרגם resources לקריאות</td>
+<td><code>hashicorp/kubernetes</code>, <code>hashicorp/helm</code></td>
+</tr>
+<tr>
+<td>resource</td>
+<td>אובייקט אחד שהתצורה מצהירה עליו</td>
+<td><code>kubernetes_namespace_v1</code>, <code>helm_release</code></td>
+</tr>
+<tr>
+<td>state</td>
+<td>קובץ JSON שבו Terraform זוכר מה הוא יצר ואיך זה נראה בפעם האחרונה</td>
+<td><code>terraform.tfstate</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="2221">22.2.1 נעילת גרסאות</h3>
+<p>כל תצורה מתחילה בהצהרה אילו providers היא צריכה ובאיזו גרסה. זה הקובץ <code>solution/part1/versions.tf</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-hcl">terraform {
+  required_version = &quot;&gt;= 1.16.0&quot;
+
+  required_providers {
+    kubernetes = {
+      source  = &quot;hashicorp/kubernetes&quot;
+      version = &quot;3.3.0&quot; # exact pin; .terraform.lock.hcl records the checksums
+    }
+  }
+}
+</code></pre>
+
+
+</div>
+
+<p>הפקודה <code>terraform init</code> מורידה את ה־provider וכותבת את הקובץ <code>.terraform.lock.hcl</code> עם הטביעות שלו. את קובץ
+הנעילה מכניסים ל־Git, בדיוק כמו <code>go.sum</code>. בקובץ שבתרגיל יש טביעות לארבע פלטפורמות, כדי שאותו קובץ יעבוד גם
+ב־WSL2 וגם ב־Mac; כך מפיקים אותו:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">terraform providers lock -platform=linux_amd64 -platform=linux_arm64 -platform=darwin_arm64 -platform=darwin_amd64
+</code></pre>
+
+
+</div>
+
+<h3 id="2222-provider-resources">22.2.2 provider ו־resources</h3>
+<p>זה הקובץ <code>solution/part1/main.tf</code> כולו:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-hcl"># Day 64: the kubernetes provider against the kind cluster &quot;ch22&quot;.
+
+provider &quot;kubernetes&quot; {
+  config_path    = var.kubeconfig
+  config_context = var.kube_context
+}
+
+resource &quot;kubernetes_namespace_v1&quot; &quot;demo&quot; {
+  metadata {
+    name = var.namespace
+    labels = {
+      &quot;app.kubernetes.io/managed-by&quot; = &quot;terraform&quot;
+    }
+  }
+}
+
+resource &quot;kubernetes_config_map_v1&quot; &quot;settings&quot; {
+  metadata {
+    name      = &quot;shorty-settings&quot;
+    namespace = kubernetes_namespace_v1.demo.metadata[0].name # a reference: Terraform creates the namespace first
+  }
+
+  data = {
+    SHORTY_BASE_URL  = &quot;http://localhost:8080&quot;
+    SHORTY_LOG_LEVEL = var.log_level
+  }
+}
+</code></pre>
+
+
+</div>
+
+<p>לכל resource שני שמות: הסוג (<code>kubernetes_config_map_v1</code>), שקובע ה־provider, והשם המקומי (<code>settings</code>), שקובעת
+את. יחד הם הכתובת שלו בתצורה ובקובץ ה־state.</p>
+<p>השורה עם ההערה היא הרעיון החשוב בקובץ. ה־ConfigMap לא כותב את שם ה־namespace; הוא מפנה ל־resource של
+ה־namespace. מההפניות Terraform בונה גרף תלויות, ומהגרף הוא גוזר את הסדר: קודם namespace, אחר כך ConfigMap,
+וב־destroy בסדר ההפוך. אילו כתבת את המחרוזת, שני ה־resources היו נוצרים במקביל, וה־ConfigMap היה נכשל לפעמים.</p>
+<blockquote>
+<p><strong>שימי לב:</strong> בגרסה 3 של ה־provider של Kubernetes, השמות בלי הסיומת <code>_v1</code> הוצאו משימוש, למשל
+<code>kubernetes_namespace</code> ו־<code>kubernetes_config_map</code>. דוגמאות ישנות ברשת משתמשות בהם. השתמשי בשמות עם <code>_v1</code>
+(נכון לאוקטובר 2026; ראי נספח ג).</p>
+</blockquote>
+<h3 id="2223-state">22.2.3 מה יש ב־state</h3>
+<p>אחרי <code>apply</code> נוצר בתיקייה הקובץ <code>terraform.tfstate</code>. ההתחלה שלו, מההרצה של הכותב:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">{
+  &quot;version&quot;: 4,
+  &quot;terraform_version&quot;: &quot;1.16.5&quot;,
+  &quot;serial&quot;: 3,
+  &quot;lineage&quot;: &quot;fa78b475-aa68-b7ca-786b-47aab616e6c1&quot;,
+  &quot;outputs&quot;: {
+    &quot;config_map&quot;: {
+      &quot;value&quot;: &quot;tf-demo/shorty-settings&quot;,
+</code></pre>
+
+
+</div>
+
+<p>ה־state מקשר כל כתובת בתצורה לאובייקט אמיתי: הכתובת <code>kubernetes_namespace_v1.demo</code> היא ה־namespace
+<code>tf-demo</code>, עם ה־uid שלו. בלי הקישור הזה Terraform לא יודע שהוא יצר את ה־namespace. הוא ינסה ליצור אותו שוב
+ויקבל „already exists”, או גרוע מזה, ישכח שהוא קיים ולא ימחק אותו לעולם. <strong>לאבד state פירושו לאבד את הבעלות
+על התשתית.</strong></p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">terraform state list
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">kubernetes_config_map_v1.settings
+kubernetes_namespace_v1.demo
+</code></pre>
+
+
+</div>
+
+<blockquote>
+<p><strong>טעות נפוצה:</strong> להכניס את <code>terraform.tfstate</code> ל־Git. הקובץ מכיל כל ערך של כל resource, כולל סודות בטקסט
+גלוי (סיסמה של מסד נתונים, למשל), ושתי מפתחות שעובדות במקביל על עותקים שונים שלו דורסות זו את זו. הקובץ
+<code>.gitignore</code> של מאגר הקורס מתעלם ממנו; סעיף 22.5 מראה איפה כן שומרים אותו.</p>
+</blockquote>
+<h2 id="223-plan-apply-kind">22.3 plan ו־apply מול kind</h2>
+<p>הסדר תמיד זהה, וכדאי להכיר כל צעד:</p>
+<table>
+<thead>
+<tr>
+<th>פקודה</th>
+<th>מה היא עושה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>terraform init</code></td>
+<td>מורידה providers, מאתחלת את ה־backend של ה־state</td>
+</tr>
+<tr>
+<td><code>terraform fmt -check</code></td>
+<td>בודקת עיצוב אחיד, בלי לשנות; בלי <code>-check</code> היא מתקנת</td>
+</tr>
+<tr>
+<td><code>terraform validate</code></td>
+<td>בודקת תחביר והפניות, בלי לפנות לשום API</td>
+</tr>
+<tr>
+<td><code>terraform plan</code></td>
+<td>קוראת את המצב האמיתי, משווה לתצורה ול־state, ומדפיסה את ההבדל</td>
+</tr>
+<tr>
+<td><code>terraform apply</code></td>
+<td>מחשבת plan, מחכה לאישור, ומבצעת</td>
+</tr>
+<tr>
+<td><code>terraform destroy</code></td>
+<td>מוחקת את כל מה שב־state</td>
+</tr>
+</tbody>
+</table>
+<h3 id="2231-plan">22.3.1 ה־plan הראשון</h3>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">kind create cluster --config data/kind-config.yaml
+cd ~/senior-course/ch22/part1
+terraform init
+terraform plan
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">  # kubernetes_config_map_v1.settings will be created
+  + resource &quot;kubernetes_config_map_v1&quot; &quot;settings&quot; {
+      + data = {
+          + &quot;SHORTY_BASE_URL&quot;  = &quot;http://localhost:8080&quot;
+          + &quot;SHORTY_LOG_LEVEL&quot; = &quot;info&quot;
+        }
+      + id   = (known after apply)
+...
+Plan: 2 to add, 0 to change, 0 to destroy.
+
+Changes to Outputs:
+  + config_map = &quot;tf-demo/shorty-settings&quot;
+  + namespace  = &quot;tf-demo&quot;
+</code></pre>
+
+
+</div>
+
+<p>הסימן <code>+</code> הוא יצירה, <code>~</code> שינוי במקום, <code>-</code> מחיקה, ו־<code>-/+</code> מחיקה ויצירה מחדש. האחרון הוא זה שצריך לחפש בכל
+סקירה: שינוי בשדה שה־API לא מרשה לשנות גורם להחלפה, ולמסד נתונים החלפה היא אובדן הנתונים. הערך
+<code>(known after apply)</code> אומר שהשרת יקבע אותו, למשל <code>uid</code>.</p>
+<h3 id="2232-apply">22.3.2 apply, ושינוי אחד</h3>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">terraform apply
+terraform plan -var log_level=debug
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">  # kubernetes_config_map_v1.settings will be updated in-place
+  ~ resource &quot;kubernetes_config_map_v1&quot; &quot;settings&quot; {
+      ~ data        = {
+          ~ &quot;SHORTY_LOG_LEVEL&quot; = &quot;info&quot; -&gt; &quot;debug&quot;
+            # (1 unchanged element hidden)
+        }
+        id          = &quot;tf-demo/shorty-settings&quot;
+...
+Plan: 0 to add, 1 to change, 0 to destroy.
+</code></pre>
+
+
+</div>
+
+<p>שינית ערך אחד, וה־plan מראה בדיוק שינוי אחד, במקום. זה מה שהופך את ה־plan לשימושי בסקירה: הוא לא מראה את
+כל הקובץ, רק את ההבדל. ובלי שינוי בכלל, <code>terraform plan -detailed-exitcode</code> מסתיים בקוד 0, ובקוד 2 כשיש
+הבדל. כך CI בודק שאין שינויים מחוץ לקוד.</p>
+<blockquote>
+<p><strong>שימי לב:</strong> ה־plan שמודפס ב־<code>plan</code> הוא תצוגה. ה־<code>apply</code> מחשב plan חדש, וזה יכול להיות שונה אם מישהו שינה
+משהו בינתיים. בצוות שומרים את ה־plan לקובץ, <code>terraform plan -out=tfplan</code>, ומבצעים בדיוק אותו עם
+<code>terraform apply tfplan</code>.</p>
+</blockquote>
+<h3 id="2233">22.3.3 סטייה</h3>
+<p>סטייה (drift) היא הבדל בין העולם לתצורה שנוצר מחוץ ל־Terraform. התרגיל יוצר אחת: הוא משנה את ה־ConfigMap
+ב־<code>kubectl edit</code> ומוסיף מפתח. עכשיו ה־plan, בלי שום שינוי בקבצים:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">  # kubernetes_config_map_v1.settings will be updated in-place
+  ~ resource &quot;kubernetes_config_map_v1&quot; &quot;settings&quot; {
+      ~ data        = {
+          - &quot;EXTRA&quot;            = &quot;by-hand&quot; -&gt; null
+          ~ &quot;SHORTY_LOG_LEVEL&quot; = &quot;error&quot; -&gt; &quot;info&quot;
+            # (1 unchanged element hidden)
+        }
+...
+Plan: 0 to add, 1 to change, 0 to destroy.
+</code></pre>
+
+
+</div>
+
+<p>Terraform מציע להחזיר את המצב לתצורה: למחוק את המפתח שנוסף ולהחזיר את הערך. זו ההגנה: שינוי ידני לא
+שורד את ה־apply הבא. ואם השינוי הידני היה נכון, למשל תיקון בזמן תקרית, מעבירים אותו לקובץ לפני ה־apply,
+אחרת הוא יימחק. אם רוצים רק לראות מה השתנה בלי להציע תיקון, יש מצב נפרד:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">terraform plan -refresh-only
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">Note: Objects have changed outside of Terraform
+
+Terraform detected the following changes made outside of Terraform since the
+last &quot;terraform apply&quot; which may have affected this plan:
+</code></pre>
+
+
+</div>
+
+<h3 id="2234-destroy">22.3.4 destroy</h3>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">terraform destroy
+kubectl get namespace tf-demo
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">Destroy complete! Resources: 2 destroyed.
+Error from server (NotFound): namespaces &quot;tf-demo&quot; not found
+</code></pre>
+
+
+</div>
+
+<p>הסדר היה הפוך ליצירה, לפי אותו גרף. וה־state נשאר, ריק: Terraform זוכר שהוא כבר לא אחראי לכלום.</p>
+<h2 id="224-outputs">22.4 משתנים, outputs ומודולים</h2>
+<h3 id="2241">22.4.1 משתנים</h3>
+<p>משתנה (variable) הוא קלט של התצורה. יש לו סוג, תיאור, ברירת מחדל אם רוצים, וכלל אימות. מהקובץ
+<code>solution/part1/variables.tf</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-hcl">variable &quot;log_level&quot; {
+  description = &quot;Value of SHORTY_LOG_LEVEL in the ConfigMap.&quot;
+  type        = string
+  default     = &quot;info&quot;
+
+  validation {
+    condition     = contains([&quot;debug&quot;, &quot;info&quot;, &quot;warn&quot;, &quot;error&quot;], var.log_level)
+    error_message = &quot;The log_level must be one of debug, info, warn, error.&quot;
+  }
+}
+</code></pre>
+
+
+</div>
+
+<p>כלל האימות הוא אותו רעיון כמו סכמת ה־values בסעיף 21.7: ערך שגוי נעצר ב־plan, לפני שמשהו משתנה. יש כמה דרכים
+לתת ערך, מהחלשה לחזקה:</p>
+<table>
+<thead>
+<tr>
+<th>מקור</th>
+<th>דוגמה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ברירת המחדל בהגדרה</td>
+<td><code>default = "info"</code></td>
+</tr>
+<tr>
+<td>קובץ <code>terraform.tfvars</code>, שנטען אוטומטית</td>
+<td><code>log_level = "debug"</code></td>
+</tr>
+<tr>
+<td>משתנה סביבה</td>
+<td><code>TF_VAR_log_level=debug</code></td>
+</tr>
+<tr>
+<td>דגל בשורת הפקודה</td>
+<td><code>-var log_level=debug</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="2242-outputs">22.4.2 outputs</h3>
+<p>output הוא פלט של התצורה: ערך ש־Terraform מדפיס אחרי apply, ושמודול אחר או סקריפט יכולים לקרוא. מהקובץ
+<code>solution/part1/outputs.tf</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-hcl">output &quot;config_map&quot; {
+  description = &quot;Namespace and name of the ConfigMap, as kubectl expects them.&quot;
+  value       = &quot;${kubernetes_config_map_v1.settings.metadata[0].namespace}/${kubernetes_config_map_v1.settings.metadata[0].name}&quot;
+}
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">terraform output -raw config_map
+</code></pre>
+
+
+</div>
+
+<h3 id="2243">22.4.3 מודול מקומי</h3>
+<p>מודול (module) הוא תיקייה של קבצי Terraform. כל תצורה היא מודול, שנקרא מודול השורש; מודול שהשורש קורא לו
+מקבל משתנים, יוצר resources ומחזיר outputs, כמו פונקציה. בחלק השני של התרגיל המודול <code>modules/shorty</code> יוצר
+namespace ומתקין לתוכו את ה־chart. כך השורש קורא לו, בקובץ <code>solution/part2/main.tf</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-hcl">module &quot;shorty&quot; {
+  source = &quot;./modules/shorty&quot;
+
+  namespace = var.namespace
+  replicas  = var.replicas
+  log_level = var.log_level
+  image_tag = var.image_tag
+}
+</code></pre>
+
+
+</div>
+
+<p>המודול מצהיר אילו providers הוא צריך, אבל לא מגדיר אותם; את החיבור לאשכול קובע השורש. כך אותו מודול עובד מול
+kind, מול אשכול בדיקות ומול ייצור, בלי שינוי. מהקובץ <code>modules/shorty/versions.tf</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-hcl"># A module declares the providers it needs; the root module configures them.
+terraform {
+  required_providers {
+    kubernetes = {
+      source = &quot;hashicorp/kubernetes&quot;
+    }
+    helm = {
+      source = &quot;hashicorp/helm&quot;
+    }
+  }
+}
+</code></pre>
+
+
+</div>
+
+<p>ב־state הכתובות של resources בתוך מודול מקבלות קידומת:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">module.shorty.helm_release.shorty
+module.shorty.kubernetes_namespace_v1.this
+</code></pre>
+
+
+</div>
+
+<blockquote>
+<p><strong>איך Rust עושה את זה:</strong> מודול של Terraform דומה ל־crate עם ממשק ציבורי צר: המשתנים הם הפרמטרים,
+ה־outputs הם ערכי ההחזרה, וה־resources בפנים הם פרטי מימוש. כמו ב־Rust, שינוי בשם של משתנה הוא שינוי
+שובר לכל מי שקורא למודול, ולכן מודולים משותפים מקבלים גרסאות.</p>
+</blockquote>
+<p>מתי לא לכתוב מודול? כשיש קורא אחד. מודול עם קורא יחיד הוא שכבת עקיפה בלי תמורה, אותו כלל כמו בקוד. בתרגיל
+המודול מוצדק כי הוא אורז החלטה אחת שחוזרת: „shorty הוא namespace ו־release יחד”.</p>
+<h2 id="225-state">22.5 state מרוחק ונעילות</h2>
+<p>ה־state בתרגיל הוא קובץ מקומי. הקובץ <code>solution/part2/backend.tf</code> כותב את זה במפורש, כדי שהמיקום יהיה
+החלטה שרואים:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-hcl">terraform {
+  backend &quot;local&quot; {
+    path = &quot;state/terraform.tfstate&quot;
+  }
+}
+</code></pre>
+
+
+</div>
+
+<p>ה־backend הוא המקום שבו ה־state נשמר. במחשב אחד, local מספיק. בצוות הוא נשבר בשלוש דרכים:</p>
+<table>
+<thead>
+<tr>
+<th>בעיה</th>
+<th>מה קורה</th>
+<th>מה פותר</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>כל אחד עם עותק משלו</td>
+<td>שתיים מריצות apply על states שונים, ושתיהן חושבות שהן צודקות</td>
+<td>state אחד, במקום משותף</td>
+</tr>
+<tr>
+<td>שתי הרצות באותו רגע</td>
+<td>שתיהן קוראות, שתיהן כותבות, והשנייה דורסת</td>
+<td>נעילה (lock) לפני כל כתיבה</td>
+</tr>
+<tr>
+<td>המחשב נגנב או נמחק</td>
+<td>אין יותר קישור בין הקוד לתשתית</td>
+<td>אחסון עמיד עם גרסאות</td>
+</tr>
+</tbody>
+</table>
+<p>backend מרוחק, כמו S3, פותר את שלושתן: הקובץ במקום משותף, לכל ריצה נלקחת נעילה, והאחסון שומר גרסאות קודמות.
+נכון לאוקטובר 2026, בתיעוד של Terraform ה־backend של S3 תומך בנעילה בתוך S3 עצמו, עם הארגומנט
+<code>use_lockfile</code>. הנעילה הישנה דרך DynamoDB מסומנת שם כמיושנת ותוסר בגרסה עתידית. דוגמה ל־backend כזה נמצאת
+בסעיף 22.7, כי היא דורשת חשבון ענן.</p>
+<p>נעילה היא לא תחליף לתהליך. גם עם נעילה, שני אנשים שמריצים apply מענפים שונים, זה אחר זה, דורסים זה את
+השינויים של זה בתורות. לכן בצוותים apply רץ ממקום אחד, בדרך כלל CI אחרי מיזוג, ו־plan רץ על כל pull request
+(פרק 23).</p>
+<blockquote>
+<p><strong>שימי לב:</strong> הנעילה נלקחת בכל פקודה שכותבת, וגם ב־plan. ריצה שנקטעה באמצע משאירה נעילה תקועה, והפקודה
+<code>terraform force-unlock</code> משחררת אותה. מריצים אותה רק אחרי שווידאת שאף אחד אחר לא באמצע ריצה.</p>
+</blockquote>
+<h2 id="226-provider-helm">22.6 ה־provider של Helm</h2>
+<p>הסעיף מחבר את שני הפרקים: ה־chart מפרק 21 מותקן כ־resource של Terraform. קודם ההגדרה של ה־provider, בקובץ
+<code>solution/part2/providers.tf</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-hcl">provider &quot;kubernetes&quot; {
+  config_path    = var.kubeconfig
+  config_context = var.kube_context
+}
+
+# Helm provider v3: &quot;kubernetes&quot; is an attribute that takes an object (= { }),
+# not a nested block as in provider v2.
+provider &quot;helm&quot; {
+  kubernetes = {
+    config_path    = var.kubeconfig
+    config_context = var.kube_context
+  }
+}
+</code></pre>
+
+
+</div>
+
+<p>סימן השוויון לפני הסוגריים הוא כל ההבדל, והוא שובר את רוב הדוגמאות ברשת. מדריך השדרוג לגרסה 3 של
+ה־provider, במאגר שלו, מסביר שהמעבר ל־Plugin Framework הפך בלוקים מקוננים לאובייקטים: <code>kubernetes</code> הוא עכשיו
+אובייקט, <code>registry</code> הפך לרשימה בשם <code>registries</code>, ו־<code>set</code> ב־<code>helm_release</code> הוא רשימה של אובייקטים.</p>
+<p>ה־resource עצמו, בקובץ <code>modules/shorty/main.tf</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-hcl">resource &quot;helm_release&quot; &quot;shorty&quot; {
+  name      = var.release_name
+  namespace = kubernetes_namespace_v1.this.metadata[0].name
+  chart     = &quot;${path.module}/chart&quot; # a local path, not a repository
+
+  # Values as one YAML document, exactly like a -f file for helm install.
+  values = [yamlencode({
+    replicaCount = var.replicas
+    image        = { tag = var.image_tag }
+    config       = { logLevel = var.log_level }
+  })]
+
+  wait    = true # apply returns only when the pods are ready
+  timeout = 120  # seconds
+}
+</code></pre>
+
+
+</div>
+
+<p>הביטוי <code>path.module</code> הוא התיקייה של המודול, כך שה־chart נמצא בלי קשר למקום שממנו מריצים. הפונקציה <code>yamlencode</code>
+הופכת אובייקט של Terraform לקובץ values, והסכמה מסעיף 21.7 בודקת אותו כרגיל. אחרי apply אחד:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">Apply complete! Resources: 2 added, 0 changed, 0 destroyed.
+
+Outputs:
+
+namespace = &quot;shorty-tf&quot;
+port_forward = &quot;kubectl -n shorty-tf port-forward svc/shorty 8080:80&quot;
+release = {
+  &quot;chart&quot; = &quot;shorty-0.1.0&quot;
+  &quot;name&quot; = &quot;shorty&quot;
+  &quot;revision&quot; = 1
+}
+</code></pre>
+
+
+</div>
+
+<p>ו־<code>helm list -n shorty-tf</code> מראה release רגיל. Terraform לא עוקף את Helm; הוא משתמש בו כספרייה.</p>
+<h3 id="2261">22.6.1 שתי עובדות שכדאי לבדוק בעצמך</h3>
+<p>הראשונה: ה־provider מכיל ספרייה של Helm, לא את הקובץ שהתקנת. בקובץ <code>go.mod</code> של ה־provider בגרסה 3.3.0 התלות
+היא <code>helm.sh/helm/v3</code>, כלומר Helm 3. ההבדל נראה באשכול: הפעם השדה <code>managedFields</code> מראה <code>Update</code> ולא <code>Apply</code>,
+כלומר החלה בצד הלקוח, ולא server-side apply כמו ב־<code>helm install</code> של Helm 4 בסעיף 21.6.</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">terraform-provider-helm_v3.3.0_x5 Update
+kube-controller-manager Update
+</code></pre>
+
+
+</div>
+
+<p>השנייה חשובה יותר. התרגיל משנה את מספר העותקים ביד, ואז מריץ plan:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">kubectl -n shorty-tf scale deploy shorty --replicas=4
+terraform plan
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">No changes. Your infrastructure matches the configuration.
+</code></pre>
+
+
+</div>
+
+<p>ה־resource הוא ה־release, ומבחינת Helm ה־release לא השתנה. מה שקורה בתוך האובייקטים שה־chart יצר בלתי נראה
+ל־plan. זה ההבדל מה־ConfigMap של סעיף 22.3, שבו Terraform ניהל את האובייקט עצמו וראה כל סטייה.</p>
+<h3 id="2262-terraform-releases-helm">22.6.2 מתי Terraform צריך לנהל releases של Helm</h3>
+<table>
+<thead>
+<tr>
+<th>מתאים</th>
+<th>פחות מתאים</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>רכיבי תשתית שנפרסים יחד עם האשכול: metrics-server, בקר ingress, operator</td>
+<td>שירותים שמשתנים כמה פעמים ביום</td>
+</tr>
+<tr>
+<td>כשה־release תלוי בערכים שנוצרים באותה ריצה, כמו כתובת של מסד נתונים</td>
+<td>כשצריך זיהוי סטייה בתוך האשכול</td>
+</tr>
+<tr>
+<td>סביבה שלמה שקמה ונמחקת בפקודה אחת, כמו בתרגיל</td>
+<td>כשצוות האפליקציה פורס בעצמו, בקצב שלו</td>
+</tr>
+</tbody>
+</table>
+<p>הכלל המעשי: Terraform מנהל את הבמה, וכלי פריסה של Kubernetes, Helm מ־CI או כלי GitOps, מנהלים את מה שרץ
+עליה. שני כלים שמנהלים אותו אובייקט הם מתכון לסטייה שאף אחד מהם לא רואה.</p>
+<h2 id="227-aws-free-tier">22.7 אופציונלי: AWS free tier</h2>
+<blockquote>
+<p><strong>שימי לב:</strong> הסעיף הזה אופציונלי לגמרי, ואפשר לדלג עליו בלי לפספס שום דבר בהמשך הספר. <strong>הכותב לא הריץ את
+התצורה הזאת מול AWS.</strong> היא עברה <code>terraform fmt -check</code> ו־<code>terraform validate</code> בלבד. חשבון ענן יכול לעלות
+כסף, וזו הפעם היחידה בספר שהוא מופיע.</p>
+</blockquote>
+<p>לפני כל דבר אחר, אם את בוחרת לנסות:</p>
+<ul>
+<li><strong>תקציב והתראה קודם.</strong> במסוף של AWS, תחת Billing, צרי תקציב (budget) חודשי קטן עם התראה בדואר. עשי את זה
+  לפני ה־apply הראשון, לא אחריו.</li>
+<li><strong>בדקי את תנאי ה־free tier בעמוד של AWS ביום שאת מתחילה.</strong> התנאים משתנים; הספר לא מצטט אותם כעובדה.</li>
+<li><strong>משתמש עם הרשאות מינימליות</strong>, לא משתמש ה־root של החשבון, ומפתחות שלא נכנסים ל־Git.</li>
+<li><strong><code>terraform destroy</code> באותו יום.</strong> משאב ששכחת הוא המקור הנפוץ לחשבונית מפתיעה.</li>
+</ul>
+<p>התצורה בתיקייה <code>solution/optional-aws</code> יוצרת דלי (bucket) אחד ב־S3: פרטי, עם גרסאות, מוצפן, וחסום לגישה
+ציבורית. זה בדיוק הדלי שצוות היה שומר בו state. ההגנה על הגישה הציבורית, מהקובץ <code>main.tf</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-hcl">resource &quot;aws_s3_bucket_public_access_block&quot; &quot;state&quot; {
+  bucket                  = aws_s3_bucket.state.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+</code></pre>
+
+
+</div>
+
+<p>והקובץ <code>backend-s3.tf.example</code> מראה איך תצורה אחרת שומרת את ה־state שלה בדלי, עם נעילה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-hcl">terraform {
+  backend &quot;s3&quot; {
+    bucket       = &quot;senior-course-tfstate-change-me&quot;
+    key          = &quot;ch22/terraform.tfstate&quot;
+    region       = &quot;eu-central-1&quot;
+    use_lockfile = true # a lock object next to the state; DynamoDB locking is deprecated
+    encrypt      = true
+  }
+}
+</code></pre>
+
+
+</div>
+
+<p>הקובץ נקרא <code>.example</code> כדי ש־Terraform לא יטען אותו. כדי לבדוק את התצורה בלי חשבון בכלל:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">cd ~/senior-course/ch22/optional-aws
+terraform init -backend=false
+terraform validate
+</code></pre>
+
+
+</div>
+
+<p>שימי לב לבעיית הביצה והתרנגולת: הדלי של ה־state נוצר בעצמו בתצורה עם state מקומי. רוב הצוותים יוצרים אותו
+פעם אחת כך, ומשם כל שאר התצורות משתמשות בו.</p>
+<h2 id="_3">סיכום</h2>
+<ul>
+<li>תשתית כקוד: מצב רצוי בקבצים, שינוי נסקר כמו קוד, והרצה שנייה בלי שינוי לא עושה כלום.</li>
+<li>provider מדבר עם API; resource הוא אובייקט מוצהר; state הוא הקישור בין הכתובות בתצורה לאובייקטים
+  אמיתיים.</li>
+<li>הפניות בין resources בונות גרף, והגרף קובע את הסדר ביצירה ובמחיקה.</li>
+<li><code>plan</code> מראה בדיוק את ההבדל; <code>-/+</code> הוא החלפה, וזה מה שמחפשים בסקירה.</li>
+<li>שינוי ידני מתגלה כסטייה ב־plan הבא, וה־apply מחזיר אותו לתצורה.</li>
+<li>משתנים עם סוג ואימות, outputs, ומודול שמצהיר על providers אבל לא מגדיר אותם.</li>
+<li>state לא נכנס ל־Git: יש בו סודות, ואין בו נעילה. בצוות, backend מרוחק עם נעילה ו־apply ממקום אחד.</li>
+<li>ה־provider של Helm בגרסה 3: <code>kubernetes = { }</code>; הוא מכיל את Helm 3 כספרייה, ולא רואה סטייה בתוך release.</li>
+</ul>
+<h2 id="_4">מונחים לזכור</h2>
+<table>
+<thead>
+<tr>
+<th>מונח בעברית</th>
+<th>באנגלית</th>
+<th>במשפט אחד</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>תשתית כקוד</td>
+<td>infrastructure as code</td>
+<td>מצב רצוי של תשתית בקבצים, שכלי אחד מממש</td>
+</tr>
+<tr>
+<td>הצהרתי</td>
+<td>declarative</td>
+<td>מתאר מה צריך להתקיים, לא אילו פקודות להריץ</td>
+</tr>
+<tr>
+<td>provider</td>
+<td>provider</td>
+<td>תוסף שמתרגם resources לקריאות של API אחד</td>
+</tr>
+<tr>
+<td>resource</td>
+<td>resource</td>
+<td>אובייקט אחד שהתצורה מצהירה עליו</td>
+</tr>
+<tr>
+<td>state</td>
+<td>state</td>
+<td>הקישור בין כתובות בתצורה לאובייקטים אמיתיים</td>
+</tr>
+<tr>
+<td>backend</td>
+<td>backend</td>
+<td>המקום שבו ה־state נשמר ונעול</td>
+</tr>
+<tr>
+<td>plan</td>
+<td>plan</td>
+<td>ההבדל בין התצורה למצב האמיתי, לפני שמשהו משתנה</td>
+</tr>
+<tr>
+<td>apply</td>
+<td>apply</td>
+<td>ביצוע ה־plan</td>
+</tr>
+<tr>
+<td>סטייה</td>
+<td>drift</td>
+<td>הבדל בין העולם לתצורה שנוצר מחוץ לכלי</td>
+</tr>
+<tr>
+<td>גרף תלויות</td>
+<td>dependency graph</td>
+<td>הסדר ש־Terraform גוזר מההפניות בין resources</td>
+</tr>
+<tr>
+<td>משתנה</td>
+<td>variable</td>
+<td>קלט של תצורה או מודול</td>
+</tr>
+<tr>
+<td>output</td>
+<td>output</td>
+<td>פלט של תצורה או מודול</td>
+</tr>
+<tr>
+<td>module</td>
+<td>module</td>
+<td>תיקייה של קבצי Terraform עם קלט ופלט</td>
+</tr>
+<tr>
+<td>נעילה</td>
+<td>lock</td>
+<td>מניעה של שתי ריצות כותבות על אותו state</td>
+</tr>
+<tr>
+<td>קובץ נעילת גרסאות</td>
+<td>dependency lock file</td>
+<td>הקובץ <code>.terraform.lock.hcl</code> עם הטביעות של ה־providers</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_5">טעויות נפוצות</h2>
+<ul>
+<li><strong>state ב־Git.</strong> סודות בטקסט גלוי ודריסות בין עותקים. משתמשים ב־backend מרוחק עם נעילה.</li>
+<li><strong>לכתוב שם של resource כמחרוזת במקום הפניה.</strong> Terraform לא יודע על התלות, והסדר נעשה אקראי.</li>
+<li><strong>apply בלי לקרוא את ה־plan.</strong> שורת <code>-/+</code> אחת על מסד נתונים היא מחיקה של הנתונים.</li>
+<li><strong>תיקון ידני בזמן תקרית שלא עובר לקובץ.</strong> ה־apply הבא מבטל אותו בשקט.</li>
+<li><strong>בלוק <code>kubernetes { }</code> ב־provider של Helm בגרסה 3.</strong> השגיאה היא „Unsupported block type”. הכתיב הוא
+  <code>kubernetes = { }</code>.</li>
+<li><strong>להניח ש־Terraform רואה כל שינוי באשכול.</strong> שינוי בתוך release של Helm לא מופיע ב־plan.</li>
+</ul>
+<h2 id="_6">שאלות ראיון</h2>
+<ol>
+<li>
+<p><strong>מה ה־state של Terraform, ולמה לאבד אותו מסוכן?</strong> זה הקישור בין כל כתובת בתצורה לאובייקט אמיתי, עם
+   המאפיינים שלו מהקריאה האחרונה. בלעדיו Terraform לא יודע מה הוא יצר: הוא ינסה ליצור שוב ויתנגש, או שלא
+   ימחק משאבים שעדיין עולים כסף. אפשר לשחזר בעזרת <code>terraform import</code> משאב אחרי משאב, אבל זה ידני וארוך. לכן
+   ה־state נשמר באחסון עמיד עם גרסאות, וגישה אליו מוגבלת, כי יש בו גם סודות.</p>
+</li>
+<li>
+<p><strong>למה צוותים שומרים state מרוחק עם נעילה?</strong> שלוש סיבות: אמת אחת במקום עותק לכל אחד, נעילה שמונעת משתי
+   ריצות לכתוב יחד, ואחסון שלא תלוי במחשב של מישהו. נעילה פותרת התנגשות בזמן, לא התנגשות בתוכן: שני ענפים
+   שמוחלים זה אחר זה עדיין דורסים. לכן apply רץ ממקום אחד אחרי מיזוג, ו־plan רץ על כל pull request.</p>
+</li>
+</ol>
+<p><strong>המשך:</strong> מה קורה כשריצה נקטעת ומשאירה נעילה? הנעילה נשארת, וכל ריצה אחרת נכשלת. משחררים עם
+   <code>terraform force-unlock</code> עם מזהה הנעילה, ורק אחרי שבדקת שאין ריצה אחרת חיה.</p>
+<ol start="3">
+<li>
+<p><strong>איך תקראי plan לפני שאת מאשרת אותו?</strong> קודם השורה התחתונה: כמה נוספים, משתנים ונמחקים, והאם זה תואם
+   לשינוי שציפיתי לו. אחר כך כל <code>-/+</code> וכל <code>-</code>: למה הוחלף, ואם יש בו נתונים. אחר כך ערכים רגישים ושינויים
+   בהרשאות. ולבסוף שינויים שלא ביקשתי, שמסמנים סטייה: מישהו שינה ביד, וה־apply יבטל את זה. plan ששמור לקובץ
+   מבטיח שמה שאושר הוא מה שיבוצע.</p>
+</li>
+<li>
+<p><strong>מתי Terraform צריך לנהל release של Helm, ומתי לא?</strong> כן, לרכיבי תשתית שנפרסים עם האשכול ותלויים
+   בערכים מאותה ריצה, כמו בקר ingress או operator. לא, לשירותים שמשתנים כמה פעמים ביום, שם הקצב של Terraform
+   והסקירה שלו מאטים. ויש מגבלה טכנית: ה־plan רואה את ה־release, לא את האובייקטים שבתוכו, ולכן הוא לא יגלה
+   שמישהו שינה Deployment ביד. החלוקה הנפוצה: Terraform לבמה, כלי פריסה של Kubernetes לאפליקציות.</p>
+</li>
+<li>
+<p><strong>מתי כדאי לכתוב מודול?</strong> כשיש החלטה שחוזרת יותר מפעם אחת, וכשאפשר לתת לה ממשק צר: מעט משתנים, outputs
+   ברורים, ובלי הגדרת providers בפנים. לא, כשיש קורא אחד, או כשהמודול רק עוטף resource אחד ומעביר את כל
+   המאפיינים שלו. מודול משותף הוא API: שינוי בשם של משתנה שובר את כל הקוראים, ולכן הוא מקבל גרסאות.</p>
+</li>
+</ol>
+<h2 id="obsidian">פתק Obsidian</h2>
+<p>הפתק המוכן נמצא גם כקובץ: <code>obsidian/22-terraform.md</code>. זה תוכנו:</p>
+<ul>
+<li><strong>תשתית כקוד:</strong> מצב רצוי בקבצים; נסקר כמו קוד; הרצה שנייה בלי שינוי לא עושה כלום.</li>
+<li><strong>provider:</strong> תוסף ל־API אחד, נעול בגרסה מדויקת; קובץ הנעילה ב־Git.</li>
+<li><strong>resource:</strong> סוג ושם מקומי; הפניות בונות גרף שקובע סדר.</li>
+<li><strong>state:</strong> הקישור לאובייקטים אמיתיים; מכיל סודות; לא ב־Git.</li>
+<li><strong>plan:</strong> <code>+</code> יצירה, <code>~</code> שינוי, <code>-</code> מחיקה, <code>-/+</code> החלפה; שומרים לקובץ ומבצעים אותו.</li>
+<li><strong>סטייה:</strong> שינוי ידני מתגלה ב־plan; <code>-refresh-only</code> רק מראה.</li>
+<li><strong>מודול:</strong> משתנים פנימה, outputs החוצה; מצהיר על providers ולא מגדיר אותם.</li>
+<li><strong>backend מרוחק:</strong> state אחד, נעילה, גרסאות; ב־S3 <code>use_lockfile</code>, DynamoDB מיושן.</li>
+<li><strong>Helm provider v3:</strong> <code>kubernetes = { }</code>; מכיל Helm 3; לא רואה סטייה בתוך release.</li>
+<li><strong>AWS:</strong> אופציונלי; תקציב והתראה קודם; destroy באותו יום.</li>
+<li><strong>שאלה פתוחה:</strong> ___</li>
+</ul>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">workflow     terraform init | fmt -check -recursive | validate | plan | apply | destroy
+ci checks    terraform init -backend=false &amp;&amp; terraform validate ; terraform plan -detailed-exitcode (0 none, 2 changes)
+saved plan   terraform plan -out=tfplan ; terraform apply tfplan
+one change   terraform plan -var log_level=debug  -&gt;  Plan: 0 to add, 1 to change, 0 to destroy.
+drift        kubectl -n tf-demo edit configmap shorty-settings ; terraform plan ; terraform plan -refresh-only
+state        terraform state list ; terraform output -raw config_map ; never commit *.tfstate
+lock file    terraform providers lock -platform=linux_amd64 -platform=darwin_arm64 ...
+helm v3      provider &quot;helm&quot; { kubernetes = { config_path = ..., config_context = &quot;kind-ch22&quot; } }
+release      helm_release { chart = &quot;${path.module}/chart&quot;  values = [yamlencode({...})]  wait = true }
+remote       backend &quot;s3&quot; { bucket key region use_lockfile = true encrypt = true } ; terraform force-unlock ID
+mine         first apply ___ s ; resources in part2 state ___ ; drift found by plan: yes / no (helm scale: ___)
+</code></pre>
+
+
+</div>
+
+<h2 id="_7">תרגיל</h2>
+<p><strong>מטרה:</strong> לנהל תשתית על kind מקבצים: namespace ו־ConfigMap עם ה־provider של Kubernetes, plan שמראה שינוי אחד,
+סטייה שנוצרה ביד ו־destroy; ואז מודול מקומי שמתקין את ה־chart של shorty דרך ה־provider של Helm, עם משתנים
+ו־outputs. הסעיף על AWS אופציונלי ולא הורץ על ידי הכותב.
+<strong>זמן:</strong> שני ימי לימוד, ימים 64 ו־65, כ־50 ו־60 דקות בנייה בהתאמה.
+<strong>ידע מקדים:</strong> הפרק; פרק 21 (ה־chart וה־image); פרק 20 (kind והקשר של kubectl); Terraform מפרק 2.</p>
+<p>הצעדים, קבצי ההתחלה, הרמזים והפתרון נמצאים ב־
+<a href="../exercises/ch22-terraform/README.md"><code>exercises/ch22-terraform/README.md</code></a>.</p>
+<p><strong>קריטריון סיום:</strong></p>
+<ul>
+<li>ה־plan השני, אחרי שינוי של ערך אחד, מראה בדיוק שינוי אחד, ו־destroy משאיר את ה־namespace מחוק.</li>
+<li>ה־plan מגלה את השינוי שעשית ב־<code>kubectl edit</code>, ובפתק כתוב מה ה־apply היה עושה איתו.</li>
+<li>apply אחד יוצר דרך המודול את ה־namespace ואת ה־release של shorty, ו־destroy מסיר את שניהם.</li>
+<li>הסקריפטים <code>check_static.sh</code> ו־<code>smoke.sh</code> עוברים, ואין קובץ state בתיקייה שב־Git.</li>
+<li>בפתק: למה state מרוחק עם נעילה, ומתי Terraform צריך לנהל release של Helm.</li>
+</ul>
+<h2 id="_8">העשרה אופציונלית</h2>
+<ul>
+<li>לקרוא את מדריך השדרוג לגרסה 3 של ה־provider של Helm במאגר שלו (<code>docs/guides/v3-upgrade-guide.md</code>), ולתרגם
+  דוגמה ישנה מהרשת לכתיב החדש.</li>
+<li>להוסיף <code>moved</code> block שמשנה את השם המקומי של resource בלי למחוק וליצור אותו מחדש, ולראות ב־plan שאין החלפה.</li>
+<li>לנסות <code>terraform import</code> על namespace שיצרת ב־kubectl, ולראות איך Terraform מתחיל לנהל אותו.</li>
+<li>להפעיל את ה־experiment <code>manifest</code> של ה־provider של Helm, ולבדוק אם עכשיו ה־plan רואה את השינוי ב־<code>kubectl scale</code>.</li>
+</ul>
+</main>
+<nav class="bottom"><a href="index.html">תוכן העניינים</a> · <a href="21-kubernetes-operations-helm.html">← פרק 21: הפעלת Kubernetes ו־Helm</a> · <a href="23-github-actions.html">פרק 23: GitHub Actions →</a></nav>
+<script type="module">
+  // Render ```mermaid blocks in the browser (needs internet once; cached afterwards).
+  const blocks = document.querySelectorAll("pre > code.language-mermaid");
+  if (blocks.length) {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs")).default;
+    for (const code of blocks) {
+      const div = document.createElement("div");
+      div.className = "mermaid";
+      div.textContent = code.textContent;
+      code.parentElement.replaceWith(div);
+    }
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run();
+  }
+</script>
+</body>
+</html>

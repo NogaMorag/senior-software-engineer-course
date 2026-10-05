@@ -18,7 +18,10 @@
 <li><a href="#24-docker-desktop-wsl2">2.4 Docker Desktop עם WSL2</a></li>
 <li><a href="#25-git-ssh">2.5 Git ומפתחות SSH</a></li>
 <li><a href="#26-vs-code-wsl">2.6 VS Code עם הרחבת WSL</a></li>
-<li><a href="#27-go">2.7 Go</a></li>
+<li><a href="#27-go">2.7 Go</a><ul>
+<li><a href="#271-go">2.7.1 כלי Go שהספר משתמש בהם</a></li>
+</ul>
+</li>
 <li><a href="#28-uv-python">2.8 uv ו־Python</a></li>
 <li><a href="#29">2.9 מאגר הקורס ובדיקת עשן</a><ul>
 <li><a href="#291-doctorsh">2.9.1 הרופא: doctor.sh</a></li>
@@ -106,6 +109,7 @@
 <li>להגדיר את Git ומפתח SSH.</li>
 <li>לערוך ב־VS Code את הקבצים שבתוך המערכת.</li>
 <li>להתקין את Go ואת uv בתיקיית הבית, ולבדוק כל הורדה מול טביעת הקובץ שלה.</li>
+<li>להתקין בגרסה מוצמדת את כלי ה־Go שהספר משתמש בהם.</li>
 <li>להקים את מאגר הקורס, להריץ את <code>doctor.sh</code> ובדיקות עשן, ולבצע התחייבות ראשונה.</li>
 <li>לעצור, להפעיל מחדש, לנקות ולהסיר כל דבר שהתקנת.</li>
 </ul>
@@ -157,6 +161,12 @@
 <td>Go</td>
 <td>השפה הראשית של הספר ושל פרויקט הגמר</td>
 <td>התיקייה <code>~/.local/go</code></td>
+<td>יום 0</td>
+</tr>
+<tr>
+<td>כלי Go</td>
+<td>ניתוח סטטי, מיגרציות, protobuf, סריקת חולשות, בדיקת workflows</td>
+<td>התיקייה <code>~/.local/bin</code></td>
 <td>יום 0</td>
 </tr>
 <tr>
@@ -1121,6 +1131,82 @@ go version go1.27.1 linux/amd64
 </table>
 <p>שימי לב למחיקה שלפני הפתיחה. התיעוד של Go מזהיר במפורש לא לפתוח גרסה חדשה מעל תיקייה קיימת, כי קבצים
 ישנים שנשארים יוצרים התקנה שבורה. השדרוג הבא שלך יהיה אותן פקודות עם מספר גרסה אחר.</p>
+<h3 id="271-go">2.7.1 כלי Go שהספר משתמש בהם</h3>
+<p>כמה פרקים צריכים כלים שנכתבו ב־Go ומותקנים מקוד המקור. הפקודה <code>go install</code> מורידה מודול בגרסה מדויקת, בונה
+אותו, ושמה את קובץ ההרצה ב־<code>GOBIN</code>, שהגדרנו ל־<code>~/.local/bin</code>. כך הכלים כבר ב־<code>PATH</code>, בלי שורה נוספת. מתקינים
+אותם היום, ביום 0, כי פרק 9 משתמש ב־buf כבר ביום 21:</p>
+<table>
+<thead>
+<tr>
+<th>כלי</th>
+<th>למה</th>
+<th>פרק</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>staticcheck</td>
+<td>ניתוח סטטי (static analysis) ל־Go, בכל תרגיל</td>
+<td>3</td>
+</tr>
+<tr>
+<td>buf, protoc-gen-go, protoc-gen-go-grpc</td>
+<td>יצירת קוד מקובצי protobuf</td>
+<td>9</td>
+</tr>
+<tr>
+<td>goose</td>
+<td>מיגרציות לסכמה של PostgreSQL</td>
+<td>11</td>
+</tr>
+<tr>
+<td>actionlint</td>
+<td>בדיקת קובצי workflow של GitHub Actions</td>
+<td>23</td>
+</tr>
+<tr>
+<td>govulncheck</td>
+<td>סריקת חולשות ידועות בתלויות</td>
+<td>28</td>
+</tr>
+</tbody>
+</table>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">go install honnef.co/go/tools/cmd/staticcheck@2026.2.1
+go install github.com/pressly/goose/v3/cmd/goose@v3.28.0
+go install github.com/bufbuild/buf/cmd/buf@v1.73.0
+go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.12
+go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.2
+go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
+go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+staticcheck -version
+buf --version
+govulncheck -version
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">staticcheck 2026.2.1 (0.8.1)
+1.73.0
+Go: go1.27.1
+Scanner: govulncheck@v1.8.0
+...
+</code></pre>
+
+
+</div>
+
+<p>כל פקודה לוקחת כמה עשרות שניות, כי היא מורידה ובונה. הגרסאות מוצמדות (נספח ג): <code>@latest</code> היה נותן כלי אחר בכל
+התקנה. שימי לב גם לפלט של govulncheck: השורה הראשונה היא גרסת Go, וגרסת הכלי מופיעה רק בשורה <code>Scanner</code>. הסקריפט
+<code>doctor.sh</code> יודע לקרוא אותה משם.</p>
+<p>כלים אחרים שהספר משתמש בהם, כמו סורקי אימג'ים ובודק ה־OpenAPI, רצים כקונטיינרים בתוך הפרק שצריך אותם, ואין מה
+להתקין מראש.</p>
 <blockquote>
 <p><strong>ב־Mac:</strong> אין את הפקודה <code>dpkg</code>, ולכן קובעים את הארכיטקטורה ידנית; סעיף 2.13 נותן את השורה המקבילה.</p>
 <p><strong>איך Rust עושה את זה:</strong> ב־Rust היית מתקינה עם rustup, שמנהל כמה שרשראות כלים ומעדכן אותן. ב־Go שרשרת
@@ -1130,13 +1216,15 @@ go version go1.27.1 linux/amd64
 </blockquote>
 <p><strong>הפעלה מחדש.</strong> אין שירות לעצור. אם משהו מוזר, <code>go clean -cache</code> מנקה את מטמון הבנייה.</p>
 <p><strong>הסרה.</strong> קבצי מטמון המודולים מוגנים מכתיבה, ולכן <code>rm</code> רגיל נכשל עליהם. מנקים קודם עם Go עצמו, מבטלים את
-ההגדרה שכתבת, ורק אז מוחקים. אחר כך מוחקים את השורה של <code>~/.local/go/bin</code> מ־<code>~/.bashrc</code>:</p>
+ההגדרה שכתבת, ורק אז מוחקים את Go ואת הכלים שהותקנו דרכו. אחר כך מוחקים את השורה של <code>~/.local/go/bin</code>
+מ־<code>~/.bashrc</code>:</p>
 <div dir="ltr" align="left">
 
 
 <pre><code class="language-bash">go clean -modcache
 go env -u GOBIN
 rm -rf ~/.local/go ~/go
+cd ~/.local/bin &amp;&amp; rm staticcheck goose buf protoc-gen-go protoc-gen-go-grpc govulncheck actionlint
 </code></pre>
 
 
@@ -1415,19 +1503,27 @@ echo &quot;exit code: $?&quot;
 
 <pre><code class="language-text">doctor: checking the course workbench on Linux x86_64 (WSL2)
 Day 0 tools:
-  ok    git            2.53.0       (need &gt;= 2.28)
-  ok    ssh-key        found        (a public key in ~/.ssh)
-  ok    docker         29.8.1       (need &gt;= 29.0)
-  ok    docker-engine  29.8.1       (need &gt;= 29.0)
-  ok    compose        ...          (need &gt;= 2.20)
-  ok    code           ...          (any version)
-  ok    go             1.27.1       (need &gt;= 1.27.1)
-  ok    uv             0.12.23      (need &gt;= 0.12.23)
-  ok    python         3.14.8       (need &gt;= 3.14.0)
+  ok    git                2.53.0       (need &gt;= 2.28)
+  ok    ssh-key            found        (a public key in ~/.ssh)
+  ok    docker             29.8.1       (need &gt;= 29.0)
+  ok    docker-engine      29.8.1       (need &gt;= 29.0)
+  ok    compose            ...          (need &gt;= 2.20)
+  ok    code               ...          (any version)
+  ok    go                 1.27.1       (need &gt;= 1.27.1)
+  ok    uv                 0.12.23      (need &gt;= 0.12.23)
+  ok    python             3.14.8       (need &gt;= 3.14.0)
+Go tools (go install, Day 0):
+  ok    staticcheck        2026.2.1     (need &gt;= 2026.2.1)
+  ok    goose              3.28.0       (need &gt;= 3.28.0)
+  ok    buf                1.73.0       (need &gt;= 1.73.0)
+  ok    protoc-gen-go      1.36.12      (need &gt;= 1.36.12)
+  ok    protoc-gen-go-grpc 1.6.2        (need &gt;= 1.6.2)
+  ok    govulncheck        1.8.0        (need &gt;= 1.8.0)
+  ok    actionlint         1.7.12       (need &gt;= 1.7.12)
 Course folders:
-  ok    COURSE         found        (/home/noga/senior-software-engineer-course)
-  ok    senior-course  git-repo     (/home/noga/senior-course)
-doctor: 11 ok, 0 failed
+  ok    COURSE             found        (/home/noga/senior-software-engineer-course)
+  ok    senior-course      git-repo     (/home/noga/senior-course)
+doctor: 18 ok, 0 failed
 doctor: the workbench is ready
 exit code: 0
 </code></pre>
@@ -1948,7 +2044,7 @@ bash ch02/test_doctor.sh
 
 </div>
 
-<p>הפעם הסקריפט מסתיים ב־<code>0 failed</code>, והבדיקות שלו מסתיימות בעשר הצלחות. Terraform נוהג לבדוק ברשת אם
+<p>הפעם הסקריפט מסתיים ב־<code>0 failed</code>, והבדיקות שלו מסתיימות ב־11 הצלחות. Terraform נוהג לבדוק ברשת אם
 יצאה גרסה חדשה; הסקריפט מכבה את זה עם המשתנה <code>CHECKPOINT_DISABLE</code>.</p>
 <p><strong>שדרוג והסרה.</strong> שדרוג הוא אותן פקודות עם גרסה חדשה. הסרה היא מחיקת הקבצים, ואם תרצי גם את ההגדרות
 והמטמונים שהכלים יוצרים בשימוש:</p>
@@ -2385,6 +2481,7 @@ path      export PATH=&quot;$HOME/.local/go/bin:$HOME/.local/bin:$PATH&quot;   (
 course    export COURSE=&quot;$HOME/senior-software-engineer-course&quot;     my work: ~/senior-course/chNN
 verify    sha256sum -c &lt;file&gt;.sha256sum | sha256sum -c --ignore-missing &lt;SHA256SUMS&gt;
 go        ~/.local/go  GOBIN=~/.local/bin  go version  -&gt; go1.27.1
+go tools  go install &lt;module&gt;@&lt;pin&gt;: staticcheck goose buf protoc-gen-go protoc-gen-go-grpc govulncheck actionlint
 uv        curl -LsSf https://astral.sh/uv/0.12.23/install.sh | sh ; uv python install 3.14
 doctor    bash ch02/doctor.sh [--part-e] ; echo $?   (exit = number of failures)
 docker    docker version | docker run --rm hello-world | docker system df | docker system prune
@@ -2406,7 +2503,7 @@ my pins   go ____  uv ____  python ____  docker ____  kind ____  kubectl ____
 <li>ביום 3, <code>doctor.sh</code> מסתיים בקוד יציאה 0, והקונטיינר מדפיס את הברכה.</li>
 <li>ביום 3, בדיקת ה־Go ובדיקות ה־pytest עוברות.</li>
 <li>ביום 3, ההתחייבות הראשונה מופיעה ביומן של Git, בלי <code>.venv</code> ובלי קבצי בנייה.</li>
-<li>ביום 57, <code>doctor.sh --part-e</code> מסתיים בקוד 0, ו־<code>test_doctor.sh</code> מדווח על עשר בדיקות שעברו.</li>
+<li>ביום 57, <code>doctor.sh --part-e</code> מסתיים בקוד 0, ו־<code>test_doctor.sh</code> מדווח על 11 בדיקות שעברו.</li>
 </ul>
 <h2 id="_8">העשרה אופציונלית</h2>
 <ul>

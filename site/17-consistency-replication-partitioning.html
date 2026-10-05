@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>פרק 17: עקביות, שכפול וחלוקה למחיצות</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="top"><a href="index.html">תוכן העניינים</a> · <a href="16-overload-rate-limiting.html">← פרק 16: עומס: הגבלת קצב, לחץ חוזר והשלת עומס</a> · <a href="18-locks-leaders-sagas.html">פרק 18: נעילות, בחירת מנהיג וסאגות →</a></nav>
+<main class="book">
+<div class="toc"><span class="toctitle">תוכן הפרק</span><ul>
+<li><a href="#_1">מה נלמד בפרק</a></li>
+<li><a href="#_2">ידע מקדים</a></li>
+<li><a href="#171">17.1 מודלי עקביות במילים פשוטות</a></li>
+<li><a href="#172-postgresql">17.2 שכפול ב־PostgreSQL</a><ul>
+<li><a href="#1721">17.2.1 איך זה עובד</a></li>
+<li><a href="#1722">17.2.2 השרת הראשי</a></li>
+<li><a href="#1723">17.2.3 השרת המשני</a></li>
+<li><a href="#1724">17.2.4 להרים ולבדוק</a></li>
+</ul>
+</li>
+<li><a href="#173">17.3 פיגור שכפול, מודגם</a><ul>
+<li><a href="#1731">17.3.1 שלוש דרכים למדוד</a></li>
+<li><a href="#1732">17.3.2 בדיקה מהצד של הלקוח</a></li>
+<li><a href="#1733">17.3.3 להריץ, ולהפוך את הפיגור לגלוי</a></li>
+</ul>
+</li>
+<li><a href="#174">17.4 לקרוא את מה שכתבת</a><ul>
+<li><a href="#1741">17.4.1 הבאג</a></li>
+<li><a href="#1742">17.4.2 שלוש אסטרטגיות</a></li>
+<li><a href="#1743">17.4.3 ומה עם שכפול סינכרוני?</a></li>
+</ul>
+</li>
+<li><a href="#175">17.5 חלוקה למחיצות ובחירת מפתח</a><ul>
+<li><a href="#1751">17.5.1 למה מחלקים</a></li>
+<li><a href="#1752-hash">17.5.2 hash מול טווחים</a></li>
+<li><a href="#1753">17.5.3 איך בוחרים מפתח</a></li>
+</ul>
+</li>
+<li><a href="#176">17.6 מחיצות חמות</a><ul>
+<li><a href="#1761">17.6.1 העולם לא אחיד</a></li>
+<li><a href="#1762">17.6.2 שלוש הרצות</a></li>
+<li><a href="#1763">17.6.3 מה עושים עם מפתח חם</a></li>
+<li><a href="#1764">17.6.4 גיבוב עקבי, בקצרה</a></li>
+</ul>
+</li>
+<li><a href="#177-cap-pacelc">17.7 CAP ו־PACELC בלי מיתוסים</a><ul>
+<li><a href="#1771-cap">17.7.1 מה CAP אומר באמת</a></li>
+<li><a href="#1772-pacelc">17.7.2 PACELC: מה קורה כשהכול תקין</a></li>
+<li><a href="#1773">17.7.3 החיבור לתרגיל</a></li>
+</ul>
+</li>
+<li><a href="#_3">סיכום</a></li>
+<li><a href="#_4">מונחים לזכור</a></li>
+<li><a href="#_5">טעויות נפוצות</a></li>
+<li><a href="#_6">שאלות ראיון</a></li>
+<li><a href="#obsidian">פתק Obsidian</a></li>
+<li><a href="#_7">תרגיל</a></li>
+<li><a href="#_8">העשרה אופציונלית</a></li>
+</ul>
+</div>
+
+<h1 id="17">פרק 17: עקביות, שכפול וחלוקה למחיצות</h1>
+<p>ברגע שיש יותר מעותק אחד של הנתונים, „מה הערך עכשיו?” מפסיקה להיות שאלה עם תשובה אחת. משתמשת מעדכנת
+כתובת, מרעננת את הדף, ורואה את הכתובת הישנה; לקוח גדול אחד מעמיס מחיצה אחת עד שהיא נופלת, והשאר משועממות.
+בפרק הזה תריצי שרת ראשי ושרת משוכפל אמיתיים, תמדדי בעצמך את הפיגור ביניהם, תגרמי לקריאה לפספס את הכתיבה של
+עצמה ותתקני את זה בשלוש דרכים, ותראי מחיצה חמה נוצרת בסימולציה. אלה בדיוק הנושאים שראיון תכנון מערכות בכיר
+חוזר אליהם, והפרק נותן לך עליהם מספרים שמדדת בעצמך.</p>
+<h2 id="_1">מה נלמד בפרק</h2>
+<ul>
+<li>שישה מודלי עקביות במילים פשוטות, כל אחד עם דוגמה שמשתמשת רואה בעיניים.</li>
+<li>איך PostgreSQL משכפל: יומן WAL שזורם לשרת משני, ואיך מקימים כזה עם <code>pg_basebackup</code>.</li>
+<li>למדוד פיגור שכפול משלושה צדדים: מהשרת הראשי, מהשרת המשני, ומהלקוח.</li>
+<li>שלוש אסטרטגיות של „לקרוא את מה שכתבת”, והמחיר של כל אחת.</li>
+<li>לבחור מפתח חלוקה, hash מול טווחים, ומה זה גיבוב עקבי (consistent hashing).</li>
+<li>מחיצות חמות: התפלגות Zipf, ולמה עוד מחיצות לא מצילות מפתח חם אחד.</li>
+<li>CAP ו־PACELC כפי שהמחברים שלהם ניסחו אותם, בלי המיתוסים.</li>
+</ul>
+<h2 id="_2">ידע מקדים</h2>
+<ul>
+<li>פרק 10, סעיפים 10.1 ו־10.7: המסד בקונטיינר, שורת הפקודה שלו, והספרייה pgx.</li>
+<li>פרק 11, סעיפים 11.1 ו־11.7: יומן הכתיבה מראש (WAL) כבסיס לעמידות, ומאגר החיבורים.</li>
+<li>פרק 13, סעיף 13.3: מחיצות ב־Kafka. כאן נכליל את אותו רעיון לכל מאגר נתונים.</li>
+<li>פרק 5, סעיפים 5.4 עד 5.8: goroutines ובדיקת מרוצים. מחולל העומס של התרגיל נשען עליהם.</li>
+<li>Docker ו־compose מפרק 2. בפרק הזה ה־compose מריץ שני שרתי PostgreSQL שמדברים זה עם זה.</li>
+</ul>
+<h2 id="171">17.1 מודלי עקביות במילים פשוטות</h2>
+<p>מודל עקביות (consistency model) הוא חוזה בין מערכת עם כמה עותקים לבין מי שקוראת ממנה: אילו ערכים מותר
+לקריאה להחזיר, בהינתן הכתיבות שקרו. החוזה החזק ביותר אומר „כאילו יש עותק אחד”. החלשים מתירים לראות ערכים
+ישנים, ובתמורה המערכת מהירה יותר וממשיכה לענות כשחלק ממנה מנותק.</p>
+<p>נשתמש בדוגמה אחת לאורך הסעיף: שירות פרופילים עם שרת ראשי (primary), שאליו הולכות הכתיבות, ושני שרתים
+משוכפלים (replicas), שמהם קוראים. השרתים המשוכפלים מקבלים את השינויים באיחור קטן. הטבלה מסודרת מהחזק
+לחלש:</p>
+<table>
+<thead>
+<tr>
+<th>מודל</th>
+<th>באנגלית</th>
+<th>ההבטחה</th>
+<th>מה המשתמשת רואה כשההבטחה נשברת</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ליניאריזביליות</td>
+<td>linearizable</td>
+<td>כל קריאה רואה את הכתיבה האחרונה שהסתיימה, אצל כולם, כאילו יש עותק אחד</td>
+<td>שתי משתמשות קונות את המושב האחרון בטיסה, ושתיהן מקבלות אישור</td>
+</tr>
+<tr>
+<td>עקביות סדרתית</td>
+<td>sequential</td>
+<td>כולם רואים את הפעולות באותו סדר, וסדר הפעולות של כל לקוח נשמר, אבל לא בהכרח בזמן אמת</td>
+<td>בצ'אט קבוצתי, נוגה ודנה רואות שתי הודעות בסדר הפוך</td>
+</tr>
+<tr>
+<td>עקביות סיבתית</td>
+<td>causal</td>
+<td>מה שנגרם ממשהו לא נראה לפניו; פעולות בלתי תלויות מותר לראות בכל סדר</td>
+<td>תגובה „מזל טוב!” מופיעה מתחת לפוסט שעוד לא נראה</td>
+</tr>
+<tr>
+<td>לקרוא את מה שכתבת</td>
+<td>read-your-writes</td>
+<td>לקוח תמיד רואה את הכתיבות של עצמו</td>
+<td>משתמשת מחליפה תמונת פרופיל, מרעננת, ורואה את הישנה</td>
+</tr>
+<tr>
+<td>קריאות מונוטוניות</td>
+<td>monotonic reads</td>
+<td>לקוח לא חוזר אחורה בזמן: אחרי שראה ערך, לא יראה ערך ישן ממנו</td>
+<td>תגובה מופיעה, ובריענון הבא נעלמת</td>
+</tr>
+<tr>
+<td>עקביות בסופו של דבר</td>
+<td>eventual</td>
+<td>אם הכתיבות נפסקות, כל העותקים מתכנסים בסוף לאותו ערך; אין גבול זמן</td>
+<td>מונה הלייקים מראה 41 בטלפון ו־43 במחשב, לכמה שניות</td>
+</tr>
+</tbody>
+</table>
+<p>כמה הבחנות שמבלבלות בראיונות:</p>
+<ul>
+<li><strong>שלוש השורות האמצעיות הן הבטחות לסשן.</strong> „לקרוא את מה שכתבת” וקריאות מונוטוניות הן הבטחות ללקוח אחד,
+  ולא לכלל המערכת. לכן אפשר לתת אותן גם מעל שכפול אסינכרוני, וזה כל סעיף 17.4.</li>
+<li><strong>ליניאריזביליות היא לא סריאליזביליות.</strong> רמת הבידוד Serializable מפרק 11 עוסקת בטרנזקציות על כמה שורות:
+  התוצאה שקולה להרצה כלשהי בטור. ליניאריזביליות עוסקת באובייקט אחד ובזמן אמת. מסד יכול לתת אחת בלי השנייה.</li>
+<li><strong>„בסופו של דבר” לא אומר „מהר”.</strong> המודל לא מבטיח שום גבול זמן. המספר שתמדדי בסעיף 17.3 הוא תכונה של המערכת
+  שלך באותו רגע, לא חלק מהחוזה.</li>
+</ul>
+<p>שרת PostgreSQL יחיד, שכל הקריאות והכתיבות הולכות אליו, נותן ליניאריזביליות לכל שורה בפני עצמה. ברגע שקוראים
+משרת משוכפל אסינכרוני, הקריאות משם הן „בסופו של דבר”. אין שם אפילו קריאות מונוטוניות כשמחליפים בין שני
+שרתים משוכפלים, כי אחד מהם יכול להיות מאחורי השני.</p>
+<blockquote>
+<p><strong>איך Rust עושה את זה:</strong> אותם מושגים יושבים במודל הזיכרון של Rust. ‏<code>Ordering::SeqCst</code> נותן עקביות
+סדרתית: כל ה־threads מסכימים על סדר אחד של כל הפעולות האטומיות. ‏<code>Acquire</code> ו־<code>Release</code> נותנים משהו
+שדומה לעקביות סיבתית: מה שנכתב לפני ה־<code>Release</code> נראה למי שקרא ב־<code>Acquire</code>, ולא יותר. השכפול הוא אותה
+בעיה, רק עם רשת באמצע במקום מטמון של מעבד.</p>
+</blockquote>
+<h2 id="172-postgresql">17.2 שכפול ב־PostgreSQL</h2>
+<h3 id="1721">17.2.1 איך זה עובד</h3>
+<p>בפרק 11 ראית שכל שינוי ב־PostgreSQL נכתב קודם ליומן הכתיבה מראש (WAL), ורק אז ה־<code>COMMIT</code> חוזר. שכפול
+זורם (streaming replication) הוא שימוש נוסף באותו יומן: השרת הראשי שולח את רשומות ה־WAL, תוך כדי שהן
+נכתבות, לשרת משני, והמשני מריץ אותן על העותק שלו. זה שכפול פיזי: עותק בית־בבית של כל האשכול, כל המסדים
+וכל הטבלאות, ולא של שורות שנבחרו.</p>
+<table>
+<thead>
+<tr>
+<th>רכיב</th>
+<th>איפה</th>
+<th>מה הוא עושה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>walsender</td>
+<td>תהליך בשרת הראשי</td>
+<td>שולח רשומות WAL לכל משני שמחובר</td>
+</tr>
+<tr>
+<td>walreceiver</td>
+<td>תהליך בשרת המשני</td>
+<td>מקבל את הרשומות; תהליך אחר מריץ (replay) אותן על הנתונים</td>
+</tr>
+<tr>
+<td>hot standby</td>
+<td>מצב של השרת המשני</td>
+<td>מקבל שאילתות קריאה בזמן שהוא מריץ WAL</td>
+</tr>
+<tr>
+<td>replication slot</td>
+<td>אובייקט בשרת הראשי</td>
+<td>זוכר עד איפה משני קיבל, כדי שה־WAL שהוא עוד צריך לא יימחק</td>
+</tr>
+</tbody>
+</table>
+<p>שני דברים חשובים לגבי ההתנהגות כברירת מחדל:</p>
+<ul>
+<li><strong>השכפול אסינכרוני.</strong> ה־<code>COMMIT</code> בראשי חוזר בלי לחכות למשני. הכתיבה עמידה בראשי, אבל עוד לא קיימת במשני.
+  זה מקור הפיגור, וגם הסיבה שבמעבר לגיבוי (failover) אפשר לאבד כתיבות שכבר אושרו ללקוח.</li>
+<li><strong>השרת המשני קורא בלבד.</strong> כל ניסיון לכתוב בו נכשל בשגיאה, ולכן ניתוב כתיבות לשרת הלא נכון נתפס מיד.</li>
+</ul>
+<p>שכפול סינכרוני קיים: הפרמטר <code>synchronous_standby_names</code> בראשי מגדיר אילו משניים חייבים לאשר, והפרמטר
+<code>synchronous_commit</code> קובע מה „לאשר” אומר. הערך <code>remote_apply</code>, למשל, מחכה עד שהמשני הריץ את הכתיבה. המחיר
+הוא זמן התגובה של כל <code>COMMIT</code>, ואם המשני הסינכרוני נופל, הכתיבות בראשי נתקעות. נחזור לזה בסעיף 17.7.</p>
+<h3 id="1722">17.2.2 השרת הראשי</h3>
+<p>התיעוד של PostgreSQL 18, בפרק על שרתי גיבוי (warm standby), מונה מה הראשי צריך. ברירות המחדל כבר מכסות
+את רובו, נכון לאוקטובר 2026:</p>
+<table>
+<thead>
+<tr>
+<th>דרישה</th>
+<th>ערך</th>
+<th>ברירת מחדל?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>wal_level</code></td>
+<td>‏<code>replica</code> או גבוה יותר</td>
+<td>כן</td>
+</tr>
+<tr>
+<td><code>max_wal_senders</code></td>
+<td>מספיק לכל המשניים ולגיבויים שרצים במקביל</td>
+<td>כן, 10</td>
+</tr>
+<tr>
+<td>תפקיד עם הרשאת <code>REPLICATION</code></td>
+<td>משתמש ייעודי לשכפול</td>
+<td>לא</td>
+</tr>
+<tr>
+<td>שורה ב־<code>pg_hba.conf</code> למסד המדומה <code>replication</code></td>
+<td>מאפשרת לו להתחבר לשכפול</td>
+<td>לא</td>
+</tr>
+</tbody>
+</table>
+<p>הנקודה האחרונה מפתיעה: המילה <code>all</code> בעמודת המסד ב־<code>pg_hba.conf</code> לא כוללת חיבורי שכפול. בלי שורה מפורשת,
+המשני נדחה. כל זה קורה בתסריט קטן שהקונטיינר של הראשי מריץ פעם אחת, כשתיקיית הנתונים נוצרת. מהקובץ
+<code>data/primary-init.sh</code> של התרגיל:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">set -euo pipefail
+psql -v ON_ERROR_STOP=1 -U &quot;$POSTGRES_USER&quot; -d &quot;$POSTGRES_DB&quot; \
+  -v pw=&quot;$REPLICATION_PASSWORD&quot; &lt;&lt;'SQL'
+CREATE ROLE replicator WITH REPLICATION LOGIN PASSWORD :'pw';
+SELECT pg_create_physical_replication_slot('replica1');
+SQL
+echo &quot;host replication replicator all scram-sha-256&quot; &gt;&gt; &quot;$PGDATA/pg_hba.conf&quot;
+</code></pre>
+
+
+</div>
+
+<p>ה־slot נוצר מראש, בשם <code>replica1</code>, כדי שהראשי ישמור WAL עד שהמשני יאסוף אותו, גם אם המשני כבוי לזמן מה.
+זה גם הסיכון שלו: slot של משני שמת לתמיד גורם לראשי לשמור WAL בלי סוף, עד שהדיסק מתמלא. בייצור מנטרים
+slots, או מגבילים אותם בפרמטר <code>max_slot_wal_keep_size</code>.</p>
+<h3 id="1723">17.2.3 השרת המשני</h3>
+<p>משני נולד מעותק של הראשי. הכלי <code>pg_basebackup</code> מתחבר לראשי כחיבור שכפול ומעתיק את כל תיקיית הנתונים.
+עם הדגל <code>--write-recovery-conf</code> (בקיצור <code>-R</code>) הוא גם הופך את העותק למשני, לפי התיעוד של גרסה 18:</p>
+<ul>
+<li><strong>יוצר קובץ ריק בשם <code>standby.signal</code>.</strong> הקובץ הזה, ולא שום הגדרה, אומר לשרת לעלות כמשני.</li>
+<li><strong>מוסיף לקובץ <code>postgresql.auto.conf</code> את <code>primary_conninfo</code>.</strong> זו מחרוזת החיבור לראשי.</li>
+<li><strong>מוסיף את <code>primary_slot_name</code>.</strong> רק כשהעברת slot עם הדגל <code>--slot</code>.</li>
+</ul>
+<p>הדגל <code>--wal-method=stream</code> מזרים את היומן בחיבור שני בזמן ההעתקה, כך שהעותק שלם. הדגל <code>--slot</code> משתמש
+ב־slot שהראשי יצר.</p>
+<p>הקונטיינר של המשני מחליף את נקודת הכניסה (entrypoint) של ה־image: אם תיקיית הנתונים ריקה, הוא משכפל, ואז
+מפעיל את נקודת הכניסה הרגילה. מהקובץ <code>data/replica-entrypoint.sh</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">set -euo pipefail
+if [ ! -s &quot;$PGDATA/PG_VERSION&quot; ]; then
+  until pg_isready -h primary -p 5432 -U replicator; do sleep 1; done
+  mkdir -p &quot;$PGDATA&quot;
+  chown postgres:postgres &quot;$PGDATA&quot;
+  chmod 0700 &quot;$PGDATA&quot;
+  gosu postgres env PGPASSWORD=&quot;$REPLICATION_PASSWORD&quot; \
+    pg_basebackup -h primary -p 5432 -U replicator -D &quot;$PGDATA&quot; \
+    --wal-method=stream --slot=replica1 --write-recovery-conf --checkpoint=fast --progress
+fi
+# The image's own entrypoint sees an initialised directory, skips initdb and starts postgres.
+exec docker-entrypoint.sh postgres -c hot_standby=on
+</code></pre>
+
+
+</div>
+
+<p>נקודת הכניסה של ה־image רואה תיקייה מאותחלת, מדלגת על <code>initdb</code>, ומפעילה את השרת. בקובץ ה־compose הראשי
+מקבל את הפורט 5417 והמשני את 5427.</p>
+<blockquote>
+<p><strong>שימי לב:</strong> בגרסה 18 של ה־image הרשמי, תיקיית הנתונים היא <code>/var/lib/postgresql/18/docker</code>, והכרך
+(volume) מחובר ל־<code>/var/lib/postgresql</code>. מדריכים ישנים מחברים את הכרך לתיקייה <code>data</code> שמתחתיה, ובגרסה 18 זה
+כבר לא המקום הנכון.</p>
+</blockquote>
+<h3 id="1724">17.2.4 להרים ולבדוק</h3>
+<p>מתוך התיקייה של התרגיל:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">docker compose -p ch17 -f data/compose.yaml up -d --wait
+docker compose -p ch17 -f data/compose.yaml exec replica bash -c 'cat $PGDATA/postgresql.auto.conf; ls $PGDATA/standby.signal'
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text"># Do not edit this file manually!
+# It will be overwritten by the ALTER SYSTEM command.
+primary_conninfo = 'user=replicator password=''change-me-too'' channel_binding=prefer host=primary port=5432 sslmode=prefer ...'
+primary_slot_name = 'replica1'
+/var/lib/postgresql/18/docker/standby.signal
+</code></pre>
+
+
+</div>
+
+<p>הסיסמה של משתמש השכפול כתובה שם בטקסט גלוי, בתוך תיקיית הנתונים של המשני. כאן זו סיסמת תרגול; בייצור
+מעדיפים קובץ <code>.pgpass</code> עם הרשאות מוגבלות, או אימות בתעודות. עכשיו הצד של הראשי:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">docker compose -p ch17 -f data/compose.yaml exec primary psql -U course -d lab -c \
+  &quot;SELECT application_name, state, sync_state, sent_lsn, replay_lsn, replay_lag FROM pg_stat_replication&quot;
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text"> application_name |   state   | sync_state | sent_lsn  | replay_lsn |   replay_lag
+------------------+-----------+------------+-----------+------------+-----------------
+ walreceiver      | streaming | async      | 0/3000000 | 0/3000000  | 00:00:00.000227
+(1 row)
+</code></pre>
+
+
+</div>
+
+<p>שורה אחת לכל משני מחובר. המצב <code>streaming</code> אומר שהמשני זורם בזמן אמת, ו־<code>async</code> אומר שהראשי לא מחכה לו.
+המספרים אצלך יהיו אחרים. במשני עצמו, הפונקציה <code>pg_is_in_recovery()</code> מחזירה <code>t</code>, וכל <code>CREATE TABLE</code> נכשל
+בשגיאה <code>cannot execute CREATE TABLE in a read-only transaction</code>.</p>
+<h2 id="173">17.3 פיגור שכפול, מודגם</h2>
+<h3 id="1731">17.3.1 שלוש דרכים למדוד</h3>
+<p>פיגור שכפול (replica lag) הוא כמה המשני מאחורי הראשי. אפשר למדוד אותו בבתים של WAL או בזמן, ומשלושה
+מקומות. כל אחד עונה על שאלה קצת אחרת:</p>
+<table>
+<thead>
+<tr>
+<th>איפה</th>
+<th>מה</th>
+<th>מה זה מודד</th>
+<th>המלכודת</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>בראשי</td>
+<td><code>pg_stat_replication</code></td>
+<td>‏<code>write_lag</code>, ‏<code>flush_lag</code>, ‏<code>replay_lag</code> ו־LSN לכל משני</td>
+<td>כשהמשני מעודכן, הזמנים מראים כמה לקחה הכתיבה האחרונה ולא אפס; במערכת שקטה הם הופכים ל־NULL</td>
+</tr>
+<tr>
+<td>בראשי</td>
+<td>‏<code>pg_wal_lsn_diff</code> בין ה־LSN הנוכחי ל־<code>replay_lsn</code></td>
+<td>בתים שנכתבו ועוד לא הורצו</td>
+<td>בתים אינם זמן; WAL של טעינה גדולה הוא הרבה בתים בשנייה אחת</td>
+</tr>
+<tr>
+<td>במשני</td>
+<td>‏<code>now()</code> פחות <code>pg_last_xact_replay_timestamp()</code></td>
+<td>הגיל של הטרנזקציה האחרונה שהורצה</td>
+<td>בראשי שקט הגיל גדל כל הזמן, אף שאין שום פיגור</td>
+</tr>
+<tr>
+<td>בלקוח</td>
+<td>לכתוב בראשי ולחכות לשורה במשני</td>
+<td>מה שמשתמשת חווה בפועל</td>
+<td>כולל גם זמן רשת ותדירות דגימה, ולכן גבול עליון</td>
+</tr>
+</tbody>
+</table>
+<p>מספר רצף ביומן (LSN) הוא מיקום בתוך היומן, בצורה כמו <code>0/3000148</code>. הוא עולה תמיד,
+ולכן אפשר להשוות שני מיקומים ולחסר ביניהם. התיעוד מציע לפרק את הפיגור לשלבים: הפרש גדול בין ה־LSN הנוכחי של
+הראשי לבין <code>sent_lsn</code> מעיד על ראשי עמוס, והפרש בין <code>sent_lsn</code> למה שהמשני קיבל מעיד על רשת או על משני עמוס.</p>
+<h3 id="1732">17.3.2 בדיקה מהצד של הלקוח</h3>
+<p>מהצד של משתמשת, רק המספר האחרון בטבלה חשוב: כמה זמן אחרי שהכתיבה אושרה היא נראית בקריאה מהמשני. זה מה
+שהבדיקה (probe) של התרגיל מודדת. מהקובץ <code>replica/replica.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func (p Pair) Probe(ctx context.Context, note string, interval time.Duration) (Observation, error) {
+    var id int64
+    err := p.Primary.QueryRow(ctx,
+        `INSERT INTO probe_writes (note) VALUES ($1) RETURNING id`, note).Scan(&amp;id)
+    if err != nil {
+        return Observation{}, fmt.Errorf(&quot;write on primary: %w&quot;, err)
+    }
+    committed := time.Now() // autocommit: the row is durable on the primary from here on
+    for polls := 1; ; polls++ {
+        var seen bool
+        err := p.Replica.QueryRow(ctx,
+            `SELECT EXISTS (SELECT 1 FROM probe_writes WHERE id = $1)`, id).Scan(&amp;seen)
+        if err != nil {
+            return Observation{}, fmt.Errorf(&quot;read on replica: %w&quot;, err)
+        }
+        if seen {
+            return Observation{ID: id, Lag: time.Since(committed), Polls: polls}, nil
+        }
+        select {
+        case &lt;-ctx.Done():
+            return Observation{}, fmt.Errorf(&quot;row %d not visible on the replica after %d polls: %w&quot;, id, polls, ctx.Err())
+        case &lt;-time.After(interval):
+        }
+    }
+}
+</code></pre>
+
+
+</div>
+
+<p>מה שווה לשים לב אליו:</p>
+<ul>
+<li><strong>השעון מתחיל אחרי ה־<code>INSERT</code>.</strong> בלי טרנזקציה מפורשת, הפקודה היא טרנזקציה בפני עצמה, ולכן כשהיא חוזרת
+  השורה כבר אושרה בראשי.</li>
+<li><strong>הלולאה שואלת שאלה בינארית.</strong> הביטוי <code>EXISTS</code> מחזיר אמת או שקר, ולא שגיאה כשאין שורה.</li>
+<li><strong>המספר הוא גבול עליון.</strong> הוא כולל סבב אחד מול המשני ועד מרווח דגימה אחד. מרווח של אלפית שנייה מקטין את
+  הטעות, במחיר של עוד שאילתות על המשני.</li>
+</ul>
+<p>הפונקציה <code>Summarize</code> באותו קובץ מסכמת כמה בדיקות באחוזונים בשיטת הדרגה הקרובה (nearest rank), וסופרת כמה
+בדיקות פספסו בקריאה הראשונה.</p>
+<h3 id="1733">17.3.3 להריץ, ולהפוך את הפיגור לגלוי</h3>
+<p>על מחשב אחד, בלי עומס, הפיגור קטן מאוד, ולכן לתוכנית <code>probe</code> שלושה מצבים:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">export DATABASE_URL=postgres://course:change-me@localhost:5417/lab
+export REPLICA_URL=postgres://course:change-me@localhost:5427/lab
+go run ./cmd/probe -n 50
+go run ./cmd/probe -n 50 -load 4
+go run ./cmd/probe -n 10 -delay 2s
+</code></pre>
+
+
+</div>
+
+<table>
+<thead>
+<tr>
+<th>הרצה</th>
+<th>מה קורה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-n 50</code></td>
+<td>ראשי שקט; ההרצה מודדת את רצפת הפיגור במחשב שלך</td>
+</tr>
+<tr>
+<td><code>-load 4</code></td>
+<td>ארבע goroutines מכניסות בראשי קבוצות של 500 שורות בגודל קילובייט, וה־WAL גדל</td>
+</tr>
+<tr>
+<td><code>-delay 2s</code></td>
+<td>קובעת במשני את <code>recovery_min_apply_delay</code>, ומחזירה אותו לאפס בסוף</td>
+</tr>
+</tbody>
+</table>
+<p>הפלט נראה כך. את המספרים תמדדי ותרשמי בפתק, ולא תעתיקי מכאן:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">probe   0  row 34       lag …            polls 1
+probe   1  row 35       lag …            polls 1
+...
+summary: n=50 min=… median=… p95=… max=… first-read-missed=…
+pg_stat_replication: walreceiver state=streaming sync=async replay_lag=… behind=… bytes
+</code></pre>
+
+
+</div>
+
+<p>העמודה <code>polls</code> אומרת כמה קריאות מהמשני היו עד שהשורה נראתה. כל ערך מעל 1 הוא קריאה שפספסה כתיבה שכבר
+אושרה, וזה בדיוק הבאג של „לקרוא את מה שכתבת”. בהרצה עם עומס, השורה האחרונה מראה גם כמה בתים המשני מאחור
+ברגע הקריאה.</p>
+<p>הפרמטר <code>recovery_min_apply_delay</code> הוא כלי אמיתי לייצור: משני מושהה בכוונה, למשל בשעה, נותן לך עותק של
+העבר כש־<code>DELETE</code> בלי <code>WHERE</code> רץ בטעות בראשי. לפי התיעוד של גרסה 18:</p>
+<ul>
+<li><strong>רק רשומות <code>COMMIT</code> מושהות.</strong> שאר הרשומות מורצות מיד, ולכן הנתונים מגיעים, אבל לא נראים.</li>
+<li><strong>ההשהיה נמדדת מול השעון של המשני.</strong> הוא מריץ commit כשהשעון שלו עבר את זמן ה־commit בראשי ועוד ההשהיה.</li>
+</ul>
+<p>התוכנית קובעת אותו בפונקציה <code>SetApplyDelay</code>, בקובץ <code>replica/status.go</code>, עם <code>ALTER SYSTEM</code> ואז
+<code>pg_reload_conf()</code>. הפקודה <code>ALTER SYSTEM</code> עובדת גם במשני, שהוא לקריאה בלבד: היא כותבת לקובץ <code>postgresql.auto.conf</code> של אותו שרת
+ולא ל־WAL. הטעינה מחדש של ההגדרות אסינכרונית, ולכן הפונקציה מחכה עד שההגדרה החדשה נראית ב־<code>pg_settings</code>.
+ההשהיה נשארת אחרי שהתוכנית נגמרת אם היא נקטעה באמצע, וזו אחת הטעויות הנפוצות בתרגיל.</p>
+<blockquote>
+<p><strong>טעות נפוצה:</strong> לנטר פיגור רק לפי <code>now() - pg_last_xact_replay_timestamp()</code>. בלילה, כשאין כתיבות, המדד הזה
+עולה בלי הפסקה וההתראה קופצת, אף שהמשני מעודכן לגמרי. מנטרים פיגור בבתים מול הראשי, או כותבים שורת
+„דופק” לראשי כל כמה שניות ומודדים את הגיל שלה במשני.</p>
+</blockquote>
+<h2 id="174">17.4 לקרוא את מה שכתבת</h2>
+<h3 id="1741">17.4.1 הבאג</h3>
+<p>הבדיקה <code>TestReadYourWrites</code> מייצרת את הבאג בכוונה: היא קובעת השהיה של שנייה במשני, כותבת הערה בראשי, וקוראת
+אותה מיד מהמשני. מהקובץ <code>replica/replica_test.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    id, token, err := p.WriteNote(ctx, &quot;my new address&quot;)
+    if err != nil {
+        t.Fatal(err)
+    }
+    // The naive read: straight to the replica, which has not applied the commit yet.
+    if _, err := p.ReadNoteFromReplica(ctx, id); !errors.Is(err, ErrNotFound) {
+        t.Fatalf(&quot;replica read right after the write: err = %v, want ErrNotFound (the stale read)&quot;, err)
+    }
+</code></pre>
+
+
+</div>
+
+<p>בייצור זה נראה כך: משתמשת שומרת כתובת חדשה, השרת מחזיר הצלחה, הדף נטען מחדש עם קריאה מהמשני, והכתובת הישנה
+מופיעה. היא שומרת שוב. אף אחד לא עשה טעות, וכל רכיב עשה את מה שהבטיח: השכפול אסינכרוני. התיקון הוא לתת
+ללקוח הבטחה של סשן, בלי להפוך את כל המערכת לסינכרונית.</p>
+<h3 id="1742">17.4.2 שלוש אסטרטגיות</h3>
+<table>
+<thead>
+<tr>
+<th>אסטרטגיה</th>
+<th>איך</th>
+<th>המחיר</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>לקרוא מהראשי</td>
+<td>קריאות שחייבות להיות עדכניות, או כל הקריאות של משתמשת אחרי כתיבה, הולכות לראשי</td>
+<td>עומס על הראשי, וקשה לדעת מראש אילו קריאות „חייבות”</td>
+</tr>
+<tr>
+<td>הדבקה לסשן (session stickiness)</td>
+<td>חלון זמן אחרי כל כתיבה שבו המשתמשת קוראת מהראשי</td>
+<td>החלון חייב להיות גדול מהפיגור, ופיגור חריג שובר את ההבטחה</td>
+</tr>
+<tr>
+<td>מעקב LSN</td>
+<td>אחרי כתיבה הלקוח שומר את ה־LSN; קריאה ממשני מחכה עד שהוא הריץ אותו, ואחרת עוברת לראשי</td>
+<td>צריך להעביר אסימון (token) בין בקשות, וקריאה עשויה לחכות</td>
+</tr>
+</tbody>
+</table>
+<p>התרגיל מממש את השנייה ואת השלישית.</p>
+<p><strong>הדבקה לסשן.</strong> המימוש לא צריך מסד בכלל, ולכן הבדיקה שלו מזיזה שעון מדומה במקום לחכות. מהקובץ
+<code>replica/router.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func (r *Router) ForRead(user string) Source {
+    r.mu.Lock()
+    defer r.mu.Unlock()
+    last, ok := r.lastWrite[user]
+    if !ok {
+        return FromReplica
+    }
+    if r.Now().Sub(last) &lt; r.Window {
+        return FromPrimary
+    }
+    delete(r.lastWrite, user) // the window has passed; forget the user
+    return FromReplica
+}
+</code></pre>
+
+
+</div>
+
+<p>החלון הוא מספר שאת בוחרת, ועליו להיות גדול מהפיגור הגרוע שמדדת, לא מהחציון. כאן המספרים מסעיף 17.3 נכנסים
+לתכנון. אם משני נתקע לדקה, ההבטחה נשברת בשקט, ולכן מחברים את החלון להתראה על פיגור.</p>
+<p><strong>מעקב LSN.</strong> אחרי כל כתיבה, השירות לוקח את מיקום ה־WAL הנוכחי של הראשי ומחזיר אותו ללקוח, בעוגייה או
+בתשובה. המיקום הזה נמצא אחרי רשומת ה־<code>COMMIT</code> של הכתיבה, ולכן משני שהריץ עד אליו מכיל אותה. מאותו קובץ
+<code>replica/ryw.go</code>, הקריאה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func (p Pair) ReadNote(ctx context.Context, id int64, token LSN, maxWait time.Duration) (string, Source, error) {
+    if token != &quot;&quot; {
+        waitCtx, cancel := context.WithTimeout(ctx, maxWait)
+        err := p.WaitForLSN(waitCtx, token, 5*time.Millisecond)
+        cancel()
+        if err != nil {
+            if ctx.Err() != nil {
+                return &quot;&quot;, &quot;&quot;, ctx.Err()
+            }
+            note, err := readNote(ctx, p.Primary, id) // replica too far behind: fall back
+            return note, FromPrimary, err
+        }
+    }
+    note, err := readNote(ctx, p.Replica, id)
+    return note, FromReplica, err
+}
+</code></pre>
+
+
+</div>
+
+<p>ההשוואה בין שני מיקומים נעשית בשרת, כטיפוס <code>pg_lsn</code>, ולא כמחרוזות. כמחרוזות, <code>0/10000000</code> „קטן” מ־<code>0/9000000</code>,
+וזו טעות שקטה. הבדיקה מכסה את שני המסלולים: עם המתנה של שלוש שניות המשני מספיק להשיג את האסימון ועונה בעצמו,
+ועם 100 אלפיות שנייה הקריאה עוברת לראשי.</p>
+<blockquote>
+<p><strong>שימי לב:</strong> קריאות מונוטוניות הן בעיה קרובה ונפרדת. משתמשת שקוראת פעם ממשני אחד ופעם מאחר יכולה לראות
+ערך חדש ואז ישן. הפתרון הנפוץ הוא להצמיד משתמשת למשני אחד, לפי hash של המזהה שלה, או להשתמש באותו אסימון
+LSN גם לקריאות: כל קריאה מעדכנת אותו, וכל משני חייב להגיע אליו.</p>
+</blockquote>
+<h3 id="1743">17.4.3 ומה עם שכפול סינכרוני?</h3>
+<p>אפשר גם לעקוף את כל זה: <code>synchronous_commit</code> בערך <code>remote_apply</code>, ו־<code>COMMIT</code> לא חוזר עד שהמשני הריץ אותו.
+זה נותן „לקרוא את מה שכתבת” לכולם, במחיר של סבב רשת נוסף בכל כתיבה ותלות של הראשי בזמינות המשני. בדרך כלל
+בוחרים בזה בשביל עמידות, כלומר לא לאבד כתיבות שאושרו כשהראשי מת, ולא בשביל עקביות הקריאות.</p>
+<h2 id="175">17.5 חלוקה למחיצות ובחירת מפתח</h2>
+<h3 id="1751">17.5.1 למה מחלקים</h3>
+<p>שכפול נותן עוד עותקים של אותם נתונים: יותר קריאות, וגיבוי. הוא לא עוזר כשהנתונים או הכתיבות גדולים משרת אחד.
+חלוקה למחיצות (partitioning, ובמערכות רבות sharding) מפצלת את הנתונים לחלקים זרים, וכל חלק חי בשרת אחר.
+בדרך כלל משלבים את שתיהן: כל מחיצה משוכפלת.</p>
+<p>ראית את זה כבר ב־Kafka, בפרק 13: לכל הודעה יש מפתח, והמפתח קובע לאיזו partition היא הולכת. אותו רעיון
+בדיוק עובד ב־Cassandra, ב־DynamoDB ובטבלאות מחולקות. גם ב־PostgreSQL יש חלוקה מוצהרת (<code>PARTITION BY</code>)
+לפי טווח, רשימה או hash, אבל היא מחלקת טבלה בתוך שרת אחד, בשביל תחזוקה וחיפוש, ולא בין שרתים.</p>
+<h3 id="1752-hash">17.5.2 hash מול טווחים</h3>
+<table>
+<thead>
+<tr>
+<th>שיטה</th>
+<th>איך מפתח מגיע למחיצה</th>
+<th>טובה ל</th>
+<th>הבעיה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>hash</td>
+<td>‏hash של המפתח, מודולו מספר המחיצות</td>
+<td>פיזור אחיד של מפתחות</td>
+<td>שאילתת טווח („כל ההזמנות של אוקטובר”) פונה לכל המחיצות</td>
+</tr>
+<tr>
+<td>טווחים (range)</td>
+<td>כל מחיצה מחזיקה טווח רציף של מפתחות</td>
+<td>שאילתות טווח וסריקה ממוינת</td>
+<td>מפתח שעולה עם הזמן שולח את כל הכתיבות החדשות למחיצה האחרונה</td>
+</tr>
+</tbody>
+</table>
+<p>שני המחלקים של התרגיל קצרים. מהקובץ <code>skew/skew.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func (h Hash) Partition(key string) int { return int(hash64(key) % uint64(h.N)) }
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func (rg Range) Partition(key string) int {
+    return sort.Search(len(rg.Bounds), func(i int) bool { return key &lt; rg.Bounds[i] })
+}
+</code></pre>
+
+
+</div>
+
+<p>המחלק לפי טווחים מחפש חיפוש בינארי ברשימת הגבולות הממוינת. הפונקציה <code>sort.Search</code> מחזירה את האינדקס הראשון
+שבו הגבול גדול מהמפתח, וזו בדיוק המחיצה.</p>
+<h3 id="1753">17.5.3 איך בוחרים מפתח</h3>
+<p>מפתח חלוקה קשה מאוד לשנות אחר כך: שינוי שלו הוא העברה של כל הנתונים. ארבע שאלות, לפי הסדר:</p>
+<ol>
+<li><strong>מה השאילתה החמה צריכה?</strong> אם רוב הקריאות הן „כל מה ששייך ללקוח X”, מפתח לפי לקוח שולח כל קריאה למחיצה
+   אחת. מפתח אחר יפזר אותה על כולן.</li>
+<li><strong>איזה סדר חייב להישמר?</strong> ב־Kafka הסדר נשמר רק בתוך partition. אם האירועים של לקוח חייבים להגיע בסדר,
+   הלקוח חייב להיות במפתח.</li>
+<li><strong>כמה מפתחות שונים יש, ואיך העומס מתחלק ביניהם?</strong> עשרה לקוחות זה לא מספיק לחלוקה ל־64 מחיצות. ואם לקוח
+   אחד הוא חצי מהתנועה, יש לך מחיצה חמה. זה הסעיף הבא.</li>
+<li><strong>איך זה יגדל?</strong> מפתח שמתאים היום לאלף לקוחות צריך להחזיק גם מאה אלף.</li>
+</ol>
+<h2 id="176">17.6 מחיצות חמות</h2>
+<h3 id="1761">17.6.1 העולם לא אחיד</h3>
+<p>מחיצה חמה (hot partition) היא מחיצה שמקבלת חלק גדול בהרבה מהממוצע. hash מפזר מפתחות באופן אחיד, אבל לא
+את העומס: אם מפתח אחד מקבל עשירית מכל האירועים, המחיצה שלו מקבלת לפחות עשירית, יהיו כמה מחיצות שיהיו.
+<strong>עוד מחיצות לא עוזרות למפתח חם אחד.</strong></p>
+<p>ובמערכות אמיתיות העומס כמעט אף פעם לא אחיד. לקוחות של SaaS, מוצרים בחנות ומשתמשות ברשת חברתית נוטים
+להתפלגות זנב ארוך: מעט גדולים מאוד והרבה קטנים. מודל נפוץ לזה הוא התפלגות Zipf, שבה ההסתברות של הפריט
+בדרגה k יורדת כחזקה של k. החבילה <code>math/rand/v2</code> של Go כוללת מחולל כזה. מהקובץ <code>skew/skew.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// Zipf draws tenants with a Zipf distribution: tenant k is chosen with probability
+// proportional to (1+k)^(-s), so tenant 0 is the largest customer, tenant 1 the next, and
+// a long tail of small tenants follows. s must be greater than 1; larger s, more skew.
+func Zipf(r *rand.Rand, tenants int, s float64) KeyFunc {
+    z := rand.NewZipf(r, s, 1, uint64(tenants-1))
+    return func() string { return tenantName(int(z.Uint64())) }
+}
+</code></pre>
+
+
+</div>
+
+<p>לפי התיעוד של החבילה:</p>
+<ul>
+<li><strong>ההסתברות.</strong> הערך k מוגרל בהסתברות יחסית ל־<code>(v + k)</code> בחזקת מינוס <code>s</code>.</li>
+<li><strong>התחום.</strong> הערכים הם בין 0 ל־<code>imax</code>.</li>
+<li><strong>הדרישות.</strong> הפרמטר <code>s</code> גדול מ־1, ו־<code>v</code> לפחות 1. ככל ש־<code>s</code> גדול יותר, ההתפלגות מוטה יותר.</li>
+</ul>
+<p>הסימולטור מגריל מפתחות, מחלק אותם, וסופר אירועים לכל מחיצה. המדד המרכזי הוא „מקדם החום” (hot factor): הספירה
+של המחיצה העמוסה ביותר חלקי הממוצע. מקדם 1 הוא חלוקה מושלמת; מקדם 3 אומר שהמחיצה החמה צריכה פי שלושה
+קיבולת. מאותו קובץ:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func (l Load) HotFactor() float64 {
+    total := 0
+    for _, c := range l.Counts {
+        total += c
+    }
+    if total == 0 {
+        return 0
+    }
+    _, hottest := l.Hottest()
+    return float64(hottest) * float64(len(l.Counts)) / float64(total)
+}
+</code></pre>
+
+
+</div>
+
+<h3 id="1762">17.6.2 שלוש הרצות</h3>
+<p>בתרגיל תריצי את הסימולטור שלוש פעמים, עם אלף לקוחות ושמונה מחיצות:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">go run ./cmd/skew -key uniform
+go run ./cmd/skew -key zipf
+go run ./cmd/skew -key composite
+</code></pre>
+
+
+</div>
+
+<p>הסימולטור דטרמיניסטי: עם אותו זרע (<code>-seed</code>, ברירת מחדל 1) הוא מדפיס בדיוק את אותם מספרים בכל מחשב, ולכן
+כאן מותר להראות פלט אמיתי. זו ההרצה עם Zipf:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">key=zipf partitioner=hash partitions=8 tenants=1000 events=100000 s=1.10
+p0      26804  ########################################
+p1      10564  ###############
+p2      12816  ###################
+p3       5319  #######
+p4       9238  #############
+p5      20299  ##############################
+p6       5907  ########
+p7       9053  #############
+hot factor (max / mean): 2.14
+</code></pre>
+
+
+</div>
+
+<p>שמונה מחיצות, ומחיצה 0 מקבלת יותר מרבע מהאירועים. הסיבה היא הלקוח הגדול ביותר: הוא לבד מקבל בערך חמישית
+מהתנועה, וכל מה שנופל איתו באותה מחיצה מצטרף. עם הדגל <code>-partitioner range</code> התמונה גרועה בהרבה: הלקוחות
+הגדולים הם בעלי המספרים הנמוכים, ולכן כולם יחד באותו טווח, במחיצה הראשונה.</p>
+<h3 id="1763">17.6.3 מה עושים עם מפתח חם</h3>
+<table>
+<thead>
+<tr>
+<th>טכניקה</th>
+<th>איך</th>
+<th>מה מפסידים</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>מפתח מורכב, או „המלחה” (salting)</td>
+<td>מוסיפים למפתח רכיב שמתפזר, כמו מזהה האירוע או מספר בין 0 ל־N</td>
+<td>הסדר בין אירועים של אותו לקוח; קריאה של לקוח פונה לכמה מחיצות</td>
+</tr>
+<tr>
+<td>מחיצה ייעודית</td>
+<td>הלקוחות הגדולים מקבלים מחיצות משלהם, והשאר מתחלקים ב־hash</td>
+<td>טבלת מיפוי שצריך לתחזק</td>
+</tr>
+</tbody>
+</table>
+<p>ההרצה עם <code>-key composite</code> משתמשת בטכניקה הראשונה: לקוח ועוד מספר אקראי. מקדם החום יורד לקרוב ל־1, ובבדיקות
+של התרגיל הוא נבדק כחסום ב־1.2. המחיר אמיתי: ב־Kafka, אירועים של אותו לקוח כבר לא באותה partition, ולכן אין
+סדר ביניהם.</p>
+<blockquote>
+<p><strong>שימי לב:</strong> ב־Hookline האירועים מתפרסמים עם מפתח לפי לקוח (ראי פרק 37 והמסמך של הפרויקט), כדי לשמור סדר
+פרסום לכל לקוח. זו בדיוק הבחירה הזאת עם המחיר הזה: לקוח רועש יחמם partition. בפתק של היום תכתבי איזה מפתח
+היית בוחרת, ומה היה משנה את דעתך.</p>
+</blockquote>
+<h3 id="1764">17.6.4 גיבוב עקבי, בקצרה</h3>
+<p>hash מודולו N עובד יפה עד שמשנים את N. כשמוסיפים שרת חמישי לארבעה, כמעט כל מפתח עובר למקום אחר, וזו העברה
+של כמעט כל הנתונים. גיבוב עקבי (consistent hashing) מסדר את השרתים על מעגל של ערכי hash, ומפתח שייך לשרת
+הראשון שאחריו על המעגל. כל שרת מופיע בכמה נקודות, „צמתים וירטואליים” (virtual nodes), כדי שהחלקים יהיו
+דומים בגודלם. שרת חדש לוקח רק את הקטעים שלפני הנקודות שלו. מהקובץ <code>skew/ring.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func (r *Ring) Node(key string) string {
+    h := hash64(key)
+    i := sort.Search(len(r.points), func(i int) bool { return r.points[i] &gt;= h })
+    if i == len(r.points) {
+        i = 0 // wrap around the circle
+    }
+    return r.owner[r.points[i]]
+}
+</code></pre>
+
+
+</div>
+
+<p>הבדיקה <code>TestRingMovesFewKeysWhenANodeJoins</code> מוסיפה שרת חמישי לארבעה, על עשרים אלף מפתחות קבועים, ומדפיסה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">keys moved: ring 21.0%, modulo 80.1%
+</code></pre>
+
+
+</div>
+
+<p>התיאוריה צופה חמישית בטבעת וארבע חמישיות במודולו. ‏Cassandra, למשל, נשען על גרסה של הרעיון. Kafka דווקא לא: מספר ה־partitions של topic קבוע, והוספת partitions משנה את המיפוי של מפתחות קיימים.</p>
+<h2 id="177-cap-pacelc">17.7 CAP ו־PACELC בלי מיתוסים</h2>
+<h3 id="1771-cap">17.7.1 מה CAP אומר באמת</h3>
+<p>ההשערה של Eric Brewer משנת 2000, שהוכחה פורמלית ב־2002, אומרת: במערכת משוכפלת,
+כשהרשת מתפצלת (partition), אי אפשר לקבל גם עקביות וגם זמינות. כל אחת מהאותיות מוגדרת צר מכפי שנהוג לחשוב:</p>
+<table>
+<thead>
+<tr>
+<th>אות</th>
+<th>ההגדרה במשפט</th>
+<th>מה היא לא</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>C</td>
+<td>ליניאריזביליות: כל קריאה רואה את הכתיבה האחרונה</td>
+<td>לא ה־C של ACID, שעוסק באילוצים</td>
+</tr>
+<tr>
+<td>A</td>
+<td>כל צומת שלא קרס עונה לכל בקשה, בסוף</td>
+<td>לא „99.99% זמן פעילות”</td>
+</tr>
+<tr>
+<td>P</td>
+<td>המערכת ממשיכה לפעול כשהודעות בין צמתים הולכות לאיבוד</td>
+<td>לא תכונה שבוחרים: רשתות מתפצלות</td>
+</tr>
+</tbody>
+</table>
+<p>שני מאמרים מגיליון פברואר 2012 של כתב העת IEEE Computer הם המקורות של הסעיף:</p>
+<table>
+<thead>
+<tr>
+<th>מאמר</th>
+<th>מחבר</th>
+<th>הטענה המרכזית</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>„CAP Twelve Years Later: How the ‚Rules’ Have Changed”</td>
+<td>Eric Brewer</td>
+<td>„שניים מתוך שלושה” הוא ניסוח מטעה</td>
+</tr>
+<tr>
+<td>„Consistency Tradeoffs in Modern Distributed Database System Design”</td>
+<td>Daniel Abadi</td>
+<td>‏PACELC: גם בלי פיצול יש מחיר</td>
+</tr>
+</tbody>
+</table>
+<p>העיקרים של Brewer, בניסוח שלי:</p>
+<ul>
+<li><strong>פיצולים נדירים.</strong> כשאין פיצול, אין שום סתירה בין C ל־A, ומערכת לא צריכה לוותר על אף אחד מהם.</li>
+<li><strong>הבחירה עדינה.</strong> היא לא נעשית פעם אחת לכל המערכת, אלא לכל פעולה, לכל סוג נתונים, ואפילו לכל משתמשת.</li>
+<li><strong>פיצול צריך תוכנית.</strong> לזהות אותו, לפעול במצב מוגבל בזמן שהוא נמשך, ולהתאושש ממנו: ליישב את מה שנכתב בשני
+  הצדדים.</li>
+</ul>
+<p>המיתוס הנפוץ ביותר בראיונות הוא „מערכת CA”. במערכת מבוזרת אי אפשר לבחור לא לסבול פיצולים; אפשר רק להחליט מה
+עושים כשהם קורים.</p>
+<h3 id="1772-pacelc">17.7.2 PACELC: מה קורה כשהכול תקין</h3>
+<p>הטענה של Abadi במאמר השני: את רוב ההחלטות בתכנון מסדי נתונים מבוזרים לא מכתיב CAP, כי
+CAP מדבר רק על פיצולים. מכתיב אותן מחיר שמשלמים כל הזמן: כדי לשכפל, צריך לבחור בין לחכות לעותקים לבין
+לענות מהר.</p>
+<p>הנוסחה נקראת כך:</p>
+<ul>
+<li><strong>אם יש פיצול (P).</strong> בוחרים בין זמינות (A) לעקביות (C), כמו בתיאוריה הקודמת.</li>
+<li><strong>אחרת (E).</strong> בוחרים בין זמן תגובה (L) לעקביות (C). המאמר מסווג כמה מערכות, נכון לזמן כתיבתו ב־2012:</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>סיווג</th>
+<th>פירוש</th>
+<th>מערכות לפי המאמר</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PA/EL</td>
+<td>מוותרות על עקביות גם בפיצול וגם בשגרה</td>
+<td>הגרסאות הבסיסיות של Dynamo, ‏Cassandra ו־Riak</td>
+</tr>
+<tr>
+<td>PC/EC</td>
+<td>לא מוותרות על עקביות, ומשלמות בזמינות ובזמן תגובה</td>
+<td>VoltDB ו־H-Store, ‏Megastore, ‏BigTable ו־HBase</td>
+</tr>
+<tr>
+<td>PA/EC</td>
+<td>עקביות בשגרה, זמינות בפיצול</td>
+<td>MongoDB של אותה תקופה</td>
+</tr>
+</tbody>
+</table>
+<h3 id="1773">17.7.3 החיבור לתרגיל</h3>
+<p>המעבדה של הפרק היא PACELC בקטן, בלי שום פיצול:</p>
+<ul>
+<li><strong>ה־EL שלך.</strong> שכפול אסינכרוני וקריאה מהמשני הם בחירה בזמן תגובה: הכתיבה חוזרת מיד, והקריאה עלולה להיות
+  ישנה. ה־<code>polls</code> שמעל 1 בתוכנית <code>probe</code> הם המחיר.</li>
+<li><strong>ה־EC שלך.</strong> אסימון ה־LSN, הקריאה מהראשי ו־<code>remote_apply</code> הם שלוש דרכים לקנות עקביות. כל אחת משלמת בזמן
+  תגובה: לחכות למשני, להעמיס על הראשי, או לחכות בכל <code>COMMIT</code>.</li>
+<li><strong>ה־P שלך.</strong> אם המשני מנותק, קריאה עם אסימון נופלת לראשי ונשארת עקבית. קריאה נאיבית ממשיכה לענות, מנתונים
+  שהולכים ומתיישנים. זו בחירה בין C ל־A בזעיר אנפין.</li>
+</ul>
+<p>בראיון, התשובה הטובה לשאלה „זו מערכת CP או AP?” היא לשאול: איזו פעולה, ומה קורה לה כשמשני מתנתק.</p>
+<h2 id="_3">סיכום</h2>
+<ul>
+<li>מודל עקביות הוא חוזה על מה שקריאה רשאית להחזיר. „לקרוא את מה שכתבת” וקריאות מונוטוניות הן הבטחות לסשן,
+  ואפשר לתת אותן מעל שכפול אסינכרוני.</li>
+<li>שכפול זורם ב־PostgreSQL שולח את היומן לשרת משני. הכלי <code>pg_basebackup</code> עם הדגל <code>-R</code> הופך עותק למשני.</li>
+<li>הפיגור נמדד בראשי, במשני ובלקוח, ולכל מדד יש מלכודת. הגיל של הטרנזקציה האחרונה עולה בראשי שקט.</li>
+<li>‏<code>recovery_min_apply_delay</code> משהה רק רשומות commit, ומשמש בייצור כעותק מושהה להתאוששות מטעויות.</li>
+<li>הדבקה לסשן ומעקב LSN נותנים „לקרוא את מה שכתבת” במחיר קטן; שכפול סינכרוני נותן אותו לכולם במחיר בכל כתיבה.</li>
+<li>hash מפזר מפתחות ולא עומס. מפתח חם אחד מחמם מחיצה אחת, ועוד מחיצות לא עוזרות.</li>
+<li>גיבוב עקבי מזיז בערך חלק אחד מ־N של המפתחות כשמוסיפים שרת, במקום כמעט את כולם.</li>
+<li>‏CAP עוסק רק בפיצולים, ו־C שלו הוא ליניאריזביליות. ‏PACELC מוסיף את המחיר של כל יום: זמן תגובה מול עקביות.</li>
+</ul>
+<h2 id="_4">מונחים לזכור</h2>
+<table>
+<thead>
+<tr>
+<th>מונח בעברית</th>
+<th>באנגלית</th>
+<th>במשפט אחד</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>מודל עקביות</td>
+<td>consistency model</td>
+<td>חוזה על הערכים שקריאה רשאית להחזיר בהינתן הכתיבות</td>
+</tr>
+<tr>
+<td>ליניאריזביליות</td>
+<td>linearizability</td>
+<td>המערכת מתנהגת כעותק אחד, בזמן אמת</td>
+</tr>
+<tr>
+<td>עקביות סיבתית</td>
+<td>causal consistency</td>
+<td>מה שנגרם ממשהו לעולם לא נראה לפניו</td>
+</tr>
+<tr>
+<td>לקרוא את מה שכתבת</td>
+<td>read-your-writes</td>
+<td>לקוח תמיד רואה את הכתיבות של עצמו</td>
+</tr>
+<tr>
+<td>קריאות מונוטוניות</td>
+<td>monotonic reads</td>
+<td>לקוח לא רואה ערך ישן יותר ממה שכבר ראה</td>
+</tr>
+<tr>
+<td>עקביות בסופו של דבר</td>
+<td>eventual consistency</td>
+<td>בלי כתיבות חדשות, העותקים מתכנסים; בלי גבול זמן</td>
+</tr>
+<tr>
+<td>שכפול</td>
+<td>replication</td>
+<td>החזקת עותקים של אותם נתונים בכמה שרתים</td>
+</tr>
+<tr>
+<td>שכפול זורם</td>
+<td>streaming replication</td>
+<td>‏WAL שנשלח מהראשי למשני בזמן שהוא נכתב</td>
+</tr>
+<tr>
+<td>פיגור שכפול</td>
+<td>replica lag</td>
+<td>כמה המשני מאחורי הראשי, בבתים או בזמן</td>
+</tr>
+<tr>
+<td>מספר רצף ביומן</td>
+<td>LSN</td>
+<td>מיקום ב־WAL; עולה תמיד ואפשר להשוות ולחסר</td>
+</tr>
+<tr>
+<td>הדבקה לסשן</td>
+<td>session stickiness</td>
+<td>חלון אחרי כתיבה שבו המשתמשת קוראת מהראשי</td>
+</tr>
+<tr>
+<td>חלוקה למחיצות</td>
+<td>partitioning</td>
+<td>פיצול הנתונים לחלקים זרים שחיים במקומות שונים</td>
+</tr>
+<tr>
+<td>מחיצה חמה</td>
+<td>hot partition</td>
+<td>מחיצה שמקבלת חלק גדול בהרבה מהממוצע</td>
+</tr>
+<tr>
+<td>מקדם חום</td>
+<td>hot factor</td>
+<td>העומס של המחיצה העמוסה ביותר חלקי הממוצע</td>
+</tr>
+<tr>
+<td>גיבוב עקבי</td>
+<td>consistent hashing</td>
+<td>מיפוי על מעגל, שבו הוספת שרת מזיזה מעט מפתחות</td>
+</tr>
+<tr>
+<td>פיצול רשת</td>
+<td>network partition</td>
+<td>צמתים שלא יכולים לתקשר זה עם זה, אף שכולם חיים</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_5">טעויות נפוצות</h2>
+<ul>
+<li><strong>לקרוא ממשני מיד אחרי כתיבה.</strong> המשתמשת רואה נתונים ישנים ושומרת שוב. אסימון LSN או חלון של הדבקה לסשן.</li>
+<li><strong>לנטר פיגור רק לפי הגיל של הטרנזקציה האחרונה.</strong> בראשי שקט ההתראה קופצת בלי סיבה. מנטרים בתים, או שורת דופק.</li>
+<li><strong>לשכוח slot של משני שמת.</strong> הראשי שומר WAL בלי סוף והדיסק מתמלא. מנטרים slots ומגבילים אותם.</li>
+<li><strong>להשוות LSN כמחרוזות.</strong> ההשוואה טועה בשקט כשאורך החלק השני משתנה. משווים בשרת, כ־<code>pg_lsn</code>.</li>
+<li><strong>לחשוב שעוד מחיצות פותרות מפתח חם.</strong> המפתח עדיין במחיצה אחת. מפצלים את המפתח, או נותנים לו מחיצה משלו.</li>
+<li><strong>לבחור מפתח חלוקה לפי מה שנוח לכתיבה ולא לפי השאילתה החמה.</strong> כל קריאה הופכת לפנייה לכל המחיצות.</li>
+<li><strong>„המערכת שלנו CA”.</strong> במערכת מבוזרת פיצולים לא נשאלים. השאלה היא מה כל פעולה עושה כשהם קורים.</li>
+</ul>
+<h2 id="_6">שאלות ראיון</h2>
+<ol>
+<li><strong>משתמשת מעדכנת פרופיל ורואה את הגרסה הישנה אחרי ריענון. מה קורה, ואיך תתקני?</strong> הכתיבה הלכה לראשי
+   והקריאה למשני אסינכרוני שעוד לא הריץ אותה; כל רכיב עשה את מה שהבטיח. חסרה הבטחה לסשן, ויש לה כמה
+   מימושים. הזול ביותר הוא לקרוא מהראשי בחלון קצר אחרי כתיבה של אותה משתמשת, אבל החלון מנחש את הפיגור.
+   המדויק יותר הוא אסימון LSN: אחרי הכתיבה מחזירים ללקוח את מיקום ה־WAL, וקריאה ממשני מחכה עד שהוא הגיע
+   אליו, או עוברת לראשי. שכפול סינכרוני פותר לכולם, אבל מוסיף זמן תגובה לכל כתיבה ותלות בזמינות המשני.</li>
+</ol>
+<p><strong>המשך:</strong> ומה אם הקריאה עוברת דרך מטמון? אז המטמון הוא עוד עותק משוכפל עם פיגור משלו, וצריך לפסול אותו
+   בכתיבה או לעקוף אותו באותו חלון.</p>
+<ol start="2">
+<li>
+<p><strong>מה ההבדל בין ליניאריזביליות לסריאליזביליות?</strong> סריאליזביליות היא רמת בידוד של טרנזקציות: התוצאה של
+   טרנזקציות מקבילות שקולה להרצה כלשהי שלהן בטור, וזה לא חייב להיות הסדר שבו הן קרו בזמן אמת. ליניאריזביליות
+   היא הבטחה על אובייקט אחד: כל פעולה נראית כאילו קרתה ברגע אחד בין ההתחלה לסוף שלה, כך שאחרי שכתיבה
+   הסתיימה, כולם רואים אותה. הצירוף של שתיהן נקרא לפעמים „סריאליזביליות קפדנית” (strict serializability).</p>
+</li>
+<li>
+<p><strong>איך תבחרי מפתח חלוקה לאירועים של פלטפורמת SaaS, ומה יקרה עם לקוח אחד גדול?</strong> מתחילים מהשאילתה החמה
+   ומהסדר: אם האירועים של לקוח חייבים להישאר בסדר, הלקוח חייב להיות במפתח. ההתפלגות של לקוחות כמעט תמיד
+   מוטה, ולכן לקוח גדול יחמם מחיצה, ועוד מחיצות לא יעזרו. האפשרויות הן מפתח מורכב שמוותר על סדר בין אירועים של
+   אותו לקוח, מחיצה ייעודית ללקוחות הגדולים, או עיבוד מקבילי בתוך המחיצה. הייתי מודדת את ההתפלגות לפני שבוחרת.</p>
+</li>
+</ol>
+<p><strong>המשך:</strong> למה לא פשוט hash של מזהה האירוע? כי זה מפזר מושלם ומאבד כל סדר וכל מקומיות: כל קריאה של לקוח
+   פונה לכל המחיצות.</p>
+<ol start="4">
+<li><strong>הסבירי CAP ו־PACELC, ותני דוגמה מהשכפול שבנית.</strong> ‏CAP אומר שבזמן פיצול רשת צריך לבחור בין
+   ליניאריזביליות לבין תשובה מכל צומת חי; בלי פיצול אין סתירה. ‏PACELC מוסיף שגם בשגרה משלמים: לחכות לעותקים
+   או לענות מהר. ראשי עם משנים אסינכרוניים שקוראים מהם הוא EL: מהיר ועלול להיות ישן. עם <code>remote_apply</code> הוא EC,
+   וכל <code>COMMIT</code> מחכה. ובזמן פיצול, ראשי ששכפול סינכרוני שלו נתקע בוחר עקביות על פני זמינות לכתיבות.</li>
+</ol>
+<h2 id="obsidian">פתק Obsidian</h2>
+<p>הפתק המוכן נמצא גם כקובץ: <code>obsidian/17-consistency-replication-partitioning.md</code>. זה תוכנו:</p>
+<ul>
+<li><strong>מודלים:</strong> ליניאריזביליות, סדרתית, סיבתית, לקרוא את מה שכתבת, מונוטוניות, בסופו של דבר. שתיים מהן הבטחות לסשן.</li>
+<li><strong>שכפול ב־PostgreSQL:</strong> ‏WAL זורם לשרת משני; אסינכרוני כברירת מחדל; המשני קורא בלבד.</li>
+<li><strong>הקמה:</strong> משתמש שכפול, שורה למסד <code>replication</code>, ‏slot, ואז עותק עם <code>-R</code> שיוצר את קובץ הסימון ואת מחרוזת החיבור.</li>
+<li><strong>מדידה:</strong> בראשי בבתים ובזמנים, במשני לפי גיל, בלקוח לפי זמן עד שהשורה נראית. כל אחד עם מלכודת.</li>
+<li><strong>הפיגור שלי:</strong> חציון ___, ‏p95 ___ בראשי שקט; חציון ___ עם עומס; ___ עם השהיה של שתי שניות.</li>
+<li><strong>לקרוא את מה שכתבת:</strong> חלון לפי הפיגור הגרוע, או אסימון LSN עם נפילה לראשי.</li>
+<li><strong>חלוקה:</strong> hash לפיזור, טווחים לשאילתות טווח. המפתח נבחר לפי השאילתה החמה והסדר.</li>
+<li><strong>מחיצה חמה:</strong> מקדם חום ___ ב־Zipf, ___ עם מפתח מורכב. עוד מחיצות לא עוזרות למפתח חם.</li>
+<li><strong>CAP ו־PACELC:</strong> ‏C היא ליניאריזביליות; בלי פיצול, הבחירה היא זמן תגובה מול עקביות.</li>
+<li><strong>שאלה פתוחה:</strong> ___</li>
+</ul>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">docker compose -p ch17 -f data/compose.yaml up -d --wait     # primary :5417, replica :5427
+pg_basebackup -h primary -U replicator -D &quot;$PGDATA&quot; --wal-method=stream --slot=replica1 --write-recovery-conf
+  -&gt; standby.signal + primary_conninfo + primary_slot_name in postgresql.auto.conf
+primary:  SELECT application_name, state, sync_state, replay_lsn, replay_lag FROM pg_stat_replication;
+primary:  SELECT pg_wal_lsn_diff(pg_current_wal_lsn(), replay_lsn) FROM pg_stat_replication;
+replica:  SELECT pg_is_in_recovery(), pg_last_wal_replay_lsn(), now() - pg_last_xact_replay_timestamp();
+replica:  ALTER SYSTEM SET recovery_min_apply_delay = 2000; SELECT pg_reload_conf();
+RYW:      token := pg_current_wal_lsn() after write; replica ok when pg_last_wal_replay_lsn() &gt;= token::pg_lsn
+go run ./cmd/probe -n 50 [-load 4] [-delay 2s]      median ___  p95 ___  missed ___
+go run ./cmd/skew -key uniform|zipf|composite [-partitioner range]    hot factor ___ / ___ / ___
+rand.NewZipf(r, s&gt;1, v&gt;=1, imax)    ring 4-&gt;5 nodes moves ~1/5, modulo moves ~4/5
+PACELC: if P then A or C, else L or C
+</code></pre>
+
+
+</div>
+
+<h2 id="_7">תרגיל</h2>
+<p><strong>מטרה:</strong> להקים ראשי ומשני של PostgreSQL עם שכפול זורם, למדוד את פיגור השכפול בעצמך, לייצר קריאה שמפספסת את
+הכתיבה של עצמה ולתקן אותה בשתי דרכים, ולהריץ סימולטור שמראה מחיצה חמה. <strong>זמן:</strong> שני ימי לימוד, ימים 50 ו־51, כ־65 דקות בנייה ביום 50 וכ־35 ביום 51.
+<strong>ידע מקדים:</strong> סעיפים 17.1 עד 17.4 ליום 50 ו־17.5 עד 17.7 ליום 51;
+פרקים 10 ו־11 למסד ול־pgx.</p>
+<p>הצעדים, קוד ההתחלה, הרמזים והפתרון נמצאים ב־
+<a href="../exercises/ch17-replica-lag/README.md"><code>exercises/ch17-replica-lag/README.md</code></a>.</p>
+<p><strong>קריטריון סיום:</strong></p>
+<ul>
+<li>הראשי והמשני עולים, ו־<code>pg_stat_replication</code> מראה משני אחד במצב <code>streaming</code>.</li>
+<li>התוכנית <code>probe</code> רצה בשלושת המצבים, והמספרים שמדדת רשומים בפתק.</li>
+<li>הבדיקה <code>TestReadYourWrites</code> עוברת: קריאה נאיבית מפספסת, וקריאה עם אסימון רואה את הכתיבה.</li>
+<li>שלוש הרצות של הסימולטור שמורות, והפתק אומר איזה מפתח היית בוחרת לאירועים של Hookline ולמה.</li>
+<li>כל הבדיקות ירוקות עם <code>-race</code>, בלי דילוגים.</li>
+<li>כלי העיצוב והניתוח הסטטי שקטים.</li>
+</ul>
+<h2 id="_8">העשרה אופציונלית</h2>
+<table>
+<thead>
+<tr>
+<th>מקור</th>
+<th>למה כדאי</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>שני המאמרים של סעיף 17.7, של Brewer ושל Abadi</td>
+<td>קצרים וקריאים, ושווים קריאה מלאה</td>
+</tr>
+<tr>
+<td>מפת מודלי העקביות באתר של Jepsen</td>
+<td>היחסים בין המודלים, עם הגדרה קצרה לכל אחד</td>
+</tr>
+<tr>
+<td>„Designing Data-Intensive Applications” של Martin Kleppmann, פרקים 5 ו־6</td>
+<td>שכפול וחלוקה לעומק</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>הוסיפי לתוכנית <code>probe</code> מצב של „שורת דופק”: כתיבה של חותמת זמן כל שנייה, ומדידת הגיל שלה במשני.</li>
+<li>עצרי את המשני בזמן שהתוכנית רצה עם עומס, וראי מה קורה ב־<code>pg_stat_replication</code> ובטבלה <code>pg_replication_slots</code>.</li>
+</ul>
+</main>
+<nav class="bottom"><a href="index.html">תוכן העניינים</a> · <a href="16-overload-rate-limiting.html">← פרק 16: עומס: הגבלת קצב, לחץ חוזר והשלת עומס</a> · <a href="18-locks-leaders-sagas.html">פרק 18: נעילות, בחירת מנהיג וסאגות →</a></nav>
+<script type="module">
+  // Render ```mermaid blocks in the browser (needs internet once; cached afterwards).
+  const blocks = document.querySelectorAll("pre > code.language-mermaid");
+  if (blocks.length) {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs")).default;
+    for (const code of blocks) {
+      const div = document.createElement("div");
+      div.className = "mermaid";
+      div.textContent = code.textContent;
+      code.parentElement.replaceWith(div);
+    }
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run();
+  }
+</script>
+</body>
+</html>

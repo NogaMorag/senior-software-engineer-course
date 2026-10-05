@@ -1,0 +1,105 @@
+diff --git a/internal/inbox/dedupe.go b/internal/inbox/dedupe.go
+new file mode 100644
+index 0000000..b3a4a29
+--- /dev/null
++++ b/internal/inbox/dedupe.go
+@@ -0,0 +1,34 @@
++package inbox
++
++import (
++	"sync"
++	"time"
++)
++
++// Dedupe remembers event ids we have already handled, so that a retried delivery
++// is not processed twice.
++type Dedupe struct {
++	mu     sync.Mutex
++	seen   map[string]time.Time
++	window time.Duration
++	Hits   int
++}
++
++func NewDedupe(window time.Duration) *Dedupe {
++	return &Dedupe{seen: map[string]time.Time{}, window: window}
++}
++
++// Seen reports whether id was seen within the window, and records it.
++func (d *Dedupe) Seen(id string) bool {
++	d.mu.Lock()
++	at, ok := d.seen[id]
++	d.mu.Unlock()
++	if ok && time.Since(at) < d.window {
++		d.Hits++
++		return true
++	}
++	d.mu.Lock()
++	d.seen[id] = time.Now()
++	d.mu.Unlock()
++	return false
++}
+diff --git a/internal/inbox/dedupe_test.go b/internal/inbox/dedupe_test.go
+new file mode 100644
+index 0000000..1f24008
+--- /dev/null
++++ b/internal/inbox/dedupe_test.go
+@@ -0,0 +1,20 @@
++package inbox
++
++import (
++	"testing"
++	"time"
++)
++
++func TestDedupe(t *testing.T) {
++	d := NewDedupe(time.Minute)
++	if d.Seen("evt_1") {
++		t.Fatal("first delivery reported as seen")
++	}
++	if !d.Seen("evt_1") {
++		t.Fatal("second delivery not reported as seen")
++	}
++	time.Sleep(10 * time.Millisecond)
++	if d.Seen("evt_2") {
++		t.Log("evt_2 should be new")
++	}
++}
+diff --git a/internal/inbox/handler.go b/internal/inbox/handler.go
+index 4baf442..5ec872a 100644
+--- a/internal/inbox/handler.go
++++ b/internal/inbox/handler.go
+@@ -15,21 +15,27 @@ type Processor interface {
+ 
+ // Handler receives webhooks.
+ type Handler struct {
+-	Proc Processor
+-	Log  *slog.Logger
++	Proc   Processor
++	Log    *slog.Logger
++	Dedupe *Dedupe
+ }
+ 
+ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+ 	id := r.Header.Get("Hookline-Event-Id")
+-	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1<<20))
++	h.Log.Info("webhook received", "event_id", id, "signature", r.Header.Get("Hookline-Signature"))
++	body, err := io.ReadAll(r.Body)
+ 	if err != nil {
+ 		http.Error(w, "bad body", http.StatusBadRequest)
+ 		return
+ 	}
+-	if err := h.Proc.Process(r.Context(), id, body); err != nil {
+-		h.Log.Error("process failed", "event_id", id, "err", err)
+-		http.Error(w, "internal error", http.StatusInternalServerError)
++	if h.Dedupe.Seen(id) {
++		http.Error(w, "duplicate", http.StatusConflict)
+ 		return
+ 	}
+-	w.WriteHeader(http.StatusOK)
++	go func() {
++		if err := h.Proc.Process(r.Context(), id, body); err != nil {
++			h.Log.Error("process failed", "event_id", id, "err", err)
++		}
++	}()
++	w.WriteHeader(http.StatusAccepted)
+ }

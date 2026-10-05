@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>פרק 30: מערכות שמשתנות</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="top"><a href="index.html">תוכן העניינים</a> · <a href="29-system-design-method.html">← פרק 29: שיטת תכנון ומסמכי תכנון</a> · <a href="31-working-as-senior.html">פרק 31: לעבוד כבכירה →</a></nav>
+<main class="book">
+<div class="toc"><span class="toctitle">תוכן הפרק</span><ul>
+<li><a href="#_1">מה נלמד בפרק</a></li>
+<li><a href="#_2">ידע מקדים</a></li>
+<li><a href="#301-expand-contract">30.1 מיגרציה ללא השבתה: expand ו־contract</a><ul>
+<li><a href="#3011">30.1.1 למה צעד אחד שובר</a></li>
+<li><a href="#3012">30.1.2 שישה צעדים, ארבע מיגרציות, שלוש פריסות</a></li>
+<li><a href="#3013">30.1.3 מטריצת התאימות</a></li>
+<li><a href="#3014">30.1.4 המיגרציות</a></li>
+<li><a href="#3015-postgresql-18">30.1.5 נעילות ב־PostgreSQL 18</a></li>
+<li><a href="#3016-lock_timeout">30.1.6 תור הנעילות ו־lock_timeout</a></li>
+<li><a href="#3017">30.1.7 הקוד שמשתנה מתחת למסד</a></li>
+<li><a href="#3018">30.1.8 ההרצה</a></li>
+</ul>
+</li>
+<li><a href="#302">30.2 תאימות לאחור ולפנים</a><ul>
+<li><a href="#3021">30.2.1 שתי השאלות</a></li>
+<li><a href="#3022">30.2.2 שינויים מוסיפים</a></li>
+<li><a href="#3023">30.2.3 קורא סובלני וגרסה באירוע</a></li>
+</ul>
+</li>
+<li><a href="#303">30.3 דגלי תכונה</a><ul>
+<li><a href="#3031">30.3.1 ארבעה סוגים</a></li>
+<li><a href="#3032">30.3.2 דגל בתוך הרחבה וכיווץ</a></li>
+<li><a href="#3033">30.3.3 כל דגל הוא חוב</a></li>
+</ul>
+</li>
+<li><a href="#304-strangler-fig">30.4 הגירת מערכת: strangler fig</a><ul>
+<li><a href="#3041">30.4.1 המטפורה והתבנית</a></li>
+<li><a href="#3042-webhooks">30.4.2 דוגמה: מונוליט ששולח webhooks</a></li>
+</ul>
+</li>
+<li><a href="#305">30.5 חוב טכני: לזהות, לתמחר, לשלם</a><ul>
+<li><a href="#3051">30.5.1 קרן וריבית</a></li>
+<li><a href="#3052">30.5.2 לזהות: איפה משלמים ריבית</a></li>
+<li><a href="#3053">30.5.3 לתמחר ולשלם</a></li>
+<li><a href="#3054">30.5.4 איך משכנעים</a></li>
+</ul>
+</li>
+<li><a href="#_3">סיכום</a></li>
+<li><a href="#_4">מונחים לזכור</a></li>
+<li><a href="#_5">טעויות נפוצות</a></li>
+<li><a href="#_6">שאלות ראיון</a></li>
+<li><a href="#obsidian">פתק Obsidian</a></li>
+<li><a href="#_7">תרגיל</a></li>
+<li><a href="#_8">העשרה אופציונלית</a></li>
+</ul>
+</div>
+
+<h1 id="30">פרק 30: מערכות שמשתנות</h1>
+<p>מערכת בייצור לא נעצרת כדי שתשני אותה. הסכמה משתנה כשהקוד הישן עוד רץ, אירועים ישנים נקראים בידי צרכנים
+חדשים, ומערכת ישנה מוחלפת חלק אחרי חלק. הפרק מלמד לשנות בלי השבתה: הרחבה ואז כיווץ (expand and contract)
+במסד, תאימות בין גרסאות, דגלי תכונה והגירה הדרגתית של מערכת שלמה. ובסוף, איך מדברים על חוב טכני כך שמישהו
+יסכים לשלם אותו.</p>
+<h2 id="_1">מה נלמד בפרק</h2>
+<ul>
+<li>למה שינוי שם של עמודה בצעד אחד שובר קוד שרץ, ואיך עושים אותו בארבע מיגרציות ושלוש פריסות.</li>
+<li>אילו פקודות שינוי סכמה ב־PostgreSQL 18 נועלות מה, ואיך גבול זמן לנעילה מגן על הקוראים.</li>
+<li>תאימות לאחור ולפנים באירועים: שינוי מוסיף, קורא סובלני, וגרסה בתוך האירוע.</li>
+<li>דגלי תכונה: לשחרור, לתפעול ולניסוי, ולמה כל דגל הוא חוב מהיום שנוצר.</li>
+<li>הגירת מערכת בתבנית strangler fig.</li>
+<li>חוב טכני: לזהות איפה משלמים ריבית, לתמחר אותה, לשלם, ולשכנע.</li>
+</ul>
+<h2 id="_2">ידע מקדים</h2>
+<ul>
+<li>פרק 11, סעיף 11.6: מיגרציות עם goose, ‏<code>NO TRANSACTION</code>, וההפניה לפרק הזה.</li>
+<li>פרק 10: ‏PostgreSQL בקונטיינר, pgx ואינדקסים.</li>
+<li>פרק 5, סעיפים 5.4 עד 5.8: goroutines, מונים אטומיים, המתנה לסיום, ובדיקת מרוצים.</li>
+<li>פרק 9, סעיף 9.6: גרסאות ותאימות לאחור ב־API, וקורא סובלני.</li>
+<li>פרק 13: אירועים ב־topic נשמרים ונקראים שוב; פרק 20, סעיף 20.4: פריסה מתגלגלת של Deployment.</li>
+<li>התרגיל לא מייבא קוד מתרגילים קודמים. החבילות <code>db</code> ו־<code>testdb</code> בנויות כמו בתרגיל של פרק 11.</li>
+</ul>
+<h2 id="301-expand-contract">30.1 מיגרציה ללא השבתה: expand ו־contract</h2>
+<h3 id="3011">30.1.1 למה צעד אחד שובר</h3>
+<p>נניח טבלת משתמשים עם עמודה <code>fullname</code>, וצריך לשנות את שמה ל־<code>display_name</code>. בצעד אחד זו פקודה קצרה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-sql">ALTER TABLE users RENAME COLUMN fullname TO display_name
+</code></pre>
+
+
+</div>
+
+<p>הבעיה היא לא הפקודה, אלא מה שרץ סביבה. שירות בייצור רץ בכמה עותקים, ופריסה מתגלגלת (rolling deploy) מחליפה
+אותם אחד אחד. בכל רגע של הפריסה רצים יחד קוד ישן וקוד חדש. אם המיגרציה רצה לפני הפריסה, הקוד הישן מחפש
+<code>fullname</code> שכבר לא קיימת. אם היא רצה אחרי, הקוד החדש מחפש <code>display_name</code> שעוד לא קיימת. אין סדר שבו שני
+הצדדים מרוצים.</p>
+<p>בתרגיל, הבדיקה <code>TestNaiveRenameBreaksRunningCode</code> מריצה שני עותקים של שירות קטן, כל אחד עם לולאת כתיבה
+ולולאת קריאה, ומשנה את שם העמודה מתחתם. אלה שורות הלוג שלה; את המספר תראי בהרצה שלך:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">NAIVE_OUTPUT
+</code></pre>
+
+
+</div>
+
+<p>הפתרון הוא להפריד את השינוי לצעדים, כך שכל צעד תואם גם לקוד שרץ לפניו וגם לקוד שירוץ אחריו. Danilo Sato
+קרא לזה שינוי מקביל (parallel change), בשלושה שלבים: הרחבה, הגירה וכיווץ. הכתובת נבדקה באוקטובר 2026:
+<a href="https://martinfowler.com/bliki/ParallelChange.html">Parallel Change</a>.</p>
+<h3 id="3012">30.1.2 שישה צעדים, ארבע מיגרציות, שלוש פריסות</h3>
+<p>לשינוי שם של עמודה יש שישה צעדים לוגיים. חלקם שינויי סכמה, חלקם שינויי קוד:</p>
+<table>
+<thead>
+<tr>
+<th>צעד</th>
+<th>מה</th>
+<th>איפה</th>
+<th>למה בסדר הזה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>להוסיף את <code>display_name</code>, ריקה</td>
+<td>מיגרציה 00002</td>
+<td>הקוד הישן לא מכיר אותה ולא נפגע</td>
+</tr>
+<tr>
+<td>2</td>
+<td>לכתוב לשתי העמודות</td>
+<td>פריסה של v2</td>
+<td>מכאן כל שורה חדשה מלאה בשתיהן</td>
+</tr>
+<tr>
+<td>3</td>
+<td>למלא את השורות הישנות במנות</td>
+<td>מיגרציה 00003</td>
+<td>רק אחרי שאף עותק לא כותב לעמודה הישנה בלבד</td>
+</tr>
+<tr>
+<td>4</td>
+<td>לקרוא מהעמודה החדשה</td>
+<td>פריסה של v3</td>
+<td>רק אחרי שכל השורות מלאות</td>
+</tr>
+<tr>
+<td>5</td>
+<td>להפסיק לכתוב לעמודה הישנה</td>
+<td>מיגרציה 00004, ואז פריסה של v4</td>
+<td>קודם <code>NOT NULL</code> עובר מהישנה לחדשה</td>
+</tr>
+<tr>
+<td>6</td>
+<td>למחוק את <code>fullname</code></td>
+<td>מיגרציה 00005</td>
+<td>רק אחרי שאף עותק לא נוגע בה</td>
+</tr>
+</tbody>
+</table>
+<p>הכלל שמחזיק את הכול: <strong>בין שני צעדים צריכה להסתיים פריסה.</strong> מיגרציה 00003 בטוחה רק כשכל העותקים כבר כותבים
+לשתי העמודות; 00005 בטוחה רק כשאף עותק לא קורא את <code>fullname</code>. מסד לא יודע איזה קוד רץ. את זה יודעת רק את.</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-mermaid">flowchart LR
+  M2[00002 add column] --&gt; D2[deploy v2 dual write] --&gt; M3[00003 backfill] --&gt; D3[deploy v3 read new]
+  D3 --&gt; M4[00004 swap NOT NULL] --&gt; D4[deploy v4 new only] --&gt; M5[00005 drop column]
+</code></pre>
+
+
+</div>
+
+<h3 id="3013">30.1.3 מטריצת התאימות</h3>
+<p>כדי להשתכנע שהסדר נכון, הבדיקה <code>TestCompatibilityMatrix</code> מריצה כל גרסת קוד מול כל גרסת סכמה: הוספה, שינוי
+שם וקריאה. זו הטבלה שבראש הבדיקה, בקובץ <code>exercises/ch30-expand-contract/tests/app/app_test.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    works := map[int64][]bool{ // schema version: Old, DualWrite, ReadNew, NewOnly
+        1: {true, false, false, false},
+        2: {true, true, true, false},
+        3: {true, true, true, false},
+        4: {false, true, true, true},
+        5: {false, false, false, true},
+    }
+</code></pre>
+
+
+</div>
+
+<p>קראי אותה לפי עמודות. כל גרסה עובדת על רצף של גרסאות סכמה, והרצפים חופפים בזוגות: v1 ו־v2 עובדות יחד על
+סכמות 2 ו־3. הגרסאות v3 ו־v4 עובדות יחד על סכמה 4. על סכמה 5 עובדת רק v4. החפיפה היא המקום שבו פריסה מתגלגלת יכולה
+לקרות. שורה 4 מסבירה גם למה אסור לדלג: ‏v1 נכשלת בה, כי <code>display_name</code> כבר חובה והיא לא ממלאת אותה.</p>
+<h3 id="3014">30.1.4 המיגרציות</h3>
+<p>ההרחבה, בקובץ <code>migrations/00002_add_display_name.sql</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-sql">-- +goose Up
+-- Step 1, expand. A nullable column without a default is a catalog change only: no rewrite,
+-- no scan. It still needs a brief ACCESS EXCLUSIVE lock, which is why the migration
+-- connection sets lock_timeout (see db.MigrationConfig).
+ALTER TABLE users ADD COLUMN display_name text;
+</code></pre>
+
+
+</div>
+
+<p>המילוי במנות, בקובץ <code>migrations/00003_backfill_display_name.sql</code>. הבלוק רץ מחוץ לטרנזקציה של goose, ולכן מותר
+לו לבצע <code>COMMIT</code> אחרי כל מנה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-sql">DO $$
+DECLARE
+    batch   constant bigint := 500;
+    last_id bigint;
+    from_id bigint := 0;
+BEGIN
+    SELECT coalesce(max(id), 0) INTO last_id FROM users;
+    WHILE from_id &lt; last_id LOOP
+        UPDATE users SET display_name = fullname
+        WHERE id &gt; from_id AND id &lt;= from_id + batch AND display_name IS NULL;
+        COMMIT;
+        from_id := from_id + batch;
+    END LOOP;
+END
+$$;
+</code></pre>
+
+
+</div>
+
+<p>שלוש החלטות במילוי:</p>
+<ul>
+<li><strong>מנות לפי טווח של מפתח ראשי.</strong> כל <code>UPDATE</code> נוגע ב־500 שורות לכל היותר ומשתמש באינדקס, והנעילות על השורות
+  משתחררות בכל <code>COMMIT</code>. ‏<code>UPDATE</code> אחד על כל הטבלה היה נועל את כל השורות עד הסוף, ומייצר טרנזקציה ארוכה
+  שמעכבת את הניקוי של PostgreSQL.</li>
+<li><strong>התנאי <code>display_name IS NULL</code></strong> הופך הרצה חוזרת לבטוחה. אם המילוי נפל באמצע, הרצה שנייה מדלגת על מה שכבר מולא.</li>
+<li><strong>אין מרוץ עם הכותבים.</strong> כותב של v2 שמעדכן שורה באמצע המילוי כותב לשתי העמודות. אם המילוי מגיע לשורה אחריו,
+  התנאי כבר לא מתקיים, ו־PostgreSQL בודק אותו שוב אחרי שהנעילה על השורה התפנתה.</li>
+</ul>
+<p>והחלפת ה־<code>NOT NULL</code>, בקובץ <code>migrations/00004_swap_not_null.sql</code>. כל פקודה רצה ומאושרת בנפרד:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-sql">-- +goose NO TRANSACTION
+-- +goose Up
+-- Step 3, make the new column the required one and the old one optional. Each statement
+-- commits on its own, so no lock is held longer than one statement.
+-- A NOT VALID check is only a catalog change: existing rows are not scanned.
+ALTER TABLE users ADD CONSTRAINT users_display_name_not_null CHECK (display_name IS NOT NULL) NOT VALID;
+-- The scan happens here, under SHARE UPDATE EXCLUSIVE: reads and writes continue.
+ALTER TABLE users VALIDATE CONSTRAINT users_display_name_not_null;
+-- A valid CHECK that proves there are no NULLs lets SET NOT NULL skip its own scan.
+ALTER TABLE users ALTER COLUMN display_name SET NOT NULL;
+ALTER TABLE users DROP CONSTRAINT users_display_name_not_null;
+-- The next application version stops writing fullname, so it may no longer be required.
+ALTER TABLE users ALTER COLUMN fullname DROP NOT NULL;
+</code></pre>
+
+
+</div>
+
+<p>השורה האחרונה היא זו שקל לשכוח. הגרסה v4 מפסיקה לכתוב לעמודה הישנה, אבל העמודה עדיין <code>NOT NULL</code>, וכל
+הוספה של v4 הייתה נכשלת. הכיווץ מתחיל בהרפיה של העמודה הישנה, הרבה לפני שמוחקים אותה. וזה הכיווץ עצמו, בקובץ
+<code>migrations/00005_drop_fullname.sql</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-sql">-- +goose Up
+-- Step 4, contract. Only after no running instance reads or writes fullname. Dropping
+-- a column only hides it in the catalog; the space comes back as rows are rewritten.
+ALTER TABLE users DROP COLUMN fullname;
+</code></pre>
+
+
+</div>
+
+<h3 id="3015-postgresql-18">30.1.5 נעילות ב־PostgreSQL 18</h3>
+<p>כל פקודת <code>ALTER TABLE</code> לוקחת נעילה על הטבלה, ורובן את החזקה ביותר: ‏<code>ACCESS EXCLUSIVE</code>, שמתנגשת בכל דבר,
+כולל <code>SELECT</code> רגיל. השאלה לגבי כל פקודה היא כמה זמן היא מחזיקה את הנעילה, ואם היא סורקת או משכתבת את הטבלה
+בזמן הזה. אלה העובדות מתיעוד הגרסה 18, נכון לאוקטובר 2026:</p>
+<table>
+<thead>
+<tr>
+<th>פקודה</th>
+<th>נעילה</th>
+<th>סריקה או שכתוב</th>
+<th>מקור</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>‏<code>ADD COLUMN</code> בלי ברירת מחדל, או עם ברירת מחדל קבועה</td>
+<td>‏<code>ACCESS EXCLUSIVE</code>, לרגע</td>
+<td>לא: הערך נשמר בקטלוג (מגרסה 11)</td>
+<td>‏ALTER TABLE, הערות</td>
+</tr>
+<tr>
+<td>‏<code>ADD COLUMN</code> עם ברירת מחדל שמשתנה, כמו <code>clock_timestamp()</code></td>
+<td>‏<code>ACCESS EXCLUSIVE</code></td>
+<td>שכתוב של כל הטבלה</td>
+<td>‏ALTER TABLE, הערות</td>
+</tr>
+<tr>
+<td>‏<code>CREATE INDEX</code></td>
+<td>‏<code>SHARE</code>: חוסם כתיבות</td>
+<td>סריקה מלאה</td>
+<td>‏CREATE INDEX</td>
+</tr>
+<tr>
+<td>‏<code>CREATE INDEX CONCURRENTLY</code></td>
+<td>‏<code>SHARE UPDATE EXCLUSIVE</code>: כתיבות ממשיכות</td>
+<td>שתי סריקות, איטי יותר</td>
+<td>‏CREATE INDEX</td>
+</tr>
+<tr>
+<td>‏<code>ADD CONSTRAINT ... NOT VALID</code></td>
+<td>‏<code>ACCESS EXCLUSIVE</code>, לרגע</td>
+<td>לא</td>
+<td>‏ALTER TABLE</td>
+</tr>
+<tr>
+<td>‏<code>VALIDATE CONSTRAINT</code></td>
+<td>‏<code>SHARE UPDATE EXCLUSIVE</code></td>
+<td>סריקה, בלי לחסום</td>
+<td>‏ALTER TABLE</td>
+</tr>
+<tr>
+<td>‏<code>SET NOT NULL</code></td>
+<td>‏<code>ACCESS EXCLUSIVE</code></td>
+<td>סריקה, אלא אם <code>CHECK</code> תקף מוכיח שאין <code>NULL</code></td>
+<td>‏ALTER TABLE</td>
+</tr>
+<tr>
+<td>‏<code>DROP COLUMN</code></td>
+<td>‏<code>ACCESS EXCLUSIVE</code>, לרגע</td>
+<td>לא: העמודה רק מוסתרת</td>
+<td>‏ALTER TABLE, הערות</td>
+</tr>
+</tbody>
+</table>
+<p>אלה הדפים בתיעוד:</p>
+<ul>
+<li><a href="https://www.postgresql.org/docs/18/sql-altertable.html">ALTER TABLE</a></li>
+<li><a href="https://www.postgresql.org/docs/18/sql-createindex.html">CREATE INDEX</a></li>
+<li><a href="https://www.postgresql.org/docs/18/explicit-locking.html">Explicit Locking</a></li>
+<li>
+<p><a href="https://www.postgresql.org/docs/release/11.0/">רשימת השינויים של גרסה 11</a>: הגרסה שבה הוספת עמודה עם ברירת מחדל
+  קבועה הפסיקה לשכתב את הטבלה. ומה זה אומר לתכנון:</p>
+</li>
+<li>
+<p><strong>אינדקס חדש על טבלה חיה נבנה תמיד ב־<code>CONCURRENTLY</code>.</strong> הפקודה לא יכולה לרוץ בתוך טרנזקציה, ולכן קובץ goose שלה
+  מתחיל ב־<code>-- +goose NO TRANSACTION</code>. אם היא נכשלת באמצע, נשאר אינדקס במצב לא תקף, שלא משמש לשאילתות אבל
+  מאט כתיבות. מוחקים אותו ומנסים שוב.</p>
+</li>
+<li><strong>אילוץ חדש נוסף ב־<code>NOT VALID</code>, ונבדק בפקודה נפרדת.</strong> אם שתי הפקודות באותה טרנזקציה, הנעילה החזקה של הראשונה
+  נשארת עד הסוף, כולל הסריקה של השנייה. בגלל זה 00004 היא <code>NO TRANSACTION</code>.</li>
+<li><strong>‏<code>NOT NULL</code> על טבלה גדולה עובר דרך <code>CHECK</code> תקף</strong>, כמו ב־00004, כדי שהסריקה תקרה בנעילה החלשה.</li>
+</ul>
+<h3 id="3016-lock_timeout">30.1.6 תור הנעילות ו־<code>lock_timeout</code></h3>
+<p>נעילה רגעית נשמעת בטוחה, אבל יש מלכודת. אם טרנזקציה ארוכה כלשהי קראה מהטבלה, פקודת ה־<code>ALTER</code> מחכה לה.
+ובזמן שהיא מחכה, כל שאילתה חדשה על הטבלה, גם <code>SELECT</code> פשוט, נעמדת <strong>מאחורי</strong> ה־<code>ALTER</code> בתור. פקודה שהייתה
+אמורה לקחת מילישנייה עוצרת את כל התנועה לטבלה, למשך כל הטרנזקציה הארוכה.</p>
+<p>ההגנה היא <code>lock_timeout</code>: לפי התיעוד, הוא מבטל פקודה שמחכה לנעילה יותר מהזמן שנקבע, והגבול חל על כל ניסיון
+לקחת נעילה בנפרד. ברירת המחדל היא אפס, כלומר בלי גבול. המקור הוא
+<a href="https://www.postgresql.org/docs/18/runtime-config-client.html">דף הגדרות החיבור</a> בתיעוד. מיגרציה שנכשלת אחרי
+שתי שניות עדיפה על מיגרציה שמקפיאה את השירות. מריצים אותה שוב, בשעה שקטה או אחרי שמצאו את הטרנזקציה הארוכה.</p>
+<p>התיעוד לא מתאר את התור עצמו, ולכן התרגיל מדגים אותו. הבדיקה <code>TestWaitingDDLBlocksReaders</code> פותחת טרנזקציה
+ארוכה ומריצה <code>ALTER</code>. אחר כך היא מוכיחה, דרך טבלת הסשנים של השרת, שגם שאילתת קריאה שבאה אחריו מחכה. מהקובץ
+<code>tests/db/db_test.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    testdb.WaitForLockWaiters(t, appPool, 1) // the ALTER waits for the long transaction
+
+    read := make(chan error, 1)
+    go func() {
+        _, err := appPool.Exec(ctx, &quot;SELECT count(*) FROM users&quot;)
+        read &lt;- err
+    }()
+    testdb.WaitForLockWaiters(t, appPool, 2) // and now a plain SELECT waits behind the ALTER
+</code></pre>
+
+
+</div>
+
+<p>אחר כך ה־<code>ALTER</code> מוותר עם הקוד <code>55P03</code>, והקריאה שמאחוריו ממשיכה. איפה קובעים את הגבול? בתרגיל הוא חלק
+מהגדרות החיבור של המיגרציות בלבד, בקובץ <code>db/db.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    cfg.ConnConfig.RuntimeParams[&quot;lock_timeout&quot;] = fmt.Sprint(LockTimeout.Milliseconds())
+    cfg.ConnConfig.RuntimeParams[&quot;application_name&quot;] = &quot;migrator&quot;
+</code></pre>
+
+
+</div>
+
+<p>פרמטר שנשלח בפתיחת החיבור חל על כל פקודה בכל מיגרציה, בלי שאף קובץ צריך לזכור אותו. החלופה, פקודת <code>SET</code> בראש
+כל קובץ, נשכחת בקובץ אחד בדיוק כשהוא המסוכן; ובקובץ בלי טרנזקציה היא גם נשארת בתוקף על החיבור אחרי שהקובץ
+נגמר. לחיבורים של האפליקציה אין גבול כזה, והבדיקה <code>TestMigrationConnectionsHaveALockTimeout</code> מוודאת את שני הצדדים.</p>
+<h3 id="3017">30.1.7 הקוד שמשתנה מתחת למסד</h3>
+<p>השירות בתרגיל הוא טבלת משתמשים, עם לולאת כתיבה ולולאת קריאה בכל עותק. גרסת הקוד היא <code>Phase</code>, והיא קובעת
+אילו עמודות ה־SQL נוגע בהן. מהקובץ <code>app/app.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">const (
+    PhaseOld       Phase = iota + 1 // v1: writes and reads fullname
+    PhaseDualWrite                  // v2: writes both columns, reads fullname
+    PhaseReadNew                    // v3: writes both columns, reads display_name
+    PhaseNewOnly                    // v4: writes and reads display_name only
+)
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func renameSQL(p Phase) string {
+    switch p {
+    case PhaseOld:
+        return `UPDATE users SET fullname = $2 WHERE id = $1`
+    case PhaseDualWrite, PhaseReadNew:
+        return `UPDATE users SET fullname = $2, display_name = $2 WHERE id = $1`
+    case PhaseNewOnly:
+        return `UPDATE users SET display_name = $2 WHERE id = $1`
+    }
+    panic(&quot;unknown phase &quot; + p.String())
+}
+</code></pre>
+
+
+</div>
+
+<p>שימי לב שהכתיבה הכפולה היא פקודה אחת שמעדכנת את שתי העמודות. שתי פקודות נפרדות היו יכולות להשאיר את העמודות
+שונות אם השנייה נכשלת, והמילוי לא היה מתקן את זה, כי הוא ממלא רק שורות ריקות.</p>
+<p>התוכנית עצמה היא רשימה, בקובץ <code>rollout/rollout.go</code>. כל צעד הוא מיגרציה, ואחריה הגרסה שמותר לפרוס:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">var Plan = []Step{
+    {&quot;expand: add display_name&quot;, 2, app.PhaseDualWrite},
+    {&quot;backfill in batches, then switch reads&quot;, 3, app.PhaseReadNew},
+    {&quot;swap NOT NULL, then stop writing fullname&quot;, 4, app.PhaseNewOnly},
+    {&quot;contract: drop fullname&quot;, 5, 0},
+}
+</code></pre>
+
+
+</div>
+
+<p>והפונקציה <code>Run</code> באותו קובץ מבצעת אותה. אחרי כל מיגרציה, ואחרי השדרוג של כל עותק, היא מחכה שכל עותק יסיים עוד
+כמה עשרות בקשות. כך כל גרסת סכמה פוגשת באמת כל גרסת קוד שרצה לידה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">        if err := db.MigrateTo(ctx, migrations, s.Migrate); err != nil {
+            return reports, fmt.Errorf(&quot;%s: %w&quot;, s.Name, err)
+        }
+        if err := waitForOps(ctx, fleet, settle); err != nil {
+            return reports, fmt.Errorf(&quot;%s: %w&quot;, s.Name, err)
+        }
+        if s.Deploy != 0 {
+            for _, in := range fleet { // a rolling deploy: one instance at a time
+                in.SetPhase(s.Deploy)
+                if err := waitForOps(ctx, fleet, settle); err != nil {
+                    return reports, fmt.Errorf(&quot;%s: deploy %v: %w&quot;, s.Name, s.Deploy, err)
+                }
+            }
+        }
+</code></pre>
+
+
+</div>
+
+<h3 id="3018">30.1.8 ההרצה</h3>
+<p>הבדיקה <code>TestRenameWithZeroFailedRequests</code> מכניסה 5,000 משתמשים, מפעילה שני עותקים בגרסה v1, ומריצה את התוכנית.
+בסוף היא בודקת שלוש טענות: אף בקשה לא נכשלה, הסכמה בגרסה 5 עם העמודות הנכונות, ולכל משתמש העמודה החדשה מחזיקה
+את הכתיבה המוצלחת האחרונה שלו. כך היא נראית, עם מספרי הבקשות מההרצה שלי; אצלך הם יהיו אחרים, והעמודה של הכשלונות צריכה להיות אפס:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">ROLLOUT_OUTPUT
+</code></pre>
+
+
+</div>
+
+<blockquote>
+<p><strong>שימי לב:</strong> בתרגיל, „פריסה” היא קריאה ל־<code>SetPhase</code>, והמעבר מיידי. בייצור, פריסה לוקחת דקות, ואת הסיום שלה
+צריך לוודא: כל ה־pods בגרסה החדשה, ואין עותק ישן שנתקע. רק אז מריצים את המיגרציה הבאה. זו הסיבה שכל שלב
+הוא בדרך כלל pull request נפרד.</p>
+</blockquote>
+<h2 id="302">30.2 תאימות לאחור ולפנים</h2>
+<h3 id="3021">30.2.1 שתי השאלות</h3>
+<p>פרק 9, סעיף 9.6, הציג תאימות לאחור ב־API: לקוח של אתמול עובד מול השרת של היום. כשיש שני צדדים שמתעדכנים בזמנים
+שונים, יש שתי שאלות:</p>
+<table>
+<thead>
+<tr>
+<th>תאימות</th>
+<th>השאלה</th>
+<th>דוגמה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>לאחור (backward)</td>
+<td>האם הקוד החדש מבין נתונים ובקשות מהגרסה הישנה?</td>
+<td>צרכן חדש קורא אירועים שנכתבו לפני חודש</td>
+</tr>
+<tr>
+<td>לפנים (forward)</td>
+<td>האם הקוד הישן מבין נתונים מהגרסה החדשה?</td>
+<td>צרכן ישן מקבל אירוע מיצרן שכבר שודרג</td>
+</tr>
+</tbody>
+</table>
+<p>ב־API סינכרוני, השרת והלקוח לפחות מדברים באותו רגע. באירועים יש גם זמן: אירוע ב־topic נשמר ימים או חודשים,
+וצרכן חדש שמתחיל מההתחלה, או צרכן שמשחזר אחרי תקלה, יקרא אירועים שנכתבו בכל הגרסאות. לכן באירועים צריך את
+שתי התאימויות, תמיד.</p>
+<h3 id="3022">30.2.2 שינויים מוסיפים</h3>
+<p>הדרך הפשוטה לשמור על שתיהן היא שינויים מוסיפים בלבד (additive changes): מוסיפים שדה, אף פעם לא מוחקים, לא
+משנים שם ולא משנים משמעות. זו הרחבה ואז כיווץ, על החוט. שינוי שם של שדה באירוע נראה בדיוק כמו בעמודה:</p>
+<ul>
+<li><strong>הרחבה:</strong> היצרן שולח את השדה החדש וגם את הישן.</li>
+<li><strong>הגירה:</strong> הצרכנים עוברים, אחד אחד, לקרוא את החדש, ויודעים לקרוא גם אירועים ישנים.</li>
+<li><strong>כיווץ:</strong> כשאין יותר צרכן שקורא את הישן, היצרן מפסיק לשלוח אותו. בדיקת חוזה (contract test) או מדד
+  לכל צרכן הם הדרך לדעת.</li>
+</ul>
+<p>בתרגיל, החבילה <code>events</code> עושה את זה לאירוע <code>user.renamed</code>. זה המטען של גרסה 2, בקובץ <code>events/events.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">type RenamedV2 struct {
+    UserID      int64  `json:&quot;user_id&quot;`
+    DisplayName string `json:&quot;display_name&quot;`
+    Fullname    string `json:&quot;fullname,omitempty&quot;` // drop when no version 1 consumer is left
+}
+</code></pre>
+
+
+</div>
+
+<h3 id="3023">30.2.3 קורא סובלני וגרסה באירוע</h3>
+<p>השדה הנוסף עובד רק אם הצרכנים הישנים מתעלמים ממה שהם לא מכירים. זה הקורא הסובלני (tolerant reader), כפי
+שתיאר אותו Martin Fowler ב־2011: לקחת רק את מה שצריך, ולהתעלם מהשאר. הכתובת נבדקה באוקטובר 2026:
+<a href="https://martinfowler.com/bliki/TolerantReader.html">הדף של Fowler</a>. ב־Go זו ברירת המחדל של <code>encoding/json</code>,
+והבדיקה <code>TestStrictReaderBreaksOnAdditiveChange</code> מראה מה קורה לצרכן שביקש קפדנות עם <code>DisallowUnknownFields</code>:
+שדה אחד שנוסף, והוא נשבר.</p>
+<p>שינוי שאי אפשר לעשות בתוספת, כמו מבנה אחר לגמרי, מקבל מספר גרסה בתוך האירוע. הצרכן בוחר לפי הגרסה ולא מנחש לפי
+הצורה, ומגרסה שהוא לא מכיר הוא לא מתעלם. מהקובץ <code>events/events.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func Name(e Envelope) (string, error) {
+    switch e.Version {
+    case 1:
+        var p RenamedV1
+        if err := json.Unmarshal(e.Data, &amp;p); err != nil {
+            return &quot;&quot;, fmt.Errorf(&quot;user.renamed v1: %w&quot;, err)
+        }
+        return p.Fullname, nil
+    case 2:
+        var p RenamedV2
+        if err := json.Unmarshal(e.Data, &amp;p); err != nil {
+            return &quot;&quot;, fmt.Errorf(&quot;user.renamed v2: %w&quot;, err)
+        }
+        return p.DisplayName, nil
+    }
+    return &quot;&quot;, fmt.Errorf(&quot;user.renamed v%d: %w&quot;, e.Version, ErrUnknownVersion)
+}
+</code></pre>
+
+
+</div>
+
+<p>שגיאה על גרסה לא מוכרת היא החלטה. ההתנהגות הנכונה היא להעביר את האירוע לתור מתים ולהתריע, לא לדלג עליו
+בשקט. אירוע שדולג נעלם; אירוע בתור מתים מחכה לגרסה שתבין אותו.</p>
+<table>
+<thead>
+<tr>
+<th>שינוי באירוע</th>
+<th>לאחור</th>
+<th>לפנים</th>
+<th>איך עושים בבטחה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>להוסיף שדה אופציונלי</td>
+<td>כן</td>
+<td>כן, אם הצרכנים סובלניים</td>
+<td>ישר</td>
+</tr>
+<tr>
+<td>לשנות שם של שדה</td>
+<td>לא</td>
+<td>לא</td>
+<td>שני השדות במקביל, ואז כיווץ</td>
+</tr>
+<tr>
+<td>להפוך שדה לחובה</td>
+<td>לא: אירועים ישנים חסרים אותו</td>
+<td>כן</td>
+<td>ברירת מחדל בצרכן לאירועים ישנים</td>
+</tr>
+<tr>
+<td>לשנות טיפוס או משמעות</td>
+<td>לא</td>
+<td>לא</td>
+<td>שדה חדש, או גרסה חדשה</td>
+</tr>
+<tr>
+<td>להוסיף ערך לרשימה סגורה</td>
+<td>כן</td>
+<td>מסוכן: צרכן שמטפל בכל הערכים</td>
+<td>צרכנים עם ענף ברירת מחדל, קודם</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>איך Rust עושה את זה:</strong> ב־serde, שדה שעלול לחסור מקבל <code>Option&lt;T&gt;</code> או ברירת מחדל מפורשת. זה מה שמאפשר
+לצרכן חדש לקרוא אירועים ישנים. ב־Go, שדה חסר ב־JSON נשאר בערך האפס שלו, ולכן צריך להחליט במפורש אם ערך האפס
+אומר „חסר” או ערך אמיתי, כמו <code>Fullname</code> הריק בקוד של <code>NameV1</code>.</p>
+</blockquote>
+<h2 id="303">30.3 דגלי תכונה</h2>
+<h3 id="3031">30.3.1 ארבעה סוגים</h3>
+<p>דגל תכונה (feature flag) הוא החלטה בזמן ריצה, מחוץ לקוד, אם נתיב קוד פעיל. הוא מפריד בין <strong>פריסה</strong>, שבה הקוד
+מגיע לשרתים, לבין <strong>שחרור</strong>, שבו משתמשים מקבלים אותו. Pete Hodgson מסווג דגלים לפי כמה זמן הם חיים וכמה
+דינמית ההחלטה שלהם. הכתובת נבדקה באוקטובר 2026:
+<a href="https://martinfowler.com/articles/feature-toggles.html">Feature Toggles</a>.</p>
+<table>
+<thead>
+<tr>
+<th>סוג</th>
+<th>בשביל מה</th>
+<th>כמה זמן חי</th>
+<th>דוגמה ב־Hookline</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>דגל שחרור (release toggle)</td>
+<td>להסתיר קוד שלא גמור, ולשחרר בהדרגה</td>
+<td>ימים עד שבועות</td>
+<td>הפעלה חוזרת בכמות גדולה לשתי דיירות (פרק 29, סעיף 29.5.6)</td>
+</tr>
+<tr>
+<td>דגל תפעול (ops toggle)</td>
+<td>לכבות התנהגות בעומס או בתקלה</td>
+<td>קצר, או לתמיד כמתג חירום</td>
+<td>כיבוי הלולאה של ההפעלה החוזרת כשה־workers עמוסים</td>
+</tr>
+<tr>
+<td>דגל ניסוי (experiment toggle)</td>
+<td>השוואה בין שתי גרסאות על משתמשים</td>
+<td>כמה שבועות, עד שיש תוצאה</td>
+<td>שתי אסטרטגיות של המתנה גדלה, לפי דיירת</td>
+</tr>
+<tr>
+<td>דגל הרשאה (permissioning toggle)</td>
+<td>תכונה לקבוצה מסוימת</td>
+<td>שנים</td>
+<td>תכונות לדיירות בתוכנית מסוימת</td>
+</tr>
+</tbody>
+</table>
+<h3 id="3032">30.3.2 דגל בתוך הרחבה וכיווץ</h3>
+<p>בתוכנית של סעיף 30.1, ההבדל בין v2 ל־v3 הוא רק מאיזו עמודה קוראים. זה המקום הטבעי לדגל: הקוד של v2 כבר יודע
+לקרוא משתי העמודות, ודגל קובע איזו. בתרגיל זה בדיוק <code>SetPhase</code>: החלפה בזמן ריצה, בלי פריסה. מהקובץ <code>app/app.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// SetPhase deploys another version of the code to this instance.
+func (in *Instance) SetPhase(p Phase) { in.phase.Store(int32(p)) }
+</code></pre>
+
+
+</div>
+
+<p>היתרון הוא בחזרה לאחור. אם אחרי המעבר לקריאה מהעמודה החדשה מופיעות תשובות שגויות, מכבים את הדגל, והקריאה
+חוזרת לעמודה הישנה בתוך שניות, בלי פריסה. ובחירה לפי דיירת מאפשרת לעבור קודם על אחוז קטן מהתנועה ולהשוות.
+הגבול: דגל לא עוזר במעבר ממצב שאי אפשר לחזור ממנו. אחרי 00005 אין עמודה ישנה לחזור אליה.</p>
+<h3 id="3033">30.3.3 כל דגל הוא חוב</h3>
+<p>Hodgson כותב שצוותים טובים מתייחסים לדגלים כמו למלאי, שיש לו עלות החזקה, ומשתדלים להחזיק ממנו מעט. העלות
+אמיתית: כל דגל מכפיל את מספר המצבים של הקוד. עשרה דגלים בוליאניים הם 1,024 צירופים, ואף אחד לא בודק את כולם.
+ודגל ישן שאיש לא זוכר מה הוא עושה הוא סיכון: מישהי תהפוך אותו בטעות.</p>
+<ul>
+<li><strong>כרטיס הסרה ביום היצירה.</strong> דגל שחרור נולד עם משימה למחוק אותו, ועם תאריך.</li>
+<li><strong>בעלים ותאריך תפוגה.</strong> בדיקה שנכשלת כשדגל עבר את התאריך שלו, כמו שההמלצה במאמר של Hodgson מציעה.</li>
+<li><strong>גבול על מספר הדגלים הפעילים.</strong> דגל חדש מחכה עד שישן נמחק.</li>
+<li><strong>ההסרה היא חלק מהתכונה.</strong> תכונה לא „גמורה” כשהדגל דלוק לכולם, אלא כשהוא נמחק מהקוד.</li>
+</ul>
+<h2 id="304-strangler-fig">30.4 הגירת מערכת: strangler fig</h2>
+<h3 id="3041">30.4.1 המטפורה והתבנית</h3>
+<p>החלפה של מערכת שלמה בבת אחת, „נכתוב מחדש”, היא אחד הפרויקטים המסוכנים ביותר בתוכנה: הישנה ממשיכה להשתנות
+בזמן שבונים את החדשה, והיום שבו מחליפים מגיע מאוחר, עם כל הסיכון בבת אחת. Martin Fowler תיאר חלופה, ונתן לה
+שם על שם עץ התאנה החונקת (strangler fig) שראה ביערות הגשם של קווינסלנד: צמח שנובט על עץ מארח, גדל סביבו
+לאט, ובסוף עומד בעצמו. הכתובת נבדקה באוקטובר 2026, והדף עודכן ב־2024:
+<a href="https://martinfowler.com/bliki/StranglerFigApplication.html">Strangler Fig</a>.</p>
+<p>התבנית בונה את החדשה סביב השולים של הישנה, ומעבירה התנהגות חלק אחרי חלק. בפועל יש נקודת ניתוב אחת, ומאחוריה
+שתי המערכות:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-mermaid">flowchart LR
+  C[clients] --&gt; F[routing facade]
+  F --&gt;|event types already moved| N[Hookline]
+  F --&gt;|everything else| L[legacy sender]
+  N --&gt; PG[(new store)]
+  L --&gt; DB[(legacy DB)]
+</code></pre>
+
+
+</div>
+
+<h3 id="3042-webhooks">30.4.2 דוגמה: מונוליט ששולח webhooks</h3>
+<p>נניח מוצר ותיק ששולח webhooks מתוך הקוד של הבקשה, בלי ניסיונות חוזרים ובלי יומן. ההגירה ל־Hookline:</p>
+<ol>
+<li><strong>נקודת ניתוב.</strong> כל השליחות עוברות דרך פונקציה אחת במונוליט. זה תפר (seam): מקום אחד שבו אפשר להחליט לאן.</li>
+<li><strong>סוג אירוע ראשון.</strong> סוג אחד, עם תנועה קטנה, עובר ל־Hookline מאחורי דגל, לדיירת פנימית.</li>
+<li><strong>השוואה.</strong> בתקופת מעבר שתי המערכות מחשבות את מה שהיו שולחות, ורק אחת שולחת. משווים מה היה נשלח, ומתקנים פערים.</li>
+<li><strong>התרחבות.</strong> עוד סוגי אירועים, ועוד דיירות, לפי מדד שמראה שאין רגרסיה.</li>
+<li><strong>מחיקה.</strong> כשאין יותר תנועה לישנה, מוחקים אותה. זה הכיווץ של ההגירה.</li>
+</ol>
+<p>שלושה סיכונים מוכרים:</p>
+<ul>
+<li><strong>מעבר שלא נגמר.</strong> שתי מערכות לתמיד, ומי שמתחזקת את שתיהן. לכל שלב תאריך, והמחיקה בתוכנית מהיום הראשון.</li>
+<li><strong>נתונים בשני מקומות.</strong> אם שתי המערכות צריכות את אותם נתונים, אחת היא המקור והשנייה מקבלת עותק. אף פעם שתיהן לא כותבות.</li>
+<li><strong>ארכיטקטורת מעבר עולה כסף.</strong> נקודת הניתוב, ההשוואות והדגלים הם קוד שנמחק בסוף. Fowler כותב שזה מחיר ששווה
+  לשלם בשביל סיכון נמוך יותר וערך מוקדם יותר, וכדאי לומר אותו במפורש בתוכנית.</li>
+</ul>
+<h2 id="305">30.5 חוב טכני: לזהות, לתמחר, לשלם</h2>
+<h3 id="3051">30.5.1 קרן וריבית</h3>
+<p>חוב טכני (technical debt) הוא מטפורה. מי שטבע אותה הוא Ward Cunningham, ב־1992. ‏Fowler כתב עליה דף שעודכן ב־2019,
+עם דוגמה מספרית. הכתובת נבדקה באוקטובר 2026: <a href="https://martinfowler.com/bliki/TechnicalDebt.html">הדף של Fowler</a>.
+נניח שבגלל מבנה גרוע, תכונה שהייתה לוקחת ארבעה ימים לוקחת שישה:</p>
+<table>
+<thead>
+<tr>
+<th>מונח</th>
+<th>בדוגמה</th>
+<th>מה זה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ריבית (interest)</td>
+<td>יומיים</td>
+<td>מה שמשלמים בכל פעם שעובדים באזור, כל עוד החוב קיים</td>
+</tr>
+<tr>
+<td>קרן (principal)</td>
+<td>נניח חמישה ימים</td>
+<td>מה שעולה לתקן את המבנה פעם אחת</td>
+</tr>
+</tbody>
+</table>
+<p>תיקון משתלם רק אם עוד יבואו שינויים באזור הזה. חוב באזור שאיש לא נוגע בו לא גובה ריבית, וייתכן שנכון להשאיר
+אותו. זו הנקודה שמבדילה דיבור בכיר על חוב מתלונה: לא „הקוד מכוער”, אלא „אנחנו משלמים יומיים על כל שינוי כאן,
+ומתוכננים שמונה שינויים ברבעון”.</p>
+<h3 id="3052">30.5.2 לזהות: איפה משלמים ריבית</h3>
+<p>ריבית משלמים במקום שבו שינויים קורים. כמה מקורות שקל לאסוף:</p>
+<ul>
+<li><strong>קבצים שמשתנים הרבה.</strong> הפקודה הבאה סופרת, לכל קובץ, בכמה commits הוא השתנה בחצי השנה האחרונה.</li>
+<li><strong>תקריות.</strong> תחקיר שבו „הקוד מסובך” הוא חלק מהסיבה הוא ריבית ששולמה בשעות של תורנות.</li>
+<li><strong>זמן לשינוי קטן.</strong> כמה זמן לוקח שינוי של שורה באזור מסוים, מה־commit ועד ייצור.</li>
+<li><strong>ידע אצל אדם אחד.</strong> אזור שרק מפתחת אחת מעזה לגעת בו הוא חוב עם ריבית משתנה.</li>
+</ul>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">git log --since=&quot;6 months ago&quot; --format= --name-only | grep -v '^$' | sort | uniq -c | sort -rn | head -20
+</code></pre>
+
+
+</div>
+
+<p>קובץ שמופיע גבוה ברשימה וגם מופיע בתחקירים הוא מועמד ראשון. קובץ מכוער שלא השתנה שנה הוא לא.</p>
+<h3 id="3053">30.5.3 לתמחר ולשלם</h3>
+<p>התמחור הוא הערכה, כמו בפרק 29: הנחות כתובות, ומספר בסדר גודל. לדוגמה, בהנחות שאת ממלאת:</p>
+<table>
+<thead>
+<tr>
+<th>שאלה</th>
+<th>הערך שלך</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>כמה שינויים באזור ברבעון</td>
+<td>___</td>
+</tr>
+<tr>
+<td>כמה זמן נוסף כל שינוי עולה בגלל החוב</td>
+<td>___</td>
+</tr>
+<tr>
+<td>כמה שעות תורנות ברבעון קשורות לאזור</td>
+<td>___</td>
+</tr>
+<tr>
+<td>כמה עולה התיקון, פעם אחת</td>
+<td>___</td>
+</tr>
+<tr>
+<td>אחרי כמה רבעונים התיקון מחזיר את עצמו</td>
+<td>___</td>
+</tr>
+</tbody>
+</table>
+<p>ולשלם, בדרכים שלא דורשות לעצור את הכול:</p>
+<ul>
+<li><strong>בשטח שנוגעים בו.</strong> Fowler מציין שהיתרון של שיפור הדרגתי הוא שהוא מתרכז באזורים שמשתנים הרבה, שם הניקוי
+  נחוץ ביותר. שינוי שעובר באזור משאיר אותו קצת טוב יותר.</li>
+<li><strong>בצעדים הפיכים.</strong> הרחבה וכיווץ, דגלים והגירה הדרגתית הם כולם דרכים לשלם קרן בלי סיכון של יום החלפה.</li>
+<li><strong>בתקציב קבוע.</strong> חלק קבוע מכל ספרינט, במקום „פרויקט ניקוי” שנדחה תמיד לרבעון הבא.</li>
+<li><strong>לסיים את הכיווץ.</strong> מיגרציה שנעצרה אחרי ההרחבה, דגל שלא נמחק ומערכת ישנה שעוד רצה הם חוב שיצרת היום.</li>
+</ul>
+<h3 id="3054">30.5.4 איך משכנעים</h3>
+<p>מנהלת שצריכה להחליט בין תכונה לניקוי לא צריכה לשמוע על קוד יפה. היא צריכה את אותו מבנה כמו כל הצעה: מה הבעיה,
+מה המחיר שלה היום, מה ההצעה, כמה היא עולה, ואיך נדע שהיא עבדה. פסקה אחת לדוגמה:</p>
+<blockquote>
+<p><strong>הצעה:</strong> ‏„בשלושת החודשים האחרונים, 9 מתוך 14 השינויים במודול החיוב לקחו בערך פי שניים מההערכה, ושתי
+תקריות התחילו בו. אני מציעה שבועיים להפריד את חישוב המס מהקוד של ה־API, בצעדים שכל אחד מהם נפרס לבד. נמדוד את
+הזמן משינוי לייצור במודול לפני ואחרי. אם אחרי רבעון אין שיפור, נעצור.”</p>
+</blockquote>
+<p>המספרים בפסקה הם דוגמה לצורה, לא נתונים. מה שעושה אותה משכנעת: מחיר במונחים שהמנהלת מכירה, הצעה קטנה והפיכה,
+ומדד הצלחה עם נקודת עצירה. „צריך לכתוב מחדש” בלי כל אלה נשמע כמו העדפה אישית, ובצדק.</p>
+<h2 id="_3">סיכום</h2>
+<ul>
+<li>שינוי שאינו תואם נעשה בשלבים: הרחבה, הגירה, כיווץ. בין שני שלבים מסתיימת פריסה.</li>
+<li>שינוי שם של עמודה: להוסיף, לכתוב לשתיהן, למלא במנות, לקרוא מהחדשה, להפסיק לכתוב לישנה, למחוק.</li>
+<li>בכיווץ, קודם מרפים את <code>NOT NULL</code> של העמודה הישנה, ורק אחרי הפריסה מוחקים אותה.</li>
+<li>ב־PostgreSQL 18: עמודה עם ברירת מחדל קבועה בלי שכתוב, אינדקס במקביל, ואילוץ שנוסף לא תקף ונבדק אחר כך.</li>
+<li>פקודת DDL שמחכה לנעילה עוצרת את כל מי שבא אחריה; ‏<code>lock_timeout</code> על חיבור המיגרציות הוא ההגנה.</li>
+<li>באירועים צריך תאימות לאחור וגם לפנים: שינויים מוסיפים, קורא סובלני, וגרסה בתוך האירוע.</li>
+<li>דגל תכונה מפריד פריסה משחרור; כל דגל נולד עם תאריך הסרה.</li>
+<li>הגירת מערכת נעשית סביב השולים של הישנה, חלק אחרי חלק, עם מחיקה בתוכנית מהיום הראשון.</li>
+<li>חוב טכני מתומחר בריבית שמשלמים, ומשכנעים עליו במחיר, בהצעה הפיכה ובמדד.</li>
+</ul>
+<h2 id="_4">מונחים לזכור</h2>
+<table>
+<thead>
+<tr>
+<th>מונח בעברית</th>
+<th>באנגלית</th>
+<th>במשפט אחד</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>הרחבה ואז כיווץ</td>
+<td>expand and contract</td>
+<td>שינוי שאינו תואם בשלבים, כך שכל שלב תואם לקוד שרץ לידו</td>
+</tr>
+<tr>
+<td>שינוי מקביל</td>
+<td>parallel change</td>
+<td>השם של Danilo Sato לאותה תבנית: הרחבה, הגירה, כיווץ</td>
+</tr>
+<tr>
+<td>כתיבה כפולה</td>
+<td>dual write</td>
+<td>כתיבה לעמודה הישנה ולחדשה באותה פקודה, בתקופת המעבר</td>
+</tr>
+<tr>
+<td>מילוי לאחור</td>
+<td>backfill</td>
+<td>העתקת ערכים לשורות ישנות, במנות קטנות</td>
+</tr>
+<tr>
+<td>פריסה מתגלגלת</td>
+<td>rolling deploy</td>
+<td>החלפת עותקים אחד אחד, כך שגרסאות רצות יחד</td>
+</tr>
+<tr>
+<td>תור נעילות</td>
+<td>lock queue</td>
+<td>פקודה שמחכה לנעילה חוסמת את מי שבא אחריה</td>
+</tr>
+<tr>
+<td>תאימות לאחור</td>
+<td>backward compatibility</td>
+<td>הקוד החדש מבין נתונים מהגרסה הישנה</td>
+</tr>
+<tr>
+<td>תאימות לפנים</td>
+<td>forward compatibility</td>
+<td>הקוד הישן מבין נתונים מהגרסה החדשה</td>
+</tr>
+<tr>
+<td>שינוי מוסיף</td>
+<td>additive change</td>
+<td>מוסיפים שדה, לא מוחקים ולא משנים</td>
+</tr>
+<tr>
+<td>קורא סובלני</td>
+<td>tolerant reader</td>
+<td>צרכן שלוקח את מה שהוא צריך ומתעלם מהשאר</td>
+</tr>
+<tr>
+<td>דגל תכונה</td>
+<td>feature flag</td>
+<td>החלטה בזמן ריצה אם נתיב קוד פעיל</td>
+</tr>
+<tr>
+<td>הגירה</td>
+<td>migration (system)</td>
+<td>העברה של התנהגות ממערכת ישנה לחדשה</td>
+</tr>
+<tr>
+<td>תאנה חונקת</td>
+<td>strangler fig</td>
+<td>הגירה הדרגתית סביב השולים של המערכת הישנה</td>
+</tr>
+<tr>
+<td>תפר</td>
+<td>seam</td>
+<td>מקום אחד בקוד שבו אפשר להחליט לאן בקשה הולכת</td>
+</tr>
+<tr>
+<td>חוב טכני</td>
+<td>technical debt</td>
+<td>מבנה שמייקר כל שינוי עתידי עד שמתקנים אותו</td>
+</tr>
+<tr>
+<td>ריבית</td>
+<td>interest</td>
+<td>המחיר הנוסף של כל שינוי בגלל החוב</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_5">טעויות נפוצות</h2>
+<ul>
+<li><strong>מיגרציה ופריסה באותו צעד.</strong> קוד ישן וחדש רצים יחד, ואחד מהם נשבר. כל שלב מסתיים בפריסה מלאה לפני הבא.</li>
+<li><strong>מילוי לפני שכל העותקים כותבים כפול.</strong> שורות שהקוד הישן כותב אחרי המילוי נשארות ריקות, והמיגרציה הבאה נכשלת.
+  קודם הפריסה, אחר כך המילוי.</li>
+<li><strong>לשכוח להרפות את העמודה הישנה.</strong> הגרסה שמפסיקה לכתוב אליה נכשלת בכל הוספה. ‏<code>DROP NOT NULL</code> לפני הפריסה.</li>
+<li><strong>‏<code>CREATE INDEX</code> בלי <code>CONCURRENTLY</code> על טבלה חיה.</strong> הכתיבות נחסמות לכל זמן הבנייה. ובקובץ goose צריך <code>NO TRANSACTION</code>.</li>
+<li><strong>מיגרציה בלי <code>lock_timeout</code>.</strong> טרנזקציה ארוכה אחת, וכל התנועה לטבלה עומדת בתור. גבול של שניות, וניסיון חוזר.</li>
+<li><strong>דגל שנשאר לתמיד.</strong> אחרי שנה איש לא יודע מה הוא עושה. תאריך הסרה ובעלים ביום שנוצר.</li>
+</ul>
+<h2 id="_6">שאלות ראיון</h2>
+<ol>
+<li><strong>איך משנים שם של עמודה בטבלה עם תנועה, בלי השבתה?</strong> בשישה צעדים, עם פריסה שמסתיימת בין צעד לצעד. מוסיפים
+   את העמודה החדשה כריקה, פורסים קוד שכותב לשתיהן, ממלאים שורות ישנות במנות, פורסים קוד שקורא מהחדשה, הופכים
+   אותה לחובה ומרפים את הישנה, פורסים קוד שכותב רק לחדשה, ורק אז מוחקים את הישנה. כל צעד תואם לקוד שרץ לפניו
+   ואחריו. המחיר: שבוע של עבודה במקום פקודה, וקוד כפול זמני. החלופה, חלון תחזוקה, לגיטימית כשאפשר לעצור את השירות.</li>
+</ol>
+<p><strong>המשך:</strong> למה לא view בשם החדש? זה אפשרי לקריאה, אבל כתיבה דרך view מוסיפה מורכבות ולא חוסכת את הפריסות;
+   ועדיין צריך למחוק את הישן בסוף.</p>
+<ol start="2">
+<li>
+<p><strong>מה המלכודת ב־<code>ALTER TABLE</code> „מהיר”?</strong> גם פקודה שלוקחת מילישנייה צריכה נעילה חזקה על הטבלה. אם טרנזקציה ארוכה
+   מחזיקה נעילה חלשה, הפקודה מחכה, וכל שאילתה חדשה נעמדת מאחוריה בתור, כולל <code>SELECT</code>. התוצאה היא הקפאה של
+   הטבלה למשך הטרנזקציה הארוכה. ההגנה היא <code>lock_timeout</code> של שניות בחיבור של המיגרציה וניסיון חוזר, ובדיקה
+   של טרנזקציות ארוכות ב־<code>pg_stat_activity</code> לפני שמתחילים.</p>
+</li>
+<li>
+<p><strong>איך מוסיפים אילוץ <code>NOT NULL</code> לטבלה של מאה מיליון שורות?</strong> בשלושה שלבים: אילוץ <code>CHECK</code> עם <code>NOT VALID</code>, שהוא
+   שינוי בקטלוג בלבד; ‏<code>VALIDATE CONSTRAINT</code>, שסורק בנעילה שלא חוסמת קריאות וכתיבות; ואז <code>SET NOT NULL</code>,
+   שמדלג על הסריקה כי אילוץ תקף כבר מוכיח שאין ערכים חסרים. כל שלב בטרנזקציה משלו, אחרת הנעילה החזקה של הראשון
+   נשארת לאורך הסריקה. ולפני כל זה, מילוי במנות, כי האימות ייכשל על שורה ריקה אחת.</p>
+</li>
+<li>
+<p><strong>מה ההבדל בין תאימות לאחור לתאימות לפנים, ולמה באירועים צריך את שתיהן?</strong> לאחור: הקוד החדש מבין נתונים
+   ישנים. לפנים: הקוד הישן מבין נתונים חדשים. ב־API שרת ולקוח לפחות מדברים באותו זמן, אבל אירועים נשמרים, ומי
+   שקורא מהתחלת ה־topic יפגוש כל גרסה שאי פעם נכתבה. ויצרנים וצרכנים נפרסים בזמנים שונים, כך שבכל רגע יש צרכן
+   ישן שמקבל אירוע חדש. לכן שינויים מוסיפים, צרכנים סובלניים, וגרסה באירוע לשינויים שאי אפשר להוסיף.</p>
+</li>
+</ol>
+<p><strong>המשך:</strong> ומה עושה צרכן עם גרסה שהוא לא מכיר? לא מדלג: מעביר לתור מתים ומתריע, כדי שגרסה חדשה של הצרכן תוכל
+   לעבד אותו אחר כך.</p>
+<ol start="5">
+<li><strong>איך היית משכנעת מנהלת להשקיע בתשלום חוב טכני?</strong> במונחים שלה: מה החוב עולה היום, בזמן שינוי, בתקריות או
+   בתורנות, עם מספרים שאפשר לבדוק. אחר כך הצעה קטנה, שנפרסת בצעדים הפיכים, עם מחיר ברור ומדד שנמדוד לפני
+   ואחרי, ונקודה שבה עוצרים אם זה לא עובד. ואני בוחרת חוב באזור שמשתנה הרבה, כי שם משלמים ריבית; חוב באזור
+   שאיש לא נוגע בו יכול לחכות. „צריך לכתוב מחדש” בלי כל אלה הוא העדפה, לא הצעה.</li>
+</ol>
+<h2 id="obsidian">פתק Obsidian</h2>
+<p>הפתק המוכן נמצא גם כקובץ: <code>obsidian/30-evolving-systems.md</code>. זה תוכנו:</p>
+<ul>
+<li><strong>הרחבה ואז כיווץ:</strong> כל שלב תואם לקוד שרץ לפניו ואחריו; פריסה מלאה בין שלבים.</li>
+<li><strong>שינוי שם:</strong> להוסיף, לכתוב כפול, למלא במנות, לקרוא מהחדשה, להפסיק לכתוב לישנה, למחוק.</li>
+<li><strong>כיווץ:</strong> קודם מרפים את העמודה הישנה, ורק בסוף מוחקים אותה.</li>
+<li><strong>נעילות:</strong> ברירת מחדל קבועה בלי שכתוב; אינדקס במקביל; אילוץ לא תקף ואז אימות.</li>
+<li><strong>תור נעילות:</strong> פקודה שמחכה חוסמת את כל מי שאחריה; גבול זמן לנעילה בחיבור המיגרציות.</li>
+<li><strong>אירועים:</strong> תאימות לאחור ולפנים; שינוי מוסיף; קורא סובלני; גרסה באירוע.</li>
+<li><strong>דגלים:</strong> שחרור, תפעול, ניסוי, הרשאה; כל דגל נולד עם תאריך הסרה.</li>
+<li><strong>תאנה חונקת:</strong> נקודת ניתוב, חלק אחרי חלק, השוואה, ומחיקה בתוכנית.</li>
+<li><strong>חוב טכני:</strong> ריבית נמדדת באזורים שמשתנים; משכנעים במחיר, בצעד הפיך ובמדד.</li>
+<li><strong>שאלה פתוחה:</strong> ___</li>
+</ul>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">plan      00002 add column -&gt; deploy v2 dual write -&gt; 00003 backfill -&gt; deploy v3 read new
+          -&gt; 00004 CHECK NOT VALID, VALIDATE, SET NOT NULL, fullname DROP NOT NULL
+          -&gt; deploy v4 new only -&gt; 00005 DROP COLUMN
+goose     -- +goose NO TRANSACTION   (CONCURRENTLY, batched backfill, one commit per statement)
+locks     ADD COLUMN constant default: catalog only (since PG 11)
+          CREATE INDEX CONCURRENTLY: SHARE UPDATE EXCLUSIVE, not in a transaction, invalid on failure
+          VALIDATE CONSTRAINT: SHARE UPDATE EXCLUSIVE
+          lock_timeout = 2s on the migration connection; SQLSTATE 55P03
+long tx   SELECT pid, now() - xact_start, state, query FROM pg_stat_activity ORDER BY 2 DESC NULLS LAST;
+events    additive only; tolerant reader; version in the envelope; unknown version -&gt; dead letter
+flags     release | ops | experiment | permissioning ; owner + expiry date + removal ticket
+churn     git log --since=&quot;6 months ago&quot; --format= --name-only | sort | uniq -c | sort -rn | head
+test      go test -race -v -run TestRenameWithZeroFailedRequests ./rollout
+my run    requests per step ___ ___ ___ ___   failed 0
+</code></pre>
+
+
+</div>
+
+<h2 id="_7">תרגיל</h2>
+<p><strong>מטרה:</strong> לשנות שם של עמודה בטבלת המשתמשים בארבע מיגרציות goose, בזמן ששני עותקים של שירות
+כותבים וקוראים בלי הפסקה, ולהוכיח בבדיקה שאף בקשה לא נכשלה; ולעשות את אותו שינוי לאירוע.
+<strong>זמן:</strong> יום לימוד אחד, יום 89, כ־65 דקות בנייה. <strong>ידע מקדים:</strong> הפרק, פרק 11 (goose), ופרק 5 (מקביליות ובדיקת מרוצים).</p>
+<p>הצעדים, קוד ההתחלה, הרמזים והפתרון נמצאים
+ב־<a href="../exercises/ch30-expand-contract/README.md"><code>exercises/ch30-expand-contract/README.md</code></a>.</p>
+<p><strong>קריטריון סיום:</strong></p>
+<ul>
+<li>הבדיקה של הפריסה עוברת עם <code>-race</code>, עם אפס בקשות שנכשלו בכל ארבעת השלבים.</li>
+<li>מטריצת התאימות עוברת, והבדיקה של השינוי הנאיבי מראה כשלונות.</li>
+<li>בדיקת תור הנעילות עוברת, וההודעה של <code>55P03</code> בפתק.</li>
+<li>בדיקות האירועים עוברות, ובפתק משפט אחד: מתי מותר למחוק את <code>fullname</code> מהאירוע.</li>
+</ul>
+<h2 id="_8">העשרה אופציונלית</h2>
+<ul>
+<li>הדף של Danilo Sato על שינוי מקביל קצר, ומראה את אותה תבנית לממשקים בקוד, לא רק למסדים.</li>
+<li>קראי את הסעיף על נעילות ברמת טבלה בתיעוד של PostgreSQL 18, ומצאי בטבלת ההתנגשויות למה <code>CREATE INDEX</code> רגיל לא
+  חוסם <code>SELECT</code>.</li>
+<li>הוסיפי לתרגיל מיגרציה שמוסיפה אינדקס על <code>display_name</code> ב־<code>CONCURRENTLY</code>, והריצי את הפריסה שוב. מה צריך להשתנות
+  בקובץ כדי ש־goose יריץ אותה?</li>
+</ul>
+</main>
+<nav class="bottom"><a href="index.html">תוכן העניינים</a> · <a href="29-system-design-method.html">← פרק 29: שיטת תכנון ומסמכי תכנון</a> · <a href="31-working-as-senior.html">פרק 31: לעבוד כבכירה →</a></nav>
+<script type="module">
+  // Render ```mermaid blocks in the browser (needs internet once; cached afterwards).
+  const blocks = document.querySelectorAll("pre > code.language-mermaid");
+  if (blocks.length) {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs")).default;
+    for (const code of blocks) {
+      const div = document.createElement("div");
+      div.className = "mermaid";
+      div.textContent = code.textContent;
+      code.parentElement.replaceWith(div);
+    }
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run();
+  }
+</script>
+</body>
+</html>

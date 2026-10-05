@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>פרק 38: אבני הדרך</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="top"><a href="index.html">תוכן העניינים</a> · <a href="37-hookline-spec.html">← פרק 37: Hookline: מפרט וארכיטקטורה</a> · <a href="TERMINOLOGY.html">Terminology policy (book 2) →</a></nav>
+<main class="book">
+<div class="toc"><span class="toctitle">תוכן הפרק</span><ul>
+<li><a href="#_1">מה נלמד בפרק</a></li>
+<li><a href="#_2">ידע מקדים</a></li>
+<li><a href="#381-m1-api">38.1 M1: שלד ה־API</a><ul>
+<li><a href="#3811">38.1.1 המטרה</a></li>
+<li><a href="#3812">38.1.2 המושגים, והיכן נלמדו</a></li>
+<li><a href="#3813">38.1.3 הקבצים</a></li>
+<li><a href="#3814">38.1.4 הצעדים</a></li>
+<li><a href="#3815">38.1.5 הבדיקות שצריכות להוריק</a></li>
+<li><a href="#3816">38.1.6 הפלט הצפוי</a></li>
+<li><a href="#3817">38.1.7 קריטריון סיום</a></li>
+<li><a href="#3818">38.1.8 טעויות נפוצות</a></li>
+<li><a href="#3819">38.1.9 הרחבה</a></li>
+</ul>
+</li>
+<li><a href="#382-m2-postgresql">38.2 M2: PostgreSQL וקליטה אידמפוטנטית</a><ul>
+<li><a href="#3821">38.2.1 המטרה</a></li>
+<li><a href="#3822">38.2.2 המושגים, והיכן נלמדו</a></li>
+<li><a href="#3823">38.2.3 הקבצים</a></li>
+<li><a href="#3824">38.2.4 הצעדים</a></li>
+<li><a href="#3825">38.2.5 הבדיקות שצריכות להוריק</a></li>
+<li><a href="#3826">38.2.6 הפלט הצפוי</a></li>
+<li><a href="#3827">38.2.7 קריטריון סיום</a></li>
+<li><a href="#3828">38.2.8 טעויות נפוצות</a></li>
+<li><a href="#3829">38.2.9 הרחבה</a></li>
+</ul>
+</li>
+<li><a href="#383-m3">38.3 M3: מטמון והמקבל המדומה</a></li>
+<li><a href="#384-m4-outbox-redpanda">38.4 M4: outbox ו־Redpanda</a></li>
+<li><a href="#385-m5">38.5 M5: מסירה, חתימה וניסיונות חוזרים</a></li>
+<li><a href="#386-m6">38.6 M6: חוסן ועומס</a></li>
+<li><a href="#387-m7-kubernetes-ci">38.7 M7: קונטיינרים, Kubernetes ו־CI</a></li>
+<li><a href="#388-m8-slo">38.8 M8: תצפיתיות ו־SLO</a></li>
+<li><a href="#389-m9">38.9 M9: בדיקות ואבטחה</a></li>
+<li><a href="#3810-m10">38.10 M10: הערכה והדגמה</a></li>
+<li><a href="#_3">סיכום</a></li>
+<li><a href="#_4">מונחים לזכור</a></li>
+<li><a href="#_5">טעויות נפוצות</a></li>
+<li><a href="#_6">שאלות ראיון</a></li>
+<li><a href="#obsidian">פתק Obsidian</a></li>
+<li><a href="#_7">תרגיל</a></li>
+<li><a href="#_8">העשרה אופציונלית</a></li>
+</ul>
+</div>
+
+<h1 id="38">פרק 38: אבני הדרך</h1>
+<p>הפרק הזה הוא מדריך הבנייה של Hookline: עשר אבני דרך, כל אחת בסוף החלק בספר שמלמד את מה שהיא צריכה. כל סעיף
+הוא תדריך עבודה באותו מבנה: המטרה, המושגים והיכן נלמדו, הצעדים, הקבצים, הבדיקות שצריכות להוריק בפקודות מדויקות,
+הפלט הצפוי, מתי נגמר, הטעויות הנפוצות, והרחבה. את הפרק לא קוראים ברצף: חוזרים לסעיף של אבן הדרך ביום שלה.</p>
+<h2 id="_1">מה נלמד בפרק</h2>
+<ul>
+<li>להפוך את השרת מפרק 6 לשלד של API אמיתי: אימות, משאבים, עימוד ופרטי בעיה, מאחורי ממשקים.</li>
+<li>להחליף מאגר בזיכרון במאגר PostgreSQL בלי לשנות שורה ב־handlers, ולהוכיח את זה בבדיקות התאמה.</li>
+<li>לקלוט אירועים באופן אידמפוטנטי, כשאילוץ ייחודיות במסד מכריע בין בקשות מקבילות.</li>
+<li>לחבר לפרויקט את מה שנלמד בכל חלק: מטמון, outbox ו־Redpanda, תור עבודות, חוסן, קונטיינרים, תצפיתיות ואבטחה.</li>
+<li>לעבוד מול בדיקות שכבר כתובות, ולדעת מתי אבן דרך באמת נגמרה.</li>
+</ul>
+<h2 id="_2">ידע מקדים</h2>
+<ul>
+<li>פרק 37 כולו: המפרט, הארכיטקטורה, מודל הנתונים, וההתקנה של ה־starter בסעיף 37.8.</li>
+<li>לאבן הדרך הראשונה: פרק 6 (השרת, ה־middleware, הלוגים והכיבוי) ופרק 9, סעיפים 9.2 עד 9.5 (OpenAPI, פרטי בעיה,
+  עימוד ואידמפוטנטיות).</li>
+<li>לאבן הדרך השנייה: פרק 10, סעיפים 10.5 עד 10.7 (אינדקסים, עימוד מהיר ו־pgx), ופרק 11, סעיפים 11.1, 11.2, 11.6
+  ו־11.7 (טרנזקציות, רמות בידוד, goose ומאגר חיבורים).</li>
+<li>כל אבן דרך מאוחרת מציינת בסעיף שלה את הפרקים שהיא נשענת עליהם.</li>
+</ul>
+<h2 id="381-m1-api">38.1 M1: שלד ה־API</h2>
+<h3 id="3811">38.1.1 המטרה</h3>
+<p>‏API שעובד ונבדק, שתואם לחוזה שלו: דיירות שנוצרות בכלי המפעילה ומקבלות מפתח פעם אחת, אימות ב־Bearer, ‏endpoints
+עם סוד חתימה, מנויים, וקליטת אירועים עם מפתח אידמפוטנטיות. הכול מעל מאגר בזיכרון שיושב מאחורי ממשקים, כך שבאבן
+הדרך הבאה מחליפים אותו ב־PostgreSQL ולא נוגעים ב־handler אחד.</p>
+<h3 id="3812">38.1.2 המושגים, והיכן נלמדו</h3>
+<table>
+<thead>
+<tr>
+<th>מושג</th>
+<th>איפה בספר</th>
+<th>איפה בפרויקט</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>שרת עם זמנים קצובים וכיבוי מסודר</td>
+<td>פרק 6, סעיף 6.5</td>
+<td><code>internal/platform/server.go</code> (שלם ב־starter)</td>
+</tr>
+<tr>
+<td>שרשרת middleware ומזהה בקשה בלוג</td>
+<td>פרק 6, סעיפים 6.2 ו־6.4</td>
+<td><code>internal/platform/middleware.go</code>, ‏<code>logging.go</code></td>
+</tr>
+<tr>
+<td>הגדרות מהסביבה, כל הבעיות בבת אחת</td>
+<td>פרק 6, סעיף 6.3</td>
+<td><code>internal/config/config.go</code></td>
+</tr>
+<tr>
+<td>‏OpenAPI כמקור אמת</td>
+<td>פרק 9, סעיף 9.2</td>
+<td><code>api/openapi.yaml</code>, ‏<code>internal/api/spec_test.go</code></td>
+</tr>
+<tr>
+<td>פרטי בעיה (RFC 9457)</td>
+<td>פרק 9, סעיף 9.3</td>
+<td><code>internal/problem</code></td>
+</tr>
+<tr>
+<td>עימוד עם cursor אטום</td>
+<td>פרק 9, סעיף 9.4</td>
+<td><code>internal/page</code>, ‏<code>internal/api/decode.go</code></td>
+</tr>
+<tr>
+<td>מפתח אידמפוטנטיות</td>
+<td>פרק 9, סעיף 9.5</td>
+<td><code>internal/api/ingest.go</code>, ‏<code>internal/store/memory</code></td>
+</tr>
+<tr>
+<td>גבולות קלט לפני פענוח</td>
+<td>פרק 9, סעיף 9.9</td>
+<td><code>limitBody</code> ו־<code>decodeFrom</code></td>
+</tr>
+<tr>
+<td>ממשקים כגבול בין שכבות</td>
+<td>פרק 4, סעיפים 4.2 ו־4.3</td>
+<td><code>internal/store/store.go</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="3813">38.1.3 הקבצים</h3>
+<table>
+<thead>
+<tr>
+<th>קובץ</th>
+<th>מצב ב־starter</th>
+<th>מה עושים</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>internal/store/store.go</code></td>
+<td>שלם</td>
+<td>לקרוא: ארבעה ממשקים, וההבטחות שבתיעוד שלהם</td>
+</tr>
+<tr>
+<td><code>internal/store/storetest/storetest.go</code></td>
+<td>שלם</td>
+<td>לקרוא: בדיקות ההתאמה שכל מאגר עובר</td>
+</tr>
+<tr>
+<td><code>internal/store/memory/memory.go</code></td>
+<td>גופים ריקים</td>
+<td>לממש את כל המתודות</td>
+</tr>
+<tr>
+<td><code>internal/admin/admin.go</code></td>
+<td>גוף ריק</td>
+<td>‏<code>CreateTenant</code></td>
+</tr>
+<tr>
+<td><code>internal/api/server.go</code></td>
+<td>שלם</td>
+<td>לקרוא: הנתיבים וסדר ה־middleware</td>
+</tr>
+<tr>
+<td><code>internal/api/decode.go</code></td>
+<td>גופים ריקים</td>
+<td>להעביר מהפתרון שלך לפרק 9 ולהתאים</td>
+</tr>
+<tr>
+<td><code>internal/api/auth.go</code></td>
+<td>גופים ריקים</td>
+<td>ה־middleware של האימות ו־<code>GET /v1/tenant</code></td>
+</tr>
+<tr>
+<td><code>internal/api/endpoints.go</code>, ‏<code>subscriptions.go</code>, ‏<code>ingest.go</code></td>
+<td>גופים ריקים</td>
+<td>ה־handlers</td>
+</tr>
+<tr>
+<td><code>cmd/api/main.go</code>, ‏<code>cmd/hookline-admin/main.go</code></td>
+<td>שלם</td>
+<td>לקרוא: החיווט</td>
+</tr>
+</tbody>
+</table>
+<h3 id="3814">38.1.4 הצעדים</h3>
+<p><strong>יום 22, אחרי פרק 37.</strong> קראי את החוזה לפני הקוד. פתחי את <code>api/openapi.yaml</code> ועברי על כל נתיב: מה הוא מקבל, אילו
+קודים הוא מחזיר, ואיזה סוג בעיה מגיע עם כל קוד. אחר כך בדקי שהוא תקין, באותה פקודה מפרק 9:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">cd ~/senior-course/hookline
+docker run --rm -v &quot;$PWD/api:/spec&quot; -w /spec redocly/cli:2.57.0 lint openapi.yaml
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">validating openapi.yaml...
+openapi.yaml: validated in 47ms
+
+Woohoo! Your API description is valid. 🎉
+1 problem is explicitly ignored.
+</code></pre>
+
+
+</div>
+
+<p>הבעיה שמוחרגת היא היחידה שמותרת: לנתיב <code>/healthz</code> אין תשובת 4xx לתעד. הקובץ <code>api/.redocly.lint-ignore.yaml</code>
+אומר את זה במפורש, כך שהכלל ממשיך לשמור על כל שאר הנתיבים.</p>
+<p>עכשיו קראי את <code>internal/store/store.go</code>. ארבעת הממשקים הם הגבול: ה־handlers מכירים רק אותם, ושום handler לא יודע
+אם מאחוריהם יש מפה או מסד. התיעוד של כל מתודה הוא חוזה. במיוחד המתודה של הקליטה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// Events are ingested once per (tenant, idempotency key).
+type Events interface {
+    // IngestEvent stores e unless the tenant already used e.IdempotencyKey. Then, with the same
+    // BodyHash, it returns the stored event and replayed=true; with another BodyHash it returns
+    // domain.ErrIdempotencyMismatch. The decision is atomic: concurrent calls with one key store
+    // exactly one event and all return it. The PostgreSQL store also writes the outbox row (M4) in the
+    // same transaction.
+    IngestEvent(ctx context.Context, e domain.Event) (stored domain.Event, replayed bool, err error)
+    GetEvent(ctx context.Context, tenantID, id string) (domain.Event, error)
+}
+</code></pre>
+
+
+</div>
+
+<p>התחילי מהמאגר בזיכרון, כי כל בדיקה של ה־API צריכה אותו. ממשי בקובץ <code>internal/store/memory/memory.go</code> שלוש מתודות:</p>
+<ul>
+<li>‏<code>New</code></li>
+<li>‏<code>CreateTenant</code></li>
+<li>‏<code>TenantByKeyHash</code></li>
+</ul>
+<p>ובדקי:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">go test -race -run 'TestConformance/TenantByKeyHash' ./internal/store/memory/
+go test -race -run 'TestHealthNeedsNoKey' ./internal/api/
+</code></pre>
+
+
+</div>
+
+<p>שתיהן צריכות להחזיר <code>ok</code>. הבדיקה של הבריאות עוברת כבר עכשיו, כי הנתיב <code>/healthz</code> מוגדר בתוך <code>server.go</code> עצמו.</p>
+<p><strong>יום 23: המשאבים.</strong> הסדר הזה מוריק בדיקה אחרי בדיקה:</p>
+<table>
+<thead>
+<tr>
+<th>צעד</th>
+<th>מה כותבים</th>
+<th>הבדיקה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>‏<code>admin.CreateTenant</code>: אימות קלט, <code>domain.NewAPIKey</code>, שמירה של הגיבוב בלבד</td>
+<td><code>TestCreateTenant</code> ב־<code>./internal/admin/</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td>ב־<code>decode.go</code>: ‏<code>limitBody</code>, ‏<code>isJSON</code>, ‏<code>decodeFrom</code>, ‏<code>readBody</code> מפרק 9; ‏<code>pageParams</code> ו־<code>writePage</code></td>
+<td>ייבדקו דרך הצעדים הבאים</td>
+</tr>
+<tr>
+<td>3</td>
+<td>ב־<code>auth.go</code>: הכותרת, צורת המפתח, החיפוש לפי גיבוב, והדיירת ב־context</td>
+<td><code>TestAuthentication</code>, ‏<code>TestGetTenant</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td>‏endpoints במאגר וב־handlers: יצירה עם סוד, קריאה, רשימה, השבתה</td>
+<td><code>TestCreateEndpoint</code>, ‏<code>TestListEndpoints</code>, ‏<code>TestDisableEndpoint</code>, ‏<code>TestUnknownAndMalformedIDs</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td>מנויים במאגר וב־handlers</td>
+<td><code>TestSubscriptions</code>, ‏<code>TestCreateSubscriptionValidation</code>, ‏<code>TestListSubscriptions</code></td>
+</tr>
+<tr>
+<td>6</td>
+<td>קליטה במאגר וב־handler</td>
+<td><code>TestIngest</code></td>
+</tr>
+<tr>
+<td>7</td>
+<td>אין קוד חדש: הבדיקה מוכיחה את הבידוד</td>
+<td><code>TestTenantIsolation</code></td>
+</tr>
+</tbody>
+</table>
+<p>כל שורה בטבלה נבדקת בפקודה אחת, עם הדפוס שבעמודה האחרונה. למשל, לצעד 4:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">go test -race -run 'TestCreateEndpoint|TestListEndpoints|TestDisableEndpoint|TestUnknownAndMalformedIDs' ./internal/api/
+go test -race -run 'TestConformance/Endpoint' ./internal/store/memory/
+</code></pre>
+
+
+</div>
+
+<p>שלושה פרטים בצעד 3, ה־middleware של האימות, מהקובץ <code>internal/api/auth.go</code> בפתרון:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">        scheme, key, ok := strings.Cut(r.Header.Get(&quot;Authorization&quot;), &quot; &quot;)
+        if !ok || !strings.EqualFold(scheme, &quot;Bearer&quot;) || !domain.LooksLikeAPIKey(key) {
+            unauthorized(w, r, &quot;send the header Authorization: Bearer followed by your API key&quot;)
+            return
+        }
+        t, err := s.store.TenantByKeyHash(r.Context(), domain.HashAPIKey(key))
+        if errors.Is(err, domain.ErrNotFound) {
+            unauthorized(w, r, &quot;the API key is not valid&quot;)
+            return
+        }
+</code></pre>
+
+
+</div>
+
+<ul>
+<li><strong>השם של הסכמה לא תלוי רישיות.</strong> כך מגדיר את זה תקן ה־HTTP. לכן <code>bearer</code> חייב לעבוד כמו <code>Bearer</code>.</li>
+<li><strong>בדיקת הצורה באה לפני החיפוש.</strong> ערך שאינו נראה כמו מפתח נדחה בלי לגעת במאגר, וזה זול.</li>
+<li><strong>‏401 תמיד עם <code>WWW-Authenticate</code>.</strong> התקן דורש אותה, והבדיקה בודקת אותה.</li>
+</ul>
+<p>בצעד 4 שימי לב לשני דברים. הסוד מוחזר רק בתשובת היצירה. בטיפוס <code>domain.Endpoint</code> השדה <code>Secret</code> מסומן
+כך שלא יקודד, ותשובת היצירה עוטפת את הטיפוס בטיפוס שמוסיף אותו. ומזהה בנתיב נבדק ב־<code>domain.IsID</code> לפני כל קריאה למאגר: מזהה לא תקין
+הוא 404, ובאבן הדרך השנייה הוא לא יגיע לעמודת <code>uuid</code> ויהפוך ל־500.</p>
+<p>בצעד 6, המאגר בזיכרון צריך להחליט באופן אטומי אם המפתח חדש. מנעול אחד סביב הבדיקה וההכנסה עושה את מה שאילוץ
+הייחודיות יעשה במסד. זה הקוד מהקובץ <code>internal/store/memory/memory.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func (s *Store) IngestEvent(_ context.Context, e domain.Event) (domain.Event, bool, error) {
+    s.mu.Lock()
+    defer s.mu.Unlock()
+    k := idemKey{e.TenantID, e.IdempotencyKey}
+    if id, ok := s.byIdemKey[k]; ok {
+        stored := s.events[id]
+        if stored.BodyHash != e.BodyHash {
+            return domain.Event{}, false, domain.ErrIdempotencyMismatch
+        }
+        return stored, true, nil
+    }
+    e.Payload = slices.Clone(e.Payload) // the caller's buffer is not ours to keep
+    s.events[e.ID] = e
+    s.byIdemKey[k] = e.ID
+    return e, false, nil
+}
+</code></pre>
+
+
+</div>
+
+<p>ה־handler מחשב את הגיבוב על הבתים הגולמיים של הגוף, לפני הפענוח. כך „אותו גוף” פירושו אותם בתים בדיוק, כמו בפרק 9.
+שימי לב גם שבניגוד ל־middleware של פרק 9, כאן אין מצב „בתהליך” ואין 409: התשובה נגזרת כולה מהאירוע השמור,
+והאירוע נוצר באופן אטומי. בקשה מקבילה עם אותו מפתח מחכה ומקבלת את אותו אירוע.</p>
+<p>לסיום, הריצי את השרת על המאגר בזיכרון ושלחי אליו בקשות אמיתיות:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">make run-dev
+</code></pre>
+
+
+</div>
+
+<p>השרת מדפיס פעם אחת מפתח של דיירת פיתוח. בחלון שני:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">export KEY=hk_...   # the key that make run-dev printed
+curl -s localhost:8080/v1/endpoints -H &quot;Authorization: Bearer $KEY&quot; \
+  -H 'Content-Type: application/json' -d '{&quot;url&quot;:&quot;http://localhost:9000/hooks&quot;}'
+curl -s -i localhost:8080/v1/events -H &quot;Authorization: Bearer $KEY&quot; -H 'Content-Type: application/json' \
+  -H 'Idempotency-Key: order-42' -d '{&quot;type&quot;:&quot;invoice.paid&quot;,&quot;payload&quot;:{&quot;invoice&quot;:&quot;inv_1&quot;,&quot;amount&quot;:4200}}'
+</code></pre>
+
+
+</div>
+
+<p>הריצי את בקשת האירוע פעמיים, ואז פעם שלישית עם <code>"amount":9900</code>. הראשונה מחזירה 202, השנייה 202 עם
+<code>Idempotent-Replayed: true</code> ואותו מזהה, והשלישית 422.</p>
+<h3 id="3815">38.1.5 הבדיקות שצריכות להוריק</h3>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">DATABASE_URL= go test -race ./internal/api/ ./internal/store/... ./internal/admin/
+</code></pre>
+
+
+</div>
+
+<p>ההשמה הריקה של <code>DATABASE_URL</code> מבטיחה שבדיקות ה־API רצות על המאגר בזיכרון, גם אם הגדרת את המשתנה בחלון אחר.</p>
+<h3 id="3816">38.1.6 הפלט הצפוי</h3>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">ok      example.com/hookline/internal/api   2.213s
+ok      example.com/hookline/internal/store 1.848s
+ok      example.com/hookline/internal/store/memory  2.257s
+ok      example.com/hookline/internal/store/postgres    3.498s
+ok      example.com/hookline/internal/store/storetest   2.641s
+ok      example.com/hookline/internal/admin 3.010s
+</code></pre>
+
+
+</div>
+
+<p>הזמנים אצלך יהיו אחרים. החבילה <code>postgres</code> עוברת כי כל הבדיקות שלה מדלגות בלי מסד; ב־<code>-v</code> תראי <code>SKIP</code> לכל אחת.</p>
+<h3 id="3817">38.1.7 קריטריון סיום</h3>
+<ul>
+<li>כל הבדיקות בפקודה של סעיף 38.1.5 עוברות עם <code>-race</code>.</li>
+<li>מפתח לא מוכר, כתובת endpoint לא תקינה, וגוף JSON פגום מחזירים כל אחד את פרטי הבעיה שמתועדים בחוזה.</li>
+<li>‏<code>TestTenantIsolation</code> עוברת: לכל נתיב, המזהים של דיירת א' עם המפתח של דיירת ב' מחזירים 404.</li>
+<li>‏<code>TestSpecCoversEveryRoute</code> עוברת, והחוזה עובר את הבדיקה של redocly.</li>
+<li>קומיט עם ההודעה <code>M1: API skeleton</code>.</li>
+</ul>
+<h3 id="3818">38.1.8 טעויות נפוצות</h3>
+<ul>
+<li><strong>לבדוק בעלות ב־handler במקום במאגר.</strong> אם המאגר מחזיר כל שורה, וה־handler הוא שמשווה דיירת, קל לשכוח
+  את ההשוואה בנתיב החדש הבא. מזהה הדיירת הוא פרמטר של כל מתודה במאגר, והמאגר מסנן.</li>
+<li><strong>להחזיר <code>null</code> לרשימה ריקה.</strong> פרוסה שלא אותחלה מקודדת כ־<code>null</code>. הבדיקה מצפה ל־<code>{"items":[]}</code>.</li>
+<li><strong>לגבב את הגוף אחרי הפענוח.</strong> אז <code>{"a":1}</code> ו־<code>{ "a": 1 }</code> נחשבים לאותו גוף במאגר אחד ולא באחר. מגבבים בתים
+  גולמיים, לפני הפענוח.</li>
+<li><strong>להחזיר את הסוד גם ב־<code>GET</code>.</strong> הסוד מוצג פעם אחת. הבדיקה בודקת שהוא לא מופיע בקריאה ולא ברשימה.</li>
+<li><strong>שעון גלובלי בבדיקות.</strong> הבדיקות מזריקות שעון דרך <code>api.Options.Now</code>; קוד שקורא ישירות ל־<code>time.Now</code> ייתן זמני
+  יצירה זהים, ובדיקות העימוד יהיו תלויות במזל.</li>
+</ul>
+<h3 id="3819">38.1.9 הרחבה</h3>
+<ul>
+<li>הוסיפי <code>POST /v1/endpoints/{id}/enable</code>, קודם בחוזה ורק אחר כך בקוד, עם בדיקה. ‏<code>TestSpecCoversEveryRoute</code> תכשל
+  עד ששניהם יתאימו.</li>
+<li>הוסיפי נתיב לסיבוב סוד החתימה, שמחזיר סוד חדש פעם אחת. חשבי מה קורה למסירות שכבר נחתמו בסוד הישן.</li>
+</ul>
+<h2 id="382-m2-postgresql">38.2 M2: PostgreSQL וקליטה אידמפוטנטית</h2>
+<h3 id="3821">38.2.1 המטרה</h3>
+<p>להעביר את המצב של Hookline מזיכרון ל־PostgreSQL. סכמה מלאה במיגרציות goose, מאגר pgx שמממש את אותם ממשקים
+ועובר את אותן בדיקות התאמה, וקליטה שכותבת אירוע ושורת outbox בטרנזקציה אחת, כשאילוץ הייחודיות מכריע בין בקשות
+מקבילות. בסוף, כל בדיקות ה־API מאבן הדרך הראשונה עוברות, בלי שינוי, מול מסד אמיתי.</p>
+<h3 id="3822">38.2.2 המושגים, והיכן נלמדו</h3>
+<table>
+<thead>
+<tr>
+<th>מושג</th>
+<th>איפה בספר</th>
+<th>איפה בפרויקט</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>‏PostgreSQL בקונטיינר</td>
+<td>פרק 10, סעיף 10.1</td>
+<td><code>deploy/compose.yaml</code></td>
+</tr>
+<tr>
+<td>אינדקסים מרוכבים וחלקיים</td>
+<td>פרק 10, סעיף 10.5</td>
+<td>המיגרציות בתיקייה <code>migrations/</code></td>
+</tr>
+<tr>
+<td>עימוד keyset ב־SQL</td>
+<td>פרק 10, סעיף 10.6</td>
+<td><code>ListEndpoints</code> ו־<code>ListSubscriptions</code></td>
+</tr>
+<tr>
+<td>‏pgx ו־pgxpool</td>
+<td>פרק 10, סעיף 10.7; פרק 11, סעיף 11.7</td>
+<td><code>internal/db/db.go</code>, ‏<code>internal/store/postgres</code></td>
+</tr>
+<tr>
+<td>טרנזקציות ורמת Read committed</td>
+<td>פרק 11, סעיפים 11.1 ו־11.2</td>
+<td><code>IngestEvent</code></td>
+</tr>
+<tr>
+<td>מיגרציות goose מוטמעות</td>
+<td>פרק 11, סעיף 11.6</td>
+<td><code>migrations/migrations.go</code>, ‏<code>hookline-admin migrate</code></td>
+</tr>
+<tr>
+<td>מסד זמני לכל חבילת בדיקות</td>
+<td>התרגיל של פרק 11</td>
+<td><code>internal/testdb</code></td>
+</tr>
+<tr>
+<td>תבנית ה־outbox</td>
+<td>פרק 13 (בהמשך)</td>
+<td>הטבלה <code>outbox</code>, שנכתבת כבר עכשיו</td>
+</tr>
+</tbody>
+</table>
+<h3 id="3823">38.2.3 הקבצים</h3>
+<table>
+<thead>
+<tr>
+<th>קובץ</th>
+<th>מצב ב־starter</th>
+<th>מה עושים</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>deploy/compose.yaml</code></td>
+<td>שלם</td>
+<td>להריץ; PostgreSQL 18 בפרויקט <code>hookline</code>, בפורט 5438</td>
+</tr>
+<tr>
+<td><code>migrations/00001_tenants.sql</code> עד <code>00004_deliveries_attempts.sql</code></td>
+<td>שלמים</td>
+<td>לקרוא כל אחד, ולהריץ עלייה וירידה</td>
+</tr>
+<tr>
+<td><code>internal/db/db.go</code>, ‏<code>internal/testdb/testdb.go</code></td>
+<td>שלמים</td>
+<td>מפרק 11, עם שם המודול של הפרויקט</td>
+</tr>
+<tr>
+<td><code>internal/store/postgres/postgres.go</code></td>
+<td>גופים ריקים</td>
+<td>כל המתודות</td>
+</tr>
+<tr>
+<td><code>internal/api/store_test.go</code></td>
+<td>שלם</td>
+<td>לקרוא: הוא בוחר את המאגר לפי <code>DATABASE_URL</code></td>
+</tr>
+</tbody>
+</table>
+<p>המיגרציות מגיעות שלמות, כי אבני הדרך הבאות נשענות על הסכמה המדויקת שלהן. העבודה שלך עליהן היא לקרוא ולהסביר:
+לכל אילוץ, איזה באג הוא מונע. זו גם שאלה שתישאלי עליה.</p>
+<h3 id="3824">38.2.4 הצעדים</h3>
+<p><strong>יום 29: הסכמה והמאגר.</strong> העלי את המסד והריצי את המיגרציות:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">cd ~/senior-course/hookline
+make db-up
+export DATABASE_URL=postgres://hookline:change-me@localhost:5438/hookline
+go run ./cmd/hookline-admin migrate up
+go run ./cmd/hookline-admin migrate down-to 0
+go run ./cmd/hookline-admin migrate up
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">schema version: 4
+schema version: 0
+schema version: 4
+</code></pre>
+
+
+</div>
+
+<p>עכשיו קראי את ארבע המיגרציות, ומלאי לעצמך טבלה: אילוץ, והבאג שהוא מונע. שלושה שכדאי במיוחד להבין:</p>
+<ul>
+<li><strong>הייחודיות של הזוג <code>(tenant_id, id)</code> בטבלת ה־endpoints.</strong> היא נראית מיותרת, כי המזהה כבר מפתח ראשי. הוא קיים כדי שהמנויים יוכלו
+  להפנות לזוג, וכך המסד דוחה מנוי של דיירת אחת ל־endpoint של אחרת.</li>
+<li><strong>‏<code>UNIQUE (tenant_id, idempotency_key)</code> על <code>events</code>.</strong> זה מה שמכריע בקליטה. בלעדיו, שתי בקשות מקבילות יעברו שתיהן
+  כל בדיקה שתכתבי בקוד.</li>
+<li><strong>הייחודיות של המנויים מתחילה במזהה הדיירת.</strong> ‏PostgreSQL בודק את האינדקס הייחודי לפני המפתח הזר. אילו המפתח
+  היה רק endpoint וסוג, דיירת ב' שמנסה צירוף שכבר קיים אצל א' הייתה מקבלת 409 במקום 404, ולומדת שהמזהה קיים.
+  הבאג הזה נתפס בבדיקות ההתאמה בזמן כתיבת הפתרון, וזו הסיבה שהן קיימות.</li>
+<li><strong>האינדקס החלקי <code>outbox_unpublished_idx</code>.</strong> ה־relay של אבן הדרך הרביעית שואל רק על שורות שלא פורסמו. שורה שפורסמה
+  יוצאת מהאינדקס, והוא נשאר קטן.</li>
+</ul>
+<p>ממשי את המאגר ב־<code>internal/store/postgres/postgres.go</code>, מתודה אחרי מתודה, באותו סדר כמו באבן הדרך הראשונה. כל מתודה
+מתרגמת שגיאת מסד לשגיאת תחום, לפי הקוד שלה:</p>
+<table>
+<thead>
+<tr>
+<th>‏SQLSTATE</th>
+<th>שם</th>
+<th>שגיאת התחום</th>
+<th>איפה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>23505</code></td>
+<td>unique_violation</td>
+<td><code>domain.ErrConflict</code></td>
+<td>דיירת עם אותו גיבוב; מנוי כפול</td>
+</tr>
+<tr>
+<td><code>23503</code></td>
+<td>foreign_key_violation</td>
+<td><code>domain.ErrNotFound</code></td>
+<td>מנוי ל־endpoint שאינו של הדיירת</td>
+</tr>
+<tr>
+<td>אין שורות</td>
+<td><code>pgx.ErrNoRows</code></td>
+<td><code>domain.ErrNotFound</code></td>
+<td>כל קריאה של שורה אחת</td>
+</tr>
+</tbody>
+</table>
+<p>שאילתת הרשימה היא keyset מפרק 10, עם פרמטר שיכול להיות <code>NULL</code> לעמוד הראשון. זו השאילתה מהקובץ
+<code>internal/store/postgres/postgres.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    rows, err := s.pool.Query(ctx, `
+        SELECT `+endpointColumns+` FROM endpoints
+        WHERE tenant_id = $1 AND ($2::timestamptz IS NULL OR (created_at, id) &lt; ($2, $3::uuid))
+        ORDER BY created_at DESC, id DESC
+        LIMIT $4`, tenantID, at, id, limit+1)
+</code></pre>
+
+
+</div>
+
+<p>ההשוואה בין הזוגות <code>(created_at, id)</code> תואמת את סדר האינדקס <code>endpoints_tenant_page_idx</code>, ולכן המסד קורא רק את שורות
+העמוד, עמוק ככל שיהיה. מבקשים שורה אחת יותר מהגבול, כדי לדעת אם יש עמוד נוסף בלי שאילתת ספירה.</p>
+<p>בדקי את המאגר מול בדיקות ההתאמה, ואז את כל בדיקות ה־API מול המסד:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">go test -race -count=1 -run 'TestConformance/(Tenant|Endpoint|Subscription)' ./internal/store/postgres/
+go test -race -count=1 ./internal/api/
+</code></pre>
+
+
+</div>
+
+<p>הפקודה השנייה לא השתנתה מאבן הדרך הראשונה. מה שהשתנה הוא שהמשתנה <code>DATABASE_URL</code> מוגדר, והקובץ
+<code>internal/api/store_test.go</code> בוחר לכן את המאגר של PostgreSQL. זה כל ההבדל, וזו ההוכחה שהממשקים עשו את העבודה.</p>
+<p><strong>יום 30: הקליטה.</strong> המתודה <code>IngestEvent</code> היא לב אבן הדרך. היא רצה בטרנזקציה אחת, ברמת Read committed. זה הקוד
+מהקובץ <code>internal/store/postgres/postgres.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    err := pgx.BeginTxFunc(ctx, s.pool, pgx.TxOptions{IsoLevel: pgx.ReadCommitted}, func(tx pgx.Tx) error {
+        row := tx.QueryRow(ctx, `
+            INSERT INTO events (id, tenant_id, type, payload, idempotency_key, body_hash, created_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
+            RETURNING `+eventColumns,
+            e.ID, e.TenantID, e.Type, []byte(e.Payload), e.IdempotencyKey, e.BodyHash[:], e.CreatedAt)
+        got, err := scanEvent(row)
+        if err == nil {
+            stored = got
+            _, err = tx.Exec(ctx, `INSERT INTO outbox (event_id, created_at) VALUES ($1, $2)`, got.ID, got.CreatedAt)
+            return err
+        }
+        if !errors.Is(err, pgx.ErrNoRows) {
+            return err
+        }
+        stored, err = scanEvent(tx.QueryRow(ctx, `
+            SELECT `+eventColumns+` FROM events WHERE tenant_id = $1 AND idempotency_key = $2`,
+            e.TenantID, e.IdempotencyKey))
+        if err != nil {
+            return err
+        }
+        if stored.BodyHash != e.BodyHash {
+            return domain.ErrIdempotencyMismatch
+        }
+        replayed = true
+        return nil
+    })
+</code></pre>
+
+
+</div>
+
+<p>כך זה עובד כששתי בקשות עם אותו מפתח מגיעות יחד:</p>
+<table>
+<thead>
+<tr>
+<th>רגע</th>
+<th>בקשה א'</th>
+<th>בקשה ב'</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>‏<code>INSERT</code> מצליח ומחזיק את ערך המפתח באינדקס הייחודי</td>
+<td>‏<code>INSERT</code> נתקל באותו ערך ומחכה לסוף הטרנזקציה של א'</td>
+</tr>
+<tr>
+<td>2</td>
+<td>‏<code>INSERT</code> לשורת ה־outbox, ואז <code>COMMIT</code></td>
+<td>עדיין מחכה</td>
+</tr>
+<tr>
+<td>3</td>
+<td>מחזירה את האירוע</td>
+<td>‏<code>ON CONFLICT DO NOTHING</code>: אין שורה מוחזרת</td>
+</tr>
+<tr>
+<td>4</td>
+<td></td>
+<td>‏<code>SELECT</code> חדש, בתמונת מצב חדשה, רואה את השורה של א'; הגיבובים זהים, ולכן החזרה חוזרת</td>
+</tr>
+</tbody>
+</table>
+<p>ב־Read committed כל פקודה מקבלת תמונת מצב משלה (פרק 11, סעיף 11.2), ולכן הקריאה של ב' רואה את מה ש־א' אישרה. אם
+א' הייתה מבטלת, ה־<code>INSERT</code> של ב' היה ממשיך ומצליח. אין כאן ניסיון חוזר ואין <code>Serializable</code>: האילוץ מספיק.</p>
+<p>הגוף של האירוע נשמר כ־<code>jsonb</code>, והמסד מחזיר אותו בצורה מנורמלת: רווח אחרי נקודתיים, וסדר מפתחות משלו. בגלל זה
+הבדיקות משוות JSON לפי ערך ולא לפי בתים. שתי התשובות של בקשות מקבילות עדיין זהות, כי שתיהן נקראות מאותה שורה.</p>
+<p>הריצי את בדיקות הקליטה והמקביליות:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">go test -race -count=1 -run 'TestConformance/Ingest|TestConcurrentIngest|TestMismatch|TestListEndpointsUsesTheIndex' ./internal/store/postgres/
+go test -race -count=1 -run 'TestIngest' ./internal/api/
+</code></pre>
+
+
+</div>
+
+<p>הבדיקה <code>TestConcurrentIngestLeavesOneEventAndOneOutboxRow</code> שולחת 24 קליטות במקביל עם מפתח אחד, וסופרת במסד
+עצמו: שורת אירוע אחת ושורת outbox אחת. הבדיקה <code>TestListEndpointsUsesTheIndex</code> מריצה <code>EXPLAIN</code> ובודקת שהתוכנית
+משתמשת באינדקס העימוד.</p>
+<p>לבסוף, צרי דיירת אמיתית בכלי המפעילה, והריצי את השרת מול המסד:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">go run ./cmd/hookline-admin create-tenant -name acme
+make run
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">tenant id: 01a10b63-...
+api key:   hk_...
+The key is shown once and only its hash is stored. Keep it now.
+</code></pre>
+
+
+</div>
+
+<p>חזרי על בקשות ה־curl מסעיף 38.1.4 עם המפתח החדש. אחר כך בדקי ב־psql שהשורות נמצאות בטבלת האירועים
+ובטבלת ה־outbox.</p>
+<h3 id="3825">38.2.5 הבדיקות שצריכות להוריק</h3>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">make db-up
+export DATABASE_URL=postgres://hookline:change-me@localhost:5438/hookline
+go test -race -count=1 ./...
+</code></pre>
+
+
+</div>
+
+<h3 id="3826">38.2.6 הפלט הצפוי</h3>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">ok      example.com/hookline/internal/admin 1.352s
+ok      example.com/hookline/internal/api   2.177s
+ok      example.com/hookline/internal/config    2.713s
+ok      example.com/hookline/internal/db    3.995s
+ok      example.com/hookline/internal/domain    1.727s
+ok      example.com/hookline/internal/page  2.376s
+ok      example.com/hookline/internal/platform  3.285s
+ok      example.com/hookline/internal/problem   4.484s
+ok      example.com/hookline/internal/store 4.788s
+ok      example.com/hookline/internal/store/memory  2.058s
+ok      example.com/hookline/internal/store/postgres    3.889s
+ok      example.com/hookline/internal/store/storetest   4.147s
+ok      example.com/hookline/migrations 4.469s
+</code></pre>
+
+
+</div>
+
+<p>בהרצה עם <code>-v</code> אף בדיקה לא מדלגת: כל הבדיקות שדילגו באבן הדרך הראשונה רצות עכשיו מול המסד.</p>
+<h3 id="3827">38.2.7 קריטריון סיום</h3>
+<ul>
+<li>המיגרציות עולות על מסד ריק, יורדות עד גרסה 0 ועולות שוב (<code>TestMigrationsRoundTrip</code>).</li>
+<li>בדיקות ההתאמה עוברות על שני המאגרים, ובדיקות ה־API עוברות מול PostgreSQL בלי שינוי.</li>
+<li>בדיקת המקביליות מוצאת שורת אירוע אחת ושורת outbox אחת, ותשובות זהות לכל הבקשות.</li>
+<li>את יודעת להסביר למה האילוץ, ולא קוד, מכריע בכפילות, ולמה האירוע וה־outbox באותה טרנזקציה.</li>
+<li>‏<code>make db-down</code> בסוף היום, וקומיט של אבן הדרך:</li>
+</ul>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">git commit -m &quot;M2: PostgreSQL and idempotent ingest&quot;
+</code></pre>
+
+
+</div>
+
+<h3 id="3828">38.2.8 טעויות נפוצות</h3>
+<ul>
+<li><strong>קריאה ואז הכנסה.</strong> בדיקה בקוד אם המפתח קיים, ואז הכנסה, נשברת בבקשות מקבילות: שתיהן לא מוצאות, ושתיהן
+  מכניסות. אחת נכשלת באילוץ ומקבלת 500. מתחילים בהכנסה עם <code>ON CONFLICT DO NOTHING</code>.</li>
+<li><strong>שורת ה־outbox מחוץ לטרנזקציה.</strong> אם היא נכתבת אחרי ה־<code>COMMIT</code>, קריסה ביניהם משאירה אירוע שלא יימסר לעולם.</li>
+<li><strong>זמנים באזור הזמן המקומי.</strong> ‏pgx מחזיר <code>timestamptz</code> בזמן המקומי של המכונה, והתשובה תשתנה בין מכונות. ממירים
+  ל־UTC בסריקה. ושומרים מראש זמנים חתוכים למיקרו־שנייה, כי זה הדיוק שהמסד שומר; ‏<code>domain.Now</code> עושה את זה.</li>
+<li><strong>מזהה לא תקין שמגיע לעמודת <code>uuid</code>.</strong> הוא נכשל בקוד <code>22P02</code> ונהיה 500. ה־handlers בודקים <code>domain.IsID</code> קודם.</li>
+<li><strong>לשכוח <code>-count=1</code>.</strong> ‏Go שומר תוצאות בדיקה, ולא יודע שהמסד השתנה. בלי הדגל, „ok” יכול להיות מהרצה קודמת.</li>
+</ul>
+<h3 id="3829">38.2.9 הרחבה</h3>
+<ul>
+<li>הוסיפי זמן חיים למפתחות אידמפוטנטיות: אחרי 24 שעות, אותו מפתח יוצר אירוע חדש. חשבי איך עושים את זה בלי למחוק
+  אירועים, ומה זה עושה לאילוץ הייחודיות.</li>
+<li>הריצי <code>EXPLAIN ANALYZE</code> על שאילתת הרשימה עם מאה אלף endpoints לדיירת אחת, בעמוד הראשון ובעמוד העמוק, ורשמי את
+  הזמנים שמדדת.</li>
+</ul>
+<h2 id="383-m3">38.3 M3: מטמון והמקבל המדומה</h2>
+<p>יושלם עם אבן הדרך.</p>
+<h2 id="384-m4-outbox-redpanda">38.4 M4: outbox ו־Redpanda</h2>
+<p>יושלם עם אבן הדרך.</p>
+<h2 id="385-m5">38.5 M5: מסירה, חתימה וניסיונות חוזרים</h2>
+<p>יושלם עם אבן הדרך.</p>
+<h2 id="386-m6">38.6 M6: חוסן ועומס</h2>
+<p>יושלם עם אבן הדרך.</p>
+<h2 id="387-m7-kubernetes-ci">38.7 M7: קונטיינרים, Kubernetes ו־CI</h2>
+<p>יושלם עם אבן הדרך.</p>
+<h2 id="388-m8-slo">38.8 M8: תצפיתיות ו־SLO</h2>
+<p>יושלם עם אבן הדרך.</p>
+<h2 id="389-m9">38.9 M9: בדיקות ואבטחה</h2>
+<p>יושלם עם אבן הדרך.</p>
+<h2 id="3810-m10">38.10 M10: הערכה והדגמה</h2>
+<p>יושלם עם אבן הדרך.</p>
+<h2 id="_3">סיכום</h2>
+<ul>
+<li>אבן הדרך הראשונה: ‏API מלא מעל מאגר בזיכרון, מאחורי ממשקים, עם אימות, עימוד, פרטי בעיה ובדיקות בידוד.</li>
+<li>אבן הדרך השנייה: אותם ממשקים מעל PostgreSQL, עם מיגרציות לכל מודל הנתונים וקליטה שהאילוץ מכריע בה.</li>
+<li>הסיכום יושלם עם אבני הדרך הבאות.</li>
+</ul>
+<h2 id="_4">מונחים לזכור</h2>
+<table>
+<thead>
+<tr>
+<th>מונח בעברית</th>
+<th>באנגלית</th>
+<th>במשפט אחד</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>אבן דרך</td>
+<td>milestone</td>
+<td>שלב בפרויקט שנגמר כשקבוצת בדיקות מוגדרת ירוקה</td>
+</tr>
+<tr>
+<td>בדיקות התאמה</td>
+<td>conformance tests</td>
+<td>סוויטה אחת שכל מימוש של ממשק חייב לעבור</td>
+</tr>
+<tr>
+<td>‏keyset</td>
+<td>keyset pagination</td>
+<td>עימוד לפי ערכי המיון של הפריט האחרון במקום לפי היסט</td>
+</tr>
+</tbody>
+</table>
+<p>הטבלה תושלם עם אבני הדרך הבאות.</p>
+<h2 id="_5">טעויות נפוצות</h2>
+<ul>
+<li><strong>לסמן אבן דרך כגמורה כשרק חלק מהבדיקות שלה ירוקות.</strong> הקריטריון הוא כל הפקודה של הסעיף, עם <code>-race</code>.</li>
+<li>הרשימה תושלם עם אבני הדרך הבאות.</li>
+</ul>
+<h2 id="_6">שאלות ראיון</h2>
+<ol>
+<li><strong>למה המאגר יושב מאחורי ממשק כבר באבן הדרך הראשונה, כשהוא עוד בזיכרון?</strong> יושלם עם אבני הדרך הבאות.</li>
+</ol>
+<h2 id="obsidian">פתק Obsidian</h2>
+<p>הפתק המוכן נמצא גם כקובץ: <code>obsidian/38-hookline-milestones.md</code>. זה תוכנו:</p>
+<ul>
+<li><strong>‏M1:</strong> ממשקי מאגר; מימוש בזיכרון; אימות לפי גיבוב; 404 לכל משאב של דיירת אחרת.</li>
+<li><strong>‏M2:</strong> מיגרציות לכל המודל; ‏<code>ON CONFLICT DO NOTHING</code> ואז <code>SELECT</code>; אירוע ו־outbox בטרנזקציה אחת.</li>
+<li><strong>שאלה פתוחה:</strong> ___</li>
+</ul>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">M1 tests  DATABASE_URL= go test -race ./internal/api/ ./internal/store/... ./internal/admin/
+M2 db     make db-up &amp;&amp; export DATABASE_URL=postgres://hookline:change-me@localhost:5438/hookline
+M2 tests  go test -race -count=1 ./...
+admin     go run ./cmd/hookline-admin migrate up | create-tenant -name &lt;name&gt;
+</code></pre>
+
+
+</div>
+
+<h2 id="_7">תרגיל</h2>
+<p><strong>מטרה:</strong> לבנות את Hookline אבן דרך אחר אבן דרך, מה־starter ועד הדגמה, כשכל אבן דרך נגמרת בבדיקות ירוקות ובקומיט.
+<strong>זמן:</strong> עשר אבני דרך לאורך הספר, לפי הסדר: ימים 22 ו־23, ימים 29 ו־30, ימים 33 ו־34, ימים 39 ו־40, ימים 43 ו־44, ימים 54 ו־55, ימים 68 עד 70, ימים 77 עד 79, ימים 85 ו־86, ימים 98 ו־99; כ־55 עד 90 דקות בנייה בכל יום.
+<strong>ידע מקדים:</strong> פרק 37, וכל סעיף כאן מפרט את הפרקים שאבן הדרך שלו נשענת עליהם.</p>
+<p>ההוראות של הפרויקט ורשימת אבני הדרך נמצאות ב־
+<a href="../exercises/project-hookline/README.md"><code>exercises/project-hookline/README.md</code></a>.</p>
+<p><strong>קריטריון סיום:</strong></p>
+<ul>
+<li>כל אבן דרך: הפקודה של סעיף הבדיקות שלה ירוקה, וקומיט עם שם אבן הדרך.</li>
+<li>הרשימה המלאה תושלם עם אבני הדרך הבאות.</li>
+</ul>
+<h2 id="_8">העשרה אופציונלית</h2>
+<ul>
+<li>יושלם עם אבני הדרך הבאות.</li>
+</ul>
+</main>
+<nav class="bottom"><a href="index.html">תוכן העניינים</a> · <a href="37-hookline-spec.html">← פרק 37: Hookline: מפרט וארכיטקטורה</a> · <a href="TERMINOLOGY.html">Terminology policy (book 2) →</a></nav>
+<script type="module">
+  // Render ```mermaid blocks in the browser (needs internet once; cached afterwards).
+  const blocks = document.querySelectorAll("pre > code.language-mermaid");
+  if (blocks.length) {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs")).default;
+    for (const code of blocks) {
+      const div = document.createElement("div");
+      div.className = "mermaid";
+      div.textContent = code.textContent;
+      code.parentElement.replaceWith(div);
+    }
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run();
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>פרק 27: סקירת קוד וניתוח סטטי</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="top"><a href="index.html">תוכן העניינים</a> · <a href="26-testing-strategy-load.html">← פרק 26: אסטרטגיית בדיקות ובדיקות עומס</a> · <a href="28-security-backend.html">פרק 28: אבטחה לשירותי backend →</a></nav>
+<main class="book">
+<div class="toc"><span class="toctitle">תוכן הפרק</span><ul>
+<li><a href="#_1">מה נלמד בפרק</a></li>
+<li><a href="#_2">ידע מקדים</a></li>
+<li><a href="#271">27.1 סקירה לפי סיכון</a></li>
+<li><a href="#272">27.2 מה מחפשים</a></li>
+<li><a href="#273">27.3 לכתוב הערות טובות</a></li>
+<li><a href="#274">27.4 לקבל סקירה</a></li>
+<li><a href="#275-vet-staticcheck-golangci-lint-ruff-mypy">27.5 ניתוח סטטי: vet, staticcheck, golangci-lint, ruff ו־mypy</a><ul>
+<li><a href="#2751-go">27.5.1 שלוש שכבות ל־Go</a></li>
+<li><a href="#2752-ruff-mypy">27.5.2 ruff ו־mypy, שוב</a></li>
+</ul>
+</li>
+<li><a href="#276-govulncheck">27.6 govulncheck</a></li>
+<li><a href="#_3">סיכום</a></li>
+<li><a href="#_4">מונחים לזכור</a></li>
+<li><a href="#_5">טעויות נפוצות</a></li>
+<li><a href="#_6">שאלות ראיון</a></li>
+<li><a href="#obsidian">פתק Obsidian</a></li>
+</ul>
+</div>
+
+<h1 id="27">פרק 27: סקירת קוד וניתוח סטטי</h1>
+<p>סקירת קוד (code review) היא המקום שבו רואים בכירות בעבודה היומיומית: לא כמה הערות כתבת, אלא אם תפסת את
+מה שהיה מפיל את הייצור, ואם הכותבת יצאה מהסקירה עם קוד טוב יותר ובלי טעם רע. הפרק מלמד לסקור לפי סיכון,
+לכתוב הערות שאנשים רוצים לקבל, ולתת לכלים לתפוס את מה שמכונה תופסת טוב יותר מאדם.</p>
+<h2 id="_1">מה נלמד בפרק</h2>
+<ul>
+<li>לסדר סקירה לפי סיכון: מה יכול להישבר, כמה רחוק זה מגיע, וכמה קשה לחזור אחורה.</li>
+<li>רשימת בדיקה של שמונה תחומים, מהגבולות של הקוד ועד יכולת ההפעלה שלו.</li>
+<li>לכתוב הערה עם תווית חומרה, נימוק והצעה, ולדעת מתי לשבח.</li>
+<li>לקבל סקירה בלי להתגונן, ולדעת מתי לחלוק.</li>
+<li>להריץ <code>go vet</code>, staticcheck ו־golangci-lint עם קובץ תצורה בגרסה 2, ואת ruff ו־mypy על Python.</li>
+<li>להבין מה govulncheck עושה ששום סורק תלויות רגיל לא עושה: בדיקה אם הקוד שלך באמת קורא לפונקציה הפגיעה.</li>
+</ul>
+<h2 id="_2">ידע מקדים</h2>
+<ul>
+<li>פרק 3, סעיף 3.10: staticcheck ו־gofmt כהרגל. פרק 2, סעיף 2.7: govulncheck מותקן.</li>
+<li>פרק 5: מרוצים, נעילות והדגל <code>-race</code>. פרק 6: handlers, לוגים מובנים ושגיאות שלא יוצאות ללקוח.</li>
+<li>פרק 7, סעיף 7.3: ruff ו־mypy בפרויקט uv.</li>
+<li>פרק 10: שאילתות עם placeholders. הקוד שבסקירה משתמש ב־<code>database/sql</code>, ואין צורך במסד נתונים כדי לסקור אותו.</li>
+</ul>
+<h2 id="271">27.1 סקירה לפי סיכון</h2>
+<p>ב־diff של 400 שורות אין לך זמן לתת לכל שורה אותה תשומת לב, וגם אין צורך. סוקרת בכירה מתחילה בשאלה אחת:
+<strong>איפה השינוי הזה יכול להזיק?</strong> ואז מחלקת את הזמן לפי התשובה, ולא לפי סדר הקבצים בכלי.</p>
+<p>שלוש שאלות מדרגות כל חלק בשינוי:</p>
+<table>
+<thead>
+<tr>
+<th>שאלה</th>
+<th>מה מחפשים</th>
+<th>דוגמה לסיכון גבוה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>מה יכול להישבר?</td>
+<td>נתונים, אבטחה, זמינות, תאימות</td>
+<td>שאילתה חדשה, בדיקת הרשאה, שינוי סכמה</td>
+</tr>
+<tr>
+<td>כמה רחוק זה מגיע?</td>
+<td>רדיוס הפגיעה (blast radius)</td>
+<td>כל הלקוחות, ולא נקודת קצה אחת</td>
+</tr>
+<tr>
+<td>כמה קשה לחזור?</td>
+<td>הפיכות (reversibility)</td>
+<td>מיגרציה שמוחקת עמודה, הודעה שנשלחה ללקוח</td>
+</tr>
+</tbody>
+</table>
+<p>קוד שקל להחזיר, כמו שינוי בטקסט של הודעה, מקבל קריאה מהירה. קוד שנוגע בגבול אמון, בנתונים של כמה לקוחות
+או במשהו שאי אפשר לבטל, מקבל את רוב הזמן. וכך נראה סדר הקריאה בתרגיל של הפרק, שבו נוספו handler, מאגר
+ובדיקה (הקובץ <code>solution/review.md</code> של התרגיל):</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">1. `repo.go`: it talks to the database and builds SQL. Highest blast radius: every tenant's data.
+2. `handler.go`: the trust boundary. Who may see what, what goes to logs and to clients, shared state.
+3. `handler_test.go`: does anything prove the risky parts? (It does not.)
+4. Naming and style last.
+</code></pre>
+
+
+</div>
+
+<p>שני הרגלים משלימים את השיטה. <strong>קראי קודם את התיאור של הבקשה</strong>: הוא אומר מה הכותבת ניסתה לעשות, ובלעדיו
+אי אפשר לשפוט אם הקוד עושה את זה. ו<strong>שאלי מה חסר</strong>: הבאגים הקשים הם לרוב בשורות שלא נכתבו, כמו בדיקת
+הרשאה, סגירת משאב או בדיקה שמכסה את המקרה המסוכן.</p>
+<blockquote>
+<p><strong>שימי לב:</strong> בקשת שינוי גדולה מדי לסקירה היא ממצא בפני עצמו. אם אי אפשר לסקור אותה ברצינות בשעה, ההערה
+הראשונה היא בקשה לפצל, ולא עשרים הערות על פרטים.</p>
+</blockquote>
+<h2 id="272">27.2 מה מחפשים</h2>
+<p>הרשימה הזאת היא סדר עבודה, לא טופס. בכל תחום, השאלה היא „מה הקלט הכי גרוע שיכול להגיע לכאן, ומה יקרה לו?”</p>
+<table>
+<thead>
+<tr>
+<th>תחום</th>
+<th>מה בודקים</th>
+<th>סימן מחשיד</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>נכונות בגבולות</td>
+<td>קלט ריק, ענק, שלילי, כפול; מקרי קצה של עימוד וזמן</td>
+<td>פענוח בלי בדיקה, שגיאה שנבלעת ב־<code>_</code></td>
+</tr>
+<tr>
+<td>טיפול בשגיאות</td>
+<td>עטיפה, השוואה עם <code>errors.Is</code>, מה יוצא ללקוח</td>
+<td><code>err == ...</code> על שגיאה עטופה; <code>err.Error()</code> בתשובה</td>
+</tr>
+<tr>
+<td>מקביליות</td>
+<td>מצב משותף, נעילות, goroutines שלא מסתיימות</td>
+<td><code>map</code> גלובלי שנכתב מ־handler</td>
+</tr>
+<tr>
+<td>דליפת משאבים</td>
+<td>חיבורים, קבצים, גופי תשובה, timers</td>
+<td>שאילתה בלי <code>rows.Close()</code>, בקשת HTTP בלי סגירת גוף</td>
+</tr>
+<tr>
+<td>אבטחה</td>
+<td>הרשאה לכל אובייקט, הזרקות, סודות, קלט שנבנה לשאילתה</td>
+<td>חיפוש לפי מזהה בלי הדייר; <code>Sprintf</code> לתוך SQL</td>
+</tr>
+<tr>
+<td>בדיקות שבודקות</td>
+<td>האם בדיקה יכולה להיכשל? האם היא מכסה את המקרה המסוכן?</td>
+<td><code>t.Log</code> במקום <code>t.Fatal</code>; fake שמתעלם מהפרמטרים</td>
+</tr>
+<tr>
+<td>שמות וצורת API</td>
+<td>שם שמסביר, ממשק קטן, מה מיוצא</td>
+<td>מתודות מיוצאות בלי סיבה, <code>docId</code> במקום <code>docID</code></td>
+</tr>
+<tr>
+<td>יכולת הפעלה</td>
+<td>לוגים, מדדים, זמנים קצובים, ביטול, תצורה</td>
+<td><code>context.Background()</code> שמחליף את ההקשר של הבקשה</td>
+</tr>
+</tbody>
+</table>
+<p>השורה של הבדיקות ראויה להדגשה. בדיקה שלא יכולה להיכשל גרועה מבדיקה חסרה, כי היא נותנת ביטחון שאין לו
+בסיס. הנה בדיקה מתוך ה־diff של התרגיל (הקובץ <code>data/review.diff</code>), שעוברת גם כשהשרת מחזיר 500:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    if rec.Code != http.StatusOK {
+        t.Log(&quot;unexpected status&quot;, rec.Code)
+    }
+</code></pre>
+
+
+</div>
+
+<p>ושני ממצאים מאותו diff מראים למה אבטחה היא לא תחום נפרד אלא שאלה בכל שורה. המאגר בונה את המיון מהקלט
+של המשתמש, וה־handler מחפש מסמך לפי מזהה בלבד, בלי הדייר שמחובר:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    q := fmt.Sprintf(`SELECT id, tenant_id, title, body, created_at FROM documents
+        WHERE tenant_id = $1 ORDER BY %s LIMIT $2`, sort)
+</code></pre>
+
+
+</div>
+
+<p>placeholder כמו <code>$1</code> לא יכול להחליף שם של עמודה, ולכן הפתרון הוא רשימה סגורה של ערכי מיון מותרים, ולא
+ניסיון לנקות את הקלט. על הבעיה השנייה, קריאה של אובייקט של דייר אחר, פרק 28 מקדיש סעיף שלם.</p>
+<h2 id="273">27.3 לכתוב הערות טובות</h2>
+<p>הערה טובה עונה על שלוש שאלות: <strong>כמה זה חשוב, למה, ומה לעשות.</strong> את הראשונה עונה תווית חומרה בתחילת ההערה,
+כך שהכותבת יודעת מיד מה חוסם את המיזוג ומה רק הצעה:</p>
+<table>
+<thead>
+<tr>
+<th>תווית</th>
+<th>פירוש</th>
+<th>מה הכותבת עושה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>blocking:</code></td>
+<td>באג, פגיעה באבטחה או בנתונים</td>
+<td>חייבת לטפל לפני מיזוג</td>
+</tr>
+<tr>
+<td><code>should-fix:</code></td>
+<td>בעיה אמיתית שלא תפיל את הייצור מחר</td>
+<td>מטפלת, או פותחת משימה ומסבירה</td>
+</tr>
+<tr>
+<td><code>nit:</code></td>
+<td>העדפה, ניסוח, סגנון</td>
+<td>רשאית להתעלם</td>
+</tr>
+<tr>
+<td><code>question:</code></td>
+<td>את לא בטוחה שזו בעיה</td>
+<td>עונה; לפעמים התשובה מגלה באג</td>
+</tr>
+<tr>
+<td><code>praise:</code></td>
+<td>משהו שנעשה טוב</td>
+<td>שום דבר; זה מה שכדאי לחזור עליו</td>
+</tr>
+</tbody>
+</table>
+<p>הנה הערה חוסמת מתוך מפתח התשובות של התרגיל. שימי לב למבנה: מה קורה, איך זה מנוצל, הצעה מוחשית, ובקשה
+לבדיקה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">&quot;blocking: tenant B can read tenant A's document by guessing or seeing its id. Please make the tenant part
+of the query (`WHERE tenant_id = $1 AND id = $2`) and of the `Store.Get` signature, so a caller cannot forget
+it, and add a test where another tenant gets 404.&quot;
+</code></pre>
+
+
+</div>
+
+<p>כמה כללים שהופכים הערה לכזו שמקבלים:</p>
+<ul>
+<li><strong>על הקוד, לא על האדם.</strong> „הלולאה הזאת לא סוגרת את <code>rows</code>”, ולא „שכחת לסגור”.</li>
+<li><strong>נימוק תמיד.</strong> „תשתמשי ב־<code>errors.Is</code>” בלי „כי <code>Get</code> עוטפת עם <code>%w</code>” נשמע כמו טעם אישי.</li>
+<li><strong>הצעה, לא רק בעיה.</strong> קטע קוד קצר או שם של פונקציה חוסכים סבב שלם.</li>
+<li><strong>שאלה כשאת לא בטוחה.</strong> „האם ההחלפה של ה־context מכוונת?” פותחת שיחה; קביעה שגויה סוגרת אותה.</li>
+<li><strong>שבח ספציפי.</strong> „טוב שה־handler תלוי בממשק של שתי מתודות” מלמד מה לשמר; „נראה טוב” לא מלמד כלום.</li>
+<li><strong>סיכום אחד בסוף.</strong> פסקה שאומרת מה חוסם ומה לא, כדי שהכותבת לא תצטרך לספור תוויות.</li>
+</ul>
+<p>והכי חשוב: עשר הערות <code>nit</code> לא מכסות על הערת <code>blocking</code> אחת שחסרה. אם הזמן קצר, כתבי את החוסמות קודם.</p>
+<h2 id="274">27.4 לקבל סקירה</h2>
+<p>לקבל סקירה היא מיומנות לא פחות מלתת אותה, ומראיינים שואלים עליה בכוונה. העיקרון: <strong>ההערה היא על הקוד,
+והמטרה של שתיכן אחת.</strong> כמה הרגלים:</p>
+<ul>
+<li><strong>להקל על הסוקרת.</strong> בקשה קטנה, תיאור שאומר מה ולמה, ואיך בדקת. הצהרה כמו „ניסיתי מול מסד הפיתוח שלי”
+  בתיאור של התרגיל היא לא בדיקה, וסוקרת טובה תשאל עליה.</li>
+<li><strong>לענות לכל הערה.</strong> תיקון, הסבר, או „פתחתי משימה” עם קישור. הערה שנעלמה בלי תשובה נראית כהתעלמות.</li>
+<li><strong>לשאול כשלא הבנת.</strong> עדיף מתיקון שמנחש לא נכון מה הסוקרת התכוונה.</li>
+<li><strong>לחלוק עם נימוק.</strong> אם את חושבת שההצעה שגויה, הסבירי למה, עם עובדה: מדידה, תיעוד, בדיקה. אם אין הכרעה
+  אחרי סבב או שניים, מעבירים את הדיון לשיחה קצרה, ולא לשרשור של עשרים תגובות.</li>
+<li><strong>להפריד בין הטעם שלך לבין הנכונות.</strong> על <code>nit</code> מותר לוותר בשתי הדרכים.</li>
+</ul>
+<blockquote>
+<p><strong>איך Rust עושה את זה:</strong> ב־Rust, הקומפיילר ו־clippy כבר עשו חלק גדול מהסקירה: בעלות, משאבים שנסגרים
+ב־<code>Drop</code>, ושגיאות שאי אפשר להתעלם מהן בלי <code>let _</code>. ב־Go, <code>rows</code> שלא נסגר ושגיאה שנבלעת עוברים קומפילציה,
+ולכן הסוקרת והכלים של סעיף 27.5 עושים עבודה שב־Rust עושה הטיפוס.</p>
+</blockquote>
+<h2 id="275-vet-staticcheck-golangci-lint-ruff-mypy">27.5 ניתוח סטטי: vet, staticcheck, golangci-lint, ruff ו־mypy</h2>
+<p>ניתוח סטטי (static analysis) קורא את הקוד בלי להריץ אותו, ומחפש דפוסים שהם כמעט תמיד באג. הוא לא מחליף
+סקירה, אבל הוא משחרר אותה: כשהכלים אחראים על פורמט, על שגיאות שלא נבדקו ועל API שהוצא משימוש, הסוקרת
+פנויה לשאלות שרק אדם שואל. החלק השני של התרגיל הוא מודול Go קטן עם בעיות שתולות, והפלט כאן אמיתי.</p>
+<h3 id="2751-go">27.5.1 שלוש שכבות ל־Go</h3>
+<table>
+<thead>
+<tr>
+<th>כלי</th>
+<th>מה הוא</th>
+<th>מתי הוא רץ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>go vet</code></td>
+<td>בודקים שמגיעים עם Go: printf, נעילות שמועתקות, cancel שנזרק</td>
+<td>חלק מהם רץ אוטומטית בכל <code>go test</code></td>
+</tr>
+<tr>
+<td>staticcheck</td>
+<td>מאות בדיקות: באגים, קוד מת, API שהוצא משימוש, סגנון</td>
+<td>תמיד, כמו בפרק 3</td>
+</tr>
+<tr>
+<td>golangci-lint</td>
+<td>מריץ עשרות בודקים יחד, עם קובץ תצורה אחד</td>
+<td>ב־CI ולפני כל דחיפה</td>
+</tr>
+</tbody>
+</table>
+<p><strong>הראשון, <code>go vet</code>.</strong> על קוד ההתחלה של התרגיל:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">cd ~/senior-course/ch27/seeded
+go vet ./...
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">internal/visits/visits.go:30:9: Lookup passes lock by value: example.com/ch27-review/internal/visits.Counter contains sync.Mutex
+internal/visits/visits.go:52:22: fmt.Sprintf format %s has arg n of wrong type int
+internal/holiday/holiday.go:30:7: the cancel function returned by context.WithTimeout should be called, not discarded, to avoid a context leak
+</code></pre>
+
+
+</div>
+
+<p>שלושה באגים אמיתיים. הראשון שווה הסבר, כי הוא נראה תמים (הקובץ <code>starter/seeded/internal/visits/visits.go</code>):</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func (c Counter) Lookup(name string) (int, error) {
+</code></pre>
+
+
+</div>
+
+<p>ה־receiver הוא ערך ולא מצביע, ולכן כל קריאה מעתיקה את ה־struct, כולל ה־<code>sync.Mutex</code>. הנעילה ננעלת על
+העותק, וה־map המשותף נשאר לא מוגן. הבדיקה המקבילית של התרגיל, עם <code>-race</code>, מראה את המרוץ. התיקון הוא כוכבית
+אחת: <code>func (c *Counter)</code>.</p>
+<p>והבאג השני לא מגיע בכלל לבדיקות שלך: <code>go test</code> מריץ תת־קבוצה של <code>go vet</code> לפני הקומפילציה, ו־printf בתוכה.
+הבנייה של החבילה נכשלת עוד לפני הבדיקה הראשונה, עם אותה הודעה.</p>
+<p><strong>השני, staticcheck</strong>, מוצא מה ש־vet לא מחפש:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">internal/greet/greet.go:32:6: func normalize is unused (U1000)
+internal/greet/greet.go:40:9: strings.Title has been deprecated since Go 1.18 and an alternative has been available since Go 1.0: The rule Title uses for word boundaries does not handle Unicode punctuation properly. Use golang.org/x/text/cases instead.  (SA1019)
+internal/holiday/holiday.go:51:2: this value of err is never used (SA4006)
+internal/visits/visits.go:11:18: error strings should not be capitalized (ST1005)
+internal/visits/visits.go:11:18: error strings should not end with punctuation or newlines (ST1005)
+internal/visits/visits.go:52:21: Printf format %s has arg #1 of wrong type int (SA5009)
+</code></pre>
+
+
+</div>
+
+<p>(הפלט מקוצר: SA1019 מופיע פעמיים באותה שורה.) הממצא SA4006 הוא באג שהבדיקות תופסות (הקובץ
+<code>starter/seeded/internal/holiday/holiday.go</code>):</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    err := json.Unmarshal(body, &amp;h)
+    err = validate(h)
+</code></pre>
+
+
+</div>
+
+<p>השגיאה של הפענוח נדרסת לפני שמישהו קרא אותה. תשובה עם שדה מטיפוס שגוי מתפענחת חלקית, עוברת את הבדיקה,
+ומוחזרת כאילו הייתה תקינה. הקידומות של staticcheck אומרות מה סוג הממצא:</p>
+<table>
+<thead>
+<tr>
+<th>קידומת</th>
+<th>תחום</th>
+<th>דוגמה מהתרגיל</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SA</code></td>
+<td>באגים ונכונות</td>
+<td>ערך שנדרס, printf שגוי, API שהוצא משימוש</td>
+</tr>
+<tr>
+<td><code>S</code></td>
+<td>פישוט קוד</td>
+<td>(אין בתרגיל)</td>
+</tr>
+<tr>
+<td><code>ST</code></td>
+<td>סגנון</td>
+<td>הודעת שגיאה באות גדולה ועם נקודה</td>
+</tr>
+<tr>
+<td><code>U</code></td>
+<td>קוד שלא בשימוש</td>
+<td>פונקציה שאף אחד לא קורא לה</td>
+</tr>
+</tbody>
+</table>
+<p><strong>השלישי, golangci-lint</strong>, מריץ את כל אלה ועוד, לפי קובץ תצורה. בגרסה 2 של הכלי השתנה מבנה הקובץ: יש
+מפתח <code>version</code>, הבודקים מתחת ל־<code>linters</code>, וכלי העיצוב בקטע נפרד, <code>formatters</code>. זה הקובץ של התרגיל
+(הקובץ <code>starter/seeded/.golangci.yml</code>):</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-yaml">version: &quot;2&quot;
+
+linters:
+  # The standard set: errcheck, govet, ineffassign, staticcheck, unused.
+  default: standard
+  enable:
+    - bodyclose  # HTTP response bodies that are never closed
+    - errorlint  # == on errors that may be wrapped
+    - gosec      # security patterns (SQL by Sprintf, servers without timeouts, ...)
+    - misspell   # common English misspellings in comments and strings
+    - noctx      # HTTP requests without a context
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+</code></pre>
+
+
+</div>
+
+<table>
+<thead>
+<tr>
+<th>מפתח</th>
+<th>פירוש</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>version: "2"</code></td>
+<td>חובה בגרסה 2; קובץ ישן בלעדיו נדחה, ו־<code>golangci-lint migrate</code> ממיר אותו</td>
+</tr>
+<tr>
+<td><code>linters.default</code></td>
+<td>נקודת ההתחלה: <code>standard</code>, <code>all</code>, <code>none</code> או <code>fast</code></td>
+</tr>
+<tr>
+<td><code>linters.enable</code></td>
+<td>בודקים שנוספים על נקודת ההתחלה</td>
+</tr>
+<tr>
+<td><code>linters.settings</code></td>
+<td>הגדרות לכל בודק (אין בקובץ הזה)</td>
+</tr>
+<tr>
+<td><code>formatters</code></td>
+<td><code>gofmt</code> ו־<code>goimports</code>: קובץ שאינו מעוצב נחשב ממצא</td>
+</tr>
+</tbody>
+</table>
+<p>הרצה על קוד ההתחלה מוצאת 12 ממצאים. הסיכום בסוף הפלט, וכמה שורות מתוכו:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">internal/holiday/holiday.go:35:24: response body must be closed (bodyclose)
+    resp, err := c.HTTP.Do(req)
+                          ^
+internal/visits/visits.go:43:9: comparing with != will fail on wrapped errors. Use errors.Is to check for a specific error (errorlint)
+    return err != ErrUnknown
+           ^
+cmd/greeter/main.go:31:12: G114: Use of net/http serve function that has no support for setting timeouts (gosec)
+    if err := http.ListenAndServe(addr, mux); err != nil {
+              ^
+12 issues:
+* bodyclose: 1
+* errcheck: 1
+* errorlint: 1
+* gosec: 2
+* govet: 2
+* ineffassign: 1
+* misspell: 1
+* staticcheck: 2
+* unused: 1
+</code></pre>
+
+
+</div>
+
+<p>הממצא של errorlint שווה עצירה: <code>Lookup</code> עוטפת את <code>ErrUnknown</code> עם <code>%w</code>, ולכן ההשוואה <code>!=</code> תמיד נכונה,
+ו־<code>Seen</code> מחזירה „כן” גם על מבקרת שמעולם לא הגיעה. זו אותה טעות שמופיעה ב־diff של הסקירה, וכאן כלי תופס
+אותה. ממצא G114 הוא הלקח של פרק 6: שרת בלי זמנים קצובים.</p>
+<blockquote>
+<p><strong>שימי לב:</strong> הספירה לפי בודק לא תתאים להרצות הנפרדות. golangci-lint מדווח על בעיה שכמה בודקים מוצאים פעם
+אחת בלבד: ה־printf השגוי מופיע תחת <code>govet</code> ולא שוב תחת <code>staticcheck</code>, ו־cancel שנזרק מופיע כאן תחת <code>gosec</code>.
+הוא גם מגביל כמה פעמים מופיעה אותה הודעה. מה שקובע הוא שכל ממצא תוקן, לא המספר.</p>
+</blockquote>
+<p>השתקת ממצא בודד נעשית בהערה <code>//nolint:&lt;name&gt;</code> עם נימוק באותה שורה, אחרי שהחלטת שהוא שגוי. השתקה בלי נימוק
+היא חוב שאף אחד לא יחזור אליו.</p>
+<h3 id="2752-ruff-mypy">27.5.2 ruff ו־mypy, שוב</h3>
+<p>את ruff ו־mypy פגשת בפרק 7. בתרגיל יש גם חבילת Python קטנה עם בעיות שתולות, והשילוב מראה את חלוקת
+העבודה בין השניים:</p>
+<table>
+<thead>
+<tr>
+<th>כלי</th>
+<th>מה תפס בתרגיל</th>
+<th>למה זה באג</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ruff <code>B006</code></td>
+<td>ברירת מחדל <code>{}</code> לפרמטר</td>
+<td>אותו מילון משותף לכל הקריאות, והספירות מצטברות</td>
+</tr>
+<tr>
+<td>ruff <code>E722</code></td>
+<td><code>except:</code> ריק</td>
+<td>בולע גם <code>KeyboardInterrupt</code> ושגיאות תכנות</td>
+</tr>
+<tr>
+<td>ruff <code>F401</code>, <code>UP045</code></td>
+<td>ייבוא שלא בשימוש; <code>Optional[X]</code></td>
+<td>ניקיון; הכתיב המודרני <code>X \| None</code></td>
+</tr>
+<tr>
+<td>mypy <code>return-value</code></td>
+<td><code>return None</code> בפונקציה שמוצהרת כ־<code>-&gt; str</code></td>
+<td>הקוראת לא יודעת שעליה לטפל ב־<code>None</code></td>
+</tr>
+</tbody>
+</table>
+<p>הפלט של mypy על קוד ההתחלה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">src/tally/visits.py:33: error: Incompatible return value type (got &quot;None&quot;, expected &quot;str&quot;)  [return-value]
+Found 1 error in 1 file (checked 2 source files)
+</code></pre>
+
+
+</div>
+
+<p>והממצא של B006 הוא גם הבדיקה שנכשלת: שתי קריאות ל־<code>tally</code> שאמורות להיות בלתי תלויות מחזירות ספירות
+משותפות. כלל אצבע לשתי השפות: <strong>הכלי שקט על הקוד שלך לפני שאת מבקשת סקירה.</strong> זמן של אדם לא מבזבזים על
+מה שמכונה תמצא בשנייה.</p>
+<h2 id="276-govulncheck">27.6 govulncheck</h2>
+<p>סורק תלויות רגיל משווה את רשימת המודולים והגרסאות שלך מול מאגר חולשות, ומדווח על כל התאמה. govulncheck,
+הכלי של צוות Go, עושה צעד נוסף: הוא בונה את גרף הקריאות של התוכנית, ומדווח רק על חולשה <strong>שהקוד שלך קורא
+לפונקציה הפגיעה בה</strong>, ישירות או דרך שרשרת. המאגר שלו, <code>vuln.go.dev</code>, מתעד לכל חולשה את הסמלים (הפונקציות
+והמתודות) הפגיעים, ולא רק את הגרסאות.</p>
+<p>קוד ההתחלה של התרגיל מצמיד בכוונה גרסה ישנה של <code>golang.org/x/text</code>, והחבילה <code>greet</code> מפענחת בעזרתה את
+הכותרת <code>Accept-Language</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">govulncheck ./...
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">=== Symbol Results ===
+
+Vulnerability #1: GO-2022-1059
+    Denial of service via crafted Accept-Language header in
+    golang.org/x/text/language
+  More info: https://pkg.go.dev/vuln/GO-2022-1059
+  Module: golang.org/x/text
+    Found in: golang.org/x/text@v0.3.7
+    Fixed in: golang.org/x/text@v0.3.8
+    Example traces found:
+      #1: internal/greet/greet.go:20:46: greet.Word calls language.ParseAcceptLanguage
+
+Your code is affected by 1 vulnerability from 1 module.
+This scan also found 0 vulnerabilities in packages you import and 1
+vulnerability in modules you require, but your code doesn't appear to call these
+vulnerabilities.
+Use '-show verbose' for more details.
+</code></pre>
+
+
+</div>
+
+<p>קוד היציאה הוא 3, ולכן הפקודה עוצרת CI. השורה החשובה היא ה־trace: הכותרת מגיעה מהרשת, והפונקציה
+<code>greet.Word</code> קוראת לפונקציה הפגיעה. זו חולשה שתוקפת יכולה לנצל, לא תיאוריה.</p>
+<p>ואז הפסקה האחרונה: עוד חולשה אחת במודול, שהקוד לא קורא לה. הדגל <code>-show verbose</code> מראה אותה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">=== Module Results ===
+
+Vulnerability #1: GO-2026-5970
+    Infinite loop on invalid input in golang.org/x/text
+  More info: https://pkg.go.dev/vuln/GO-2026-5970
+  Module: golang.org/x/text
+    Found in: golang.org/x/text@v0.3.7
+    Fixed in: golang.org/x/text@v0.39.0
+</code></pre>
+
+
+</div>
+
+<p>סורק רגיל היה מדווח על שתיהן באותה דחיפות. govulncheck מפריד בין „נקרא” לבין „קיים בגרסה”, וזה ההבדל
+בין רשימה של מאה ממצאים שאף אחד לא קורא לבין אחד שמתקנים היום. התיקון, בכל מקרה, הוא שדרוג אחד שסוגר את
+שתיהן:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">go get golang.org/x/text@v0.40.0
+go mod tidy
+govulncheck ./...
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">No vulnerabilities found.
+</code></pre>
+
+
+</div>
+
+<p>שלוש רמות סריקה, בדגל <code>-scan</code>, ומצב נוסף לקובץ הרצה:</p>
+<table>
+<thead>
+<tr>
+<th>מצב</th>
+<th>מה הוא בודק</th>
+<th>מתי</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-scan symbol</code> (ברירת המחדל)</td>
+<td>קריאות בפועל לסמלים הפגיעים</td>
+<td>בכל בנייה ב־CI</td>
+</tr>
+<tr>
+<td><code>-scan package</code></td>
+<td>חבילות פגיעות שמיובאות</td>
+<td>כשרוצים תמונה רחבה יותר</td>
+</tr>
+<tr>
+<td><code>-scan module</code></td>
+<td>כל מודול פגיע ב־<code>go.mod</code></td>
+<td>כמו סורק רגיל</td>
+</tr>
+<tr>
+<td><code>-mode binary</code></td>
+<td>קובץ הרצה שכבר נבנה, לפי טבלת הסמלים</td>
+<td>בלי קוד מקור; בלי traces</td>
+</tr>
+</tbody>
+</table>
+<p>שתי מגבלות שכדאי להגיד בראיון. הניתוח שמרני אבל לא מושלם: קריאה דרך reflection או דרך ממשק שמוגדר בזמן
+ריצה יכולה להיעלם ממנו. ו„לא נקרא היום” אינו „לא ייקרא מחר”: חולשה ברמת המודול היא סיבה לשדרג בהזדמנות
+הבאה, גם אם לא בדחיפות. הסורקים הכלליים, Grype ו־Trivy, מגיעים בפרק 28, סעיף 28.7.</p>
+<blockquote>
+<p><strong>איך Rust עושה את זה:</strong> ב־Rust את מכירה את <code>cargo audit</code>, שבודק את <code>Cargo.lock</code> מול מאגר RustSec ברמת
+ה־crate והגרסה, בדומה ל־<code>-scan module</code>. מאגר RustSec מתעד לחולשות רבות את הפונקציות הפגיעות, אבל ניתוח
+של גרף הקריאות כמו ברירת המחדל של govulncheck אינו חלק מהכלי הרגיל.</p>
+</blockquote>
+<h2 id="_3">סיכום</h2>
+<ul>
+<li>סוקרים לפי סיכון: מה יכול להישבר, רדיוס הפגיעה, והפיכות. הזמן הולך לגבולות אמון, לנתונים ולמה שאי אפשר לבטל.</li>
+<li>קוראים את התיאור קודם, ושואלים מה חסר: בדיקת הרשאה, סגירת משאב, בדיקה למקרה המסוכן.</li>
+<li>רשימת הבדיקה: גבולות, שגיאות, מקביליות, משאבים, אבטחה, בדיקות שבודקות, שמות, יכולת הפעלה.</li>
+<li>כל הערה עם תווית חומרה, נימוק והצעה; שבח ספציפי; סיכום אחד בסוף.</li>
+<li>מקבלים סקירה בתשובה לכל הערה, וחולקים עם נימוק ועם עובדה.</li>
+<li>הכלים שקטים לפני הסקירה: <code>go vet</code>, staticcheck, golangci-lint בתצורה בגרסה 2, ruff ו־mypy.</li>
+<li>הכלי govulncheck מדווח על חולשות שהקוד באמת קורא להן, ומפריד אותן מחולשות שרק קיימות בגרסה.</li>
+</ul>
+<h2 id="_4">מונחים לזכור</h2>
+<table>
+<thead>
+<tr>
+<th>מונח בעברית</th>
+<th>באנגלית</th>
+<th>במשפט אחד</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>סקירת קוד</td>
+<td>code review</td>
+<td>קריאה ביקורתית של שינוי לפני מיזוג, כדי לתפוס באגים ולשפר את הקוד</td>
+</tr>
+<tr>
+<td>רדיוס הפגיעה</td>
+<td>blast radius</td>
+<td>כמה משתמשים או מערכות ייפגעו אם השינוי שגוי</td>
+</tr>
+<tr>
+<td>הפיכות</td>
+<td>reversibility</td>
+<td>כמה קל לבטל שינוי אחרי שהגיע לייצור</td>
+</tr>
+<tr>
+<td>תווית חומרה</td>
+<td>severity label</td>
+<td>מילה בתחילת הערה שאומרת אם היא חוסמת, הצעה או שאלה</td>
+</tr>
+<tr>
+<td>ניתוח סטטי</td>
+<td>static analysis</td>
+<td>בדיקה של קוד בלי להריץ אותו, לפי דפוסים ידועים של באגים</td>
+</tr>
+<tr>
+<td>בודק</td>
+<td>linter</td>
+<td>כלי ניתוח סטטי שמדווח על דפוס חשוד בקוד</td>
+</tr>
+<tr>
+<td>הוצאה משימוש</td>
+<td>deprecation</td>
+<td>סימון של API כמיושן, עם חלופה מומלצת</td>
+</tr>
+<tr>
+<td>גרף קריאות</td>
+<td>call graph</td>
+<td>מי קורא למי בתוכנית; govulncheck בונה אותו כדי לקבוע אם חולשה נגישה</td>
+</tr>
+<tr>
+<td>נגישות של חולשה</td>
+<td>reachability</td>
+<td>האם יש מסלול קריאה מהקוד שלך לפונקציה הפגיעה</td>
+</tr>
+<tr>
+<td>סמל</td>
+<td>symbol</td>
+<td>פונקציה או מתודה בשמה המלא, כמו שמאגר החולשות מתעד אותה</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_5">טעויות נפוצות</h2>
+<ul>
+<li><strong>לסקור לפי סדר הקבצים.</strong> הזמן נגמר על שמות משתנים לפני שהגעת לשאילתה. מתחילים במה שמסוכן.</li>
+<li><strong>עשרים הערות <code>nit</code> ואף <code>blocking</code>.</strong> הכותבת מתקנת סגנון וממזגת חור אבטחה. החוסמות קודם, ובנפרד.</li>
+<li><strong>הערה בלי נימוק.</strong> „תשני ל־<code>errors.Is</code>” נקראת כטעם אישי ונדחית. אומרים למה, ומה ייכשל אחרת.</li>
+<li><strong>לאשר בדיקה בלי לשאול אם היא יכולה להיכשל.</strong> <code>t.Log</code> במקום <code>t.Fatal</code>, או fake שמתעלם מהפרמטרים, הם בדיקות
+  שתמיד עוברות.</li>
+<li><strong>להשתיק בודק בלי נימוק.</strong> <code>//nolint</code> בלי הסבר הופך לברירת מחדל, ואחריו באג אמיתי מושתק באותה דרך.</li>
+<li><strong>להתייחס לכל ממצא של סורק תלויות באותה דחיפות.</strong> govulncheck מפריד בין נקרא לבין קיים; מתקנים קודם את
+  מה שנקרא.</li>
+<li><strong>קובץ golangci-lint בלי <code>version: "2"</code>.</strong> גרסה 2 של הכלי לא מקבלת אותו; ממירים עם <code>golangci-lint migrate</code>.</li>
+</ul>
+<h2 id="_6">שאלות ראיון</h2>
+<ol>
+<li><strong>איך את מחליטה איפה להתחיל בסקירה של diff גדול?</strong>
+   קוראת את התיאור כדי להבין את הכוונה, ואז מדרגת את החלקים לפי סיכון: מה יכול להישבר, כמה רחוק זה
+   מגיע, וכמה קשה לחזור. שאילתות, הרשאות, מיגרציות ומה שנוגע בכמה לקוחות מקבלים את רוב הזמן; טקסט וסגנון
+   בסוף, או לכלים. ואם הבקשה גדולה מכדי לסקור ברצינות, ההערה הראשונה היא לפצל. החיסרון: חלקים שדירגתי
+   כבטוחים מקבלים פחות תשומת לב, ולכן אני כותבת בסיכום מה קראתי לעומק ומה לא.</li>
+</ol>
+<p><strong>המשך:</strong> ומה אם את לא מכירה את התחום של הקוד? אני אומרת את זה בסקירה, מתמקדת במה שאני כן יכולה לשפוט
+   (שגיאות, משאבים, בדיקות), ומבקשת סוקרת נוספת לתחום עצמו.</p>
+<ol start="2">
+<li>
+<p><strong>איך נראית הערה טובה?</strong>
+   תווית חומרה, תיאור של מה ייכשל ואיך, הצעה מוחשית, ולפעמים בקשה לבדיקה שתוכיח את התיקון. היא על הקוד ולא
+   על האדם, ושואלת כשאני לא בטוחה. ההבחנה בין חוסם להצעה היא העיקר: היא חוסכת סבבים ומבהירה מה עוצר את
+   המיזוג. השבח חשוב פחות מהחוסמות, אבל הוא מלמד את הצוות מה לשמר.</p>
+</li>
+<li>
+<p><strong>מה ההבדל בין <code>go vet</code>, staticcheck ו־golangci-lint, ולמה להריץ את כולם?</strong>
+   <code>go vet</code> מגיע עם Go, שמרני, וחלק ממנו רץ בכל <code>go test</code>. staticcheck רחב יותר: באגים, קוד מת, API שהוצא
+   משימוש וסגנון. golangci-lint הוא מריץ, לא בודק: הוא מפעיל את שניהם ועוד עשרות בודקים כמו errcheck,
+   bodyclose ו־gosec, מתצורה אחת ב־CI. השיקול הוא רעש מול כיסוי: מתחילים מהסט הסטנדרטי ומוסיפים בודקים
+   שמוצאים באגים אמיתיים בקוד שלכם, לא את כולם.</p>
+</li>
+<li>
+<p><strong>במה govulncheck שונה מסורק תלויות רגיל?</strong>
+   סורק רגיל מתאים מודולים וגרסאות למאגר חולשות. govulncheck בונה גרף קריאות ומדווח כברירת מחדל רק על
+   חולשות שהקוד שלך קורא לפונקציה הפגיעה בהן, עם trace שמראה את המסלול. כך הממצאים מעטים ומדויקים. המגבלות:
+   הניתוח לא רואה הכול (reflection), ומה שלא נקרא היום עלול להיקרא מחר, ולכן גם ממצאים ברמת המודול
+   מתוזמנים לשדרוג. ו־govulncheck מכיר רק קוד Go; לתמונה של קונטיינר צריך סורק כללי.</p>
+</li>
+<li>
+<p><strong>קיבלת הערה שאת חושבת שהיא שגויה. מה את עושה?</strong>
+   קודם מוודאת שהבנתי אותה, אולי בשאלה. אם אני עדיין חולקת, עונה עם נימוק ועם עובדה: מדידה, תיעוד, בדיקה
+   שמראה את ההתנהגות. אם אחרי סבב או שניים אין הכרעה, שיחה קצרה ולא שרשור. ואם זה <code>nit</code>, אני מוותרת בקלות
+   בכיוון כלשהו. המטרה היא קוד טוב, לא לנצח בוויכוח.</p>
+</li>
+</ol>
+<h2 id="obsidian">פתק Obsidian</h2>
+<p>הפתק המוכן נמצא גם כקובץ: <code>obsidian/27-code-review-static-analysis.md</code>. זה תוכנו:</p>
+<ul>
+<li><strong>סדר סקירה:</strong> תיאור קודם, ואז לפי סיכון: מה נשבר, רדיוס פגיעה, הפיכות.</li>
+<li><strong>מה חסר:</strong> בדיקת הרשאה, סגירת משאב, בדיקה למקרה המסוכן.</li>
+<li><strong>שמונה תחומים:</strong> גבולות, שגיאות, מקביליות, משאבים, אבטחה, בדיקות, שמות, הפעלה.</li>
+<li><strong>הערה:</strong> תווית חומרה, נימוק, הצעה; שבח ספציפי; סיכום אחד.</li>
+<li><strong>לקבל סקירה:</strong> לענות לכל הערה; לחלוק עם עובדה; שיחה אחרי שני סבבים.</li>
+<li><strong>שלוש שכבות ב־Go:</strong> vet, staticcheck, golangci-lint; תצורה בגרסה 2.</li>
+<li><strong>govulncheck:</strong> חולשה שנקראת מול חולשה שרק קיימת; trace מוכיח נגישות.</li>
+<li><strong>שאלה פתוחה:</strong> ___</li>
+</ul>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">labels: blocking: should-fix: nit: question: praise:
+go vet ./...                 staticcheck ./...
+golangci-lint run ./...      golangci-lint migrate      //nolint:&lt;linter&gt; // reason
+.golangci.yml: version: &quot;2&quot; / linters.default: standard / linters.enable / formatters.enable
+staticcheck prefixes: SA bugs, S simplify, ST style, U unused
+uv run ruff check .          uv run mypy src
+govulncheck ./...            govulncheck -show verbose ./...    -scan symbol|package|module    -mode binary
+exit code 3 = vulnerabilities found
+my review: found ___ of 8, missed ___
+first file I opened: ___
+</code></pre>
+
+
+
+## תרגיל
+
+**מטרה:** לסקור בקשת שינוי אמיתית עם בעיות שתולות ולכתוב את ההערות לפני שפותחים את מפתח התשובות, ואז
+להריץ את כל הכלים של הפרק על מודול Go וחבילת Python ולתקן כל ממצא.
+**זמן:** יום לימוד קל אחד, יום 82, כ־45 דקות בנייה.
+**ידע מקדים:** הפרק, פרקים 3, 5, 6 ו־7; govulncheck מפרק 2; golangci-lint מותקן בתחילת התרגיל.
+
+הצעדים, קוד ההתחלה, הרמזים והפתרון נמצאים
+ב־[`exercises/ch27-review/README.md`](../exercises/ch27-review/README.md).
+
+**קריטריון סיום:**
+
+- הסקירה שלך שמורה לפני שפתחת את המפתח, עם תווית חומרה לכל הערה, ורשימת המפוספסים כתובה אחרי ההשוואה.
+- במודול Go, הכלים `go vet`, staticcheck ו־golangci-lint שקטים, והבדיקות עוברות עם `-race`.
+- הכלי govulncheck מסיים ב־`No vulnerabilities found.`
+- בחבילת Python, ruff ו־mypy שקטים ו־pytest עובר.
+
+## העשרה אופציונלית
+
+- המדריך „Code Review Developer Guide” של Google מפרט מה סוקרים, באיזה סדר, ואיך כותבים הערות. הרבה ממה
+  שבפרק נשען על אותם עקרונות.
+- המסמך „Go Code Review Comments” בוויקי של Go הוא רשימת ההערות שחוזרות בסקירות קוד Go, כמו `docID`
+  ושגיאות באותיות קטנות.
+- העמוד „Go Vulnerability Management” באתר של Go מסביר איך בנוי מאגר החולשות ואיך govulncheck משתמש בו.
+- נסי להריץ את golangci-lint עם הדגל `--default=all` על המודול שתיקנת, וקראי אילו בודקים רועשים ואילו
+  מוצאים משהו.
+</main>
+<nav class="bottom"><a href="index.html">תוכן העניינים</a> · <a href="26-testing-strategy-load.html">← פרק 26: אסטרטגיית בדיקות ובדיקות עומס</a> · <a href="28-security-backend.html">פרק 28: אבטחה לשירותי backend →</a></nav>
+<script type="module">
+  // Render ```mermaid blocks in the browser (needs internet once; cached afterwards).
+  const blocks = document.querySelectorAll("pre > code.language-mermaid");
+  if (blocks.length) {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs")).default;
+    for (const code of blocks) {
+      const div = document.createElement("div");
+      div.className = "mermaid";
+      div.textContent = code.textContent;
+      code.parentElement.replaceWith(div);
+    }
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run();
+  }
+</script>
+</body>
+</html>

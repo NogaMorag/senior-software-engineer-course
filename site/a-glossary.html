@@ -7,11 +7,11 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<nav class="top"><a href="index.html">תוכן העניינים</a> · <a href="TERMINOLOGY.html">← Terminology policy (book 2)</a></nav>
+<nav class="top"><a href="index.html">תוכן העניינים</a> · <a href="TERMINOLOGY.html">← Terminology policy (book 2)</a> · <a href="f-daily-schedule.html">נספח ו: לוח הלימוד היומי →</a></nav>
 <main class="book">
 
 <h1 id="_1">נספח א: מילון מונחים</h1>
-<p>138 מונחים, נאספים אוטומטית מטבלאות „מונחים לזכור” של כל הפרקים (הכלי: <code>tools/make_glossary.py</code>).
+<p>445 מונחים, נאספים אוטומטית מטבלאות „מונחים לזכור” של כל הפרקים (הכלי: <code>tools/make_glossary.py</code>).
 הסדר לפי המונח באנגלית. העמודה האחרונה מפנה לפרק שבו המונח הוגדר לראשונה, ובסוגריים לפרקים שחזרו עליו.</p>
 <table>
 <thead>
@@ -30,10 +30,70 @@
 <td>6</td>
 </tr>
 <tr>
+<td>action</td>
+<td>action</td>
+<td>יחידה לשימוש חוזר שנקראת ב־<code>uses</code></td>
+<td>23</td>
+</tr>
+<tr>
+<td>active-passive</td>
+<td>פעיל־פסיבי</td>
+<td>אזור אחד מקבל כתיבות, והשני מוכן להחליף אותו</td>
+<td>29</td>
+</tr>
+<tr>
+<td>adaptive limit</td>
+<td>מגבלה אדפטיבית</td>
+<td>מגבלת מקביליות שמשתנה לפי זמן התגובה הנמדד</td>
+<td>16</td>
+</tr>
+<tr>
+<td>additive change</td>
+<td>שינוי מוסיף</td>
+<td>מוסיפים שדה, לא מוחקים ולא משנים</td>
+<td>30</td>
+</tr>
+<tr>
+<td>ADR</td>
+<td>רשומת החלטה</td>
+<td>עמוד על החלטה אחת: הקשר, החלטה, סטטוס והשלכות</td>
+<td>29</td>
+</tr>
+<tr>
 <td>advisory lock</td>
 <td>נעילה מייעצת</td>
 <td>נעילה על מספר שהיישום בוחר, בלי קשר לשורה; goose משתמש בה</td>
-<td>11</td>
+<td>11 (18, 37)</td>
+</tr>
+<tr>
+<td>agent</td>
+<td>סוכן</td>
+<td>כלי שקורא את המאגר, עורך קבצים ומריץ פקודות כדי להשלים משימה</td>
+<td>32</td>
+</tr>
+<tr>
+<td>AI-assisted round</td>
+<td>סבב עם AI</td>
+<td>סבב ראיון שבו מותר או מצופה להשתמש בעוזר AI</td>
+<td>32</td>
+</tr>
+<tr>
+<td>alert</td>
+<td>התראה</td>
+<td>תנאי שכשהוא מתקיים מודיעים לאדם</td>
+<td>25</td>
+</tr>
+<tr>
+<td>alert fatigue</td>
+<td>עייפות התראות</td>
+<td>התעלמות שנוצרת כשרוב ההתראות לא דורשות פעולה</td>
+<td>25</td>
+</tr>
+<tr>
+<td>algorithm confusion</td>
+<td>בלבול אלגוריתמים</td>
+<td>חתימה ב־HS256 עם המפתח הציבורי, שמתקבלת אם האלגוריתם לא נעול</td>
+<td>28</td>
 </tr>
 <tr>
 <td>aliasing</td>
@@ -48,16 +108,88 @@
 <td>6</td>
 </tr>
 <tr>
+<td>Ambiguity</td>
+<td>עמימות</td>
+<td>משימה בלי הגדרה ברורה, שהופכים לתוכנית בעזרת שאלות והנחות</td>
+<td>34</td>
+</tr>
+<tr>
+<td>apply</td>
+<td>apply</td>
+<td>ביצוע ה־plan</td>
+<td>22</td>
+</tr>
+<tr>
+<td>Arc</td>
+<td>‏Arc</td>
+<td>מצביע עם מונה הפניות, ששיתופו בין threads בטוח</td>
+<td>33</td>
+</tr>
+<tr>
+<td>at-least-once</td>
+<td>„לפחות פעם אחת”</td>
+<td>שום הודעה לא אובדת, וייתכנו כפילויות</td>
+<td>13 (37)</td>
+</tr>
+<tr>
 <td>atomic counter</td>
 <td>מונה אטומי</td>
 <td>הגדלה שקורית בפקודה אחת בשרת, בלי עדכונים שאובדים</td>
 <td>12</td>
 </tr>
 <tr>
+<td>ATS screening</td>
+<td>סינון אוטומטי</td>
+<td>מערכת שמסננת קורות חיים לפי מילות מפתח לפני שאדם קורא אותם</td>
+<td>34</td>
+</tr>
+<tr>
+<td>audience (<code>aud</code>)</td>
+<td>קהל יעד</td>
+<td>השירות שהטוקן הונפק בשבילו</td>
+<td>28</td>
+</tr>
+<tr>
+<td>authentication</td>
+<td>אימות</td>
+<td>לקבוע מי הקוראת, למשל לפי טוקן חתום</td>
+<td>28</td>
+</tr>
+<tr>
+<td>authorization</td>
+<td>הרשאה</td>
+<td>לקבוע מה מותר לקוראת לעשות ועל אילו אובייקטים</td>
+<td>28</td>
+</tr>
+<tr>
+<td>back-of-the-envelope estimate</td>
+<td>הערכת גודל</td>
+<td>חשבון בסדר גודל כדי להחליט, עם הנחות כתובות</td>
+<td>29</td>
+</tr>
+<tr>
 <td>back-pressure</td>
 <td>לחץ חוזר</td>
 <td>שלב מהיר מואט כי השלב הבא לא מקבל עוד</td>
-<td>5</td>
+<td>5 (16)</td>
+</tr>
+<tr>
+<td>backend</td>
+<td>backend</td>
+<td>המקום שבו ה־state נשמר ונעול</td>
+<td>22</td>
+</tr>
+<tr>
+<td>backfill</td>
+<td>מילוי לאחור</td>
+<td>העתקת ערכים לשורות ישנות, במנות קטנות</td>
+<td>30</td>
+</tr>
+<tr>
+<td>background job</td>
+<td>עבודת רקע</td>
+<td>עבודה שרצה מחוץ למחזור הבקשה, בתהליך אחר</td>
+<td>14</td>
 </tr>
 <tr>
 <td>backing array</td>
@@ -66,10 +198,22 @@
 <td>3</td>
 </tr>
 <tr>
+<td>backoff</td>
+<td>המתנה גדלה</td>
+<td>המתנה בין ניסיונות שגדלה עם מספר הניסיון</td>
+<td>14 (15)</td>
+</tr>
+<tr>
 <td>backward compatibility</td>
 <td>תאימות לאחור</td>
 <td>לקוח ישן ממשיך לעבוד מול שרת חדש</td>
-<td>9</td>
+<td>9 (30)</td>
+</tr>
+<tr>
+<td>Behavioral interview</td>
+<td>ראיון התנהגותי</td>
+<td>שאלות על מה עשית במצבים אמיתיים, כדי לנבא איך תתנהגי</td>
+<td>34</td>
 </tr>
 <tr>
 <td>benchmark</td>
@@ -78,10 +222,76 @@
 <td>6 (7)</td>
 </tr>
 <tr>
+<td>blameless</td>
+<td>ללא האשמה</td>
+<td>מתאר החלטות לפי המידע שהיה, ולא מחפש אשמים</td>
+<td>25</td>
+</tr>
+<tr>
+<td>blast radius</td>
+<td>רדיוס הפגיעה</td>
+<td>כמה משתמשים או מערכות ייפגעו אם השינוי שגוי</td>
+<td>27</td>
+</tr>
+<tr>
+<td>bounded queue</td>
+<td>תור חסום</td>
+<td>תור עם קיבולת קבועה ומדיניות למצב מלא</td>
+<td>16</td>
+</tr>
+<tr>
+<td>Broken Object Level Authorization</td>
+<td>BOLA</td>
+<td>גישה לאובייקט של מישהו אחר לפי מזהה, בלי בדיקת בעלות</td>
+<td>28 (37)</td>
+</tr>
+<tr>
+<td>bucket</td>
+<td>דלי</td>
+<td>טווח במדד histogram, עם label בשם <code>le</code></td>
+<td>24</td>
+</tr>
+<tr>
+<td>build cache</td>
+<td>מטמון בנייה</td>
+<td>שכבות שמורות שנלקחות מחדש כשההוראה והקלט זהים</td>
+<td>19</td>
+</tr>
+<tr>
+<td>build context</td>
+<td>הקשר בנייה</td>
+<td>התיקייה שממנה <code>COPY</code> מעתיקה, בסינון של <code>.dockerignore</code></td>
+<td>19</td>
+</tr>
+<tr>
+<td>bulkhead</td>
+<td>מחיצה אטומה</td>
+<td>גבול על מספר הקריאות המקבילות לתלות אחת</td>
+<td>15 (37)</td>
+</tr>
+<tr>
+<td>burn rate</td>
+<td>קצב שריפה</td>
+<td>שיעור השגיאות חלקי התקציב; 1 מוציא אותו בדיוק בסוף החלון</td>
+<td>25</td>
+</tr>
+<tr>
+<td>burst</td>
+<td>פרץ</td>
+<td>כמה בקשות מותר לשלוח בבת אחת אחרי שקט</td>
+<td>16</td>
+</tr>
+<tr>
 <td>cache</td>
 <td>מטמון</td>
 <td>עותק מהיר של נתונים שמקורם במקום אחר, שמותר לו להתיישן לזמן מוגדר</td>
 <td>12</td>
+</tr>
+<tr>
+<td>cache mount</td>
+<td>מטמון מוצמד</td>
+<td>תיקייה שנשמרת בין בניות ולא נכנסת ל־image</td>
+<td>19</td>
 </tr>
 <tr>
 <td>cache stampede</td>
@@ -96,10 +306,28 @@
 <td>12</td>
 </tr>
 <tr>
+<td>call graph</td>
+<td>גרף קריאות</td>
+<td>מי קורא למי בתוכנית; govulncheck בונה אותו כדי לקבוע אם חולשה נגישה</td>
+<td>27</td>
+</tr>
+<tr>
 <td>cancellation</td>
 <td>ביטול</td>
 <td>בקשה לעצור משימה, שמגיעה אליה כחריגה ב־<code>await</code></td>
 <td>8</td>
+</tr>
+<tr>
+<td>cardinality</td>
+<td>קרדינליות</td>
+<td>מספר הצירופים השונים של labels, כלומר מספר הסדרות</td>
+<td>24</td>
+</tr>
+<tr>
+<td>causal consistency</td>
+<td>עקביות סיבתית</td>
+<td>מה שנגרם ממשהו לעולם לא נראה לפניו</td>
+<td>17</td>
 </tr>
 <tr>
 <td>channel</td>
@@ -108,10 +336,64 @@
 <td>5</td>
 </tr>
 <tr>
+<td>chart</td>
+<td>chart</td>
+<td>חבילה של Helm: תבניות, values ומטא־דאטה</td>
+<td>21</td>
+</tr>
+<tr>
 <td>Checksum (SHA-256)</td>
 <td>טביעת קובץ</td>
 <td>מחרוזת שמחושבת מתוכן הקובץ; זהות שלה מוכיחה שההורדה שלמה</td>
 <td>2</td>
+</tr>
+<tr>
+<td>choreography</td>
+<td>כוריאוגרפיה</td>
+<td>סאגה שבה כל שירות מגיב לאירועים של האחרים</td>
+<td>18</td>
+</tr>
+<tr>
+<td>circuit breaker</td>
+<td>מפסק זרם</td>
+<td>מפסיק לקרוא לתלות שנכשלת, ובודק מדי פעם אם חזרה</td>
+<td>15 (37)</td>
+</tr>
+<tr>
+<td>closed model</td>
+<td>מודל סגור</td>
+<td>מספר קבוע של משתמשים, שכל אחד מחכה לתשובה לפני הבקשה הבאה</td>
+<td>26</td>
+</tr>
+<tr>
+<td>cluster</td>
+<td>cluster</td>
+<td>קבוצת nodes שמנוהלת כמערכת אחת</td>
+<td>20</td>
+</tr>
+<tr>
+<td>code review</td>
+<td>סקירת קוד</td>
+<td>קריאה ביקורתית של שינוי לפני מיזוג, כדי לתפוס באגים ולשפר את הקוד</td>
+<td>27</td>
+</tr>
+<tr>
+<td>collector</td>
+<td>collector</td>
+<td>תהליך שמקבל טלמטריה, מעבד אותה ומעביר לאחסון</td>
+<td>24</td>
+</tr>
+<tr>
+<td>compensating action</td>
+<td>פעולה מפצה</td>
+<td>ביטול סמנטי של צעד שכבר התבצע</td>
+<td>18</td>
+</tr>
+<tr>
+<td>composite action</td>
+<td>פעולה מורכבת</td>
+<td>‏action שהוא רשימת צעדים, ורץ בתוך ה־job הקורא</td>
+<td>23</td>
 </tr>
 <tr>
 <td>composite index</td>
@@ -126,10 +408,64 @@
 <td>5</td>
 </tr>
 <tr>
+<td>concurrency group</td>
+<td>קבוצת מקביליות</td>
+<td>מגבלה של הרצה אחת בכל פעם לכל ענף או PR</td>
+<td>23</td>
+</tr>
+<tr>
+<td>concurrency limit</td>
+<td>מגבלת מקביליות</td>
+<td>גבול על מספר הבקשות שבטיפול באותו רגע</td>
+<td>16</td>
+</tr>
+<tr>
+<td>confidence</td>
+<td>רמת ביטחון</td>
+<td>כמה הערכה נשענת על ניסיון, לעומת נעלמים</td>
+<td>31</td>
+</tr>
+<tr>
+<td>ConfigMap</td>
+<td>ConfigMap</td>
+<td>תצורה שאינה סודית, כזוגות מפתח וערך</td>
+<td>20</td>
+</tr>
+<tr>
+<td>conformance tests</td>
+<td>בדיקות התאמה</td>
+<td>סוויטה אחת שכל מימוש של ממשק חייב לעבור</td>
+<td>38</td>
+</tr>
+<tr>
 <td>connection pool</td>
 <td>מאגר חיבורים</td>
 <td>קבוצה מוגבלת של חיבורים פתוחים שבקשות שואלות ומחזירות</td>
 <td>10 (11)</td>
+</tr>
+<tr>
+<td>consensus</td>
+<td>קונצנזוס</td>
+<td>הסכמה של כמה צמתים על ערך, למרות כשלים</td>
+<td>18</td>
+</tr>
+<tr>
+<td>consistency model</td>
+<td>מודל עקביות</td>
+<td>חוזה על הערכים שקריאה רשאית להחזיר בהינתן הכתיבות</td>
+<td>17</td>
+</tr>
+<tr>
+<td>consistent hashing</td>
+<td>גיבוב עקבי</td>
+<td>מיפוי על מעגל, שבו הוספת שרת מזיזה מעט מפתחות</td>
+<td>17</td>
+</tr>
+<tr>
+<td>constant-time compare</td>
+<td>השוואה בזמן קבוע</td>
+<td>השוואה שזמנה לא תלוי במספר הבתים שהתאימו</td>
+<td>28</td>
 </tr>
 <tr>
 <td>constant-time comparison</td>
@@ -144,16 +480,52 @@
 <td>4</td>
 </tr>
 <tr>
+<td>consumer group</td>
+<td>קבוצת צרכנים</td>
+<td>צרכנים עם שם משותף שמחלקים ביניהם את המחיצות</td>
+<td>13</td>
+</tr>
+<tr>
 <td>context</td>
 <td>context</td>
 <td>ממשק שנושא ביטול, גבול זמן כולל וערכי בקשה</td>
-<td>5</td>
+<td>5 (32)</td>
+</tr>
+<tr>
+<td>continuous integration (CI)</td>
+<td>אינטגרציה רציפה</td>
+<td>בדיקה אוטומטית של כל שינוי, באותה סביבה ובאותן פקודות</td>
+<td>23</td>
+</tr>
+<tr>
+<td>contract test</td>
+<td>בדיקת חוזה</td>
+<td>יצרן וצרכן בודקים כל אחד את עצמו מול אותו תיאור של מה שעובר ביניהם</td>
+<td>26</td>
+</tr>
+<tr>
+<td>controller</td>
+<td>בקר</td>
+<td>לולאה שמשווה רצוי לבפועל וסוגרת את הפער</td>
+<td>20</td>
 </tr>
 <tr>
 <td>cooperative cancellation</td>
 <td>ביטול שיתופי</td>
 <td>ביטול שמגיע רק לקוד שבודק אותו</td>
-<td>5</td>
+<td>5 (33, 35)</td>
+</tr>
+<tr>
+<td>cooperative-sticky</td>
+<td>חלוקה שיתופית</td>
+<td>rebalance שלוקח רק את המחיצות שעוברות</td>
+<td>13</td>
+</tr>
+<tr>
+<td>coordinated omission</td>
+<td>השמטה מתואמת</td>
+<td>כלי שמחכה לשרת ולכן משמיט את המדידות הגרועות</td>
+<td>26</td>
 </tr>
 <tr>
 <td>coroutine</td>
@@ -168,6 +540,12 @@
 <td>10</td>
 </tr>
 <tr>
+<td>CPU throttling</td>
+<td>חניקה</td>
+<td>קונטיינר שהגיע לתקרת המעבד ממתין לחלון הזמן הבא</td>
+<td>21</td>
+</tr>
+<tr>
 <td>cursor</td>
 <td>cursor</td>
 <td>סמן אטום עם מפתח המיון של הפריט האחרון שנראה</td>
@@ -177,13 +555,19 @@
 <td>data race</td>
 <td>מרוץ נתונים</td>
 <td>שתי גישות לא מסונכרנות לאותו זיכרון, ולפחות אחת כתיבה</td>
-<td>5</td>
+<td>5 (32)</td>
+</tr>
+<tr>
+<td>dead-letter queue</td>
+<td>תור מתים</td>
+<td>עבודות שהתייאשו מהן, שמורות לבדיקה ולהפעלה חוזרת</td>
+<td>14 (37)</td>
 </tr>
 <tr>
 <td>deadline</td>
 <td>גבול זמן כולל</td>
 <td>הרגע שבו כל העבודה חייבת להסתיים</td>
-<td>5</td>
+<td>5 (15)</td>
 </tr>
 <tr>
 <td>deadlock</td>
@@ -192,10 +576,40 @@
 <td>11</td>
 </tr>
 <tr>
+<td>declarative</td>
+<td>הצהרתי</td>
+<td>מתאר מה צריך להתקיים, לא אילו פקודות להריץ</td>
+<td>22</td>
+</tr>
+<tr>
+<td>dedupe table</td>
+<td>טבלת סינון</td>
+<td>מזהי הודעות שטופלו, נכתבים באותה טרנזקציה של האפקט</td>
+<td>13</td>
+</tr>
+<tr>
+<td>Dedupe window</td>
+<td>חלון כפילויות</td>
+<td>הזמן שבו מזהה שעובד נזכר, ומשלוח חוזר שלו נחשב כפילות</td>
+<td>35</td>
+</tr>
+<tr>
 <td>deduplication</td>
 <td>הסרת כפילויות</td>
 <td>זיהוי של אותו משלוח שהגיע שוב, ורישום אחד בלבד</td>
 <td>8</td>
+</tr>
+<tr>
+<td>deep dive</td>
+<td>צלילה לעומק</td>
+<td>דיון מפורט בחלק הקשה של התכנון</td>
+<td>29</td>
+</tr>
+<tr>
+<td>delegation</td>
+<td>האצלה</td>
+<td>העברת משימה לכלי, עם אחריות שנשארת אצלך</td>
+<td>32</td>
 </tr>
 <tr>
 <td>dependency</td>
@@ -204,16 +618,52 @@
 <td>8</td>
 </tr>
 <tr>
+<td>dependency graph</td>
+<td>גרף תלויות</td>
+<td>הסדר ש־Terraform גוזר מההפניות בין resources</td>
+<td>22</td>
+</tr>
+<tr>
 <td>dependency group</td>
 <td>קבוצת תלויות</td>
 <td>תלויות פיתוח שלא נשלחות עם החבילה</td>
 <td>7</td>
 </tr>
 <tr>
+<td>dependency lock file</td>
+<td>קובץ נעילת גרסאות</td>
+<td>הקובץ <code>.terraform.lock.hcl</code> עם הטביעות של ה־providers</td>
+<td>22</td>
+</tr>
+<tr>
+<td>Deployment</td>
+<td>Deployment</td>
+<td>שירות: כמה עותקים, מאיזו תבנית, ואיך מחליפים גרסה</td>
+<td>20</td>
+</tr>
+<tr>
 <td>deprecation</td>
 <td>הוצאה משימוש</td>
 <td>הודעה שנתיב ייעלם, עם תאריך ותחליף</td>
-<td>9</td>
+<td>9 (27)</td>
+</tr>
+<tr>
+<td>design doc</td>
+<td>מסמך תכנון</td>
+<td>תיאור כתוב של בעיה, פתרון וחלופות, שנסקר לפני הקוד</td>
+<td>29</td>
+</tr>
+<tr>
+<td>desired state</td>
+<td>מצב רצוי</td>
+<td>מה שכתבת ב־API שצריך לרוץ, ולא הפקודה להריץ אותו</td>
+<td>20</td>
+</tr>
+<tr>
+<td>digest</td>
+<td>תקציר</td>
+<td>גיבוב של התוכן, שמזהה בדיוק אותם בתים</td>
+<td>19</td>
 </tr>
 <tr>
 <td>discriminated union</td>
@@ -222,10 +672,46 @@
 <td>7</td>
 </tr>
 <tr>
+<td>distroless</td>
+<td>distroless</td>
+<td>בסיס בלי מעטפת ובלי מנהל חבילות, רק מה שהתוכנית צריכה</td>
+<td>19</td>
+</tr>
+<tr>
+<td>DNS rebinding</td>
+<td>DNS rebinding</td>
+<td>שם שנפתר לכתובת אחרת בין הבדיקה לבין החיבור</td>
+<td>28</td>
+</tr>
+<tr>
+<td>drift</td>
+<td>סטייה</td>
+<td>הבדל בין העולם לתצורה שנוצר מחוץ לכלי</td>
+<td>22</td>
+</tr>
+<tr>
+<td>dual write</td>
+<td>כתיבה כפולה</td>
+<td>כתיבה לשתי מערכות בלי טרנזקציה משותפת</td>
+<td>13 (30)</td>
+</tr>
+<tr>
 <td>embedding</td>
 <td>הטמעה</td>
 <td>שדה בלי שם, שהשדות והמתודות שלו מקודמים לטיפוס החיצוני</td>
 <td>4</td>
+</tr>
+<tr>
+<td>encryption at rest</td>
+<td>הצפנה באחסון</td>
+<td>הצפנה של Secrets לפני שהם נכתבים ל־etcd</td>
+<td>20</td>
+</tr>
+<tr>
+<td>end-to-end test</td>
+<td>בדיקת קצה לקצה</td>
+<td>כל המערכת רצה כמו בייצור</td>
+<td>26</td>
 </tr>
 <tr>
 <td>entry point</td>
@@ -234,10 +720,34 @@
 <td>7</td>
 </tr>
 <tr>
+<td>environment</td>
+<td>‏environment</td>
+<td>שם עם כללי הגנה, סודות ומשתנים, שאליו job מפנה</td>
+<td>23</td>
+</tr>
+<tr>
 <td>environment variable</td>
 <td>משתנה סביבה</td>
 <td>הדרך שבה שירות מקבל את התצורה שלו</td>
 <td>6</td>
+</tr>
+<tr>
+<td>ephemeral container</td>
+<td>קונטיינר זמני</td>
+<td>קונטיינר שמוסיפים ל־pod רץ לצורך דיבוג</td>
+<td>21</td>
+</tr>
+<tr>
+<td>error budget</td>
+<td>תקציב שגיאות</td>
+<td>החלק שמותר להיכשל: אחד פחות היעד</td>
+<td>25</td>
+</tr>
+<tr>
+<td>error budget policy</td>
+<td>מדיניות תקציב</td>
+<td>מה הצוות עושה כשהתקציב נגמר, מוסכם מראש</td>
+<td>25</td>
 </tr>
 <tr>
 <td>error type</td>
@@ -246,10 +756,22 @@
 <td>4</td>
 </tr>
 <tr>
+<td>escalation</td>
+<td>הסלמה</td>
+<td>העברת מחלוקת למי שאחראי עליה, יחד ועם שתי העמדות</td>
+<td>31</td>
+</tr>
+<tr>
 <td>escape analysis</td>
 <td>ניתוח בריחה</td>
 <td>החלטת המהדר אם ערך נשאר על המחסנית או עובר לערימה</td>
 <td>3</td>
+</tr>
+<tr>
+<td>estimate</td>
+<td>הערכת זמנים</td>
+<td>תחזית תחת אי ודאות, שמוצגת כטווח</td>
+<td>31</td>
 </tr>
 <tr>
 <td>event loop</td>
@@ -258,10 +780,22 @@
 <td>8</td>
 </tr>
 <tr>
+<td>eventual consistency</td>
+<td>עקביות בסופו של דבר</td>
+<td>בלי כתיבות חדשות, העותקים מתכנסים; בלי גבול זמן</td>
+<td>17</td>
+</tr>
+<tr>
 <td>eviction</td>
 <td>פינוי</td>
 <td>זריקת מפתחות כשהזיכרון מגיע לתקרה, לפי מדיניות</td>
-<td>12</td>
+<td>12 (21, 35)</td>
+</tr>
+<tr>
+<td>exactly-once</td>
+<td>„בדיוק פעם אחת”</td>
+<td>כל הודעה משפיעה פעם אחת; מחוץ ל־Kafka זה חוזה בין שני הצדדים</td>
+<td>13</td>
 </tr>
 <tr>
 <td>exception group</td>
@@ -270,10 +804,52 @@
 <td>8</td>
 </tr>
 <tr>
+<td>Exclusion constraint</td>
+<td>אילוץ החרגה</td>
+<td>אילוץ במסד שמסרב לשורה שמתנגשת בשורה קיימת לפי אופרטורים שמוגדרים בו</td>
+<td>35</td>
+</tr>
+<tr>
+<td>exemplar</td>
+<td>דוגמה</td>
+<td>דגימה של מדד שנושאת מזהה מעקב של בקשה אמיתית</td>
+<td>24</td>
+</tr>
+<tr>
 <td>Exit code</td>
 <td>קוד יציאה</td>
 <td>המספר שתוכנית מחזירה בסיומה; 0 פירושו הצלחה</td>
 <td>2</td>
+</tr>
+<tr>
+<td>expand and contract</td>
+<td>הרחבה ואז כיווץ</td>
+<td>שינוי שאינו תואם בשלבים, כך שכל שלב תואם לקוד שרץ לידו</td>
+<td>30</td>
+</tr>
+<tr>
+<td>exporter</td>
+<td>מייצא</td>
+<td>הרכיב ששולח טלמטריה החוצה</td>
+<td>24</td>
+</tr>
+<tr>
+<td>fail closed</td>
+<td>סגור בכשל</td>
+<td>כשהמנגנון לא זמין, הבקשה נדחית</td>
+<td>16</td>
+</tr>
+<tr>
+<td>fail open</td>
+<td>פתוח בכשל</td>
+<td>כשהמנגנון לא זמין, הבקשה עוברת</td>
+<td>16</td>
+</tr>
+<tr>
+<td>Fake clock</td>
+<td>שעון מזויף</td>
+<td>שעון שזז רק כשהבדיקה מזיזה אותו, ויורה טיימרים שהגיע זמנם</td>
+<td>35</td>
 </tr>
 <tr>
 <td>fan-out, fan-in</td>
@@ -282,16 +858,70 @@
 <td>5</td>
 </tr>
 <tr>
+<td>feature flag</td>
+<td>דגל תכונה</td>
+<td>מתג בזמן ריצה שמדליק ומכבה תכונה</td>
+<td>15 (30)</td>
+</tr>
+<tr>
+<td>fencing</td>
+<td>גידור</td>
+<td>וידוא שהצד הישן לא יכול לכתוב לפני שהחדש מתחיל</td>
+<td>29</td>
+</tr>
+<tr>
+<td>fencing token</td>
+<td>אסימון גידור</td>
+<td>מספר שעולה בכל לקיחה, ומונע ממחזיק ישן לכתוב</td>
+<td>14 (18)</td>
+</tr>
+<tr>
+<td>FFI</td>
+<td>ממשק לשפה זרה</td>
+<td>קריאה לקוד בשפה אחרת, בדרך כלל C, ומקום שבו בטיחות הזיכרון נשברת</td>
+<td>33</td>
+</tr>
+<tr>
 <td>fingerprint</td>
 <td>טביעת אצבע</td>
 <td>גיבוב של הבקשה, שקובע אם שתי בקשות הן אותה בקשה</td>
 <td>9</td>
 </tr>
 <tr>
+<td>flaky test</td>
+<td>בדיקה שנכשלת לפעמים</td>
+<td>נכשלת בלי שינוי בקוד, בגלל זמן, סדר או סביבה</td>
+<td>26</td>
+</tr>
+<tr>
+<td>focus factor</td>
+<td>מקדם מיקוד</td>
+<td>החלק מהשבוע שבאמת הולך לעבודה מסוימת</td>
+<td>31</td>
+</tr>
+<tr>
 <td>foreign key</td>
 <td>מפתח זר</td>
 <td>עמודה שמפנה למפתח של טבלה אחרת; לא מאונדקסת אוטומטית</td>
 <td>10</td>
+</tr>
+<tr>
+<td>forward compatibility</td>
+<td>תאימות לפנים</td>
+<td>הקוד הישן מבין נתונים מהגרסה החדשה</td>
+<td>30</td>
+</tr>
+<tr>
+<td>full jitter</td>
+<td>פיזור מלא</td>
+<td>המתנה אקראית אחידה בין אפס לתקרה</td>
+<td>14</td>
+</tr>
+<tr>
+<td>fuzzing</td>
+<td>‏fuzzing</td>
+<td>יצירת קלטים לפי כיסוי ענפים, כדי למצוא קריסות</td>
+<td>26</td>
 </tr>
 <tr>
 <td>Gap matrix</td>
@@ -303,7 +933,13 @@
 <td>garbage collector (GC)</td>
 <td>אוסף זבל</td>
 <td>משחרר בזמן ריצה זיכרון שאין אליו הפניות</td>
-<td>3</td>
+<td>3 (33)</td>
+</tr>
+<tr>
+<td>Gateway API</td>
+<td>Gateway API</td>
+<td>ממשק הניתוב החדש של Kubernetes, יורש של Ingress</td>
+<td>21</td>
 </tr>
 <tr>
 <td>generated code</td>
@@ -327,7 +963,7 @@
 <td>goroutine leak</td>
 <td>דליפת goroutines</td>
 <td>goroutine שלא תסתיים לעולם ומחזיקה זיכרון</td>
-<td>5</td>
+<td>5 (32)</td>
 </tr>
 <tr>
 <td>grace period</td>
@@ -336,16 +972,64 @@
 <td>6</td>
 </tr>
 <tr>
+<td>graceful degradation</td>
+<td>הידרדרות מכובדת</td>
+<td>תשובה חלקית או ישנה במקום שגיאה</td>
+<td>15</td>
+</tr>
+<tr>
 <td>graceful shutdown</td>
 <td>כיבוי מסודר</td>
 <td>הפסקת קבלה, סיום מה שבדרך, ואז יציאה</td>
-<td>6</td>
+<td>6 (14)</td>
+</tr>
+<tr>
+<td>Gross base salary</td>
+<td>שכר בסיס ברוטו</td>
+<td>השכר החודשי לפני מסים והפרשות, בלי בונוס ומניות</td>
+<td>34</td>
+</tr>
+<tr>
+<td>half-open</td>
+<td>חצי־פתוח</td>
+<td>מצב המפסק שבו כמה קריאות ניסיון בודקות את התלות</td>
+<td>15</td>
+</tr>
+<tr>
+<td>Half-open range</td>
+<td>טווח חצי־פתוח</td>
+<td>טווח שכולל את ההתחלה ולא את הסוף, כך שטווחים צמודים לא חופפים</td>
+<td>35</td>
+</tr>
+<tr>
+<td>hallucination</td>
+<td>הזיה</td>
+<td>פלט בטוח בעצמו שאינו נכון, כמו דגל או גרסה שלא קיימים</td>
+<td>32</td>
 </tr>
 <tr>
 <td>handler</td>
 <td>handler</td>
 <td>מה שעונה לבקשה: כל מי שמממש <code>ServeHTTP</code></td>
 <td>6</td>
+</tr>
+<tr>
+<td>hash</td>
+<td>גיבוב</td>
+<td>פונקציה חד־כיוונית; שומרים אותה במקום הסוד</td>
+<td>28</td>
+</tr>
+<tr>
+<td>healthcheck</td>
+<td>בדיקת בריאות</td>
+<td>פקודה שרצה בקונטיינר וקובעת אם הוא בריא</td>
+<td>19</td>
+</tr>
+<tr>
+<td>heartbeat</td>
+<td>דופק</td>
+<td>בדיקה תקופתית שהמנהיג עדיין מחזיק</td>
+<td>18</td>
 </tr>
 <tr>
 <td>hit ratio</td>
@@ -363,19 +1047,55 @@
 <td>Home assignment</td>
 <td>מטלת בית</td>
 <td>תרגיל של ערב או שניים, שמוגש עם קוד, בדיקות ו־README</td>
-<td>1</td>
+<td>1 (34)</td>
+</tr>
+<tr>
+<td>Horizontal Pod Autoscaler</td>
+<td>HPA</td>
+<td>בקר שמשנה מספר עותקים לפי מדד ויעד</td>
+<td>21</td>
+</tr>
+<tr>
+<td>hot factor</td>
+<td>מקדם חום</td>
+<td>העומס של המחיצה העמוסה ביותר חלקי הממוצע</td>
+<td>17</td>
+</tr>
+<tr>
+<td>hot partition</td>
+<td>מחיצה חמה</td>
+<td>מחיצה שמקבלת חלק גדול בהרבה מהממוצע</td>
+<td>17</td>
 </tr>
 <tr>
 <td>idempotency</td>
 <td>אידמפוטנטיות</td>
 <td>חזרה על פעולה משאירה את אותו מצב כמו פעם אחת</td>
-<td>9</td>
+<td>9 (14)</td>
 </tr>
 <tr>
 <td>idempotency key</td>
 <td>מפתח אידמפוטנטיות</td>
 <td>ערך שהלקוח שולח כדי שניסיון חוזר לא יבצע פעמיים</td>
-<td>9</td>
+<td>9 (37)</td>
+</tr>
+<tr>
+<td>idempotent producer</td>
+<td>producer אידמפוטנטי</td>
+<td>ה־broker זורק batch שכבר כתב, לפי מזהה ומספר רץ</td>
+<td>13</td>
+</tr>
+<tr>
+<td>identity provider</td>
+<td>ספק זהות</td>
+<td>שירות שמאמת משתמשים ושירותים ומנפיק טוקנים</td>
+<td>28</td>
+</tr>
+<tr>
+<td>image</td>
+<td>image</td>
+<td>שכבות של מערכת קבצים ותצורה, שמהן מריצים קונטיינר</td>
+<td>19</td>
 </tr>
 <tr>
 <td>Image digest</td>
@@ -384,10 +1104,70 @@
 <td>2</td>
 </tr>
 <tr>
+<td>immutable tag</td>
+<td>תגית שאי אפשר לדרוס</td>
+<td>הגדרה ב־registry שמונעת דחיפה חוזרת לאותה תגית</td>
+<td>19</td>
+</tr>
+<tr>
+<td>incident</td>
+<td>תקרית</td>
+<td>אירוע שפוגע במשתמשים ודורש תגובה מתואמת</td>
+<td>25</td>
+</tr>
+<tr>
+<td>incident commander</td>
+<td>מפקדת תקרית</td>
+<td>מי שמחליטה ומתאמת, ולא מתקנת בעצמה</td>
+<td>25</td>
+</tr>
+<tr>
+<td>incident update</td>
+<td>עדכון תקרית</td>
+<td>עדכון במבנה קבוע בזמן תקרית: השפעה, מצב, עובדות, פעולות, מועד הבא</td>
+<td>31</td>
+</tr>
+<tr>
 <td>index-only scan</td>
 <td>סריקת אינדקס בלבד</td>
 <td>תשובה מהאינדקס בלי לקרוא את הטבלה</td>
 <td>10</td>
+</tr>
+<tr>
+<td>Influence</td>
+<td>השפעה</td>
+<td>שינוי שקורה בגללך אצל אנשים שאינם כפופים לך</td>
+<td>34</td>
+</tr>
+<tr>
+<td>influence without authority</td>
+<td>הובלה בלי סמכות</td>
+<td>הזזת החלטה בעזרת נתונים והצעות, בלי יכולת להורות</td>
+<td>31</td>
+</tr>
+<tr>
+<td>infrastructure as code</td>
+<td>תשתית כקוד</td>
+<td>מצב רצוי של תשתית בקבצים, שכלי אחד מממש</td>
+<td>22</td>
+</tr>
+<tr>
+<td>Ingress</td>
+<td>Ingress</td>
+<td>אובייקט שמתאר ניתוב HTTP מבחוץ לשירותים</td>
+<td>21</td>
+</tr>
+<tr>
+<td>Injected clock</td>
+<td>שעון מוזרק</td>
+<td>שעון שהקוד מקבל כפרמטר, כדי שבדיקה תוכל להחליף אותו</td>
+<td>35</td>
+</tr>
+<tr>
+<td>inline completion</td>
+<td>השלמה תוך כדי הקלדה</td>
+<td>הצעה של השורות הבאות בעורך</td>
+<td>32</td>
 </tr>
 <tr>
 <td>input validation</td>
@@ -396,10 +1176,34 @@
 <td>9</td>
 </tr>
 <tr>
+<td>instructions file</td>
+<td>קובץ הנחיות</td>
+<td>קובץ במאגר שהכלי קורא בתחילת כל משימה, כמו <code>AGENTS.md</code></td>
+<td>32</td>
+</tr>
+<tr>
+<td>integration test</td>
+<td>בדיקת אינטגרציה</td>
+<td>הקוד שלך מול תלות אמיתית, כמו מסד בקונטיינר</td>
+<td>26</td>
+</tr>
+<tr>
+<td>interest</td>
+<td>ריבית</td>
+<td>המחיר הנוסף של כל שינוי בגלל החוב</td>
+<td>30</td>
+</tr>
+<tr>
 <td>interface</td>
 <td>ממשק</td>
 <td>רשימת מתודות; כל טיפוס שיש לו אותן מממש אותו בלי הצהרה</td>
-<td>4</td>
+<td>4 (33)</td>
+</tr>
+<tr>
+<td>Interview loop</td>
+<td>תהליך גיוס</td>
+<td>רצף השלבים מהגשה ועד הצעה: היכרות, קוד, תכנון, פרויקט, התנהגות</td>
+<td>34</td>
 </tr>
 <tr>
 <td>invalidation</td>
@@ -417,7 +1221,19 @@
 <td>jitter</td>
 <td>פיזור אקראי</td>
 <td>תוספת אקראית קטנה ל־TTL, כדי שמפתחות לא יפוגו יחד</td>
-<td>12</td>
+<td>12 (14, 15)</td>
+</tr>
+<tr>
+<td>job</td>
+<td>job</td>
+<td>רצף צעדים על runner אחד; ‏jobs מקבילים אלא אם יש <code>needs</code></td>
+<td>23</td>
+</tr>
+<tr>
+<td>job queue</td>
+<td>תור עבודות</td>
+<td>טבלה או שירות שמחזיקים עבודות עד שמישהו מבצע אותן</td>
+<td>14</td>
 </tr>
 <tr>
 <td>Judgment</td>
@@ -426,10 +1242,28 @@
 <td>1</td>
 </tr>
 <tr>
+<td>Keren hishtalmut</td>
+<td>קרן השתלמות</td>
+<td>חיסכון בהפקדות מעסיק ועובדת, עם הטבת מס עד תקרה, נזיל אחרי שש שנים</td>
+<td>34</td>
+</tr>
+<tr>
 <td>keyset pagination</td>
 <td>עימוד keyset</td>
 <td>„המשך אחרי המפתח האחרון שראיתי”, במקום לדלג על N שורות</td>
-<td>10</td>
+<td>10 (38)</td>
+</tr>
+<tr>
+<td>label</td>
+<td>תווית</td>
+<td>זוג מפתח וערך על אובייקט, שבו אובייקטים אחרים בוחרים אותו</td>
+<td>20</td>
+</tr>
+<tr>
+<td>lag</td>
+<td>פיגור</td>
+<td>כמה רשומות יש בין סוף המחיצה לבין ה־offset השמור</td>
+<td>13</td>
 </tr>
 <tr>
 <td>Lane</td>
@@ -438,16 +1272,112 @@
 <td>1</td>
 </tr>
 <tr>
+<td>layer</td>
+<td>שכבה</td>
+<td>ארכיון של שינויים בקבצים שהוראה אחת ב־Dockerfile יצרה</td>
+<td>19</td>
+</tr>
+<tr>
+<td>Lazy refill</td>
+<td>מילוי עצל</td>
+<td>חישוב האסימונים שנצברו רק כשמגיעה בקשה, בלי טיימר</td>
+<td>35</td>
+</tr>
+<tr>
+<td>Leader and follower</td>
+<td>מוביל ועוקב</td>
+<td>המשלוח שמעבד, ומשלוחים כפולים שממתינים לתוצאה שלו</td>
+<td>35</td>
+</tr>
+<tr>
+<td>leader election</td>
+<td>בחירת מנהיג</td>
+<td>הכרעה איזה עותק אחד של שירות עושה עבודה מסוימת</td>
+<td>18</td>
+</tr>
+<tr>
+<td>lease</td>
+<td>חכירה</td>
+<td>זכות זמנית לעבודה; כשהיא פגה, אחרים רשאים לקחת אותה</td>
+<td>14 (18, 37)</td>
+</tr>
+<tr>
+<td>least privilege</td>
+<td>מינימום הרשאות</td>
+<td>לכל רכיב רק ההרשאות שהוא חייב</td>
+<td>28</td>
+</tr>
+<tr>
+<td>Least recently used</td>
+<td>LRU</td>
+<td>מדיניות פינוי שמוציאה את הערך שהשתמשו בו הכי מזמן</td>
+<td>35</td>
+</tr>
+<tr>
+<td>leeway</td>
+<td>מרווח לסטיית שעונים</td>
+<td>הזמן שבו טוקן שפג תוקפו או שעוד לא תקף עדיין מתקבל</td>
+<td>28</td>
+</tr>
+<tr>
 <td>lifespan</td>
 <td>מחזור חיים</td>
 <td>הקוד שרץ בעליית השירות ובכיבוי שלו</td>
 <td>8</td>
 </tr>
 <tr>
+<td>lifetime</td>
+<td>זמן חיים</td>
+<td>התחום שבו הפניה תקפה, שהקומפיילר של Rust בודק</td>
+<td>33</td>
+</tr>
+<tr>
+<td>linearizability</td>
+<td>ליניאריזביליות</td>
+<td>המערכת מתנהגת כעותק אחד, בזמן אמת</td>
+<td>17</td>
+</tr>
+<tr>
+<td>linter</td>
+<td>בודק</td>
+<td>כלי ניתוח סטטי שמדווח על דפוס חשוד בקוד</td>
+<td>27</td>
+</tr>
+<tr>
+<td>Little's law</td>
+<td>חוק ליטל</td>
+<td>מספר הבקשות במערכת שווה לקצב ההגעה כפול הזמן במערכת</td>
+<td>16</td>
+</tr>
+<tr>
+<td>Live coding</td>
+<td>קוד חי</td>
+<td>פתרון בעיה מעשית מול מראיינת, בזמן קצוב, בקול</td>
+<td>34 (35)</td>
+</tr>
+<tr>
+<td>liveness probe</td>
+<td>בדיקת חיות</td>
+<td>נכשלת: הקונטיינר מופעל מחדש</td>
+<td>20</td>
+</tr>
+<tr>
+<td>load shedding</td>
+<td>השלת עומס</td>
+<td>סירוב מהיר לבקשות כשהשירות עצמו מלא</td>
+<td>16</td>
+</tr>
+<tr>
+<td>load test</td>
+<td>בדיקת עומס</td>
+<td>מדידה של שירות תחת קצב בקשות מתוכנן</td>
+<td>26</td>
+</tr>
+<tr>
 <td>lock</td>
 <td>נעילה</td>
 <td>מבטיחה שרק goroutine אחת ניגשת לנתון בכל רגע</td>
-<td>5</td>
+<td>5 (18, 22)</td>
 </tr>
 <tr>
 <td>lock file</td>
@@ -456,10 +1386,46 @@
 <td>7</td>
 </tr>
 <tr>
+<td>Lock ordering</td>
+<td>סדר נעילות</td>
+<td>כלל שלפיו כל הקוד לוקח נעילות באותו סדר, כדי למנוע קיפאון</td>
+<td>35</td>
+</tr>
+<tr>
+<td>lock queue</td>
+<td>תור נעילות</td>
+<td>פקודה שמחכה לנעילה חוסמת את מי שבא אחריה</td>
+<td>30</td>
+</tr>
+<tr>
+<td>log</td>
+<td>יומן</td>
+<td>רצף שרק מוסיפים לסופו, נשמר בלי קשר לקריאה</td>
+<td>13</td>
+</tr>
+<tr>
+<td>log replication</td>
+<td>שכפול יומן</td>
+<td>הפצה של רצף פקודות לכל הצמתים באותו סדר</td>
+<td>18</td>
+</tr>
+<tr>
 <td>lost update</td>
 <td>עדכון אבוד</td>
 <td>שתי טרנזקציות קוראות ערך, שתיהן כותבות, ואחת הכתיבות נדרסת</td>
 <td>11</td>
+</tr>
+<tr>
+<td>LSN</td>
+<td>מספר רצף ביומן</td>
+<td>מיקום ב־WAL; עולה תמיד ואפשר להשוות ולחסר</td>
+<td>17</td>
+</tr>
+<tr>
+<td>mentoring</td>
+<td>חניכה</td>
+<td>תוכנית שבה מישהו אחר לומד לעשות לבד את מה שאת יודעת</td>
+<td>31</td>
 </tr>
 <tr>
 <td>method</td>
@@ -474,6 +1440,12 @@
 <td>4</td>
 </tr>
 <tr>
+<td>metric</td>
+<td>מדד</td>
+<td>מספר שנמדד לאורך זמן ומסוכם בתהליך</td>
+<td>24</td>
+</tr>
+<tr>
 <td>middleware</td>
 <td>middleware</td>
 <td>שכבה שעוטפת handler ופועלת לפניו ואחריו</td>
@@ -486,10 +1458,34 @@
 <td>11</td>
 </tr>
 <tr>
+<td>migration (system)</td>
+<td>הגירה</td>
+<td>העברה של התנהגות ממערכת ישנה לחדשה</td>
+<td>30</td>
+</tr>
+<tr>
+<td>milestone</td>
+<td>אבן דרך</td>
+<td>שלב בפרויקט שנגמר כשקבוצת בדיקות מוגדרת ירוקה</td>
+<td>38</td>
+</tr>
+<tr>
 <td>module</td>
 <td>מודול</td>
 <td>יחידת גרסה והפצה, מוגדרת בקובץ <code>go.mod</code></td>
-<td>3</td>
+<td>3 (22)</td>
+</tr>
+<tr>
+<td>monotonic reads</td>
+<td>קריאות מונוטוניות</td>
+<td>לקוח לא רואה ערך ישן יותר ממה שכבר ראה</td>
+<td>17</td>
+</tr>
+<tr>
+<td>multi-stage build</td>
+<td>בנייה רב־שלבית</td>
+<td>שלב עם כלים לבנייה, ושלב נפרד ונקי לריצה</td>
+<td>19</td>
 </tr>
 <tr>
 <td>MVCC</td>
@@ -504,28 +1500,106 @@
 <td>10</td>
 </tr>
 <tr>
+<td>namespace</td>
+<td>namespace</td>
+<td>מרחב שמות בתוך האשכול</td>
+<td>20</td>
+</tr>
+<tr>
 <td>negative caching</td>
 <td>מטמון שלילי</td>
 <td>שמירת „לא נמצא” עם TTL קצר, נגד בקשות לדברים שלא קיימים</td>
 <td>12</td>
 </tr>
 <tr>
+<td>network partition</td>
+<td>פיצול רשת</td>
+<td>צמתים שלא יכולים לתקשר זה עם זה, אף שכולם חיים</td>
+<td>17</td>
+</tr>
+<tr>
+<td>node</td>
+<td>node</td>
+<td>מכונה אחת באשכול, שעליה רץ kubelet</td>
+<td>20</td>
+</tr>
+<tr>
+<td>non-goal</td>
+<td>לא־מטרה</td>
+<td>ציפייה סבירה שמנטרלים מראש</td>
+<td>29</td>
+</tr>
+<tr>
+<td>Notice period</td>
+<td>הודעה מוקדמת</td>
+<td>הזמן שבין הודעת התפטרות או פיטורים לסיום העבודה</td>
+<td>34</td>
+</tr>
+<tr>
+<td>observability</td>
+<td>תצפיתיות</td>
+<td>היכולת לענות על שאלות על מערכת רצה בלי לשנות אותה</td>
+<td>24</td>
+</tr>
+<tr>
 <td>offset</td>
 <td>היסט</td>
 <td>עימוד לפי מקום ברשימה; נשבר כשהרשימה משתנה</td>
-<td>9</td>
+<td>9 (13)</td>
 </tr>
 <tr>
 <td>On-call</td>
 <td>תורנות</td>
 <td>זמינות לטיפול בתקלות בייצור, בסבב עם הצוות</td>
-<td>1</td>
+<td>1 (25, 31)</td>
+</tr>
+<tr>
+<td>one-on-one</td>
+<td>שיחה אישית</td>
+<td>פגישה קבועה בין שתיים, עם סדר יום של מי שמדווחת</td>
+<td>31</td>
+</tr>
+<tr>
+<td>OOMKilled</td>
+<td>הריגה בזיכרון</td>
+<td>ה־kernel הורג קונטיינר שעבר את תקרת הזיכרון</td>
+<td>21</td>
+</tr>
+<tr>
+<td>open model</td>
+<td>מודל פתוח</td>
+<td>בקשות מגיעות בקצב משלהן, בלי לחכות לקודמות</td>
+<td>16 (26)</td>
+</tr>
+<tr>
+<td>OpenID Connect</td>
+<td>‏OIDC</td>
+<td>אסימון זהות קצר מועד שהענן מחליף בהרשאות זמניות</td>
+<td>23</td>
+</tr>
+<tr>
+<td>orchestration</td>
+<td>תזמור</td>
+<td>סאגה שמתזמר אחד מנהל</td>
+<td>18</td>
+</tr>
+<tr>
+<td>outbox pattern</td>
+<td>תבנית ה־outbox</td>
+<td>ההודעה נכתבת כשורה באותה טרנזקציה של השינוי, ותהליך אחר מפרסם</td>
+<td>13 (37)</td>
+</tr>
+<tr>
+<td>output</td>
+<td>output</td>
+<td>פלט של תצורה או מודול</td>
+<td>22</td>
 </tr>
 <tr>
 <td>Ownership</td>
 <td>בעלות</td>
 <td>אחריות על מה שבנית גם אחרי ההשקה, כולל ניטור ותקריות</td>
-<td>1</td>
+<td>1 (31, 33)</td>
 </tr>
 <tr>
 <td>package</td>
@@ -534,10 +1608,22 @@
 <td>3</td>
 </tr>
 <tr>
+<td>page</td>
+<td>קריאה</td>
+<td>התראה שמעירה אדם עכשיו</td>
+<td>25</td>
+</tr>
+<tr>
 <td>pagination</td>
 <td>עימוד</td>
 <td>חלוקה של רשימה ארוכה לעמודים</td>
 <td>9</td>
+</tr>
+<tr>
+<td>parallel change</td>
+<td>שינוי מקביל</td>
+<td>השם של Danilo Sato לאותה תבנית: הרחבה, הגירה, כיווץ</td>
+<td>30</td>
 </tr>
 <tr>
 <td>parallelism</td>
@@ -546,10 +1632,28 @@
 <td>5</td>
 </tr>
 <tr>
+<td>partial failure</td>
+<td>כשל חלקי</td>
+<td>חלק מהמערכת תקין וחלק לא, ומבחוץ אי אפשר לדעת מה קרה</td>
+<td>15</td>
+</tr>
+<tr>
 <td>partial index</td>
 <td>אינדקס חלקי</td>
 <td>אינדקס רק על השורות שעונות על תנאי <code>WHERE</code></td>
 <td>10</td>
+</tr>
+<tr>
+<td>partition</td>
+<td>מחיצה</td>
+<td>יומן נפרד בתוך topic; הסדר מובטח רק בתוכו</td>
+<td>13</td>
+</tr>
+<tr>
+<td>partitioning</td>
+<td>חלוקה למחיצות</td>
+<td>פיצול הנתונים לחלקים זרים שחיים במקומות שונים</td>
+<td>17</td>
 </tr>
 <tr>
 <td>PATH</td>
@@ -558,10 +1662,52 @@
 <td>2</td>
 </tr>
 <tr>
+<td>path filter</td>
+<td>סינון לפי נתיב</td>
+<td>הרצה רק כששונה קובץ שמתאים לתבנית</td>
+<td>23</td>
+</tr>
+<tr>
+<td>peak factor</td>
+<td>יחס שיא</td>
+<td>הקצב בשיא חלקי הקצב הממוצע</td>
+<td>29</td>
+</tr>
+<tr>
+<td>Permanent error</td>
+<td>שגיאה קבועה</td>
+<td>שגיאה שניסיון חוזר לא יתקן, ולכן לא מנסים שוב</td>
+<td>35</td>
+</tr>
+<tr>
+<td>permanent failure</td>
+<td>כישלון קבוע</td>
+<td>כישלון שיחזור בכל ניסיון, כמו קלט לא תקין</td>
+<td>14</td>
+</tr>
+<tr>
+<td>plan</td>
+<td>plan</td>
+<td>ההבדל בין התצורה למצב האמיתי, לפני שמשהו משתנה</td>
+<td>22</td>
+</tr>
+<tr>
 <td>planner</td>
 <td>מתכנן</td>
 <td>החלק של PostgreSQL שבוחר איך להריץ שאילתה, לפי עלות מוערכת</td>
 <td>10</td>
+</tr>
+<tr>
+<td>pod</td>
+<td>pod</td>
+<td>קונטיינר אחד או יותר שחולקים רשת; היחידה שרצה</td>
+<td>20</td>
+</tr>
+<tr>
+<td>postmortem</td>
+<td>תחקיר</td>
+<td>מסמך שאחרי תקרית: מה קרה, למה, ומה משנים</td>
+<td>25</td>
 </tr>
 <tr>
 <td>problem details</td>
@@ -582,10 +1728,40 @@
 <td>7</td>
 </tr>
 <tr>
+<td>property-based test</td>
+<td>בדיקת תכונה</td>
+<td>טענה שנכונה לכל קלט, ומחולל שמייצר קלטים</td>
+<td>26</td>
+</tr>
+<tr>
+<td>provider</td>
+<td>provider</td>
+<td>תוסף שמתרגם resources לקריאות של API אחד</td>
+<td>22</td>
+</tr>
+<tr>
+<td>QoS class</td>
+<td>מחלקת איכות שירות</td>
+<td>Guaranteed, Burstable או BestEffort; קובעת סדר פינוי</td>
+<td>21</td>
+</tr>
+<tr>
 <td>query plan</td>
 <td>תוכנית ביצוע</td>
 <td>עץ הצמתים שהמתכנן בחר; <code>EXPLAIN</code> מציג אותו</td>
 <td>10</td>
+</tr>
+<tr>
+<td>queue</td>
+<td>תור</td>
+<td>מחזיק הודעה עד שצרכן מאשר אותה, ואז מוחק</td>
+<td>13</td>
+</tr>
+<tr>
+<td>quorum</td>
+<td>רוב</td>
+<td>מספר הצמתים שאישורם מכריע; שני רובים תמיד נחתכים</td>
+<td>18</td>
 </tr>
 <tr>
 <td>race condition</td>
@@ -600,22 +1776,214 @@
 <td>5</td>
 </tr>
 <tr>
+<td>range</td>
+<td>טווח</td>
+<td>נמוך וגבוה, במקום מספר אחד</td>
+<td>31</td>
+</tr>
+<tr>
+<td>rate limiting</td>
+<td>הגבלת קצב</td>
+<td>גבול על מספר הבקשות של לקוחה ביחידת זמן</td>
+<td>16</td>
+</tr>
+<tr>
+<td>reachability</td>
+<td>נגישות של חולשה</td>
+<td>האם יש מסלול קריאה מהקוד שלך לפונקציה הפגיעה</td>
+<td>27</td>
+</tr>
+<tr>
+<td>read-your-writes</td>
+<td>לקרוא את מה שכתבת</td>
+<td>לקוח תמיד רואה את הכתיבות של עצמו</td>
+<td>17</td>
+</tr>
+<tr>
+<td>readiness probe</td>
+<td>בדיקת מוכנות</td>
+<td>נכשלת: ה־pod יוצא מהתעבורה, בלי הפעלה מחדש</td>
+<td>20</td>
+</tr>
+<tr>
+<td>rebalance</td>
+<td>rebalance</td>
+<td>חלוקה מחדש של המחיצות כשההרכב של הקבוצה משתנה</td>
+<td>13</td>
+</tr>
+<tr>
+<td>receiver</td>
+<td>מקבל</td>
+<td>ה־endpoint של לקוח הדיירת שאליו נמסרים ה־webhooks</td>
+<td>37</td>
+</tr>
+<tr>
+<td>reconciliation loop</td>
+<td>לולאת התאמה</td>
+<td>השוואה ותיקון שחוזרים כל הזמן, ולא תגובה לאירוע בודד</td>
+<td>20</td>
+</tr>
+<tr>
+<td>recording rule</td>
+<td>כלל הקלטה</td>
+<td>ביטוי ש־Prometheus מחשב ושומר כסדרה חדשה</td>
+<td>25</td>
+</tr>
+<tr>
+<td>recovery point objective</td>
+<td>‏RPO</td>
+<td>כמה נתונים, בזמן, מותר לאבד</td>
+<td>29</td>
+</tr>
+<tr>
+<td>recovery time objective</td>
+<td>‏RTO</td>
+<td>כמה זמן מותר להיות למטה</td>
+<td>29</td>
+</tr>
+<tr>
+<td>RED</td>
+<td>RED</td>
+<td>קצב, שגיאות ומשך: המדדים של שירות</td>
+<td>24</td>
+</tr>
+<tr>
+<td>region</td>
+<td>אזור</td>
+<td>קבוצת מרכזי נתונים של ספק ענן במקום גיאוגרפי אחד</td>
+<td>29</td>
+</tr>
+<tr>
+<td>relay</td>
+<td>relay</td>
+<td>התהליך שמפרסם שורות outbox ומסמן אותן</td>
+<td>13</td>
+</tr>
+<tr>
+<td>release</td>
+<td>release</td>
+<td>התקנה אחת של chart, עם היסטוריית revisions</td>
+<td>21</td>
+</tr>
+<tr>
+<td>replay</td>
+<td>הפעלה חוזרת</td>
+<td>החזרה של עבודה מתה לתור, עם ניסיונות חדשים</td>
+<td>14</td>
+</tr>
+<tr>
+<td>replica lag</td>
+<td>פיגור שכפול</td>
+<td>כמה המשני מאחורי הראשי, בבתים או בזמן</td>
+<td>17</td>
+</tr>
+<tr>
+<td>ReplicaSet</td>
+<td>ReplicaSet</td>
+<td>מחזיק מספר קבוע של pods מתבנית אחת</td>
+<td>20</td>
+</tr>
+<tr>
+<td>replication</td>
+<td>שכפול</td>
+<td>החזקת עותקים של אותם נתונים בכמה שרתים</td>
+<td>17</td>
+</tr>
+<tr>
 <td>request ID</td>
 <td>מזהה בקשה</td>
 <td>ערך שמלווה בקשה אחת בכל שורות הלוג ובין שירותים</td>
 <td>6</td>
 </tr>
 <tr>
+<td>required reviewer</td>
+<td>מבקר חובה</td>
+<td>מי שחייב לאשר job לפני שהוא רץ ומקבל את הסודות</td>
+<td>23</td>
+</tr>
+<tr>
+<td>reserve</td>
+<td>רזרבה</td>
+<td>הזמן שקפיצה שומרת לעצמה לפני שהיא מעבירה תקציב הלאה</td>
+<td>15</td>
+</tr>
+<tr>
 <td>resource</td>
 <td>משאב</td>
 <td>דבר שיש לו כתובת ב־API, כמו פריט או אוסף פריטים</td>
-<td>9</td>
+<td>9 (22, 24)</td>
+</tr>
+<tr>
+<td>resource limit</td>
+<td>תקרת משאבים</td>
+<td>הכמות שה־kernel לא מרשה לקונטיינר לעבור</td>
+<td>21</td>
+</tr>
+<tr>
+<td>resource request</td>
+<td>בקשת משאבים</td>
+<td>הכמות שה־scheduler שומר ל־pod, והמכנה של ה־HPA</td>
+<td>21</td>
+</tr>
+<tr>
+<td>Restricted stock units</td>
+<td>RSU</td>
+<td>יחידות שהופכות למניות כשהן מבשילות; נפוצות בחברות ציבוריות</td>
+<td>34</td>
 </tr>
 <tr>
 <td>retry</td>
 <td>ניסיון חוזר</td>
 <td>הרצה מחדש של כל הטרנזקציה אחרי כשל זמני</td>
-<td>11</td>
+<td>11 (14, 15)</td>
+</tr>
+<tr>
+<td>retry budget</td>
+<td>תקציב ניסיונות</td>
+<td>גבול משותף על היחס בין ניסיונות חוזרים לבקשות</td>
+<td>15</td>
+</tr>
+<tr>
+<td>retry storm</td>
+<td>סערת ניסיונות חוזרים</td>
+<td>הכפלת עומס כשכמה שכבות מנסות שוב כל אחת בנפרד</td>
+<td>15</td>
+</tr>
+<tr>
+<td>reusable workflow</td>
+<td>workflow לשימוש חוזר</td>
+<td>‏workflow שלם שנקרא מ־workflow אחר דרך <code>workflow_call</code></td>
+<td>23</td>
+</tr>
+<tr>
+<td>reversibility</td>
+<td>הפיכות</td>
+<td>כמה קל לבטל שינוי אחרי שהגיע לייצור</td>
+<td>27</td>
+</tr>
+<tr>
+<td>rollback</td>
+<td>rollback</td>
+<td>חזרה לתבנית או ל־revision קודמים</td>
+<td>21</td>
+</tr>
+<tr>
+<td>rolling deploy</td>
+<td>פריסה מתגלגלת</td>
+<td>החלפת עותקים אחד אחד, כך שגרסאות רצות יחד</td>
+<td>30</td>
+</tr>
+<tr>
+<td>rolling update</td>
+<td>rolling update</td>
+<td>החלפה הדרגתית של pods לפי <code>maxSurge</code> ו־<code>maxUnavailable</code></td>
+<td>21</td>
+</tr>
+<tr>
+<td>rotation</td>
+<td>החלפת סודות</td>
+<td>הנפקת ערך חדש וביטול הישן, עם חפיפה ובלי השבתה</td>
+<td>28</td>
 </tr>
 <tr>
 <td>router (mux)</td>
@@ -630,10 +1998,58 @@
 <td>11</td>
 </tr>
 <tr>
+<td>runbook</td>
+<td>runbook</td>
+<td>מסמך שאומר למי שהתריעו לו מה לבדוק ומה לעשות</td>
+<td>25</td>
+</tr>
+<tr>
 <td>rune</td>
 <td>rune</td>
 <td>נקודת קוד אחת של Unicode</td>
 <td>3</td>
+</tr>
+<tr>
+<td>runner</td>
+<td>runner</td>
+<td>המכונה שמריצה job; ב־GitHub, מכונה חדשה לכל job</td>
+<td>23</td>
+</tr>
+<tr>
+<td>Ryuk</td>
+<td>‏Ryuk</td>
+<td>הקונטיינר של testcontainers שמוחק את הקונטיינרים כשתהליך הבדיקות מת</td>
+<td>26</td>
+</tr>
+<tr>
+<td>saga</td>
+<td>סאגה</td>
+<td>רצף טרנזקציות מקומיות עם פעולה מפצה לכל אחת</td>
+<td>18</td>
+</tr>
+<tr>
+<td>sampling</td>
+<td>דגימה</td>
+<td>שמירה של חלק מהמעקבים בלבד</td>
+<td>24</td>
+</tr>
+<tr>
+<td>saturation</td>
+<td>רוויה</td>
+<td>ניצולת שמתקרבת למלאה, וזמן התגובה עולה בחדות</td>
+<td>16</td>
+</tr>
+<tr>
+<td>SBOM</td>
+<td>רשימת רכיבי תוכנה</td>
+<td>רשימה תקנית של כל החבילות ב־image</td>
+<td>19</td>
+</tr>
+<tr>
+<td>scheduler</td>
+<td>מתזמן</td>
+<td>רכיב שמוסיף עבודות לפי לוח זמנים</td>
+<td>14</td>
 </tr>
 <tr>
 <td>Scope</td>
@@ -642,10 +2058,52 @@
 <td>1</td>
 </tr>
 <tr>
+<td>script injection</td>
+<td>הזרקת סקריפט</td>
+<td>ערך מבחוץ שהופך לקוד, כי ביטוי הודבק לתוך <code>run</code></td>
+<td>23</td>
+</tr>
+<tr>
+<td>seam</td>
+<td>תפר</td>
+<td>מקום אחד בקוד שבו אפשר להחליט לאן בקשה הולכת</td>
+<td>30</td>
+</tr>
+<tr>
+<td>second language (in a team)</td>
+<td>שפה שנייה</td>
+<td>שפה נוספת בצוות, עם המחיר של סקירה, תורנות, צנרת וגיוס</td>
+<td>33</td>
+</tr>
+<tr>
+<td>Secret</td>
+<td>Secret</td>
+<td>האובייקט לסודות; base64 בלבד, בלי הצפנה מעצמו</td>
+<td>20 (28)</td>
+</tr>
+<tr>
+<td>seed corpus</td>
+<td>זרעים</td>
+<td>הקלטים שה־fuzzer מתחיל מהם, ורצים בכל <code>go test</code></td>
+<td>26</td>
+</tr>
+<tr>
 <td>selectivity</td>
 <td>סלקטיביות</td>
 <td>איזה חלק מהשורות עובר תנאי; קובעת אם אינדקס משתלם</td>
 <td>10</td>
+</tr>
+<tr>
+<td>semantic conventions</td>
+<td>מוסכמות</td>
+<td>שמות התכונות והמדדים המוסכמים של OpenTelemetry</td>
+<td>24</td>
+</tr>
+<tr>
+<td>Send, Sync</td>
+<td>‏Send ו־Sync</td>
+<td>התכונות ב־Rust שאומרות אם ערך יכול לעבור בין threads או להיות משותף ביניהם</td>
+<td>33</td>
 </tr>
 <tr>
 <td>Senior</td>
@@ -672,10 +2130,82 @@
 <td>11</td>
 </tr>
 <tr>
+<td>Server Side Request Forgery</td>
+<td>SSRF</td>
+<td>השירות מבקש כתובת שהתוקפת בחרה ומגיע לרשת הפנימית</td>
+<td>28</td>
+</tr>
+<tr>
+<td>server-side apply</td>
+<td>server-side apply</td>
+<td>החלה שבה השרת מנהל בעלות על שדות</td>
+<td>21</td>
+</tr>
+<tr>
+<td>Service</td>
+<td>Service</td>
+<td>שם ו־IP יציבים מול קבוצת pods מוכנים</td>
+<td>20</td>
+</tr>
+<tr>
+<td>service container</td>
+<td>service container</td>
+<td>קונטיינר שה־runner מפעיל לצד job, כמו מסד לבדיקות</td>
+<td>23</td>
+</tr>
+<tr>
+<td>session stickiness</td>
+<td>הדבקה לסשן</td>
+<td>חלון אחרי כתיבה שבו המשתמשת קוראת מהראשי</td>
+<td>17</td>
+</tr>
+<tr>
+<td>session-level lock</td>
+<td>נעילת סשן</td>
+<td>נעילה שחיה עד שחרור מפורש או סוף הסשן</td>
+<td>18</td>
+</tr>
+<tr>
+<td>severity label</td>
+<td>תווית חומרה</td>
+<td>מילה בתחילת הערה שאומרת אם היא חוסמת, הצעה או שאלה</td>
+<td>27</td>
+</tr>
+<tr>
+<td>SHA pinning</td>
+<td>הצמדה ל־SHA</td>
+<td>‏<code>uses</code> עם commit מלא במקום תגית, כדי שהקוד לא ישתנה</td>
+<td>23</td>
+</tr>
+<tr>
 <td>Shell</td>
 <td>מעטפת</td>
 <td>התוכנית שקוראת פקודות ומריצה אותן; ב־Ubuntu זו bash</td>
 <td>2</td>
+</tr>
+<tr>
+<td>shrinking</td>
+<td>הקטנה</td>
+<td>צמצום קלט שנכשל לדוגמה הקטנה ביותר שעדיין נכשלת</td>
+<td>26</td>
+</tr>
+<tr>
+<td>signal</td>
+<td>אות</td>
+<td>אחד משלושת סוגי הטלמטריה: מדד, לוג, מעקב</td>
+<td>24</td>
+</tr>
+<tr>
+<td>silent behavior change</td>
+<td>שינוי התנהגות שקט</td>
+<td>שינוי במה שהקוד עושה שלא הוזכר בתיאור</td>
+<td>32</td>
+</tr>
+<tr>
+<td>simpler alternative</td>
+<td>חלופה פשוטה</td>
+<td>הפתרון הקל יותר שנשקל ונדחה, יחד עם הסיבה</td>
+<td>37</td>
 </tr>
 <tr>
 <td>singleflight</td>
@@ -684,22 +2214,70 @@
 <td>12</td>
 </tr>
 <tr>
+<td>Situation, Task, Action, Result</td>
+<td>STAR</td>
+<td>מבנה לסיפור: מצב, משימה, פעולה, תוצאה</td>
+<td>34</td>
+</tr>
+<tr>
+<td>SLA</td>
+<td>הסכם רמת שירות</td>
+<td>חוזה עם לקוח, רופף מה־SLO ועם פיצוי</td>
+<td>25</td>
+</tr>
+<tr>
+<td>SLI</td>
+<td>מדד רמת שירות</td>
+<td>יחס האירועים הטובים מתוך התקפים, כפי שהמשתמש חווה</td>
+<td>25</td>
+</tr>
+<tr>
 <td>slice header</td>
 <td>כותרת slice</td>
 <td>מצביע, אורך וקיבולת; זה מה שמועתק</td>
 <td>3</td>
 </tr>
 <tr>
+<td>SLO</td>
+<td>יעד רמת שירות</td>
+<td>יעד ל־SLI לאורך חלון זמן</td>
+<td>25</td>
+</tr>
+<tr>
 <td>Smoke test</td>
 <td>בדיקת עשן</td>
 <td>בדיקה קטנה שמוכיחה שהשרשרת כולה עובדת</td>
-<td>2</td>
+<td>2 (23)</td>
 </tr>
 <tr>
 <td>snapshot</td>
 <td>תמונת מצב</td>
 <td>רשימת הטרנזקציות שאושרו מבחינת פקודה או טרנזקציה, שקובעת איזו גרסת שורה היא רואה</td>
 <td>11</td>
+</tr>
+<tr>
+<td>Software Bill of Materials</td>
+<td>SBOM</td>
+<td>רשימת כל הרכיבים והגרסאות שנכנסו לתוכנה</td>
+<td>28</td>
+</tr>
+<tr>
+<td>span</td>
+<td>span</td>
+<td>פעולה אחת במעקב, עם התחלה, סוף, הורה ותכונות</td>
+<td>24</td>
+</tr>
+<tr>
+<td>spec</td>
+<td>מפרט</td>
+<td>תיאור של מה לבנות, כולל הקצוות ומה נחשב גמור</td>
+<td>32</td>
+</tr>
+<tr>
+<td>spike</td>
+<td>בדיקה קצרה</td>
+<td>עבודה מוגבלת בזמן שנועדה לצמצם נעלם, לא לייצר קוד לייצור</td>
+<td>31</td>
 </tr>
 <tr>
 <td>src layout</td>
@@ -714,10 +2292,58 @@
 <td>2</td>
 </tr>
 <tr>
+<td>stabilization window</td>
+<td>חלון ייצוב</td>
+<td>זמן שהמלצה נמוכה צריכה להחזיק לפני הקטנה</td>
+<td>21</td>
+</tr>
+<tr>
+<td>startup probe</td>
+<td>בדיקת הפעלה</td>
+<td>מגינה על שירות שעולה לאט עד שסיים לעלות</td>
+<td>20</td>
+</tr>
+<tr>
+<td>state</td>
+<td>state</td>
+<td>הקישור בין כתובות בתצורה לאובייקטים אמיתיים</td>
+<td>22</td>
+</tr>
+<tr>
 <td>static analysis</td>
 <td>ניתוח סטטי</td>
 <td>בדיקת קוד בלי להריץ אותו</td>
-<td>3</td>
+<td>3 (27, 32)</td>
+</tr>
+<tr>
+<td>status update</td>
+<td>עדכון סטטוס</td>
+<td>טקסט קצר שמתחיל במצב, בתאריך ובסיכון</td>
+<td>31</td>
+</tr>
+<tr>
+<td>step</td>
+<td>step</td>
+<td>פקודת shell או שימוש ב־action, בתוך job</td>
+<td>23</td>
+</tr>
+<tr>
+<td>Stock options</td>
+<td>אופציות</td>
+<td>זכות לקנות מניה במחיר מימוש קבוע; ערכן תלוי באירוע מכירה או הנפקה</td>
+<td>34</td>
+</tr>
+<tr>
+<td>strangler fig</td>
+<td>תאנה חונקת</td>
+<td>הגירה הדרגתית סביב השולים של המערכת הישנה</td>
+<td>30</td>
+</tr>
+<tr>
+<td>streaming replication</td>
+<td>שכפול זורם</td>
+<td>‏WAL שנשלח מהראשי למשני בזמן שהוא נכתב</td>
+<td>17</td>
 </tr>
 <tr>
 <td>structural typing</td>
@@ -738,6 +2364,24 @@
 <td>6</td>
 </tr>
 <tr>
+<td>structured metadata</td>
+<td>מטא־נתונים מובנים</td>
+<td>שדות על כל שורה ב־Loki שאינם באינדקס</td>
+<td>24</td>
+</tr>
+<tr>
+<td>symbol</td>
+<td>סמל</td>
+<td>פונקציה או מתודה בשמה המלא, כמו שמאגר החולשות מתעד אותה</td>
+<td>27</td>
+</tr>
+<tr>
+<td>synchronous replication</td>
+<td>שכפול סינכרוני</td>
+<td>אישור כתיבה רק אחרי שהעותק קיבל אותה</td>
+<td>29</td>
+</tr>
+<tr>
 <td>System design</td>
 <td>תכנון מערכות</td>
 <td>ראיון שבו מתכננים מערכת שלמה בקול, עם החלופות והמחירים</td>
@@ -750,10 +2394,94 @@
 <td>2 (3)</td>
 </tr>
 <tr>
+<td>tag</td>
+<td>תגית</td>
+<td>שם שמצביע על image, ואפשר להזיז אותו</td>
+<td>19</td>
+</tr>
+<tr>
+<td>tail latency (p99)</td>
+<td>זמן התגובה בזנב</td>
+<td>זמן התגובה של הבקשות האיטיות, שם מורגשות עצירות של GC</td>
+<td>33</td>
+</tr>
+<tr>
+<td>target</td>
+<td>יעד</td>
+<td>מספר שמכוונים אליו ומודדים מולו, ולא תוצאה שכבר נמדדה</td>
+<td>37</td>
+</tr>
+<tr>
 <td>task</td>
 <td>משימה</td>
 <td>coroutine שנמסרה ללולאה ומתוזמנת</td>
 <td>8</td>
+</tr>
+<tr>
+<td>technical debt</td>
+<td>חוב טכני</td>
+<td>מבנה שמייקר כל שינוי עתידי עד שמתקנים אותו</td>
+<td>30</td>
+</tr>
+<tr>
+<td>tenant</td>
+<td>דיירת</td>
+<td>לקוחה של המערכת שמשאביה מבודדים משל לקוחות אחרות</td>
+<td>37</td>
+</tr>
+<tr>
+<td>term</td>
+<td>תקופה</td>
+<td>מספר של כהונת מנהיג; עולה בכל בחירה</td>
+<td>18</td>
+</tr>
+<tr>
+<td>test data builder</td>
+<td>בונה נתונים לבדיקות</td>
+<td>ערכי ברירת מחדל תקינים ומתודה לכל שדה שבדיקה משנה</td>
+<td>26</td>
+</tr>
+<tr>
+<td>test pyramid</td>
+<td>פירמידת בדיקות</td>
+<td>הרבה בדיקות יחידה, מעט בדיקות קצה לקצה, לפי מחיר</td>
+<td>26</td>
+</tr>
+<tr>
+<td>testing trophy</td>
+<td>גביע הבדיקות</td>
+<td>הדגש על אינטגרציה, לפי ביטחון</td>
+<td>26</td>
+</tr>
+<tr>
+<td>threat model</td>
+<td>מודל איומים</td>
+<td>מסמך שאומר מה בונים, מה יכול להשתבש ומה עושים לגבי זה</td>
+<td>28</td>
+</tr>
+<tr>
+<td>threshold</td>
+<td>סף</td>
+<td>תנאי על מדד ב־k6, שכשלונו נותן קוד יציאה שאינו אפס</td>
+<td>26</td>
+</tr>
+<tr>
+<td>ticket</td>
+<td>כרטיס</td>
+<td>התראה שמטופלת בשעות העבודה</td>
+<td>25</td>
+</tr>
+<tr>
+<td>time budget</td>
+<td>תקציב זמן</td>
+<td>הזמן שנשאר לבקשה, שעובר מקפיצה לקפיצה</td>
+<td>15</td>
+</tr>
+<tr>
+<td>Time to live</td>
+<td>זמן חיים (TTL)</td>
+<td>כמה זמן ערך במטמון נחשב תקף</td>
+<td>35</td>
 </tr>
 <tr>
 <td>time to live (TTL)</td>
@@ -765,19 +2493,73 @@
 <td>timeout</td>
 <td>זמן קצוב</td>
 <td>כמה זמן מחכים לפעולה אחת לפני שמוותרים</td>
-<td>5 (8)</td>
+<td>5 (8, 15)</td>
+</tr>
+<tr>
+<td>token bucket</td>
+<td>דלי אסימונים</td>
+<td>דלי שמתמלא בקצב קבוע; כל בקשה לוקחת אסימון</td>
+<td>16 (35)</td>
 </tr>
 <tr>
 <td>tolerant reader</td>
 <td>קורא סובלני</td>
 <td>לקוח שמתעלם משדות שהוא לא מכיר</td>
-<td>9</td>
+<td>9 (30)</td>
+</tr>
+<tr>
+<td>topic</td>
+<td>topic</td>
+<td>יומן עם שם, מחולק למחיצות</td>
+<td>13</td>
+</tr>
+<tr>
+<td>Total compensation</td>
+<td>שווי כולל</td>
+<td>בסיס, בונוס ומניות יחד, לשנה</td>
+<td>34</td>
+</tr>
+<tr>
+<td>trace</td>
+<td>מעקב</td>
+<td>עץ ה־spans של בקשה אחת דרך כל השירותים</td>
+<td>24</td>
+</tr>
+<tr>
+<td>trace context</td>
+<td>הקשר מעקב</td>
+<td>מזהה המעקב וה־span הנוכחי, שעוברים בין שירותים</td>
+<td>24</td>
+</tr>
+<tr>
+<td>trace ID</td>
+<td>מזהה מעקב</td>
+<td>16 בתים שכל ה־spans והלוגים של בקשה חולקים</td>
+<td>24</td>
+</tr>
+<tr>
+<td>trait</td>
+<td>‏trait</td>
+<td>ב־Rust, הגדרה של התנהגות עם מימוש מפורש; המקבילה הקרובה של ממשק</td>
+<td>33</td>
 </tr>
 <tr>
 <td>transaction</td>
 <td>טרנזקציה</td>
 <td>קבוצת פקודות שמאושרת או מתבטלת כיחידה אחת</td>
 <td>11</td>
+</tr>
+<tr>
+<td>transient failure</td>
+<td>כישלון זמני</td>
+<td>כישלון שעשוי לעבור לבד, כמו זמן קצוב או 503</td>
+<td>14</td>
+</tr>
+<tr>
+<td>trust boundary</td>
+<td>גבול אמון</td>
+<td>המקום שבו נתונים עוברים מצד פחות אמין לצד אמין יותר</td>
+<td>28</td>
 </tr>
 <tr>
 <td>type hints</td>
@@ -792,10 +2574,46 @@
 <td>4</td>
 </tr>
 <tr>
+<td>unit test</td>
+<td>בדיקת יחידה</td>
+<td>בדיקה של פונקציה או חבילה, בלי שום דבר מחוץ לתהליך</td>
+<td>26</td>
+</tr>
+<tr>
+<td>USE</td>
+<td>USE</td>
+<td>ניצולת, רוויה ושגיאות: המדדים של משאב</td>
+<td>24</td>
+</tr>
+<tr>
+<td>utilization</td>
+<td>ניצולת</td>
+<td>החלק מהזמן שבו השרת עסוק</td>
+<td>16</td>
+</tr>
+<tr>
 <td>validation</td>
 <td>בדיקת תקינות</td>
 <td>בדיקה בזמן ריצה שקלט מתאים למודל</td>
 <td>7</td>
+</tr>
+<tr>
+<td>values</td>
+<td>values</td>
+<td>הערכים שממלאים את התבניות בהתקנה</td>
+<td>21</td>
+</tr>
+<tr>
+<td>variable</td>
+<td>משתנה</td>
+<td>קלט של תצורה או מודול</td>
+<td>22</td>
+</tr>
+<tr>
+<td>Vesting</td>
+<td>הבשלה</td>
+<td>הלוח שלפיו המניות או האופציות נעשות שלך לאורך זמן</td>
+<td>34</td>
 </tr>
 <tr>
 <td>Virtual environment</td>
@@ -810,6 +2628,18 @@
 <td>10</td>
 </tr>
 <tr>
+<td>vulnerability scanner</td>
+<td>סורק פגיעויות</td>
+<td>כלי שמצליב את חבילות ה־image מול מאגרי פגיעויות</td>
+<td>19</td>
+</tr>
+<tr>
+<td>warm-up</td>
+<td>חימום</td>
+<td>פרק זמן בתחילת בדיקה שאינו נכלל בספים</td>
+<td>26</td>
+</tr>
+<tr>
 <td>webhook receiver</td>
 <td>מקבל webhooks</td>
 <td>שירות שמקבל אירועים חתומים בבקשות HTTP</td>
@@ -822,10 +2652,22 @@
 <td>1</td>
 </tr>
 <tr>
+<td>work breakdown</td>
+<td>פירוק עבודה</td>
+<td>חלוקה למשימות קטנות שכל אחת נגמרת בתוצאה שאפשר לבדוק</td>
+<td>31</td>
+</tr>
+<tr>
 <td>worker pool</td>
 <td>worker pool</td>
 <td>מספר קבוע של goroutines שקוראות עבודה מאותו channel</td>
 <td>5</td>
+</tr>
+<tr>
+<td>workflow</td>
+<td>workflow</td>
+<td>קובץ YAML עם טריגרים ו־jobs, ב־<code>.github/workflows</code></td>
+<td>23</td>
 </tr>
 <tr>
 <td>wrapping</td>
@@ -854,7 +2696,7 @@
 </tbody>
 </table>
 </main>
-<nav class="bottom"><a href="index.html">תוכן העניינים</a> · <a href="TERMINOLOGY.html">← Terminology policy (book 2)</a></nav>
+<nav class="bottom"><a href="index.html">תוכן העניינים</a> · <a href="TERMINOLOGY.html">← Terminology policy (book 2)</a> · <a href="f-daily-schedule.html">נספח ו: לוח הלימוד היומי →</a></nav>
 <script type="module">
   // Render ```mermaid blocks in the browser (needs internet once; cached afterwards).
   const blocks = document.querySelectorAll("pre > code.language-mermaid");

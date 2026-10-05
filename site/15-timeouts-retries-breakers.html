@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>פרק 15: זמנים קצובים, ניסיונות חוזרים ומפסקי זרם</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="top"><a href="index.html">תוכן העניינים</a> · <a href="14-background-jobs.html">← פרק 14: עבודות רקע וניסיונות חוזרים</a> · <a href="16-overload-rate-limiting.html">פרק 16: עומס: הגבלת קצב, לחץ חוזר והשלת עומס →</a></nav>
+<main class="book">
+<div class="toc"><span class="toctitle">תוכן הפרק</span><ul>
+<li><a href="#_1">מה נלמד בפרק</a></li>
+<li><a href="#_2">ידע מקדים</a></li>
+<li><a href="#151">15.1 כשל חלקי</a></li>
+<li><a href="#152">15.2 זמנים קצובים ותקציב זמן לאורך השרשרת</a><ul>
+<li><a href="#1521">15.2.1 כל קריאה צריכה גבול</a></li>
+<li><a href="#1522">15.2.2 השרת קורא את התקציב</a></li>
+<li><a href="#1523">15.2.3 הקפיצה מעבירה פחות ממה שקיבלה</a></li>
+<li><a href="#1524">15.2.4 המעבדה: עם העברת תקציב ובלעדיה</a></li>
+</ul>
+</li>
+<li><a href="#153-jitter">15.3 ניסיון חוזר עם jitter ותקציב ניסיונות</a><ul>
+<li><a href="#1531">15.3.1 מתי לנסות שוב</a></li>
+<li><a href="#1532">15.3.2 המתנה גדלה מעריכית עם פיזור אקראי</a></li>
+<li><a href="#1533">15.3.3 הלולאה, בתוך גבול הזמן</a></li>
+<li><a href="#1534">15.3.4 תקציב ניסיונות</a></li>
+</ul>
+</li>
+<li><a href="#154">15.4 סערת ניסיונות חוזרים</a><ul>
+<li><a href="#1541">15.4.1 החשבון</a></li>
+<li><a href="#1542">15.4.2 המעבדה</a></li>
+<li><a href="#1543">15.4.3 שלושה כללים</a></li>
+</ul>
+</li>
+<li><a href="#155">15.5 מפסק זרם</a><ul>
+<li><a href="#1551">15.5.1 שלושה מצבים</a></li>
+<li><a href="#1552">15.5.2 המימוש, עם שעון מוזרק</a></li>
+<li><a href="#1553">15.5.3 מול ספרייה מוכנה</a></li>
+<li><a href="#1554">15.5.4 המעבדה</a></li>
+</ul>
+</li>
+<li><a href="#156-bulkheads">15.6 מחיצות אטומות (bulkheads)</a><ul>
+<li><a href="#1561">15.6.1 מה המחיצה מבודדת</a></li>
+<li><a href="#1562">15.6.2 הסדר בתוך ניסיון</a></li>
+<li><a href="#1563">15.6.3 המעבדה</a></li>
+</ul>
+</li>
+<li><a href="#157">15.7 הידרדרות מכובדת</a></li>
+<li><a href="#_3">סיכום</a></li>
+<li><a href="#_4">מונחים לזכור</a></li>
+<li><a href="#_5">טעויות נפוצות</a></li>
+<li><a href="#_6">שאלות ראיון</a></li>
+<li><a href="#obsidian">פתק Obsidian</a></li>
+<li><a href="#_7">תרגיל</a></li>
+<li><a href="#_8">העשרה אופציונלית</a></li>
+</ul>
+</div>
+
+<h1 id="15">פרק 15: זמנים קצובים, ניסיונות חוזרים ומפסקי זרם</h1>
+<p>שירות שקורא לשירות אחר יכול להיכשל בדרכים שלא קיימות בתוך תהליך אחד: התשובה מתעכבת, מגיעה חלקית, או לא
+מגיעה בכלל, ואת לא יודעת אם הפעולה בוצעה. הפרק הזה בונה את ארגז הכלים שמונע מכשל כזה להתפשט: זמן קצוב
+שעובר לאורך השרשרת, ניסיונות חוזרים שלא מכפילים עומס, מפסק זרם, מחיצות אטומות והידרדרות מכובדת. כל רעיון
+מודגם במעבדה קטנה, ואת המספרים את מודדת ורושמת בעצמך. אלה בדיוק השאלות ששואלים בראיון תכנון מערכות.</p>
+<h2 id="_1">מה נלמד בפרק</h2>
+<ul>
+<li>מה זה כשל חלקי, ולמה „לא ענה” שונה מ„נכשל”.</li>
+<li>איך תקציב זמן עובר משירות לשירות, ולמה כל קפיצה מקבלת פחות מזה שקראה לה.</li>
+<li>ניסיון חוזר עם המתנה גדלה מעריכית ופיזור אקראי, ותקציב ניסיונות שמגביל אותם.</li>
+<li>איך שלוש שכבות של שלושה ניסיונות הופכות בקשה אחת לעשרים ושבע.</li>
+<li>מפסק זרם עם שלושה מצבים, כתוב מאפס עם שעון מוזרק ונבדק, ומה ספרייה מוכנה נותנת.</li>
+<li>מחיצה אטומה לכל תלות, והידרדרות מכובדת: ערך ישן, ברירת מחדל, ותכונה כבויה.</li>
+</ul>
+<h2 id="_2">ידע מקדים</h2>
+<ul>
+<li>פרק 5, סעיף 5.4: ביטול וגבול זמן כולל ב־context, ושתי הדרכים לשאול למה הוא בוטל.</li>
+<li>פרק 5, סעיפים 5.5 ו־5.8: נעילות, המתנה ל־goroutines, ובדיקת מרוצים עם <code>-race</code>.</li>
+<li>פרק 6, סעיפים 6.2 ו־6.6: middleware, ו־<code>httptest</code> לבדיקות שרת.</li>
+<li>פרק 14, סעיף 14.3: המתנה גדלה ו־jitter לעבודות רקע. כאן אותו רעיון עובר לקריאה מסונכרנת, עם גבול זמן.</li>
+<li>התרגיל לא מייבא קוד מתרגילים קודמים: כל החבילות שלו כתובות בתוכו.</li>
+</ul>
+<h2 id="151">15.1 כשל חלקי</h2>
+<p>בתוך תהליך אחד, קריאה לפונקציה מצליחה או זורקת שגיאה, ואת יודעת איזה מהשניים קרה. בין שני תהליכים
+ברשת יש מצב שלישי: לא הגיעה תשובה. זה <strong>כשל חלקי (partial failure)</strong>: חלק מהמערכת תקין, חלק לא, ומבחוץ
+אי אפשר להבחין בין האפשרויות האלה:</p>
+<table>
+<thead>
+<tr>
+<th>מה קרה באמת</th>
+<th>מה הקוראת רואה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>הבקשה לא הגיעה לשרת</td>
+<td>אין תשובה</td>
+</tr>
+<tr>
+<td>השרת קיבל, ונפל באמצע</td>
+<td>אין תשובה</td>
+</tr>
+<tr>
+<td>השרת סיים, והתשובה אבדה בדרך</td>
+<td>אין תשובה</td>
+</tr>
+<tr>
+<td>השרת עדיין עובד, לאט</td>
+<td>אין תשובה, בינתיים</td>
+</tr>
+</tbody>
+</table>
+<p>המשמעות המעשית: „לא ענה” אינו „נכשל”. ייתכן שההזמנה נרשמה, ייתכן שהכסף ירד. לכן ניסיון חוזר בטוח רק לפעולה
+אידמפוטנטית (idempotent): פעולה שאפשר לחזור עליה בלי נזק, או שנושאת מפתח אידמפוטנטיות (פרק 9). כל המנגנונים
+בפרק מניחים את זה.</p>
+<p>הסכנה השנייה היא שכשל חלקי מתפשט. שירות איטי לא נכשל מהר; הוא מחזיק את הקוראות שלו. כל בקשה שמחכה תופסת
+goroutine, חיבור וזיכרון, והקוראת שלה מחכה גם היא. בלי גבולות, תלות אחת איטית מקפיאה את כל השרשרת. המנגנונים
+של הפרק הם גבולות:</p>
+<table>
+<thead>
+<tr>
+<th>מנגנון</th>
+<th>הגבול שהוא שם</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>זמן קצוב (timeout) וגבול זמן כולל (deadline)</td>
+<td>כמה זמן מחכים</td>
+</tr>
+<tr>
+<td>ניסיון חוזר (retry) עם תקציב</td>
+<td>כמה פעמים מנסים שוב, ובאיזה קצב</td>
+</tr>
+<tr>
+<td>מפסק זרם (circuit breaker)</td>
+<td>מתי מפסיקים לנסות בכלל</td>
+</tr>
+<tr>
+<td>מחיצה אטומה (bulkhead)</td>
+<td>כמה מהמשאבים שלך תלות אחת יכולה לתפוס</td>
+</tr>
+<tr>
+<td>הידרדרות מכובדת (graceful degradation)</td>
+<td>מה עונים כשהתלות לא זמינה</td>
+</tr>
+</tbody>
+</table>
+<p>התרגיל מדמה את כל אלה בתהליך אחד. בחבילה <code>flaky</code> יש שרת שמשתבש בכוונה: כל בקשה מחכה זמן קבוע, ואחר כך
+נכשלת ב־503 בהסתברות שנקבעת מראש. הוא גם סופר מה קרה לכל בקשה, ובמיוחד בקשות <strong>נטושות</strong>: כאלה שהקוראת
+ויתרה עליהן בזמן שהשרת עוד עבד. כך זה נראה, בקובץ <code>flaky/flaky.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    if latency &gt; 0 {
+        t := time.NewTimer(latency)
+        defer t.Stop()
+        select {
+        case &lt;-t.C:
+        case &lt;-r.Context().Done():
+            s.abandoned.Add(1) // nobody is waiting for this answer any more
+            return
+        }
+    }
+</code></pre>
+
+
+</div>
+
+<p>ה־context של בקשת שרת מתבטל כשהלקוח מתנתק, כמו שראית בפרק 5. שרת שמקשיב לביטול מפסיק לעבוד בשביל אף אחד.
+שרת שלא מקשיב ממשיך לשרוף זמן מעבד על תשובה שאיש לא יקרא. המונה הזה יראה לך את ההבדל בסעיף הבא.</p>
+<h2 id="152">15.2 זמנים קצובים ותקציב זמן לאורך השרשרת</h2>
+<h3 id="1521">15.2.1 כל קריאה צריכה גבול</h3>
+<p>לקוח HTTP בלי זמן קצוב ובלי גבול ב־context מחכה לנצח. זמן קצוב הוא הגבול הראשון, והוא חובה
+בכל קריאה ברשת. אבל זמן קצוב לכל קפיצה בנפרד לא מספיק. נניח משתמשת שמחכה 300 מילישניות לשירות, שקורא לשירות
+שני, שקורא לשלישי:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-mermaid">flowchart LR
+  U[client 300ms] --&gt; A[hop A] --&gt; B[hop B] --&gt; C[hop C] --&gt; UP[upstream]
+</code></pre>
+
+
+</div>
+
+<p>אם לכל קפיצה יש זמן קצוב קבוע של 2 שניות, הלקוחה מוותרת אחרי 300 מילישניות, אבל שלושת השירותים
+ממשיכים לחכות עוד שנייה וחצי. כל העבודה הזאת הולכת לפח. יותר מזה: אם הלקוחה מנסה שוב, עכשיו רצות שתי בקשות
+במקביל במורד השרשרת, ואחת מהן יתומה.</p>
+<p>הפתרון הוא <strong>תקציב זמן (time budget)</strong> אחד לכל הבקשה, שעובר לאורך השרשרת. בתוך תהליך Go הוא כבר קיים:
+גבול הזמן הכולל של context עובר לכל פונקציה שמקבלת אותו. אבל context לא חוצה רשת. צריך לשלוח את מה שנשאר
+בכותרת, ולהפוך אותו בצד השני חזרה לגבול זמן. כך עושה gRPC, עם הכותרת <code>grpc-timeout</code>. ב־HTTP אין כותרת
+תקנית, והתרגיל משתמש ב־<code>X-Timeout-Ms</code>.</p>
+<h3 id="1522">15.2.2 השרת קורא את התקציב</h3>
+<p>ה־middleware בקובץ <code>deadline/deadline.go</code> קורא את הכותרת ויוצר ממנה גבול זמן. הוא לא סומך על הקוראת
+לגמרי: תקציב גדול מהמקסימום של השירות נחתך, וכותרת חסרה או משובשת מקבלת את המקסימום.</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func Middleware(max time.Duration, next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        budget := max
+        if ms, err := strconv.ParseInt(r.Header.Get(Header), 10, 64); err == nil &amp;&amp; ms &gt; 0 {
+            budget = min(budget, time.Duration(ms)*time.Millisecond)
+        }
+        ctx, cancel := context.WithTimeout(r.Context(), budget)
+        defer cancel()
+        next.ServeHTTP(w, r.WithContext(ctx))
+    })
+}
+</code></pre>
+
+
+</div>
+
+<p>שימי לב שה־context החדש נגזר מ־<code>r.Context()</code>. כך שני הגבולות פועלים יחד: התקציב שבכותרת, וניתוק של הלקוחה.</p>
+<h3 id="1523">15.2.3 הקפיצה מעבירה פחות ממה שקיבלה</h3>
+<p>לפני קריאה במורד הזרם, השירות שומר לעצמו <strong>רזרבה</strong>: זמן לטפל בתשובה, או בכשל, ולענות. אם הקפיצה הראשונה מעבירה
+לשנייה את כל מה שנשאר לה, והשנייה משתמשת בכל התקציב, הלקוחה של הראשונה מקבלת ניתוק במקום תשובה מסודרת. מאותו קובץ:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func Downstream(ctx context.Context, reserve time.Duration) (context.Context, context.CancelFunc, error) {
+    dl, ok := ctx.Deadline()
+    if !ok {
+        return ctx, func() {}, nil
+    }
+    if time.Until(dl) &lt;= reserve {
+        return ctx, func() {}, ErrNoBudget
+    }
+    ctx, cancel := context.WithDeadline(ctx, dl.Add(-reserve))
+    return ctx, cancel, nil
+}
+</code></pre>
+
+
+</div>
+
+<p>שתי החלטות בקוד הזה:</p>
+<ul>
+<li><strong>לא מתחילים קריאה חסרת סיכוי.</strong> אם נשאר פחות מהרזרבה, הפונקציה מחזירה שגיאה מיד, והשירות עונה 504 בלי
+  לשלוח כלום. קריאה שתיחתך באמצע רק מעמיסה על הצד השני.</li>
+<li><strong>הגבול מוחלט, לא יחסי.</strong> הפונקציה עובדת עם נקודת זמן, <code>dl</code>, ולא עם משך. זמן שעבר בתור, בפענוח או
+  בניסיון קודם כבר ירד מהתקציב, בלי שום חישוב נוסף.</li>
+</ul>
+<p>והשליחה עצמה, באותו קובץ, ממירה את הזמן שנשאר בחזרה לכותרת:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func Inject(req *http.Request) {
+    dl, ok := req.Context().Deadline()
+    if !ok {
+        return
+    }
+    ms := max(time.Until(dl).Milliseconds(), 1)
+    req.Header.Set(Header, strconv.FormatInt(ms, 10))
+}
+</code></pre>
+
+
+</div>
+
+<p>כל קפיצה מקבלת תקציב קטן מזה של הקוראת שלה, בגודל הרזרבה. זה מה שהמשפט „כל קפיצה צריכה זמן קצוב קטן
+מהקוראת שלה” אומר בפועל.</p>
+<blockquote>
+<p><strong>שימי לב:</strong> כותרת מבחוץ היא קלט. שירות שפונה לאינטרנט חותך אותה למקסימום שלו, כמו ה־middleware כאן, אחרת
+לקוחה יכולה לבקש ממנו לחכות שעה.</p>
+</blockquote>
+<h3 id="1524">15.2.4 המעבדה: עם העברת תקציב ובלעדיה</h3>
+<p>התרחיש <code>deadline</code> במעבדה שולח עשר בקשות במקביל עם תקציב של 300 מילישניות, דרך שלוש קפיצות, לשרת שעונה
+אחרי שנייה. פעם אחת לכל קפיצה זמן קצוב קבוע של 2 שניות על context חדש, ופעם שנייה התקציב עובר:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">go run ./cmd/lab -scenario deadline
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">== deadline: 10 concurrent requests, client budget 300ms, upstream latency 1s
+config                    client errors  client waited  upstream received  upstream finished  upstream abandoned
+fixed 2s timeout per hop  ___            ___            ___                ___                ___
+budget propagated         ___            ___            ___                ___                ___
+</code></pre>
+
+
+</div>
+
+<p>מלאי את השורות מההרצה שלך. מה לחפש: בשתי השורות הלקוחה נכשלת אחרי כ־300 מילישניות, כי שום מנגנון לא הופך
+שרת של שנייה למהיר. ההבדל הוא בעמודות של השרת. בשורה הראשונה הוא מסיים עבודה שאיש לא מחכה לה; בשנייה הוא
+נוטש אותה ומתפנה.</p>
+<h2 id="153-jitter">15.3 ניסיון חוזר עם jitter ותקציב ניסיונות</h2>
+<h3 id="1531">15.3.1 מתי לנסות שוב</h3>
+<p>ניסיון חוזר מתאים לכשל <strong>זמני</strong>: 503, ‏429, ניתוק, זמן קצוב. הוא לא מתאים לכשל שיחזור בכל ניסיון:
+400, ‏404, הרשאה חסרה. ויש כשל שלישי, שקל לפספס: סירוב <strong>שלך</strong>. מפסק זרם פתוח או מחיצה מלאה יסרבו שוב בעוד
+מילישנייה, ולכן הפונקציה <code>Retryable</code> בקובץ <code>hop/hop.go</code> לא מנסה אותם שוב:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func Retryable(err error) bool {
+    switch {
+    case errors.Is(err, breaker.ErrOpen), errors.Is(err, breaker.ErrTooManyProbes),
+        errors.Is(err, bulkhead.ErrFull), errors.Is(err, context.DeadlineExceeded),
+        errors.Is(err, context.Canceled):
+        return false
+    }
+    return true
+}
+</code></pre>
+
+
+</div>
+
+<h3 id="1532">15.3.2 המתנה גדלה מעריכית עם פיזור אקראי</h3>
+<p>אם אלף לקוחות נכשלים באותו רגע ומנסים שוב אחרי 100 מילישניות בדיוק, הם מגיעים שוב באותו רגע, וחוזר
+חלילה. <strong>המתנה גדלה מעריכית (exponential backoff)</strong> מכפילה את ההמתנה בכל ניסיון. <strong>פיזור אקראי (jitter)</strong>
+מגריל את ההמתנה בפועל, כדי שהלקוחות יתפזרו בזמן. הצורה שנקראת full jitter מגרילה בין אפס לתקרה. המקור הוא
+מאמר של Brooker מ־2015 (הפרטים בהעשרה האופציונלית), והנוסחה שבו היא:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">sleep = random(0, min(cap, base * 2^attempt))
+</code></pre>
+
+
+</div>
+
+<p>המימוש בקובץ <code>retry/retry.go</code> סופר ניסיונות חוזרים מ־1, ולכן המעריך הוא <code>n-1</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func Backoff(n int, base, cap time.Duration, rnd func(int64) int64) time.Duration {
+    if n &lt; 1 || base &lt;= 0 || cap &lt;= 0 {
+        return 0
+    }
+    ceil := cap
+    if n-1 &lt; 62 { // past 2^62 the shift overflows; the cap has long been reached
+        if d := base &lt;&lt; (n - 1); d &gt; 0 &amp;&amp; d &lt; cap {
+            ceil = d
+        }
+    }
+    return time.Duration(rnd(int64(ceil)))
+}
+</code></pre>
+
+
+</div>
+
+<p>ההגרלה היא פרמטר. בייצור עוברת <code>rand.Int64N</code>, ובבדיקה עוברת פונקציה שמחזירה תמיד את הערך המרבי, כך שאפשר
+לבדוק כל תקרה בדיוק. ההזזה שמאלה של משך זמן עלולה לגלוש לערך שלילי, ובגלל זה השמירה על 62 ועל <code>d &gt; 0</code>.
+הבדיקה <code>TestBackoffCeilings</code> מנסה ניסיון מספר 80.</p>
+<h3 id="1533">15.3.3 הלולאה, בתוך גבול הזמן</h3>
+<p>הפונקציה <code>Do</code> באותו קובץ מנסה עד שאחד מחמישה תנאים עוצר אותה. הנה הגוף שלה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    for attempt := 1; ; attempt++ {
+        err := fn(ctx)
+        if err == nil {
+            return attempt, nil
+        }
+        if attempt &gt;= p.MaxAttempts || !p.Retryable(err) || ctx.Err() != nil {
+            return attempt, err
+        }
+        wait := Backoff(attempt, p.Base, p.Cap, p.Rand)
+        if dl, ok := ctx.Deadline(); ok &amp;&amp; p.Now().Add(wait).After(dl) {
+            return attempt, err // sleeping would spend the budget the caller has left
+        }
+        if p.Budget != nil &amp;&amp; !p.Budget.Withdraw() {
+            return attempt, fmt.Errorf(&quot;%w: %w&quot;, ErrBudgetExhausted, err)
+        }
+        if serr := p.Sleep(ctx, wait); serr != nil {
+            return attempt, err
+        }
+    }
+</code></pre>
+
+
+</div>
+
+<table>
+<thead>
+<tr>
+<th>עוצר כש־</th>
+<th>למה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>הצלחה</td>
+<td>אין מה לנסות שוב</td>
+</tr>
+<tr>
+<td>נגמרו הניסיונות</td>
+<td>גבול קשיח, גם לכשל זמני</td>
+</tr>
+<tr>
+<td>השגיאה לא זמנית</td>
+<td>ניסיון נוסף ייכשל באותה צורה</td>
+</tr>
+<tr>
+<td>ההמתנה הבאה חוצה את גבול הזמן</td>
+<td>הלקוחה לא תחכה; עדיף להחזיר את השגיאה עכשיו</td>
+</tr>
+<tr>
+<td>התקציב סירב</td>
+<td>ראי 15.3.4</td>
+</tr>
+</tbody>
+</table>
+<p>השעון, ההגרלה וההמתנה כולם מוזרקים. הבדיקה <code>TestDoStopsBeforeTheDeadline</code> בודקת שהלולאה עוצרת לפני גבול
+הזמן בלי לישון אפילו מילישנייה אחת.</p>
+<blockquote>
+<p><strong>איך Rust עושה את זה:</strong> ב־tower כל מנגנון הוא שכבה שעוטפת שירות: זמן קצוב, ניסיון חוזר, הגבלת
+מקביליות, כל אחד בשכבה משלו. ב־Go אין מסגרת כזאת בספרייה הסטנדרטית, ולכן התרגיל
+מרכיב את אותה שרשרת ידנית, בפונקציה <code>attempt</code>. הסדר בין השכבות חשוב בשתי השפות.</p>
+</blockquote>
+<h3 id="1534">15.3.4 תקציב ניסיונות</h3>
+<p>גבול של שלושה ניסיונות מגביל בקשה אחת, אבל לא את כל הבקשות יחד. כשתלות נופלת לגמרי, כל בקשה מנסה שלוש
+פעמים, והתלות מקבלת פי שלושה עומס בדיוק כשהיא הכי חלשה. <strong>תקציב ניסיונות (retry budget)</strong> מגביל את היחס בין
+ניסיונות חוזרים לבקשות, על פני כל הבקשות לאותה תלות. המימוש בקובץ <code>retry/retry.go</code> הוא דלי אסימונים קטן:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// Deposit records one call (not a retry).
+func (b *Budget) Deposit() {
+    b.mu.Lock()
+    defer b.mu.Unlock()
+    b.tokens = min(b.max, b.tokens+b.ratio)
+}
+
+// Withdraw takes one token for a retry and reports whether there was one.
+func (b *Budget) Withdraw() bool {
+    b.mu.Lock()
+    defer b.mu.Unlock()
+    if b.tokens &lt; 1 {
+        return false
+    }
+    b.tokens--
+    return true
+}
+</code></pre>
+
+
+</div>
+
+<p>כל בקשה מפקידה עשירית אסימון, וכל ניסיון חוזר מושך אסימון שלם. כשהכול תקין, האסימונים נערמים עד התקרה
+ומאפשרים ניסיונות חוזרים לכשל מקרי. כשהכול נופל, מותר בערך ניסיון חוזר אחד לכל עשר בקשות, ועוד מה שנערם
+בתקרה. הבדיקה <code>TestBudgetCapsRetries</code> מראה את זה: אלף בקשות שכולן נכשלות, וכמאה ניסיונות חוזרים.</p>
+<blockquote>
+<p><strong>שימי לב:</strong> התקציב משותף לכל הקוראות לאותה תלות בתהליך, לא לבקשה אחת. תקציב חדש לכל בקשה הוא שוב גבול
+ניסיונות לבקשה, והוא לא עוצר כלום.</p>
+</blockquote>
+<h2 id="154">15.4 סערת ניסיונות חוזרים</h2>
+<h3 id="1541">15.4.1 החשבון</h3>
+<p><strong>סערת ניסיונות חוזרים (retry storm)</strong> קורית כשכמה שכבות מנסות שוב כל אחת בנפרד. אם השכבה העליונה מנסה שלוש
+פעמים, וכל ניסיון שלה מגיע לשכבה שמנסה שלוש פעמים, וכך שוב, אז שלוש שכבות של שלושה ניסיונות הן 27 פניות
+לתלות התחתונה, על כל בקשה של משתמשת:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">attempts at the bottom = attempts_per_layer ^ layers = 3^3 = 27
+</code></pre>
+
+
+</div>
+
+<p>זה לא תרחיש תיאורטי. כל שכבה נראית סבירה לבדה: „שלושה ניסיונות, מה כבר יכול לקרות”. אבל המכפלה פוגעת
+בדיוק בתלות שכבר כושלת, ומונעת ממנה להתאושש. מנוע כזה יכול להחזיק תקלה קטנה בחיים שעות.</p>
+<h3 id="1542">15.4.2 המעבדה</h3>
+<p>התרחיש <code>storm</code> בונה שרשרת של שלוש קפיצות לפני שרת שנכשל תמיד, ושולח מאה בקשות בכל אחת מארבע תצורות. כך מריצים:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">go run ./cmd/lab -scenario storm
+</code></pre>
+
+
+</div>
+
+<p>שלוש השורות הראשונות הן חשבון, ולכן הן זהות אצל כולן. הבדיקה <code>TestRetryStormAmplifies</code> מוודאת אותן:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">== storm: 100 user requests, 3 layers, upstream error rate 1.00
+config                             A    B    C    upstream  per request  user ok
+no retries                         100  100  100  100       1.0          0
+3 attempts at every layer          100  300  900  2700      27.0         0
+3 attempts at the top only         100  300  300  300       3.0          0
+3 attempts + 10% budget per layer  ___  ___  ___  ___       ___          0
+</code></pre>
+
+
+</div>
+
+<p>את השורה הרביעית רשמי מההרצה שלך. מה לראות בה: עם תקציב לכל שכבה, המכפיל נשאר קרוב ל־1, ולא ל־27, למרות
+שכל שכבה עדיין „מנסה שלוש פעמים”. התרחיש גם מריץ שרת שנכשל רק חלק מהזמן; נסי את הדגל <code>-error-rate 0.3</code>
+וראי שבמצב הזה הניסיונות החוזרים דווקא מצילים בקשות.</p>
+<h3 id="1543">15.4.3 שלושה כללים</h3>
+<ul>
+<li><strong>שכבה אחת היא הבעלים של הניסיונות החוזרים.</strong> בדרך כלל השכבה הקרובה ביותר לתלות, או זו שיודעת שהפעולה
+  אידמפוטנטית. השאר מעבירות את הכשל הלאה.</li>
+<li><strong>תקציב בכל מקום שבו בכל זאת מנסים שוב.</strong> הוא הופך מכפלה לתוספת קטנה.</li>
+<li><strong>לא מנסים שוב כשהגבול הכולל נגמר.</strong> תשובה של 504 מקפיצה פנימית אומרת שהזמן של כולן נגמר.</li>
+</ul>
+<p>ועוד פרט: קוד שגיאה שכבה מעבירה הלאה צריך לשמר את המשמעות. ה־handler בקובץ <code>hop/hop.go</code> מחזיר 504 כשהקפיצה
+שמתחתיו החזירה 504, כדי שזמן קצוב עמוק בשרשרת יישאר זמן קצוב גם למעלה.</p>
+<h2 id="155">15.5 מפסק זרם</h2>
+<h3 id="1551">15.5.1 שלושה מצבים</h3>
+<p>תקציב ניסיונות מגביל ניסיונות חוזרים, אבל כל בקשה ראשונה עדיין יוצאת לתלות מתה. <strong>מפסק זרם (circuit
+breaker)</strong> מפסיק לשלוח בכלל: אחרי רצף כשלים הוא „נפתח”, ובמשך זמן מה כל קריאה נכשלת מיד, בלי לצאת מהתהליך.
+זה טוב לשני הצדדים: הקוראת מקבלת תשובה מהירה במקום להמתין לזמן קצוב, והתלות מקבלת שקט להתאושש.</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-mermaid">stateDiagram-v2
+  [*] --&gt; Closed
+  Closed --&gt; Open: N consecutive failures
+  Open --&gt; HalfOpen: OpenTimeout elapsed
+  HalfOpen --&gt; Closed: K successful probes
+  HalfOpen --&gt; Open: any probe fails
+</code></pre>
+
+
+</div>
+
+<table>
+<thead>
+<tr>
+<th>מצב</th>
+<th>מה קורה לקריאה</th>
+<th>מה מזיז אותו</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>סגור (closed)</td>
+<td>עוברת; כשלים רצופים נספרים</td>
+<td>סף כשלים רצופים פותח</td>
+</tr>
+<tr>
+<td>פתוח (open)</td>
+<td>נכשלת מיד עם <code>ErrOpen</code></td>
+<td>אחרי זמן ההמתנה עובר לחצי־פתוח</td>
+</tr>
+<tr>
+<td>חצי־פתוח (half-open)</td>
+<td>כמה קריאות ניסיון עוברות, השאר נדחות</td>
+<td>הצלחות סוגרות; כשל אחד פותח שוב</td>
+</tr>
+</tbody>
+</table>
+<p>המצב החצי־פתוח הוא העיקר. בלעדיו, מפסק שנסגר אחרי זמן קבוע היה שולח מיד את כל העומס לתלות שאולי עוד חלשה.
+עם הגבלה על מספר הניסיונות, רק מעט קריאות בודקות אם היא חזרה.</p>
+<h3 id="1552">15.5.2 המימוש, עם שעון מוזרק</h3>
+<p>המפסק בקובץ <code>breaker/breaker.go</code> מקבל את השעון בהגדרות, ולכן הבדיקות מזיזות זמן ביד ולא ישנות. הנקודה העדינה
+היא <strong>דור (generation)</strong>: מונה שעולה בכל מעבר מצב. קריאה זוכרת את הדור שבו התחילה, ותוצאה מדור קודם לא
+נספרת. השינוי ממצב חצי־פתוח לפתוח, למשל, לא יכול להתבטל בגלל קריאה איטית שהתחילה עוד כשהמפסק היה סגור.
+הבקשה לאישור:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func (b *Breaker) Allow() (done func(error), err error) {
+    b.mu.Lock()
+    defer b.mu.Unlock()
+    switch b.current() {
+    case Open:
+        return nil, ErrOpen
+    case HalfOpen:
+        if b.probes &gt;= b.s.HalfOpenProbes {
+            return nil, ErrTooManyProbes
+        }
+        b.probes++
+    }
+    gen := b.generation
+    return func(err error) { b.record(gen, err) }, nil
+}
+</code></pre>
+
+
+</div>
+
+<p>הצורה „קבלי אישור, ואחר כך דווחי” מאפשרת לעטוף כל קריאה, גם כזו שלא נכנסת לפונקציה אחת. המתודה <code>Execute</code>
+עוטפת את שני הצעדים לנוחות. המעבר מפתוח לחצי־פתוח קורה בעצלות, בתוך <code>current</code>, בפעם הבאה שמישהו שואל: אין
+טיימר ואין goroutine ברקע. והרישום של תוצאה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    failed := b.s.IsFailure(err)
+    switch state {
+    case Closed:
+        if !failed {
+            b.failures = 0
+            return
+        }
+        b.failures++
+        if b.failures &gt;= b.s.FailureThreshold {
+            b.setState(Open)
+        }
+    case HalfOpen:
+        switch {
+        case failed:
+            b.setState(Open)
+        case err != nil: // not a failure (our caller canceled): give the slot back
+            b.probes--
+        default:
+            b.successes++
+            if b.successes &gt;= b.s.HalfOpenProbes {
+                b.setState(Closed)
+            }
+        }
+    }
+</code></pre>
+
+
+</div>
+
+<p>מה נחשב כשל זו החלטה, ולכן היא בהגדרות. ברירת המחדל לא סופרת <code>context.Canceled</code>: הקוראת שלך ויתרה, וזה לא
+אומר כלום על התלות. זמן קצוב, לעומת זאת, כן נספר, כי תלות איטית היא בדיוק מה שהמפסק אמור לזהות. והבדיקות,
+בקובץ <code>breaker/breaker_test.go</code>, עוברות על כל מעבר בטבלה. הנה מקרה אחד מתוכה, ואחריו הזזת השעון:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">        {&quot;a failed probe opens it again&quot;, []func() error{fail}, breaker.Open,
+            []string{&quot;closed&gt;open&quot;, &quot;open&gt;half-open&quot;, &quot;half-open&gt;open&quot;}},
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">            c.Add(9 * time.Second)
+            if got := b.State(); got != breaker.Open {
+                t.Fatalf(&quot;9s after opening state = %v, want still open&quot;, got)
+            }
+            c.Add(time.Second)
+            if got := b.State(); got != breaker.HalfOpen {
+                t.Fatalf(&quot;10s after opening state = %v, want half-open&quot;, got)
+            }
+</code></pre>
+
+
+</div>
+
+<p>עשר שניות של זמן מפסק עוברות בבדיקה בלי שום המתנה. בלי שעון מוזרק, הבדיקה הזאת הייתה ישנה עשר שניות, או
+גרוע מזה, תלויה בתזמון ונכשלת לפעמים ב־CI.</p>
+<h3 id="1553">15.5.3 מול ספרייה מוכנה</h3>
+<p>הספרייה הנפוצה היא <code>sony/gobreaker</code>, והגרסה שנבדקה, נכון לאוקטובר 2026, רשומה בנספח ג. התרגיל לא מייבא אותה, וגם
+Hookline כותבת מפסק משלה, אבל כדאי להכיר את ההבדלים, כי בראיון ישאלו „למה לא ספרייה”:</p>
+<table>
+<thead>
+<tr>
+<th>נושא</th>
+<th>המפסק של התרגיל</th>
+<th>הספרייה <code>gobreaker</code> v2.4.0</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>שעון</td>
+<td>מוזרק בהגדרות</td>
+<td>קורא ל־<code>time.Now</code> ישירות</td>
+</tr>
+<tr>
+<td>מתי נפתח</td>
+<td>סף כשלים רצופים</td>
+<td>פונקציה <code>ReadyToTrip</code> על מונים, ברירת מחדל: יותר מ־5 רצופים</td>
+</tr>
+<tr>
+<td>חצי־פתוח</td>
+<td>מספר ניסיונות <code>HalfOpenProbes</code>, ואותו מספר הצלחות סוגר</td>
+<td>השדה <code>MaxRequests</code>, אותו היגיון</td>
+</tr>
+<tr>
+<td>דור</td>
+<td>מתעלם מתוצאה ישנה</td>
+<td>אותו מנגנון בדיוק</td>
+</tr>
+<tr>
+<td>מה לא נספר</td>
+<td>הפונקציה <code>IsFailure</code></td>
+<td>הפונקציות <code>IsSuccessful</code> ו־<code>IsExcluded</code></td>
+</tr>
+<tr>
+<td>חלון מונים</td>
+<td>אין, רק רצף</td>
+<td>חלון מתגלגל עם <code>Interval</code> ו־<code>BucketPeriod</code></td>
+</tr>
+<tr>
+<td>גרסה מבוזרת</td>
+<td>אין</td>
+<td>הטיפוס <code>DistributedCircuitBreaker</code>, עם מצב משותף</td>
+</tr>
+</tbody>
+</table>
+<p>ההחלטה בפועל: ספרייה מוכנה כשהדרישות שלך תואמות לה, וכתיבה עצמית כשצריך שליטה, למשל בשעון לבדיקות או במדדים.
+מפסק הוא כמאה וחמישים שורות; הקושי הוא בבדיקות, לא בקוד.</p>
+<h3 id="1554">15.5.4 המעבדה</h3>
+<p>התרחיש <code>breaker</code> מפיל את השרת לשנייה, מחזיר אותו לשנייה, וקורא לו כל 10 מילישניות:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">go run ./cmd/lab -scenario breaker
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">config                            calls  ok   upstream received  refused locally  transitions
+no breaker                        ___    ___  ___                ___              ___
+breaker (5 failures, 200ms open)  ___    ___  ___                ___              ___
+</code></pre>
+
+
+</div>
+
+<p>רשמי את המספרים שלך. השוואה שכדאי לעשות: כמה פניות קיבל השרת בזמן התקלה בכל תצורה, וכמה בקשות הצליחו אחרי
+שהשרת חזר. מפסק טוב מוריד את הראשון בהרבה, וכמעט לא פוגע בשני.</p>
+<h2 id="156-bulkheads">15.6 מחיצות אטומות (bulkheads)</h2>
+<h3 id="1561">15.6.1 מה המחיצה מבודדת</h3>
+<p><strong>מחיצה אטומה (bulkhead)</strong> נקראת על שם המחיצות בגוף אונייה: חור בתא אחד לא מטביע את כולה. בשירות, התאים הם
+משאבים: goroutines, חיבורים, מקומות בבריכת עבודה. בלי מחיצות, תלות אחת איטית תופסת את כל המשאבים, ובקשות
+שבכלל לא צריכות אותה נתקעות מאחוריה. מחיצה מגבילה כמה קריאות לתלות אחת רצות בבת אחת, ולכן היא תופסת לכל
+היותר את התא שלה.</p>
+<p>המימוש הוא סמפור (semaphore) על channel עם מאגר. הנה הוא, מהקובץ <code>bulkhead/bulkhead.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func (b *Bulkhead) Acquire(ctx context.Context) error {
+    select {
+    case b.slots &lt;- struct{}{}:
+        return nil
+    default:
+    }
+    if b.maxWait &lt;= 0 {
+        return ErrFull
+    }
+    timer := time.NewTimer(b.maxWait)
+    defer timer.Stop()
+    select {
+    case b.slots &lt;- struct{}{}:
+        return nil
+    case &lt;-timer.C:
+        return ErrFull
+    case &lt;-ctx.Done():
+        return ctx.Err()
+    }
+}
+</code></pre>
+
+
+</div>
+
+<p>שליחה ל־channel תופסת מקום, וקבלה ממנו משחררת. השאלה המעניינת היא כמה לחכות למקום. בלי המתנה בכלל, המחיצה
+מסרבת ברגע שהיא מלאה; עם המתנה ארוכה, היא נהיית בעצמה תור, וחוזרת הבעיה שניסינו לפתור. המתנה קצרה, ותמיד
+בתוך ה־context, היא הפשרה הרגילה.</p>
+<h3 id="1562">15.6.2 הסדר בתוך ניסיון</h3>
+<p>הפונקציה <code>attempt</code> בקובץ <code>hop/hop.go</code> מרכיבה את המנגנונים לניסיון אחד:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func (c *Caller) attempt(ctx context.Context) (err error) {
+    if c.Bulkhead != nil {
+        if err := c.Bulkhead.Acquire(ctx); err != nil {
+            c.refused.Add(1)
+            return err
+        }
+        defer c.Bulkhead.Release()
+    }
+    if c.Breaker != nil {
+        done, refusal := c.Breaker.Allow()
+        if refusal != nil {
+            c.refused.Add(1)
+            return refusal
+        }
+        defer func() { done(err) }() // err is the named result: the outcome of send
+    }
+    return c.send(ctx)
+}
+</code></pre>
+
+
+</div>
+
+<table>
+<thead>
+<tr>
+<th>שכבה</th>
+<th>מקום</th>
+<th>למה שם</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>גבול זמן</td>
+<td>ה־context, מבחוץ</td>
+<td>חל על כל הניסיונות וההמתנות יחד</td>
+</tr>
+<tr>
+<td>ניסיון חוזר</td>
+<td>הפונקציה <code>retry.Do</code>, סביב <code>attempt</code></td>
+<td>בזמן ההמתנה לא מחזיקים מקום במחיצה</td>
+</tr>
+<tr>
+<td>מחיצה</td>
+<td>בתחילת הניסיון</td>
+<td>מגבילה גם קריאות ניסיון של מפסק חצי־פתוח</td>
+</tr>
+<tr>
+<td>מפסק</td>
+<td>לפני השליחה</td>
+<td>כל ניסיון נספר בנפרד</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>טעות נפוצה:</strong> בגרסה הראשונה של הקוד הזה, השורה של המפסק הייתה <code>done, err := c.Breaker.Allow()</code>. האופרטור <code>:=</code> בתוך
+בלוק התנאי יצר משתנה שגיאה חדש, והפונקציה הנדחית דיווחה תמיד שאין שגיאה. המפסק לא נפתח אף פעם, והבדיקה
+<code>TestBreakerStopsCallingADeadUpstream</code> היא שתפסה את זה. ערך מוחזר בעל שם יחד עם <code>:=</code> הוא מלכודת קלאסית ב־Go.</p>
+</blockquote>
+<h3 id="1563">15.6.3 המעבדה</h3>
+<p>התרחיש <code>bulkhead</code> מריץ עשרים עובדים לשתי שניות. כל עובד מחליף בין תלות איטית, 500 מילישניות, לבין תלות מהירה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">go run ./cmd/lab -scenario bulkhead
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">config                       fast ok  slow ok  slow refused
+shared workers, no bulkhead  ___      ___      ___
+bulkhead: 4 slots for slow   ___      ___      ___
+</code></pre>
+
+
+</div>
+
+<p>בלי מחיצה, רוב העובדים תקועים רוב הזמן בתלות האיטית, והמהירה כמעט לא מתקדמת. עם ארבעה מקומות לאיטית, ההפך.
+שימי לב גם לעמודה האחרונה: המחיר של המחיצה הוא סירובים מהירים לתלות האיטית, וזו החלטה עסקית, לא רק טכנית.</p>
+<h2 id="157">15.7 הידרדרות מכובדת</h2>
+<p>כל המנגנונים עד כאן גורמים לקריאה להיכשל מהר. <strong>הידרדרות מכובדת (graceful degradation)</strong> שואלת מה עונים
+אחרי שהיא נכשלה. בדרך כלל יש תשובה טובה יותר משגיאה:</p>
+<table>
+<thead>
+<tr>
+<th>כשהתלות לא זמינה</th>
+<th>התשובה</th>
+<th>המחיר</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>מחירון, הגדרות, הרשאות</td>
+<td>הערך הטוב האחרון, מסומן כישן</td>
+<td>נתון ישן לזמן מוגבל</td>
+</tr>
+<tr>
+<td>המלצות, „לקוחות קנו גם”</td>
+<td>ברירת מחדל, או לא להציג</td>
+<td>פחות תוכן בעמוד</td>
+</tr>
+<tr>
+<td>תכונה כבדה בעומס</td>
+<td>לכבות אותה בדגל תכונה (feature flag)</td>
+<td>תכונה חסרה, לא דף שבור</td>
+</tr>
+<tr>
+<td>פעולה שאפשר לדחות</td>
+<td>לרשום לתור ולענות „התקבל”</td>
+<td>עקביות בסופו של דבר</td>
+</tr>
+</tbody>
+</table>
+<p>הערך הישן הוא הכי נפוץ, והגבול שלו הוא העיקר: כמה ישן מותר להיות. מהקובץ <code>degrade/degrade.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    v, err = fetch(ctx)
+    s.mu.Lock()
+    defer s.mu.Unlock()
+    if err == nil {
+        s.last, s.at, s.ok = v, now(), true
+        return v, false, nil
+    }
+    if s.ok &amp;&amp; now().Sub(s.at) &lt;= s.MaxStale {
+        return s.last, true, nil
+    }
+    var zero T
+    return zero, false, errors.Join(ErrNoValue, err)
+</code></pre>
+
+
+</div>
+
+<p>הדגל <code>stale</code> חוזר לקוראת, כי ההחלטה מה לעשות עם ערך ישן שייכת לה: להציג אותו עם הערה, לא להשתמש בו לחיוב
+כסף, לרשום מדד. ובאותו קובץ, <code>Optional</code> עוטפת חלק לא חיוני של תשובה: כשהתכונה כבויה, אין בכלל קריאה לתלות.</p>
+<p>התרחיש <code>degrade</code> במעבדה קורא ערך פעם אחת, מפיל את השרת, וקורא שוב כל 100 מילישניות. רשמי כמה תשובות היו
+טריות, כמה ישנות וכמה נכשלו, ובדקי שזה מתאים לגבול של שנייה. החלק השני של התרחיש מראה שכשהתכונה כבויה, אף
+בקשה לא יוצאת לשרת.</p>
+<blockquote>
+<p><strong>שימי לב:</strong> הידרדרות היא החלטת מוצר. „מה מציגים כשההמלצות למטה” צריך לעלות בשיחה עם מנהלת המוצר לפני
+התקלה, ולהיכתב בתיעוד ההפעלה. בתורנות באמצע הלילה זה כבר מאוחר מדי.</p>
+</blockquote>
+<h2 id="_3">סיכום</h2>
+<ul>
+<li>כשל חלקי פירושו שאין תשובה ואין ודאות; ניסיון חוזר בטוח רק לפעולה אידמפוטנטית.</li>
+<li>גבול זמן כולל עובר לאורך השרשרת בכותרת; כל קפיצה שומרת רזרבה ומעבירה פחות ממה שקיבלה.</li>
+<li>ניסיון חוזר רק לכשל זמני, עם המתנה גדלה מעריכית ופיזור אקראי מלא, ולעולם לא מעבר לגבול הזמן.</li>
+<li>תקציב ניסיונות משותף לתלות מגביל את היחס בין ניסיונות חוזרים לבקשות, גם כשהכול נופל.</li>
+<li>שלוש שכבות של שלושה ניסיונות הן 27 פניות; שכבה אחת היא הבעלים של הניסיונות.</li>
+<li>מפסק זרם: סגור, פתוח, חצי־פתוח, עם דור שמתעלם מתוצאות ישנות ושעון מוזרק לבדיקות.</li>
+<li>מחיצה אטומה מגבילה כמה משאבים תלות אחת תופסת; הידרדרות מכובדת מחליטה מה עונים בלעדיה.</li>
+</ul>
+<h2 id="_4">מונחים לזכור</h2>
+<table>
+<thead>
+<tr>
+<th>מונח בעברית</th>
+<th>באנגלית</th>
+<th>במשפט אחד</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>כשל חלקי</td>
+<td>partial failure</td>
+<td>חלק מהמערכת תקין וחלק לא, ומבחוץ אי אפשר לדעת מה קרה</td>
+</tr>
+<tr>
+<td>זמן קצוב</td>
+<td>timeout</td>
+<td>משך מרבי לפעולה אחת</td>
+</tr>
+<tr>
+<td>גבול זמן כולל</td>
+<td>deadline</td>
+<td>נקודת זמן מוחלטת שאחריה אף אחד כבר לא מחכה</td>
+</tr>
+<tr>
+<td>תקציב זמן</td>
+<td>time budget</td>
+<td>הזמן שנשאר לבקשה, שעובר מקפיצה לקפיצה</td>
+</tr>
+<tr>
+<td>רזרבה</td>
+<td>reserve</td>
+<td>הזמן שקפיצה שומרת לעצמה לפני שהיא מעבירה תקציב הלאה</td>
+</tr>
+<tr>
+<td>ניסיון חוזר</td>
+<td>retry</td>
+<td>קריאה נוספת אחרי כשל זמני</td>
+</tr>
+<tr>
+<td>המתנה גדלה</td>
+<td>backoff</td>
+<td>המתנה שגדלה בין ניסיון לניסיון</td>
+</tr>
+<tr>
+<td>פיזור אקראי</td>
+<td>jitter</td>
+<td>הגרלה של ההמתנה כדי שלקוחות לא יחזרו יחד</td>
+</tr>
+<tr>
+<td>תקציב ניסיונות</td>
+<td>retry budget</td>
+<td>גבול משותף על היחס בין ניסיונות חוזרים לבקשות</td>
+</tr>
+<tr>
+<td>סערת ניסיונות חוזרים</td>
+<td>retry storm</td>
+<td>הכפלת עומס כשכמה שכבות מנסות שוב כל אחת בנפרד</td>
+</tr>
+<tr>
+<td>מפסק זרם</td>
+<td>circuit breaker</td>
+<td>מפסיק לקרוא לתלות שנכשלת, ובודק מדי פעם אם חזרה</td>
+</tr>
+<tr>
+<td>חצי־פתוח</td>
+<td>half-open</td>
+<td>מצב המפסק שבו כמה קריאות ניסיון בודקות את התלות</td>
+</tr>
+<tr>
+<td>מחיצה אטומה</td>
+<td>bulkhead</td>
+<td>גבול על מספר הקריאות המקבילות לתלות אחת</td>
+</tr>
+<tr>
+<td>הידרדרות מכובדת</td>
+<td>graceful degradation</td>
+<td>תשובה חלקית או ישנה במקום שגיאה</td>
+</tr>
+<tr>
+<td>דגל תכונה</td>
+<td>feature flag</td>
+<td>מתג בזמן ריצה שמדליק ומכבה תכונה</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_5">טעויות נפוצות</h2>
+<ul>
+<li><strong>זמן קצוב קבוע לכל קפיצה, בלי להעביר תקציב.</strong> הלקוחה מוותרת, והשרשרת ממשיכה לעבוד בשבילה. העבירי את מה
+  שנשאר, ושמרי רזרבה.</li>
+<li><strong>יצירת context חדש בתוך handler.</strong> הקריאה ל־<code>context.Background()</code> בתוך handler מנתקת אותו מהביטול של הלקוחה.
+  גזרי מ־<code>r.Context()</code>.</li>
+<li><strong>ניסיון חוזר בכל שכבה.</strong> המכפלה פוגעת בתלות החלשה. שכבה אחת מנסה שוב, עם תקציב.</li>
+<li><strong>ניסיון חוזר בלי פיזור אקראי.</strong> כל הלקוחות חוזרים באותו רגע. המתנה מלאה בין אפס לתקרה.</li>
+<li><strong>מפסק שסופר ביטולים.</strong> לקוחות שמתנתקים פותחים מפסק לתלות תקינה. אל תספרי <code>context.Canceled</code>.</li>
+<li><strong>מחיצה עם המתנה בלי גבול.</strong> היא נהיית תור, וכל הבקשות מחכות מאחוריה. סרבי מהר, או חכי מעט בתוך ה־context.</li>
+</ul>
+<h2 id="_6">שאלות ראיון</h2>
+<ol>
+<li>
+<p><strong>שירות שלך קורא לשלושה שירותים, ואחד מהם התחיל לענות אחרי 30 שניות במקום 50 מילישניות. מה קורה, ומה
+   היית שמה במקום?</strong> בלי גבולות, כל בקשה נכנסת מחכה 30 שניות ותופסת goroutine וחיבור, ובקצב רגיל של בקשות
+   הם נערמים עד שהשירות כולו מפסיק לענות, גם בנתיבים שלא צריכים את התלות. זמן קצוב לכל קריאה, נגזר מתקציב
+   הבקשה, מגביל את ההמתנה. מחיצה לכל תלות מגבילה כמה משאבים היא תופסת, ומפסק זרם מפסיק לנסות אחרי רצף כשלים.
+   ואז שאלת המוצר: מה מחזירים כשהתלות לא זמינה. השיקול: כל גבול גם מסרב לבקשות שאולי היו מצליחות, ולכן
+   הערכים נקבעים לפי ה־p99 של התלות במצב תקין, לא לפי ניחוש.</p>
+</li>
+<li>
+<p><strong>למה full jitter ולא המתנה מעריכית בלבד?</strong> המתנה מעריכית מרווחת את הניסיונות של לקוחה אחת, אבל אם אלף
+   לקוחות נכשלו יחד, הם עדיין חוזרים יחד, בגלים. הגרלה בין אפס לתקרה מפזרת אותם על פני כל החלון, והעומס
+   על התלות נעשה אחיד. המחיר: לקוחה מסוימת עלולה לחכות כמעט אפס ולהיכשל שוב, ואחרת לחכות כמעט את התקרה. על
+   פני הרבה לקוחות זה משתלם, וזה מה שהמאמר של Brooker מראה בסימולציה.</p>
+</li>
+</ol>
+<p><strong>המשך:</strong> ומה עם תקציב ניסיונות? פיזור לא משנה כמה ניסיונות יש, רק מתי. תקציב מגביל את הכמות, ושניהם
+   נחוצים.</p>
+<ol start="3">
+<li><strong>הסבירי את שלושת המצבים של מפסק זרם, ומה הבעיה במפסק בלי מצב חצי־פתוח.</strong> סגור: הכול עובר, וכשלים
+   רצופים נספרים. פתוח: הכול נכשל מיד, למשך זמן קבוע. חצי־פתוח: מעט קריאות ניסיון עוברות; הצלחות סוגרות,
+   כשל פותח שוב. בלי חצי־פתוח, המפסק נסגר אחרי הזמן הקבוע ושולח מיד את כל העומס לתלות שאולי רק התחילה
+   להתאושש, והיא נופלת שוב. ועוד פרט שמבדיל תשובה טובה: תוצאה של קריאה שהתחילה לפני מעבר מצב לא צריכה להיספר,
+   ולכן יש מונה דורות.</li>
+</ol>
+<p><strong>המשך:</strong> מפסק לכל תהליך או מפסק משותף? מקומי פשוט ונכשל בבטחה, אבל כל תהליך לומד לבד. משותף, למשל
+   ב־Redis, לומד מהר יותר, אבל מוסיף תלות לכל קריאה. ב־Hookline הבחירה היא מקומי.</p>
+<ol start="4">
+<li>
+<p><strong>איך מעבירים deadline בין שירותים ב־HTTP?</strong> ה־context לא חוצה רשת, ולכן שולחים את הזמן שנשאר בכותרת;
+   ב־gRPC יש לזה כותרת מובנית. השרת קורא אותה, חותך למקסימום שלו כי זה קלט חיצוני, ויוצר context עם
+   גבול. לפני קריאה הלאה הוא שומר רזרבה לעצמו ומעביר את השאר, ואם השאר קטן מדי הוא לא מתחיל בכלל. היתרון של
+   גבול מוחלט על פני משך: זמן שעבר בתור כבר ירד מהתקציב. הסיכון: שעונים לא מסונכרנים בין מכונות, ולכן שולחים
+   משך יחסי בכותרת וממירים אותו מקומית לנקודת זמן.</p>
+</li>
+<li>
+<p><strong>מה ההבדל בין מחיצה אטומה להגבלת קצב?</strong> מחיצה מגבילה כמה קריאות רצות בבת אחת לתלות מסוימת, כדי להגן
+   עלייך מפני תלות איטית. הגבלת קצב מגבילה כמה בקשות לשנייה, בדרך כלל כדי להגן על שירות מפני לקוחות (פרק 16).
+   בתלות איטית בקצב קבוע, מחיצה היא שתופסת את הבעיה, כי מה שגדל הוא מספר הקריאות הפתוחות, לא הקצב.</p>
+</li>
+</ol>
+<h2 id="obsidian">פתק Obsidian</h2>
+<p>הפתק המוכן נמצא גם כקובץ: <code>obsidian/15-timeouts-retries-breakers.md</code>. זה תוכנו:</p>
+<ul>
+<li><strong>כשל חלקי:</strong> אין תשובה זה לא נכשל; ניסיון חוזר רק לפעולה אידמפוטנטית.</li>
+<li><strong>תקציב זמן:</strong> גבול מוחלט אחד לבקשה, בכותרת בין שירותים, רזרבה בכל קפיצה.</li>
+<li><strong>ניסיון חוזר:</strong> רק לכשל זמני, לא לסירוב שלי, ולא מעבר לגבול הזמן.</li>
+<li><strong>פיזור אקראי מלא:</strong> הגרלה בין אפס לתקרה שמכפילה את עצמה.</li>
+<li><strong>תקציב ניסיונות:</strong> כל בקשה מפקידה עשירית, כל ניסיון חוזר מושך אחד, משותף לתלות.</li>
+<li><strong>סערה:</strong> ניסיונות בחזקת מספר השכבות; שכבה אחת בעלת הניסיונות.</li>
+<li><strong>מפסק זרם:</strong> סגור, פתוח, חצי־פתוח; דור מתעלם מתוצאות ישנות; ביטול לא נספר.</li>
+<li><strong>מחיצה אטומה:</strong> סמפור לכל תלות, סירוב מהיר או המתנה קצרה בתוך ה־context.</li>
+<li><strong>הידרדרות:</strong> ערך ישן עם גבול, ברירת מחדל, תכונה כבויה; החלטת מוצר מראש.</li>
+<li><strong>שאלה פתוחה:</strong> ___</li>
+</ul>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">deadline.Middleware(max, h)    deadline.Downstream(ctx, reserve)    deadline.Inject(req)
+header X-Timeout-Ms (gRPC: grpc-timeout)
+sleep = random(0, min(cap, base * 2^attempt))      # full jitter, Brooker 2015
+retry.NewBudget(0.1, 10): Deposit per call, Withdraw per retry
+storm: 3 layers x 3 attempts = 27 upstream calls per request
+breaker: closed -&gt; open (N failures) -&gt; half-open (timeout) -&gt; closed (K ok) | open (1 fail)
+bulkhead: slots := make(chan struct{}, n); acquire = send, release = receive
+go run ./cmd/lab -scenario storm|deadline|breaker|bulkhead|degrade
+my storm budget row: A ___ B ___ C ___ upstream ___
+my breaker run: upstream received without ___ with ___
+my bulkhead run: fast ok without ___ with ___
+</code></pre>
+
+
+</div>
+
+<h2 id="_7">תרגיל</h2>
+<p><strong>מטרה:</strong> לבנות מעבדת עמידות: שרת שמשתבש בכוונה ולקוח שכל מנגנון בו נדלק בדגל; להשלים את העברת התקציב, את
+הניסיון החוזר עם תקציב ניסיונות, את מפסק הזרם ואת המחיצה; ולרשום את מספרי המעבדה עם כל מנגנון ובלעדיו.
+<strong>זמן:</strong> שני ימי לימוד, ימים 46 ו־47, כ־35 דקות בנייה ביום 46 וכ־65 ביום 47. <strong>ידע מקדים:</strong> הפרק, ופרקים 5 ו־6.</p>
+<p>הצעדים, קוד ההתחלה, הרמזים והפתרון נמצאים
+ב־<a href="../exercises/ch15-resilience-lab/README.md"><code>exercises/ch15-resilience-lab/README.md</code></a>.</p>
+<p><strong>קריטריון סיום:</strong></p>
+<ul>
+<li>כל הבדיקות עוברות עם <code>-race</code>, כולל הבדיקה שמראה קריאה שנחתכת כשהתקציב נגמר.</li>
+<li>טבלת הסערה מההרצה שלך שמורה בפתק, כולל שורת התקציב.</li>
+<li>בדיקות המצבים של מפסק הזרם עוברות בלי לישון.</li>
+<li>מספרי המעבדה של המפסק, המחיצה וההידרדרות רשומים בפתק, עם ובלי כל מנגנון.</li>
+</ul>
+<h2 id="_8">העשרה אופציונלית</h2>
+<ul>
+<li>המאמר של Brooker על המתנה גדלה ופיזור אקראי, מבלוג הארכיטקטורה של AWS משנת 2015, משווה בסימולציה בין
+  צורות של פיזור. הכתובת נבדקה באוקטובר 2026:
+  <a href="https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/">Exponential Backoff And Jitter</a>.</li>
+<li>קראי את הקובץ המרכזי של <code>sony/gobreaker</code>, וחפשי בו את המקבילות של שלוש המתודות הפנימיות של המפסק בתרגיל.</li>
+<li>הוסיפי למפסק חלון של שיעור כשלים במקום כשלים רצופים, ובדיקה שמראה למה זה עדיף בתנועה מעורבת.</li>
+</ul>
+</main>
+<nav class="bottom"><a href="index.html">תוכן העניינים</a> · <a href="14-background-jobs.html">← פרק 14: עבודות רקע וניסיונות חוזרים</a> · <a href="16-overload-rate-limiting.html">פרק 16: עומס: הגבלת קצב, לחץ חוזר והשלת עומס →</a></nav>
+<script type="module">
+  // Render ```mermaid blocks in the browser (needs internet once; cached afterwards).
+  const blocks = document.querySelectorAll("pre > code.language-mermaid");
+  if (blocks.length) {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs")).default;
+    for (const code of blocks) {
+      const div = document.createElement("div");
+      div.className = "mermaid";
+      div.textContent = code.textContent;
+      code.parentElement.replaceWith(div);
+    }
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run();
+  }
+</script>
+</body>
+</html>

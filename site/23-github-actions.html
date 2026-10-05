@@ -1,0 +1,1356 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>פרק 23: GitHub Actions</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="top"><a href="index.html">תוכן העניינים</a> · <a href="22-terraform.html">← פרק 22: Terraform</a> · <a href="24-telemetry.html">פרק 24: טלמטריה: OpenTelemetry, Prometheus, Grafana ו־Loki →</a></nav>
+<main class="book">
+<div class="toc"><span class="toctitle">תוכן הפרק</span><ul>
+<li><a href="#_1">מה נלמד בפרק</a></li>
+<li><a href="#_2">ידע מקדים</a></li>
+<li><a href="#231-workflow-jobs-steps">23.1 workflow, jobs ו־steps</a><ul>
+<li><a href="#2311-workflow">23.1.1 הראש של workflow</a></li>
+<li><a href="#2312-jobs">23.1.2 גרף ה־jobs</a></li>
+<li><a href="#2313">23.1.3 ביטויים והקשרים</a></li>
+</ul>
+</li>
+<li><a href="#232-go-python">23.2 בנייה ובדיקה ל־Go ול־Python</a><ul>
+<li><a href="#2321-go">23.2.1 פעולה מורכבת לבדיקות של Go</a></li>
+<li><a href="#2322-job-python">23.2.2 ה־job של Python</a></li>
+</ul>
+</li>
+<li><a href="#233-service-containers">23.3 service containers</a><ul>
+<li><a href="#2331">23.3.1 ירוק שלא בדק כלום</a></li>
+</ul>
+</li>
+<li><a href="#234-image-ghcr">23.4 בניית image ופרסום ל־GHCR</a></li>
+<li><a href="#235-kind-ci">23.5 פריסה ל־kind ב־CI</a></li>
+<li><a href="#236-environments">23.6 environments, סודות והרשאות</a><ul>
+<li><a href="#2361-github_token">23.6.1 ‏GITHUB_TOKEN ומינימום הרשאות</a></li>
+<li><a href="#2362">23.6.2 סודות ומשתנים</a></li>
+<li><a href="#2363-environments">23.6.3 environments ומבקרים חובה</a></li>
+<li><a href="#2364-oidc">23.6.4 OIDC: בלי מפתחות ענן בסודות</a></li>
+<li><a href="#2365">23.6.5 הזרקת סקריפט</a></li>
+</ul>
+</li>
+<li><a href="#237-releases">23.7 releases</a><ul>
+<li><a href="#2371-release">23.7.1 release על תגית</a></li>
+<li><a href="#2372-sha">23.7.2 להצמיד לגרסה ראשית או ל־SHA</a></li>
+</ul>
+</li>
+<li><a href="#238-actionlint">23.8 actionlint</a><ul>
+<li><a href="#2381">23.8.1 מה הוא מוצא</a></li>
+<li><a href="#2382">23.8.2 מה הוא לא מוצא</a></li>
+<li><a href="#2383">23.8.3 הבדיקה המלאה</a></li>
+</ul>
+</li>
+<li><a href="#_3">סיכום</a></li>
+<li><a href="#_4">מונחים לזכור</a></li>
+<li><a href="#_5">טעויות נפוצות</a></li>
+<li><a href="#_6">שאלות ראיון</a></li>
+<li><a href="#obsidian">פתק Obsidian</a></li>
+<li><a href="#_7">תרגיל</a></li>
+<li><a href="#_8">העשרה אופציונלית</a></li>
+</ul>
+</div>
+
+<h1 id="23-github-actions">פרק 23: GitHub Actions</h1>
+<p>אינטגרציה רציפה (CI) היא המקום שבו „עובד אצלי” הופך לטענה שכל אחד יכול לבדוק. היא רצה על כל שינוי, באותה
+סביבה, עם אותן פקודות, ומחליטה מה מותר למזג ומה מותר לפרסם. בראיון בכיר שואלים עליה פחות על התחביר ויותר על
+ההחלטות: מה רץ על כל PR, מי מחזיק טוקן שיכול לכתוב, ואיך יודעים שירוק באמת בדק משהו.</p>
+<p>בפרק תכתבי את ה־workflows של שלושה פרויקטים מהספר, במאגר העבודה שלך: שירות קיצור הכתובות מפרק 6, מקבל
+ההודעות מפרק 8, ומעבדת הבידוד מפרק 11 עם מסד אמיתי. אחר כך תבני image ותבדקי אותו על אשכול kind בתוך ה־CI.
+בסוף תפרסמי גרסה (release) מאחורי אישור. הקבצים האלה עוברים לפרויקט הגמר, Hookline, באבן הדרך M7.</p>
+<h2 id="_1">מה נלמד בפרק</h2>
+<ul>
+<li>ארבע היחידות של GitHub Actions, ומה רץ איפה.</li>
+<li>בדיקות ל־Go ול־Python, עם גרסאות שנקראות מהפרויקט ומטמון שחוסך דקות.</li>
+<li>‏service container ל־PostgreSQL, והדרך לוודא שהבדיקות לא דילגו עליו בשקט.</li>
+<li>בניית image ופרסום ל־GHCR רק מ־<code>main</code>, עם ההרשאה המינימלית שזה דורש.</li>
+<li>בדיקת עשן על אשכול kind זמני, לפני שה־image מתפרסם.</li>
+<li>‏environments, סודות, משתנים, ההרשאות של <code>GITHUB_TOKEN</code>, ו־OIDC לענן במקום מפתחות.</li>
+<li>גרסה על תגית, הצמדה של actions לגרסה ראשית או ל־SHA, ובדיקה סטטית עם actionlint.</li>
+</ul>
+<h2 id="_2">ידע מקדים</h2>
+<ul>
+<li>פרק 6: ‏<code>shorty</code>, ה־Makefile שלו (סעיף 6.7), ו־<code>/healthz</code>.</li>
+<li>פרק 8: המקבל כפרויקט uv, עם שלושת כלי הבדיקה שלו. פרק 7, סעיף 7.2: קובץ הנעילה ו־<code>uv sync</code>.</li>
+<li>פרק 11: המעבדה, והבדיקות שקוראות את <code>DATABASE_URL</code> ומדלגות בלעדיו.</li>
+<li>פרק 19: ה־Dockerfile הרב־שלבי, עם משתמש שאינו root (סעיפים 19.2 ו־19.3), ותגיות של images (סעיף 19.7).</li>
+<li>פרק 20: קובצי הפריסה של Kubernetes, בדיקות המוכנות, וטעינת image לאשכול (סעיפים 20.2 עד 20.7).</li>
+<li>פרק 2, סעיף 2.5: חשבון GitHub ו־Git.</li>
+<li>פרק 2, סעיף 2.7: actionlint. סעיף 2.10: kind ו־kubectl.</li>
+</ul>
+<h2 id="231-workflow-jobs-steps">23.1 workflow, jobs ו־steps</h2>
+<p>‏GitHub Actions היא מערכת ה־CI של GitHub. היחידות שלה, לפי הגודל:</p>
+<table>
+<thead>
+<tr>
+<th>יחידה</th>
+<th>מה היא</th>
+<th>איפה מוגדרת</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>workflow</td>
+<td>קובץ YAML אחד, עם טריגרים וקבוצת jobs</td>
+<td>‏<code>.github/workflows/*.yml</code> בשורש המאגר</td>
+</tr>
+<tr>
+<td>job</td>
+<td>רצף צעדים על מכונה אחת; jobs רצים במקביל אלא אם יש <code>needs</code></td>
+<td>המפתח <code>jobs</code></td>
+</tr>
+<tr>
+<td>step</td>
+<td>פקודת shell (‏<code>run</code>) או שימוש ב־action (‏<code>uses</code>)</td>
+<td>הרשימה <code>steps</code> של ה־job</td>
+</tr>
+<tr>
+<td>runner</td>
+<td>המכונה שמריצה job; ‏<code>ubuntu-latest</code> היא מכונה וירטואלית חדשה לכל job</td>
+<td>‏<code>runs-on</code></td>
+</tr>
+<tr>
+<td>action</td>
+<td>יחידה לשימוש חוזר: קוד JavaScript, קונטיינר, או צעדים מורכבים</td>
+<td>מאגר אחר, או תיקייה במאגר שלך</td>
+</tr>
+</tbody>
+</table>
+<p>הדבר הראשון להפנים: <strong>כל job מתחיל ממכונה נקייה.</strong> אין קבצים מה־job הקודם, אין מטמון, ואין את הקוד שלך עד
+שמריצים <code>actions/checkout</code>. מה שעובר בין jobs עובר במפורש: דרך <code>outputs</code>, דרך מטמון, או דרך registry.</p>
+<h3 id="2311-workflow">23.1.1 הראש של workflow</h3>
+<p>כך מתחיל ה־workflow של <code>shorty</code> (הקובץ <code>.github/workflows/ch06-shorty.yml</code> בפתרון):</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-yaml">name: ch06 shorty
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - &quot;ch06/**&quot;
+      - &quot;.github/actions/go-checks/**&quot;
+      - &quot;.github/workflows/ch06-shorty.yml&quot;
+  pull_request:
+    paths:
+      - &quot;ch06/**&quot;
+      - &quot;.github/actions/go-checks/**&quot;
+      - &quot;.github/workflows/ch06-shorty.yml&quot;
+
+# Every job gets a read-only token unless it asks for more.
+permissions:
+  contents: read
+
+# One run per branch or PR; a new push to a PR cancels the run it replaces.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    shell: bash
+    working-directory: ch06
+</code></pre>
+
+
+</div>
+
+<p>ארבעה מפתחות, ולכל אחד סיבה:</p>
+<table>
+<thead>
+<tr>
+<th>מפתח</th>
+<th>מה הוא קובע</th>
+<th>למה כך</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>on</code></td>
+<td>אילו אירועים מריצים את ה־workflow</td>
+<td>‏push ל־<code>main</code> ו־PRs, ורק כשהשתנה משהו בתיקייה של הפרויקט</td>
+</tr>
+<tr>
+<td><code>permissions</code></td>
+<td>מה הטוקן האוטומטי של ההרצה רשאי לעשות</td>
+<td>קריאה בלבד, וכל job שצריך יותר מבקש בעצמו (סעיף 23.6)</td>
+</tr>
+<tr>
+<td><code>concurrency</code></td>
+<td>כמה הרצות של אותה קבוצה רצות יחד</td>
+<td>‏push חדש ל־PR מבטל את ההרצה הישנה; ב־<code>main</code> כל הרצה מסיימת</td>
+</tr>
+<tr>
+<td><code>defaults.run</code></td>
+<td>ה־shell והתיקייה של כל צעד <code>run</code></td>
+<td>‏<code>bash</code> במפורש מוסיף <code>pipefail</code>, והתיקייה היא <code>ch06</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>סינון לפי נתיב.</strong> במאגר אחד עם כמה פרויקטים, <code>paths</code> הוא מה שמונע מכל שינוי להריץ הכול. שימי לב שהרשימה
+כוללת גם את הקובץ של ה־workflow עצמו ואת הפעולה המשותפת: שינוי בהם חייב להיבדק. יש לסינון הזה מחיר שכדאי
+לדעת: workflow שלא רץ בגלל סינון משאיר את הבדיקות שלו במצב „ממתין”, ו־PR שדורש אותן ייחסם. כך כתוב בתיעוד
+התחביר של GitHub, ולכן בדיקה חובה (required check) לא מצמידים ל־workflow מסונן.</p>
+<p><strong>ה־shell.</strong> בלי מפתח מפורש, צעד <code>run</code> רץ כ־<code>bash -e</code>. עם <code>shell: bash</code> הוא רץ עם דגלים נוספים, כך:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">bash --noprofile --norc -eo pipefail {0}
+</code></pre>
+
+
+</div>
+
+<p>ההבדל הוא <code>pipefail</code>: בלעדיו, בדיקות שהפלט שלהן עובר בצינור ל־<code>tee</code> מצליחות גם כשהן נכשלות, כי קוד
+היציאה הוא של <code>tee</code>. הפעולה המורכבת של סעיף 23.2 נשענת על זה.</p>
+<h3 id="2312-jobs">23.1.2 גרף ה־jobs</h3>
+<p>ל־<code>shorty</code> יש שלושה jobs. ‏<code>needs</code> הופך אותם לשרשרת:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-mermaid">flowchart LR
+  T[test] --&gt; K[kind-smoke]
+  T --&gt; I[image]
+  K --&gt; I
+  I --&gt;|push to main only| G[(GHCR)]
+</code></pre>
+
+
+</div>
+
+<p>ה־job בשם <code>test</code> מריץ את הבדיקות. ‏<code>kind-smoke</code> בונה image ומריץ אותו על Kubernetes. ‏<code>image</code> מפרסם, רק
+מ־<code>main</code> ורק אחרי ששניהם עברו. בכל PR רצים שני הראשונים; ה־image לא מתפרסם מ־PR אף פעם.</p>
+<h3 id="2313">23.1.3 ביטויים והקשרים</h3>
+<p>הצורה <code>${{ ... }}</code> היא ביטוי (expression) שמוערך לפני שהצעד רץ. הוא קורא מהקשרים (contexts): האירוע והענף,
+הסודות והמשתנים, הקלטים, והתוצאות של צעדים ו־jobs קודמים. התוצאה מודבקת לטקסט של הקובץ. זה נוח, וזה גם מקור לבעיית אבטחה אמיתית, כי ביטוי בתוך <code>run</code> הופך לחלק מהסקריפט עצמו.
+נחזור לזה בסעיף 23.6.</p>
+<h2 id="232-go-python">23.2 בנייה ובדיקה ל־Go ול־Python</h2>
+<h3 id="2321-go">23.2.1 פעולה מורכבת לבדיקות של Go</h3>
+<p>לשני פרויקטי ה־Go יש אותם ארבעה צעדים: עיצוב, ניתוח סטטי בשני כלים, ובדיקות עם גלאי המרוצים. במקום להעתיק
+אותם, הם כתובים פעם אחת כפעולה מורכבת (composite action), בתיקייה <code>.github/actions/go-checks</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-yaml">name: Go checks
+description: gofmt, go vet, staticcheck and go test -race for one Go module.
+
+inputs:
+  working-directory:
+    description: Directory that holds go.mod, relative to the repository root.
+    required: true
+  fail-on-skip:
+    description: Fail when any test was skipped (use it where a database is expected).
+    required: false
+    default: &quot;false&quot;
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Go from go.mod
+      uses: actions/setup-go@v7
+      with:
+        go-version-file: ${{ inputs.working-directory }}/go.mod
+        cache-dependency-path: ${{ inputs.working-directory }}/go.sum
+
+    - name: gofmt
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        unformatted=&quot;$(gofmt -l .)&quot;
+        if [ -n &quot;$unformatted&quot; ]; then
+          echo &quot;::error::gofmt would change these files:&quot;
+          echo &quot;$unformatted&quot;
+          exit 1
+        fi
+
+    - name: go vet
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: go vet ./...
+
+    - name: staticcheck
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: go run honnef.co/go/tools/cmd/staticcheck@2026.2.1 ./...
+</code></pre>
+
+
+</div>
+
+<p>כמה החלטות קטנות שכדאי לשים לב אליהן:</p>
+<ul>
+<li><strong>הגרסה של Go מגיעה מ־<code>go.mod</code>.</strong> הקלט <code>go-version-file</code> קורא אותה מהקובץ, כך שהפרויקט, המחשב שלך
+  וה־CI מסכימים בלי לכתוב אותה פעמיים.</li>
+<li><strong>המטמון כבר דלוק.</strong> ‏<code>setup-go</code> שומר את מטמון המודולים ואת מטמון הבנייה, במפתח שנגזר מ־<code>go.sum</code>. בפרויקט
+  שבו <code>go.sum</code> לא בשורש, צריך <code>cache-dependency-path</code>; אחרת המטמון לא יימצא.</li>
+<li><strong>‏staticcheck בגרסה מוצמדת, דרך <code>go run</code>.</strong> הצורה <code>module@version</code> בונה את הכלי בלי לגעת בקובץ המודול של
+  הפרויקט, והבנייה עצמה נכנסת למטמון. נכון לאוקטובר 2026, זו הגרסה של נספח ג.</li>
+<li><strong>‏<code>::error::</code></strong> היא פקודת workflow: שורה שמתחילה בה מופיעה כהערה אדומה בדף ההרצה, ולא רק בלוג.</li>
+<li><strong>בפעולה מורכבת, כל <code>run</code> חייב <code>shell</code>.</strong> אין לה <code>defaults</code>, ולכן כתוב <code>shell: bash</code> בכל צעד.</li>
+</ul>
+<p>והצעד האחרון, הבדיקות. הדגל <code>-race</code> מפעיל את גלאי מרוצי הנתונים מפרק 5. הדגל <code>-count=1</code> מבטל את מטמון
+התוצאות, כי ב־CI רוצים הרצה אמיתית:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-yaml">    - name: go test -race
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        FAIL_ON_SKIP: ${{ inputs.fail-on-skip }}
+      run: |
+        go test -race -count=1 -v ./... | tee &quot;$RUNNER_TEMP/go-test.log&quot;
+        if [ &quot;$FAIL_ON_SKIP&quot; = &quot;true&quot; ] &amp;&amp; grep -q -- '--- SKIP' &quot;$RUNNER_TEMP/go-test.log&quot;; then
+          echo &quot;::error::tests were skipped; is DATABASE_URL set for this job?&quot;
+          grep -- '--- SKIP' &quot;$RUNNER_TEMP/go-test.log&quot;
+          exit 1
+        fi
+</code></pre>
+
+
+</div>
+
+<p>הקלט <code>fail-on-skip</code> עובר לסקריפט דרך משתנה סביבה ולא דרך <code>${{ }}</code> בתוך הטקסט. למה זה חשוב יופיע בסעיף 23.6,
+ולמה הקלט קיים בכלל יופיע בסעיף 23.3. ה־job ב־workflow של <code>shorty</code> רק קורא לפעולה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-yaml">jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/go-checks
+        with:
+          working-directory: ch06
+</code></pre>
+
+
+</div>
+
+<p>שני פרטים. ‏<code>timeout-minutes</code> קיים בכל job, כי ברירת המחדל של GitHub ארוכה בהרבה ממה שבדיקה תקועה שווה.
+ו־<code>persist-credentials: false</code> מונע מ־checkout להשאיר את הטוקן בהגדרות Git של המכונה, שם כל צעד אחר היה יכול
+לקרוא אותו.</p>
+<p><strong>פעולה מורכבת או workflow לשימוש חוזר?</strong> ל־GitHub יש שני כלים לשימוש חוזר, והם עונים על שאלות שונות:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>פעולה מורכבת</th>
+<th>workflow לשימוש חוזר (reusable workflow)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>מה היא</td>
+<td>רצף צעדים בתוך job של מי שקורא לה</td>
+<td>‏workflow שלם, עם jobs משלו, שנקרא דרך <code>workflow_call</code></td>
+</tr>
+<tr>
+<td>איפה רצה</td>
+<td>על ה־runner של ה־job הקורא</td>
+<td>על runners משלה</td>
+</tr>
+<tr>
+<td>‏services, ‏<code>permissions</code>, ‏environment</td>
+<td>של ה־job הקורא</td>
+<td>מגדירה בעצמה</td>
+</tr>
+<tr>
+<td>מתי לבחור</td>
+<td>„אותם צעדים בכמה jobs”</td>
+<td>„אותו תהליך שלם בכמה מאגרים”, למשל release אחיד לארגון</td>
+</tr>
+</tbody>
+</table>
+<p>כאן הבחירה ברורה: המעבדה של פרק 11 צריכה מסד לצד ה־job, והפעולה המורכבת רצה בתוך אותו job ומשתמשת בו.</p>
+<h3 id="2322-job-python">23.2.2 ה־job של Python</h3>
+<p>ל־Python, ‏uv עושה את רוב העבודה (הקובץ <code>.github/workflows/ch08-receiver.yml</code>):</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-yaml">    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10
+        with:
+          version: &quot;0.12.23&quot;
+          working-directory: ch08
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Lockfile matches pyproject.toml
+        run: uv lock --check
+      - name: Install exactly what uv.lock says
+        run: uv sync --frozen
+      - name: ruff check
+        run: uv run --no-sync ruff check .
+      - name: ruff format
+        run: uv run --no-sync ruff format --check .
+      - name: mypy
+        run: uv run --no-sync mypy src
+      - name: pytest
+        run: uv run --no-sync pytest -q
+</code></pre>
+
+
+</div>
+
+<p>שלושה דגלים של uv, ושלושה תפקידים שונים:</p>
+<table>
+<thead>
+<tr>
+<th>פקודה</th>
+<th>מה היא מבטיחה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>uv lock --check</code></td>
+<td>שקובץ הנעילה תואם ל־<code>pyproject.toml</code>; תלות שנוספה בלי <code>uv lock</code> נכשלת כאן</td>
+</tr>
+<tr>
+<td><code>uv sync --frozen</code></td>
+<td>התקנה מ־<code>uv.lock</code> כמו שהוא, בלי לפתור תלויות מחדש</td>
+</tr>
+<tr>
+<td><code>uv run --no-sync</code></td>
+<td>הרצה בסביבה שכבר הותקנה, בלי ש־<code>uv run</code> יסנכרן בעצמו</td>
+</tr>
+</tbody>
+</table>
+<p>את Python עצמו לא מתקינים בצעד נפרד: <code>uv sync</code> קורא את <code>.python-version</code> ומוריד את הגרסה המנוהלת. הגרסה של
+uv מוצמדת, כמו כל כלי אחר בספר. ולכל בדיקה צעד משלה, כדי שבדף ההרצה יופיע בדיוק מה נכשל: ruff או mypy, ולא
+„הבדיקות”.</p>
+<h2 id="233-service-containers">23.3 service containers</h2>
+<p>מעבדת הבידוד מפרק 11 צריכה PostgreSQL אמיתי, כי כל מה שהיא בודקת קורה בתוך המסד. מסד כזה נקרא service
+container: קונטיינר שמופעל לפני הצעדים של ה־job ונכבה אחריהם. הנה ההגדרה, מהקובץ
+<code>.github/workflows/ch11-isolation-lab.yml</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-yaml">jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18.6
+        env:
+          POSTGRES_USER: course
+          POSTGRES_PASSWORD: change-me # a throw-away CI database, not a secret
+          POSTGRES_DB: lab
+        ports:
+          - 5432:5432
+        # The job's steps start only after this health check passes.
+        options: &gt;-
+          --health-cmd &quot;pg_isready -U course -d lab&quot;
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      # The job runs on the runner itself, so the service is on localhost.
+      DATABASE_URL: postgres://course:change-me@localhost:5432/lab
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/go-checks
+        with:
+          working-directory: ch11
+          fail-on-skip: &quot;true&quot;
+</code></pre>
+
+
+</div>
+
+<p><strong>הבריאות.</strong> ה־runner מחכה עד שבדיקת הבריאות של הקונטיינר עוברת, ורק אז מתחיל את ה־steps. בלי <code>--health-cmd</code>
+הוא מתחיל מיד, והבדיקה הראשונה פוגשת מסד שעוד מאתחל: <code>connection refused</code>, לפעמים. „לפעמים” הוא הסוג הגרוע
+ביותר של כשל ב־CI. הערכים זהים לאלה של קובץ ה־compose של פרק 11, כדי שהמסד ב־CI יתנהג כמו המסד אצלך.</p>
+<p><strong>הכתובת.</strong> איך מגיעים לשירות תלוי באיפה ה־job רץ:</p>
+<table>
+<thead>
+<tr>
+<th>ה־job רץ</th>
+<th>הכתובת של השירות</th>
+<th>מה צריך</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>על ה־runner עצמו (כמו כאן)</td>
+<td><code>localhost</code> והפורט שמופה</td>
+<td><code>ports</code></td>
+</tr>
+<tr>
+<td>בתוך קונטיינר (<code>container:</code>)</td>
+<td>שם השירות, כאן <code>postgres</code>, והפורט המקורי</td>
+<td>רשת שה־runner יוצר; בלי <code>ports</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>הסיסמה בקובץ.</strong> ‏<code>change-me</code> כתובה בגלוי, וזה בסדר: זה מסד שחי כמה דקות, על מכונה שנמחקת, ואין בו כלום. סוד
+אמיתי לעולם לא נכתב בקובץ, וגם לא „רק לבדיקה”; סעיף 23.6.</p>
+<h3 id="2331">23.3.1 ירוק שלא בדק כלום</h3>
+<p>הבדיקות של פרק 11 מדלגות כש־<code>DATABASE_URL</code> לא מוגדר. זה נכון על המחשב שלך, וזה מסוכן ב־CI. כך זה נראה, מהרצה
+אמיתית על הפתרון בלי המשתנה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">cd ~/senior-course/ch11
+unset DATABASE_URL
+go test -count=1 ./...
+go test -count=1 -v ./... | grep -c -- '--- SKIP'
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">ok      example.com/ch11-isolation-lab/bank 0.693s
+ok      example.com/ch11-isolation-lab/db   0.378s
+?       example.com/ch11-isolation-lab/internal/testdb  [no test files]
+ok      example.com/ch11-isolation-lab/migrations   1.009s
+ok      example.com/ch11-isolation-lab/oncall   1.343s
+ok      example.com/ch11-isolation-lab/queue    1.646s
+20
+</code></pre>
+
+
+</div>
+
+<p>כל החבילות <code>ok</code>, ועשרים בדיקות דילגו. מספיק ששם המשתנה ישתנה, או שמישהו יזיז את <code>env</code> מה־job לצעד אחר,
+וה־CI ימשיך להיות ירוק בלי לבדוק את המסד. בשביל זה הקלט <code>fail-on-skip</code>: ב־job שבו המסד אמור להיות, דילוג
+הוא כישלון. הכלל הכללי: <strong>‏CI צריך להיכשל כשהתנאים לבדיקה לא מתקיימים</strong>, ולא לדווח הצלחה על מה שלא רץ.</p>
+<h2 id="234-image-ghcr">23.4 בניית image ופרסום ל־GHCR</h2>
+<p>‏GHCR, ה־registry של GitHub, מחובר לחשבון ולמאגר שלך. הכתובת שלו היא <code>ghcr.io</code>, ואפשר לדחוף אליו עם הטוקן
+האוטומטי של ההרצה, בלי סיסמה נוספת. זה ה־job שמפרסם את <code>shorty</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-yaml">  image:
+    # Publish only what passed the tests and the smoke test, and only from main.
+    if: github.event_name == 'push' &amp;&amp; github.ref == 'refs/heads/main'
+    needs: [test, kind-smoke]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@v4
+      - name: Image names and labels
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/shorty
+          tags: |
+            type=ref,event=branch
+            type=sha
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: ch06
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=shorty
+          cache-to: type=gha,scope=shorty,mode=max
+</code></pre>
+
+
+</div>
+
+<p>ארבעה actions, וכל אחד עושה דבר אחד:</p>
+<table>
+<thead>
+<tr>
+<th>action</th>
+<th>התפקיד</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>docker/setup-buildx-action</code></td>
+<td>מקים builder של BuildKit, שתומך במטמון של GitHub Actions</td>
+</tr>
+<tr>
+<td><code>docker/metadata-action</code></td>
+<td>מחשב תגיות ותוויות OCI מהאירוע: כאן <code>main</code> ו־<code>sha-&lt;7 תווים&gt;</code></td>
+</tr>
+<tr>
+<td><code>docker/login-action</code></td>
+<td>מתחבר ל־<code>ghcr.io</code> עם <code>GITHUB_TOKEN</code></td>
+</tr>
+<tr>
+<td><code>docker/build-push-action</code></td>
+<td>בונה מה־Dockerfile של פרק 19 ודוחף</td>
+</tr>
+</tbody>
+</table>
+<p><strong>התגיות.</strong> כל image מקבל שתי תגיות: <code>main</code>, שזזה עם הענף, ו־<code>sha-...</code>, שלא זזה לעולם. זה הכלל מסעיף 19.7:
+תגית שזזה נוחה לבני אדם, ותגית קבועה היא מה שפורסים. התוויות שהפעולה מוסיפה כוללות את כתובת המאגר ואת
+ה־commit, ולכן ה־Dockerfile שבתרגיל כבר לא מגדיר תוויות משלו. הפעולה גם ממירה את שם ה־image לאותיות
+קטנות: שם של image לא יכול להכיל אותיות גדולות, ושם משתמש ב־GitHub יכול.</p>
+<p><strong>ההרשאה.</strong> ‏<code>packages: write</code> מוגדר רק ב־job הזה. כל שאר ה־jobs מקבלים <code>contents: read</code> מהרמה העליונה, ולא
+יכולים לדחוף. וה־job כולו לא רץ ב־PR, ולכן קוד מ־PR לא מגיע לטוקן שכותב.</p>
+<p><strong>המטמון.</strong> ‏<code>type=gha</code> שומר שכבות של BuildKit במטמון של GitHub Actions. ‏<code>scope=shorty</code> מפריד אותו מ־images
+אחרים במאגר, ו־<code>mode=max</code> שומר גם את שכבות שלב הבנייה, ולא רק את התוצאה. ה־job של סעיף 23.5 כותב לאותו
+מטמון, ולכן כשה־job הזה רץ, רוב השכבות כבר שם.</p>
+<p><strong>בנייה שנייה, לא אותם בתים.</strong> שימי לב שה־image נבנה פעמיים: פעם ב־<code>kind-smoke</code>, ופעם כאן. עם אותו Dockerfile
+ואותו מטמון, התוצאה כמעט תמיד זהה, אבל זו לא הבטחה. אם הדרישה היא „פורסים בדיוק את מה שנבדק”, בונים פעם אחת,
+דוחפים לפי digest, ובודקים את ה־digest הזה. כאן הבחירה היא פשטות, ובפרויקט הגמר תחליטי בעצמך.</p>
+<h2 id="235-kind-ci">23.5 פריסה ל־kind ב־CI</h2>
+<p>בדיקות יחידה לא יודעות אם ה־image עולה בכלל. משתמש בלי הרשאה לקובץ, משתנה חובה שחסר בקובץ הפריסה, בדיקת
+מוכנות לנתיב לא נכון: כל אלה עוברות אותן. אשכול kind שקם בתוך ה־job עונה על זה בכמה דקות, ונמחק עם המכונה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-yaml">  kind-smoke:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@v4
+      - name: Build the image into the local Docker
+        uses: docker/build-push-action@v7
+        with:
+          context: ch06
+          tags: shorty:ci
+          load: true
+          cache-from: type=gha,scope=shorty
+          cache-to: type=gha,scope=shorty,mode=max
+      - name: Create a kind cluster
+        uses: helm/kind-action@v1.15.0
+        with:
+          version: v0.33.0
+          node_image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
+          kubectl_version: v1.37.1
+          cluster_name: ch23
+      - name: Load the image into the cluster
+        run: kind load docker-image shorty:ci --name ch23
+      - name: Deploy
+        run: |
+          kubectl apply -f deploy/shorty.yaml
+          kubectl rollout status deployment/shorty --timeout=120s
+      - name: Smoke test
+        run: ./deploy/smoke.sh
+      - name: Show what the cluster saw
+        if: failure()
+        run: |
+          kubectl get pods -o wide
+          kubectl describe deployment/shorty
+          kubectl logs deployment/shorty --tail=100 || true
+          kubectl get events --sort-by=.lastTimestamp
+</code></pre>
+
+
+</div>
+
+<p>הצעדים, לפי הסדר:</p>
+<table>
+<thead>
+<tr>
+<th>צעד</th>
+<th>מה קורה</th>
+<th>הפרט שחשוב</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>בנייה</td>
+<td>ה־image נבנה ונטען ל־Docker של ה־runner</td>
+<td>‏<code>load: true</code>; בלעדיו הוא נשאר בתוך ה־builder</td>
+</tr>
+<tr>
+<td>אשכול</td>
+<td>‏kind מותקן ואשכול בשם <code>ch23</code> קם</td>
+<td>גרסאות kind, ה־node ו־kubectl מוצמדות, ה־node לפי digest</td>
+</tr>
+<tr>
+<td>טעינה</td>
+<td>ה־image מועתק לתוך ה־node</td>
+<td>בלי registry; ה־manifest אומר <code>imagePullPolicy: Never</code></td>
+</tr>
+<tr>
+<td>פריסה</td>
+<td>‏Deployment ו־Service מפרק 20</td>
+<td>‏<code>rollout status</code> מחכה ל־readiness probe</td>
+</tr>
+<tr>
+<td>עשן</td>
+<td>‏port-forward, יצירת קישור, ‏302</td>
+<td>הסקריפט <code>deploy/smoke.sh</code></td>
+</tr>
+<tr>
+<td>אבחון</td>
+<td>רק אם משהו נכשל</td>
+<td>‏<code>if: failure()</code>; בלי זה, אשכול שנמחק לא משאיר עקבות</td>
+</tr>
+</tbody>
+</table>
+<p>ה־action של kind מוצמד כאן לתגית מלאה, ולא רק לגרסה הראשית, כי ברירות המחדל שלו יכולות להשתנות בין גרסאות
+משנה, ובדיקת עשן צריכה סביבה קבועה. מאותה סיבה שלוש הגרסאות כתובות גם במפורש: kind, ה־node ו־kubectl. התגית
+ושמות הקלטים נבדקו מול קובץ ה־<code>action.yml</code> של התגית, ב־5 באוקטובר 2026.</p>
+<p>בדיקת העשן עצמה היא סקריפט bash, כדי שאותו קוד ירוץ ב־CI ועל המחשב שלך (הקובץ <code>ch06/deploy/smoke.sh</code>):</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">kubectl port-forward service/shorty &quot;${port}:80&quot; &gt;&quot;${log}&quot; 2&gt;&amp;1 &amp;
+forward_pid=$!
+trap 'kill &quot;${forward_pid}&quot; 2&gt;/dev/null || true; rm -f &quot;${log}&quot;' EXIT
+
+# port-forward needs a moment before it accepts connections.
+for _ in $(seq 1 30); do
+  if curl -fsS &quot;${base}/healthz&quot; &gt;/dev/null 2&gt;&amp;1; then
+    break
+  fi
+  sleep 1
+done
+curl -fsS &quot;${base}/healthz&quot; &gt;/dev/null || { cat &quot;${log}&quot;; exit 1; }
+echo &quot;healthz: ok&quot;
+
+created=&quot;$(curl -fsS -X POST &quot;${base}/v1/links&quot; \
+  -H 'Content-Type: application/json' \
+  -d '{&quot;url&quot;: &quot;https://example.com/from-ci&quot;, &quot;code&quot;: &quot;ci-smoke&quot;}')&quot;
+echo &quot;created: ${created}&quot;
+
+status=&quot;$(curl -s -o /dev/null -w '%{http_code}' &quot;${base}/ci-smoke&quot;)&quot;
+if [ &quot;${status}&quot; != &quot;302&quot; ]; then
+  echo &quot;expected 302 from /ci-smoke, got ${status}&quot; &gt;&amp;2
+  exit 1
+fi
+</code></pre>
+
+
+</div>
+
+<p>הבדיקה יוצרת קישור עם קוד קבוע, <code>ci-smoke</code>, כדי שלא תצטרך לפענח JSON, ובודקת את מה שמשתמשת הייתה רואה: הפניה.
+היא לא בודקת את כל ה־API; זה תפקיד הבדיקות של פרק 6. בדיקת עשן עונה על שאלה אחת: „השירות עלה ועונה?”. ה־<code>trap</code>
+סוגר את ה־port-forward גם כשהבדיקה נכשלת באמצע, אחרת התהליך נשאר ברקע.</p>
+<h2 id="236-environments">23.6 environments, סודות והרשאות</h2>
+<h3 id="2361-github_token">23.6.1 ‏<code>GITHUB_TOKEN</code> ומינימום הרשאות</h3>
+<p>לכל הרצה GitHub מנפיק טוקן זמני, <code>GITHUB_TOKEN</code>, שתקף רק למאגר הזה ורק עד סוף ה־job. המפתח <code>permissions</code> קובע
+מה מותר לו. הכלל מהתיעוד של GitHub פשוט ומחמיר: <strong>ברגע שכותבים הרשאה אחת, כל מה שלא נכתב הוא <code>none</code>.</strong> לכן
+<code>permissions: contents: read</code> ברמה העליונה הוא נקודת התחלה טובה, וכל job מוסיף רק את מה שהוא צריך:</p>
+<table>
+<thead>
+<tr>
+<th>job</th>
+<th>ההרשאות</th>
+<th>למה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test</code>, ‏<code>kind-smoke</code>, הבדיקות של Python</td>
+<td><code>contents: read</code></td>
+<td>‏checkout בלבד</td>
+</tr>
+<tr>
+<td><code>image</code></td>
+<td><code>contents: read</code>, ‏<code>packages: write</code></td>
+<td>דחיפה ל־GHCR</td>
+</tr>
+<tr>
+<td><code>publish</code> של ה־release</td>
+<td><code>contents: write</code></td>
+<td>יצירת release ותגית</td>
+</tr>
+<tr>
+<td>‏job שמתחבר לענן ב־OIDC</td>
+<td><code>id-token: write</code></td>
+<td>בקשת אסימון זהות (סעיף 23.6.4)</td>
+</tr>
+</tbody>
+</table>
+<p>למה לא להשאיר את ברירת המחדל של המאגר? כי היא הגדרה שמישהו יכול לשנות בדף ההגדרות, ואז כל workflow במאגר
+מקבל פתאום יותר. הרשאה שכתובה בקובץ נבדקת בסקירת קוד, ונשארת כמו שהיא. ב־PR ממאגר מפוצל (fork), הטוקן מקבל
+קריאה בלבד והסודות לא מועברים בכלל, ולכן קוד זר שרץ בבדיקות לא יכול לכתוב.</p>
+<blockquote>
+<p><strong>טעות נפוצה:</strong> להחליף את <code>pull_request</code> ב־<code>pull_request_target</code> „כדי שיהיו סודות”. הטריגר הזה רץ בהקשר של
+מאגר היעד, עם טוקן שכותב ועם הסודות, גם על PR ממאגר מפוצל. אם הוא עושה checkout לקוד של ה־PR ומריץ אותו,
+כל אחד שפותח PR מריץ קוד עם הסודות שלך. הוא נועד לפעולות על ה־PR (תוויות, תגובות), לא להרצת הקוד שלו.</p>
+</blockquote>
+<h3 id="2362">23.6.2 סודות ומשתנים</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>סוד (secret)</th>
+<th>משתנה (variable)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>מה שומרים בו</td>
+<td>טוקן, סיסמה, כתובת webhook שמכילה מפתח</td>
+<td>הגדרה לא רגישה: דגל, שם, כתובת ציבורית</td>
+</tr>
+<tr>
+<td>איך קוראים</td>
+<td><code>${{ secrets.NAME }}</code></td>
+<td><code>${{ vars.NAME }}</code></td>
+</tr>
+<tr>
+<td>בלוג</td>
+<td>מוסתר כ־<code>***</code></td>
+<td>מודפס כמו שהוא</td>
+</tr>
+<tr>
+<td>רמות</td>
+<td>ארגון, מאגר, environment</td>
+<td>ארגון, מאגר, environment</td>
+</tr>
+</tbody>
+</table>
+<p>ההסתרה בלוג היא רשת ביטחון, לא הגנה: סוד שעבר קידוד (base64, למשל) כבר לא מזוהה ומודפס. הכלל הוא לא להדפיס
+סודות בכלל, ולהעביר אותם לפקודה דרך משתנה סביבה.</p>
+<h3 id="2363-environments">23.6.3 environments ומבקרים חובה</h3>
+<p>‏environment הוא שם, כמו <code>production</code>, שאליו מצמידים כללי הגנה וסודות. job שמפנה אליו מקבל את הסודות שלו רק
+אחרי שהכללים מתקיימים. הכלל החשוב ביותר הוא מבקרים חובה (required reviewers): ה־job נעצר ומחכה שאחד מהם
+יאשר בדף ההרצה. כך נראה ה־job של ה־release (הקובץ <code>.github/workflows/release.yml</code>):</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-yaml">  publish:
+    needs: image
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # The job waits here until a required reviewer of &quot;production&quot; approves.
+    environment:
+      name: production
+      url: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: ${{ github.ref_name }}
+      DIGEST: ${{ needs.image.outputs.digest }}
+      # An environment secret: readable only by jobs that reference &quot;production&quot;.
+      RELEASE_WEBHOOK_URL: ${{ secrets.RELEASE_WEBHOOK_URL }}
+</code></pre>
+
+
+</div>
+
+<p>המבקרים עצמם לא מוגדרים ב־YAML, אלא בהגדרות המאגר, תחת Environments. זה בכוונה: מי שכותב workflow לא יכול
+לאשר לעצמו גישה בשינוי של הקובץ. שלושה דברים שכדאי לדעת לפני שמסתמכים על זה:</p>
+<ul>
+<li><strong>הסודות מחכים לאישור.</strong> לפי התיעוד, job לא מקבל את הסודות של environment עד שמבקר מאשר. כך <code>RELEASE_WEBHOOK_URL</code>
+  לא נחשף ל־job שאף אחד לא אישר.</li>
+<li><strong>אפשר למנוע אישור עצמי.</strong> הגדרה ב־environment אוסרת על מי שהפעילה את ההרצה לאשר אותה, כך שתמיד יש שני
+  אנשים.</li>
+<li><strong>זה תלוי בתוכנית.</strong> נכון לאוקטובר 2026, בחשבון החינמי של GitHub, מבקרים חובה, סודות ומשתנים של
+  environment זמינים רק במאגרים ציבוריים. התרגיל מסביר מה לעשות אם המאגר שלך פרטי.</li>
+</ul>
+<h3 id="2364-oidc">23.6.4 OIDC: בלי מפתחות ענן בסודות</h3>
+<p>הדרך הישנה לפרוס לענן מ־CI הייתה לשמור מפתח גישה קבוע כסוד. למפתח כזה אין תאריך תפוגה, הוא עובד מכל מקום, ואם
+הוא דולף מלוג או מ־action זדוני, הוא עובד גם אצל מי שמצא אותו. ‏OIDC מחליף אותו באסימון קצר מועד:</p>
+<ol>
+<li>‏job עם <code>permissions: id-token: write</code> מבקש מ־GitHub אסימון זהות (JWT) חתום.</li>
+<li>באסימון יש טענות (claims) על ההרצה: המאגר, הענף או התגית, ה־environment. הטענה <code>sub</code> נראית, למשל, כמו
+   <code>repo:&lt;owner&gt;/senior-course:environment:production</code>.</li>
+<li>בענן מגדירים מראש אמון במנפיק של GitHub, עם תנאי על הטענות: רק המאגר הזה, ורק ה־environment הזה.</li>
+<li>ה־action של הענף מחליף את האסימון בהרשאות זמניות, לדקות, ומהן הוא פורס.</li>
+</ol>
+<p>אין סוד לשמור, ואין מה לסובב. ואם התנאי בענן כולל את ה־environment, הרשאות הייצור זמינות רק ל־job שעבר את
+המבקרים. בספר אין פריסה לענן (החלק של AWS בפרק 22 אופציונלי), ולכן ה־OIDC נשאר כאן הסבר.</p>
+<h3 id="2365">23.6.5 הזרקת סקריפט</h3>
+<p>ביטוי <code>${{ }}</code> בתוך <code>run</code> מודבק לסקריפט לפני ש־bash קורא אותו. אם הערך מגיע מבחוץ, כמו כותרת של PR, מי שכתב
+את הכותרת כותב חלק מהסקריפט שלך. כותרת שמכילה מירכאות ואחריהן פקודה, למשל הורדה והרצה של סקריפט, הופכת
+לפקודה בתוך ה־job. התיקון שהתיעוד של GitHub ממליץ עליו הוא לעבור דרך משתנה סביבה, כמו שכל הסקריפטים בפרק עושים. הערך נשמר בזיכרון של התהליך,
+ו־bash לא מפרש אותו כקוד. ‏actionlint מזהה את המקרה הזה, וסעיף 23.8 מראה איך.</p>
+<h2 id="237-releases">23.7 releases</h2>
+<h3 id="2371-release">23.7.1 release על תגית</h3>
+<p>קובץ ה־release רץ על תגית בצורה <code>v1.2.3</code>. ה־job הראשון בונה ודוחף image עם תגיות של גרסה. השני מחכה למבקר,
+ואז יוצר release. אלה התגיות שהוא מבקש מ־metadata-action:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-yaml">          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+</code></pre>
+
+
+</div>
+
+<p>התגית של Git הופכת לשתי תגיות של image, הגרסה המלאה וגרסת המשנה, ובברירת המחדל גם ל־<code>latest</code>, אם זו לא
+גרסה מקדימה. את ה־release יוצר הכלי <code>gh</code>, שמותקן מראש על המכונות של GitHub:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-yaml">    steps:
+      - name: Create the GitHub release
+        run: |
+          gh release create &quot;$TAG&quot; \
+            --repo &quot;$GITHUB_REPOSITORY&quot; \
+            --verify-tag \
+            --generate-notes \
+            --notes &quot;Image: ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/shorty@${DIGEST}&quot;
+      - name: Announce the release
+        # A variable (not secret) switches it on; the secret holds the URL.
+        if: vars.ANNOUNCE_RELEASES == 'true' &amp;&amp; env.RELEASE_WEBHOOK_URL != ''
+        run: |
+          curl -fsS -X POST &quot;$RELEASE_WEBHOOK_URL&quot; \
+            -H 'Content-Type: application/json' \
+            -d &quot;{\&quot;text\&quot;: \&quot;shorty ${TAG} released\&quot;}&quot;
+</code></pre>
+
+
+</div>
+
+<table>
+<thead>
+<tr>
+<th>דגל או ביטוי</th>
+<th>מה הוא עושה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--verify-tag</code></td>
+<td>נכשל אם התגית לא קיימת במאגר, במקום ליצור תגית חדשה מ־<code>main</code></td>
+</tr>
+<tr>
+<td><code>--generate-notes</code></td>
+<td>הערות שחרור אוטומטיות מה־PRs שמוזגו מאז ה־release הקודם</td>
+</tr>
+<tr>
+<td><code>--notes</code></td>
+<td>טקסט שנוסף לפני ההערות האוטומטיות: כאן ה־digest של ה־image</td>
+</tr>
+<tr>
+<td><code>${GITHUB_REPOSITORY_OWNER,,}</code></td>
+<td>הרחבה של bash לאותיות קטנות, כמו ששם ה־image נכתב</td>
+</tr>
+</tbody>
+</table>
+<p>ה־digest מגיע מה־job הקודם, ולכן הגרסה מצביעה על image מדויק, ולא על תגית שיכולה לזוז. ההודעה על השחרור
+מראה את ההבדל בין משתנה לסוד: הדגל <code>ANNOUNCE_RELEASES</code> לא רגיש, והוא משתנה. הכתובת מכילה מפתח, והיא סוד
+של environment.</p>
+<p>חלופה נפוצה ל־<code>gh</code> היא הפעולה <code>softprops/action-gh-release</code>, שהגרסה הראשית שלה נכון לאוקטובר 2026 היא v3. כאן
+<code>gh</code> עדיף, כי הוא לא מוסיף קוד של צד שלישי ל־job שמחזיק טוקן שכותב.</p>
+<h3 id="2372-sha">23.7.2 להצמיד לגרסה ראשית או ל־SHA</h3>
+<p>כל <code>uses:</code> מריץ קוד ממאגר של מישהו אחר, עם הטוקן ועם הסודות של ה־job. השאלה היא איזה קוד:</p>
+<table>
+<thead>
+<tr>
+<th>צורה</th>
+<th>דוגמה</th>
+<th>מה מקבלים</th>
+<th>הסיכון</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>גרסה ראשית</td>
+<td><code>docker/build-push-action@v7</code></td>
+<td>תיקונים אוטומטית</td>
+<td>התגית זזה; מי שמשתלט על המאגר שלהם מריץ קוד אצלך</td>
+</tr>
+<tr>
+<td>תגית מלאה</td>
+<td><code>helm/kind-action@v1.15.0</code></td>
+<td>גרסה ידועה</td>
+<td>גם תגית מלאה אפשר להזיז</td>
+</tr>
+<tr>
+<td>‏SHA מלא</td>
+<td><code>docker/build-push-action@c3c9e263...</code></td>
+<td>בדיוק הקוד שנבדק</td>
+<td>עדכונים רק כשמישהו מעדכן</td>
+</tr>
+</tbody>
+</table>
+<p>המדריך של GitHub לשימוש מאובטח ב־Actions אומר זאת במפורש: הצמדה ל־SHA מלא היא כרגע הדרך היחידה להשתמש
+ב־action כגרסה שלא משתנה. שם המדריך הוא „Secure use reference”, והכתובת שלו:
+<a href="https://docs.github.com/en/actions/reference/security/secure-use">https://docs.github.com/en/actions/reference/security/secure-use</a>. הכתובת של שמו הקודם, „Security hardening for
+GitHub Actions”, מפנה אליו נכון לאוקטובר 2026.</p>
+<p>בספר הבחירה מחולקת לפי סיכון. ה־workflows של הבדיקות משתמשים בגרסאות ראשיות, כמו בנספח ג, כי הם רצים עם טוקן
+שקורא בלבד. קובץ ה־release כותב, ולכן כל action בו מוצמד ל־SHA, עם התגית כהערה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-yaml">      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+</code></pre>
+
+
+</div>
+
+<p>ההערה היא לא קישוט. בלעדיה אף אחד לא יודע מה מוצמד. ‏Dependabot, שיודע לעדכן גם actions, נשען עליה כשהוא
+פותח PR עם הגרסה החדשה. כך מקבלים את שני הדברים: קוד קבוע, ועדכונים שעוברים סקירה.</p>
+<h2 id="238-actionlint">23.8 actionlint</h2>
+<p>קובץ workflow שגוי מתגלה רק אחרי הדחיפה, בהרצה שנכשלת אחרי דקה. או גרוע מזה, לא נכשל: תנאי שתמיד שקר, או
+job שאף פעם לא רץ. ‏actionlint בודק את הקבצים על המחשב שלך, לפני ה־push. הוא מבין את התחביר, את הביטויים
+ואת ההקשרים, ומריץ shellcheck על כל <code>run</code> כש־shellcheck מותקן.</p>
+<p><strong>הוורקפלואים נבדקו ב־actionlint; ההרצה הראשונה שלהם תהיה במאגר שלך.</strong> את ה־runners של GitHub אי אפשר להריץ
+מכאן. מה שכן נבדק: actionlint ו־shellcheck נקיים על כל הקבצים. והפקודות של כל job הורצו על מחשב, בסקריפט
+המקומי של התרגיל, עם מסד בקונטיינר ועם אשכול kind אמיתי.</p>
+<h3 id="2381">23.8.1 מה הוא מוצא</h3>
+<p>בתרגיל יש קובץ עם שש טעויות מכוונות. זה הפלט של actionlint עליו, כפי שהתקבל (רשימת התוויות של ה־runners קוצרה
+כאן):</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">.github/workflows/broken-workflow.yml:10:3: unknown permission scope &quot;package&quot;. all available permission scopes are &quot;actions&quot;, ... &quot;packages&quot;, ... [permissions]
+.github/workflows/broken-workflow.yml:14:14: label &quot;ubuntu-lates&quot; is unknown. available labels are ... [runner-label]
+.github/workflows/broken-workflow.yml:21:32: &quot;github.event.pull_request.title&quot; is potentially untrusted. avoid using it directly in inline scripts. instead, pass it through an environment variable. see https://docs.github.com/en/actions/reference/security/secure-use#good-practices-for-mitigating-script-injection-attacks for more details [expression]
+.github/workflows/broken-workflow.yml:25:9: shellcheck reported issue in this script: SC2086:info:1:4: Double quote to prevent globbing and word splitting [shellcheck]
+.github/workflows/broken-workflow.yml:27:31: property &quot;test&quot; is not defined in object type {} [expression]
+.github/workflows/broken-workflow.yml:29:3: job &quot;image&quot; needs job &quot;build&quot; which does not exist in this workflow [job-needs]
+</code></pre>
+
+
+</div>
+
+<table>
+<thead>
+<tr>
+<th>הממצא</th>
+<th>מה היה קורה ב־GitHub</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>הרשאה <code>package</code></td>
+<td>ה־workflow נדחה כלא תקין; ההרשאה הנכונה היא <code>packages</code></td>
+</tr>
+<tr>
+<td>התווית <code>ubuntu-lates</code></td>
+<td>ה־job מחכה לנצח ל־runner עם תווית שלא קיימת</td>
+</tr>
+<tr>
+<td>כותרת PR בתוך <code>run</code></td>
+<td>הזרקת סקריפט (סעיף 23.6.5)</td>
+</tr>
+<tr>
+<td>‏SC2086</td>
+<td>משתנה בלי מירכאות; נשבר ברווח הראשון בערך</td>
+</tr>
+<tr>
+<td>‏<code>steps.test</code> לא קיים</td>
+<td>הביטוי מוערך למחרוזת ריקה, בשקט</td>
+</tr>
+<tr>
+<td>‏<code>needs: build</code></td>
+<td>ה־workflow נדחה כלא תקין</td>
+</tr>
+</tbody>
+</table>
+<p>שימי לב לשורה החמישית: בלי actionlint, הביטוי הזה לא נכשל. הוא פשוט ריק, והשלב מדפיס „tested packages”. זה
+הסוג של באג שעולה בתחקיר אחרי שבועות.</p>
+<h3 id="2382">23.8.2 מה הוא לא מוצא</h3>
+<p>כדאי לדעת את הגבולות של כלי שסומכים עליו:</p>
+<ul>
+<li><strong>קלטים של actions חיצוניים, רק בגרסאות שהוא מכיר.</strong> ‏actionlint מגיע עם רשימה של קלטים ל־actions נפוצים. בבדיקה
+  ב־5 באוקטובר 2026, גרסה 1.7.12 זיהתה קלט שגוי של <code>actions/setup-go@v6</code>, אבל לא של <code>@v7</code>. לכן כל שם קלט
+  בפרק נבדק מול ה־<code>action.yml</code> של התגית עצמה, ב־GitHub.</li>
+<li><strong>קלטים של הפעולה המקומית, כן.</strong> הוא קורא את <code>.github/actions/go-checks/action.yml</code>, ושם קלט שגוי בקריאה לה
+  נתפס. בגלל זה הוא צריך לרוץ מתוך מאגר Git.</li>
+<li><strong>הסקריפטים בתוך הפעולה המורכבת, לא.</strong> הוא בודק workflows, ולא את ה־<code>run</code> של קובצי action. אותם צעדים רצים
+  בסקריפט המקומי, וזה מה שבודק אותם.</li>
+<li><strong>התנהגות בזמן ריצה, לא.</strong> הוא לא יודע שהבדיקות ידלגו, שהמסד לא יעלה, או שה־image לא נטען. בשביל זה יש
+  <code>fail-on-skip</code>, בדיקת בריאות ובדיקת עשן.</li>
+</ul>
+<h3 id="2383">23.8.3 הבדיקה המלאה</h3>
+<p>הסקריפט <code>tests/lint.sh</code> מריץ את שני הכלים, ובודק שלכל workflow יש <code>permissions:</code> ברמה העליונה. על הפתרון
+שלושת החלקים שלו נקיים; הפלט המלא נמצא בקובץ ההוראות של התרגיל.</p>
+<p>הסקריפט המקומי, עם הדגל <code>--kind</code>, מריץ את כל הצעדים של שלושת ה־workflows, ומסכם. המספרים כאן הם מההרצה של
+המחברת על הפתרון; שורות Go סופרות <code>--- PASS</code>, כולל תתי־בדיקות:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">==&gt; summary
+ch06: 51 passed, 0 skipped
+ch11: 27 passed, 0 skipped
+ch08: 62 passed in 1.72s
+image: shorty:ci built
+kind: smoke test passed
+</code></pre>
+
+
+</div>
+
+<h2 id="_3">סיכום</h2>
+<ul>
+<li>כל job רץ על מכונה נקייה, ומה שעובר בין jobs עובר במפורש.</li>
+<li>סינון לפי נתיב מריץ רק את מה שהשתנה, אבל workflow מסונן לא מתאים לבדיקה חובה.</li>
+<li>המפתח <code>shell: bash</code> מוסיף <code>pipefail</code>.</li>
+<li>קבוצת מקביליות מבטלת הרצות מיושנות של PR, ולכל job יש זמן קצוב.</li>
+<li>פעולה מורכבת מאחדת צעדים בתוך job; ‏workflow לשימוש חוזר מאחד תהליך שלם עם jobs משלו.</li>
+<li>‏service container עם בדיקת בריאות נותן מסד אמיתי, ו־<code>fail-on-skip</code> מונע ירוק שלא בדק כלום.</li>
+<li>ה־image מתפרסם רק מ־<code>main</code> ורק אחרי בדיקת עשן; ההרשאה לדחוף ניתנת רק ל־job שדוחף.</li>
+<li>‏<code>permissions</code> מתחיל מקריאה; סודות של environment זמינים רק אחרי אישור; ‏OIDC מחליף מפתחות ענן קבועים.</li>
+<li>גרסה ראשית נוחה, ‏SHA מלא קבוע; ב־workflow שכותב, מצמידים ל־SHA עם התגית כהערה.</li>
+<li>‏actionlint תופס טעויות לפני push, אבל לא מחליף הרצה של הפקודות עצמן.</li>
+</ul>
+<h2 id="_4">מונחים לזכור</h2>
+<table>
+<thead>
+<tr>
+<th>מונח בעברית</th>
+<th>באנגלית</th>
+<th>במשפט אחד</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>אינטגרציה רציפה</td>
+<td>continuous integration (CI)</td>
+<td>בדיקה אוטומטית של כל שינוי, באותה סביבה ובאותן פקודות</td>
+</tr>
+<tr>
+<td>workflow</td>
+<td>workflow</td>
+<td>קובץ YAML עם טריגרים ו־jobs, ב־<code>.github/workflows</code></td>
+</tr>
+<tr>
+<td>job</td>
+<td>job</td>
+<td>רצף צעדים על runner אחד; ‏jobs מקבילים אלא אם יש <code>needs</code></td>
+</tr>
+<tr>
+<td>step</td>
+<td>step</td>
+<td>פקודת shell או שימוש ב־action, בתוך job</td>
+</tr>
+<tr>
+<td>runner</td>
+<td>runner</td>
+<td>המכונה שמריצה job; ב־GitHub, מכונה חדשה לכל job</td>
+</tr>
+<tr>
+<td>action</td>
+<td>action</td>
+<td>יחידה לשימוש חוזר שנקראת ב־<code>uses</code></td>
+</tr>
+<tr>
+<td>פעולה מורכבת</td>
+<td>composite action</td>
+<td>‏action שהוא רשימת צעדים, ורץ בתוך ה־job הקורא</td>
+</tr>
+<tr>
+<td>workflow לשימוש חוזר</td>
+<td>reusable workflow</td>
+<td>‏workflow שלם שנקרא מ־workflow אחר דרך <code>workflow_call</code></td>
+</tr>
+<tr>
+<td>service container</td>
+<td>service container</td>
+<td>קונטיינר שה־runner מפעיל לצד job, כמו מסד לבדיקות</td>
+</tr>
+<tr>
+<td>סינון לפי נתיב</td>
+<td>path filter</td>
+<td>הרצה רק כששונה קובץ שמתאים לתבנית</td>
+</tr>
+<tr>
+<td>קבוצת מקביליות</td>
+<td>concurrency group</td>
+<td>מגבלה של הרצה אחת בכל פעם לכל ענף או PR</td>
+</tr>
+<tr>
+<td>‏environment</td>
+<td>environment</td>
+<td>שם עם כללי הגנה, סודות ומשתנים, שאליו job מפנה</td>
+</tr>
+<tr>
+<td>מבקר חובה</td>
+<td>required reviewer</td>
+<td>מי שחייב לאשר job לפני שהוא רץ ומקבל את הסודות</td>
+</tr>
+<tr>
+<td>‏OIDC</td>
+<td>OpenID Connect</td>
+<td>אסימון זהות קצר מועד שהענן מחליף בהרשאות זמניות</td>
+</tr>
+<tr>
+<td>הזרקת סקריפט</td>
+<td>script injection</td>
+<td>ערך מבחוץ שהופך לקוד, כי ביטוי הודבק לתוך <code>run</code></td>
+</tr>
+<tr>
+<td>הצמדה ל־SHA</td>
+<td>SHA pinning</td>
+<td>‏<code>uses</code> עם commit מלא במקום תגית, כדי שהקוד לא ישתנה</td>
+</tr>
+<tr>
+<td>בדיקת עשן</td>
+<td>smoke test</td>
+<td>בדיקה קצרה שהמערכת עלתה ועונה, לא בדיקה של כל ההתנהגות</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_5">טעויות נפוצות</h2>
+<ul>
+<li><strong>בלי <code>permissions</code> בקובץ.</strong> ה־workflow מקבל את ברירת המחדל של המאגר, שמישהו יכול להרחיב בהגדרות. כותבים
+  <code>contents: read</code> ברמה העליונה, ומוסיפים לכל job רק את מה שהוא צריך.</li>
+<li><strong>ביטוי של קלט חיצוני בתוך <code>run</code>.</strong> כותרת של PR, שם ענף או גוף של תגובה הופכים לקוד. מעבירים אותם דרך
+  <code>env</code> ומשתמשים במשתנה במירכאות.</li>
+<li><strong>‏CI שמדלג בשקט.</strong> בדיקות שמדלגות בלי מסד מדווחות <code>ok</code>. ב־job שבו המסד אמור להיות, דילוג הוא כישלון.</li>
+<li><strong>‏service container בלי בדיקת בריאות.</strong> ה־steps מתחילים לפני שהמסד מוכן, והבדיקות נכשלות לפעמים. מוסיפים
+  <code>--health-cmd</code> ב־<code>options</code>.</li>
+<li><strong>‏<code>packages: write</code> ברמת ה־workflow.</strong> כל job, כולל הבדיקות שמריצות קוד מ־PR, מחזיק טוקן שכותב. ההרשאה
+  עוברת ל־job שדוחף.</li>
+<li><strong>בדיקה חובה על workflow מסונן לפי נתיב.</strong> PR שלא נגע בתיקייה נשאר חסום עם בדיקה „ממתינה” לנצח.</li>
+<li><strong>צינור ל־<code>tee</code> בלי <code>pipefail</code>.</strong> הבדיקות נכשלות וה־step ירוק, כי קוד היציאה הוא של <code>tee</code>. כותבים
+  <code>shell: bash</code>.</li>
+</ul>
+<h2 id="_6">שאלות ראיון</h2>
+<ol>
+<li><strong>איך תבני CI למאגר אחד עם כמה שירותים?</strong>
+   ‏workflow לכל שירות, עם סינון לפי התיקייה שלו, לפי הקובץ של עצמו ולפי כל קוד משותף שהוא תלוי בו. צעדים זהים
+   עוברים לפעולה מורכבת או ל־workflow לשימוש חוזר, כדי שתיקון אחד יגיע לכולם. המחיר של הסינון: ‏workflow שלא
+   רץ משאיר בדיקה ממתינה, ולכן בדיקה חובה צריכה להיות job שרץ תמיד ומסכם, או כלי שמחשב מה השתנה בתוך ה־job.
+   השיקול המרכזי הוא זמן משוב מול כיסוי: לא להריץ הכול על כל שינוי, ולא לפספס שינוי בקוד משותף.</li>
+</ol>
+<p><strong>המשך:</strong> ומה אם שירות A תלוי בספרייה בתיקייה של שירות B? מוסיפים את התיקייה ל־<code>paths</code> של A, או מעבירים
+   את הספרייה לתיקייה משותפת שכל התלויים מסננים לפיה. בשני המקרים התלות כתובה בקובץ, ולא בזיכרון של מישהו.</p>
+<ol start="2">
+<li>
+<p><strong>למה להגדיר <code>permissions</code> בכל workflow, אם יש ברירת מחדל?</strong>
+   כי ברירת המחדל היא הגדרה של המאגר או הארגון, שמשתנה מחוץ לקוד ובלי סקירה. כשהיא רחבה, כל action של צד
+   שלישי וכל קוד בבדיקות מחזיקים טוקן שיכול לכתוב לקוד, ל־releases ול־packages. הגדרה בקובץ מתחילה מקריאה,
+   מוסיפה לכל job רק את מה שהוא צריך, ונבדקת בסקירה כמו כל שינוי אחר. ההשפעה של פריצה ל־action אחד מצטמצמת
+   לאותו job.</p>
+</li>
+<li>
+<p><strong>איך ה־CI צריך להתחבר לענן?</strong>
+   ב־OIDC: ה־job מבקש מ־GitHub אסימון זהות חתום, והענן, שהוגדר לסמוך על המנפיק עם תנאים על המאגר, הענף
+   וה־environment, מחליף אותו בהרשאות לדקות. אין מפתח קבוע בסודות שיכול לדלוף ולעבוד מכל מקום. התנאים הם
+   העיקר: תנאי על המאגר בלבד נותן הרשאות ייצור לכל ענף, ולכן מצמידים גם את ה־environment, שמוגן במבקרים.
+   החיסרון: הגדרה ראשונית בצד הענן, ותלות בזמינות של המנפיק.</p>
+</li>
+<li>
+<p><strong>האם להצמיד actions לגרסה ראשית או ל־SHA?</strong>
+   גרסה ראשית נותנת תיקוני אבטחה בלי עבודה, אבל התגית יכולה לזוז, ומי שמשתלט על מאגר ה־action מריץ קוד עם
+   הסודות שלך. ‏SHA מלא קבוע, ולפי המדריך של GitHub זו הדרך היחידה לגרסה שלא משתנה, אבל עדכונים מגיעים רק
+   כשמישהו מעדכן. הפשרה המקובלת: ‏SHA עם התגית כהערה, ו־Dependabot שפותח PRs לעדכון. ואם צריך לבחור איפה
+   להשקיע, מתחילים ב־workflows שמחזיקים טוקן שכותב או סודות של ייצור.</p>
+</li>
+</ol>
+<p><strong>המשך:</strong> ו־actions של GitHub עצמה, כמו <code>actions/checkout</code>? הסיכון קטן יותר, אבל הוא לא אפס, והמדיניות
+   פשוטה יותר כשהיא אחידה. ארגונים רבים מצמידים הכול, ומפעילים מדיניות שדורשת SHA.</p>
+<ol start="5">
+<li><strong>ה־CI ירוק, ובייצור השירות לא עולה. מה חסר?</strong>
+   בדיקה של מה שנפרס, ולא רק של הקוד. בדיקות יחידה לא יודעות על הרשאות ב־image, על משתנה חובה שחסר בקובץ
+   הפריסה או על בדיקת מוכנות לנתיב לא נכון. אשכול kind בתוך ה־CI, עם ה־image שנבנה וקובצי הפריסה האמיתיים,
+   ובדיקת עשן אחת, תופסים את רוב אלה בכמה דקות. עוד דבר לבדוק: האם ה־CI דילג על משהו בשקט, כמו בדיקות מסד בלי מסד.
+   ובסוף, אם ה־image שנבדק הוא לא ה־image שנפרס, צריך לפרוס לפי digest.</li>
+</ol>
+<h2 id="obsidian">פתק Obsidian</h2>
+<p>הפתק המוכן נמצא גם כקובץ: <code>obsidian/23-github-actions.md</code>. זה תוכנו:</p>
+<ul>
+<li><strong>מבנה:</strong> כל job רץ על מכונה נקייה; צעד הוא פקודה או action.</li>
+<li><strong>בין jobs:</strong> רק דרך <code>needs</code> ו־<code>outputs</code>, מטמון, או registry.</li>
+<li><strong>סינון לפי נתיב:</strong> התיקייה, הקובץ של ה־workflow והקוד המשותף; לא לבדיקה חובה.</li>
+<li><strong>‏shell:</strong> ‏<code>shell: bash</code> מוסיף <code>pipefail</code>; בפעולה מורכבת חובה בכל צעד.</li>
+<li><strong>‏service container:</strong> תמיד עם בדיקת בריאות; הכתובת <code>localhost</code> כשה־job רץ על המכונה עצמה.</li>
+<li><strong>ירוק שקרי:</strong> דילוג על בדיקות מסד ב־CI הוא כישלון.</li>
+<li><strong>הרשאות:</strong> ‏<code>contents: read</code> למעלה; ‏<code>packages: write</code> ו־<code>contents: write</code> רק ב־job שצריך.</li>
+<li><strong>סודות ומשתנים:</strong> סוד מוסתר בלוג, משתנה לא; סודות של environment רק אחרי אישור.</li>
+<li><strong>‏OIDC:</strong> אסימון קצר מועד במקום מפתח קבוע; תנאי על המאגר וה־environment.</li>
+<li><strong>הצמדה:</strong> גרסה ראשית לבדיקות, ‏SHA עם הערה ל־workflow שכותב.</li>
+<li><strong>‏actionlint:</strong> לפני כל push; לא מכיר כל גרסה של כל action.</li>
+<li><strong>שאלה פתוחה:</strong> ___</li>
+</ul>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">on: push: branches: [main] paths: [&quot;ch06/**&quot;, &quot;.github/workflows/ch06-shorty.yml&quot;]   pull_request: paths: [...]
+permissions: contents: read      job: permissions: packages: write | contents: write | id-token: write
+concurrency: group: ${{ github.workflow }}-${{ github.ref }}  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+defaults: run: shell: bash   (bash --noprofile --norc -eo pipefail)
+actions/setup-go@v7 go-version-file cache-dependency-path   go run honnef.co/go/tools/cmd/staticcheck@2026.2.1 ./...
+astral-sh/setup-uv@v10   uv lock --check   uv sync --frozen   uv run --no-sync pytest -q
+services: postgres: image options: --health-cmd &quot;pg_isready ...&quot;   ports: 5432:5432   DATABASE_URL=...@localhost:5432/...
+docker/metadata-action@v6  docker/login-action@v4 (GITHUB_TOKEN)  docker/build-push-action@v7 push load cache-from type=gha
+helm/kind-action@v1.15.0   kind load docker-image shorty:ci --name ch23   kubectl rollout status   if: failure()
+environment: name: production   secrets.X   vars.X   gh release create &quot;$TAG&quot; --verify-tag --generate-notes
+git ls-remote https://github.com/&lt;owner&gt;/&lt;action&gt; 'refs/tags/vX.Y.Z*'   uses: owner/action@&lt;40-char-sha&gt; # vX.Y.Z
+actionlint   tests/lint.sh   tests/run_ci_locally.sh --kind
+my first run on GitHub: date ___  total minutes ___  slowest job ___
+</code></pre>
+
+
+</div>
+
+<h2 id="_7">תרגיל</h2>
+<p><strong>מטרה:</strong> לכתוב את ה־workflows של שלושה פרויקטים מהספר, מהבדיקות עם מסד אמיתי ועד גרסה שמתפרסמת מאחורי
+אישור, ולוודא שכולם נקיים ב־actionlint.
+<strong>זמן:</strong> שני ימי לימוד, ימים 66 ו־67, כ־65 דקות בנייה ביום הראשון וכ־40 ביום השני.
+<strong>ידע מקדים:</strong> הפרק; פרקים 6, 8 ו־11, ששלושת הפרויקטים שלהם במאגר שלך; פרקים 19 ו־20; והכלים של פרק 2.</p>
+<p>הצעדים, קוד ההתחלה, הרמזים והפתרון נמצאים
+ב־<a href="../exercises/ch23-ci/README.md"><code>exercises/ch23-ci/README.md</code></a>.</p>
+<p><strong>קריטריון סיום:</strong></p>
+<ul>
+<li>הבדיקה הסטטית נקייה, ולכל workflow יש <code>permissions:</code> משלו.</li>
+<li>ההרצה המקומית המלאה מסתיימת בסיכום, בלי בדיקות שדילגו ב־<code>ch11</code>.</li>
+<li>ה־image מתפרסם רק מ־<code>main</code> ואחרי בדיקת העשן, וההרשאה לדחוף רק ב־job שדוחף.</li>
+<li>כל action בקובץ ה־release מוצמד ל־SHA מלא, ויצירת הגרסה עוברת דרך <code>production</code>.</li>
+<li>שש הבעיות של הקובץ השבור, והתיקון של כל אחת, רשומות בפתק.</li>
+</ul>
+<h2 id="_8">העשרה אופציונלית</h2>
+<ul>
+<li>המדריך „Secure use reference” של GitHub
+  (<a href="https://docs.github.com/en/actions/reference/security/secure-use">https://docs.github.com/en/actions/reference/security/secure-use</a>) מכסה עוד נושאים: ‏runners בהרצה עצמית,
+  הרשאות של <code>GITHUB_TOKEN</code>, ו־<code>pull_request_target</code>. קראי את החלק על הזרקת סקריפט עם הקובץ השבור פתוח.</li>
+<li>הוסיפי קובץ <code>.github/dependabot.yml</code> עם <code>package-ecosystem: github-actions</code>, וראי איך Dependabot מציע עדכון
+  ל־SHA המוצמדים ב־<code>release.yml</code>.</li>
+<li>‏job שבונה image פעם אחת, מייצא אותו כקובץ, ומעביר אותו ל־<code>kind-smoke</code> ול־<code>image</code> דרך artifact. מדדי
+  ותרשמי את ההבדל בזמן מול הגרסה שבונה פעמיים, ובדקי אם ה־digest שנבדק זהה לזה שנדחף.</li>
+<li>החליפי את ה־manifests ב־<code>kind-smoke</code> ב־chart של Helm מפרק 21, עם <code>helm install --wait</code>, וחשבי מה נבדק
+  עכשיו שלא נבדק קודם.</li>
+<li>‏golangci-lint (הגרסה בנספח ג) מריץ staticcheck ועוד עשרות בודקים. נסי את
+  <code>golangci/golangci-lint-action@v9</code> במקום הצעד של staticcheck, והשווי את משך הצעד.</li>
+</ul>
+</main>
+<nav class="bottom"><a href="index.html">תוכן העניינים</a> · <a href="22-terraform.html">← פרק 22: Terraform</a> · <a href="24-telemetry.html">פרק 24: טלמטריה: OpenTelemetry, Prometheus, Grafana ו־Loki →</a></nav>
+<script type="module">
+  // Render ```mermaid blocks in the browser (needs internet once; cached afterwards).
+  const blocks = document.querySelectorAll("pre > code.language-mermaid");
+  if (blocks.length) {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs")).default;
+    for (const code of blocks) {
+      const div = document.createElement("div");
+      div.className = "mermaid";
+      div.textContent = code.textContent;
+      code.parentElement.replaceWith(div);
+    }
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run();
+  }
+</script>
+</body>
+</html>

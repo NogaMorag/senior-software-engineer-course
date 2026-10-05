@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>פרק 37: Hookline: מפרט וארכיטקטורה</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="top"><a href="index.html">תוכן העניינים</a> · <a href="35-coding-drills.html">← פרק 35: תרגילי קוד מעשיים</a> · <a href="38-hookline-milestones.html">פרק 38: אבני הדרך →</a></nav>
+<main class="book">
+<div class="toc"><span class="toctitle">תוכן הפרק</span><ul>
+<li><a href="#_1">מה נלמד בפרק</a></li>
+<li><a href="#_2">ידע מקדים</a></li>
+<li><a href="#371">37.1 סיפור המשתמשת</a></li>
+<li><a href="#372">37.2 דרישות ובדיקות</a></li>
+<li><a href="#373">37.3 ארכיטקטורה</a><ul>
+<li><a href="#3731">37.3.1 המסלול של אירוע אחד</a></li>
+</ul>
+</li>
+<li><a href="#374">37.4 מודל נתונים</a></li>
+<li><a href="#375">37.5 החלטות וחלופות</a></li>
+<li><a href="#376">37.6 מצבי כשל</a></li>
+<li><a href="#377">37.7 איך מודדים הצלחה</a></li>
+<li><a href="#378-starter">37.8 איך עובדים עם ה־starter</a><ul>
+<li><a href="#3781">37.8.1 ההתקנה</a></li>
+<li><a href="#3782">37.8.2 כללי העבודה</a></li>
+</ul>
+</li>
+<li><a href="#_3">סיכום</a></li>
+<li><a href="#_4">מונחים לזכור</a></li>
+<li><a href="#_5">טעויות נפוצות</a></li>
+<li><a href="#_6">שאלות ראיון</a></li>
+<li><a href="#obsidian">פתק Obsidian</a></li>
+<li><a href="#_7">תרגיל</a></li>
+<li><a href="#_8">העשרה אופציונלית</a></li>
+</ul>
+</div>
+
+<h1 id="37-hookline">פרק 37: Hookline: מפרט וארכיטקטורה</h1>
+<p>פרויקט הגמר של הספר הוא Hookline: פלטפורמה שמוסרת webhooks ללקוחות של מוצר SaaS, בחתימה, לפחות פעם אחת,
+גם כשהשרתים שלהם איטיים או למטה. הפרק הזה הוא המפרט: מה המערכת מבטיחה, איך כל הבטחה נבדקת, ממה היא בנויה,
+אילו החלטות התקבלו ולמה, ומה קורה כשכל רכיב נופל. בראיון לתפקיד בכיר זה בדיוק מה שמבקשים ממך להסביר על פרויקט:
+לא רק „מה בנית”, אלא מה הבטחת, מה בחרת לא לעשות, ואיך את יודעת שזה עובד.</p>
+<h2 id="_1">מה נלמד בפרק</h2>
+<ul>
+<li>לקרוא סיפור משתמשת ולתרגם אותו לדרישות שלכל אחת יש בדיקה.</li>
+<li>להבחין בין דרישה פונקציונלית לבין יעד (target), ולמה את היעדים מודדים בעצמך ולא מעתיקים.</li>
+<li>את הארכיטקטורה של Hookline: ארבעה תהליכי Go, שירות Python אחד, והמסלול של אירוע אחד מהקליטה ועד המקבל.</li>
+<li>את מודל הנתונים: שבע טבלאות, ואילו כללים המסד עצמו אוכף.</li>
+<li>לנמק החלטה בכל שורה: החלופה הפשוטה, למה לא היא, ומה היה משנה את דעתך.</li>
+<li>לעבור על מצבי הכשל לפני שכותבים קוד, ולקשור כל אחד לבדיקה שמוכיחה את הטיפול בו.</li>
+<li>לעבוד עם ה־starter: עץ מלא שמתקמפל מהיום הראשון, ובדיקות שמוריקות חבילה אחר חבילה.</li>
+</ul>
+<h2 id="_2">ידע מקדים</h2>
+<ul>
+<li>פרק 6 כולו: שירות HTTP ב־Go, עם הגדרות מהסביבה, לוגים מובנים וכיבוי מסודר. אבן הדרך הראשונה מתחילה
+  מהקוד הזה.</li>
+<li>פרק 9, סעיפים 9.3 עד 9.5: פרטי בעיה (problem details), עימוד ומפתחות אידמפוטנטיות.</li>
+<li>פרקים 10 ו־11: PostgreSQL, אינדקסים, טרנזקציות ומיגרציות עם goose. אבן הדרך השנייה נשענת עליהם.</li>
+<li>פרק 8, סעיף 8.8: המקבל המדומה ב־FastAPI. הוא חוזר בפרויקט בתור ה־sink.</li>
+<li>את הפרקים 12 עד 28 את עוד לא צריכה. הפרק מזכיר אותם כדי שתראי לאן כל חלק של המערכת יגיע.</li>
+</ul>
+<h2 id="371">37.1 סיפור המשתמשת</h2>
+<p>כל המפרט נגזר מפסקה אחת. כך היא כתובה במסמך התכנון של הפרויקט, באנגלית כמו כל מסמך תכנון בצוות:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">I run a SaaS product. My customers want to be notified when things happen in their accounts (an invoice
+is paid, a shipment moves). I want to send each event once from my code and know that every subscribed
+customer endpoint will receive it, signed, at least once, even when their servers are slow or down,
+without one bad customer slowing everyone else, and with a way to see and replay what failed.
+</code></pre>
+
+
+</div>
+
+<p>כדאי לקרוא אותה לאט, כי כל חלק בה הוא הבטחה שצריך לקיים:</p>
+<table>
+<thead>
+<tr>
+<th>ביטוי בסיפור</th>
+<th>מה הוא מחייב</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>„לשלוח כל אירוע פעם אחת”</td>
+<td>קליטה עם מפתח אידמפוטנטיות (idempotency key): ניסיון חוזר של הלקוח לא יוצר אירוע שני</td>
+</tr>
+<tr>
+<td>„כל endpoint מנוי”</td>
+<td>מנויים לפי סוג אירוע, והפצה של אירוע אחד להרבה מקבלים</td>
+</tr>
+<tr>
+<td>„חתום”</td>
+<td>חתימת HMAC על כל בקשה, כדי שהמקבל יידע שהיא באמת מ־Hookline</td>
+</tr>
+<tr>
+<td>„לפחות פעם אחת”</td>
+<td>אחריות מסירה „לפחות פעם אחת” (at-least-once), ולא „בדיוק פעם אחת”; המקבל מסנן כפילויות</td>
+</tr>
+<tr>
+<td>„גם כשהשרתים איטיים או למטה”</td>
+<td>ניסיונות חוזרים עם המתנה גדלה, זמנים קצובים, ומצב סופי „מת”</td>
+</tr>
+<tr>
+<td>„בלי שלקוח רע אחד יאט את כולם”</td>
+<td>בידוד בין מקבלים: מפסק זרם ומחיצה אטומה לכל endpoint</td>
+</tr>
+<tr>
+<td>„לראות ולהריץ שוב את מה שנכשל”</td>
+<td>רשימת מסירות מתות, היסטוריית ניסיונות, ופעולת הרצה מחדש</td>
+</tr>
+</tbody>
+</table>
+<p>יש שלושה שחקנים. <strong>הדיירת</strong> (tenant) היא מוצר ה־SaaS. היא קוראת ל־API עם מפתח משלה. <strong>המקבל</strong> (receiver) הוא
+ה־endpoint של לקוח של הדיירת, שמקבל את ה־webhooks. <strong>המפעילה</strong> (operator) מריצה את Hookline, מסתכלת בלוחות
+הבקרה, ועושה תורנות. בפרויקט את משחקת את שלושתם: המקבל הוא ה־sink מפרק 8, והמפעילה היא את עם Grafana.</p>
+<blockquote>
+<p><strong>שימי לב:</strong> המילה „לפחות” היא החלטה, לא פשרה. אי אפשר להבטיח מסירה „בדיוק פעם אחת” לשרת HTTP של מישהו
+אחר: אם התשובה שלו אבדה ברשת, אין דרך לדעת אם הוא עיבד את הבקשה. מה שאפשר הוא חוזה ברור: Hookline שולח
+עד שהוא מקבל 2xx, והמקבל מסנן לפי <code>Hookline-Event-Id</code>.</p>
+</blockquote>
+<h2 id="372">37.2 דרישות ובדיקות</h2>
+<p>כל דרישה במפרט באה עם הבדיקה שמוכיחה אותה. דרישה בלי בדיקה היא משאלה. זו הטבלה הפונקציונלית; העמודה
+האחרונה אומרת באיזו אבן דרך (פרק 38) הבדיקה נכתבת:</p>
+<table>
+<thead>
+<tr>
+<th>מזהה</th>
+<th>דרישה</th>
+<th>בדיקה</th>
+<th>אבן דרך</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>F1</td>
+<td>דיירת רושמת endpoints עם סוד חתימה שנוצר אצלנו ומוצג פעם אחת; רק <code>https</code>, ו־<code>http</code> במצב פיתוח</td>
+<td>בדיקות API: יצירה, רשימה עם cursor, השבתה</td>
+<td>M1</td>
+</tr>
+<tr>
+<td>F2</td>
+<td>דיירת מנה endpoint לסוג אירוע מדויק או לכל הסוגים (<code>*</code>)</td>
+<td>בדיקת API</td>
+<td>M1</td>
+</tr>
+<tr>
+<td>F3</td>
+<td>קליטת אירוע עם <code>Idempotency-Key</code>: אותו מפתח ואותו גוף מחזירים את האירוע המקורי; גוף אחר מחזיר 422</td>
+<td>בדיקת אינטגרציה מול PostgreSQL</td>
+<td>M2</td>
+</tr>
+<tr>
+<td>F4</td>
+<td>כל אירוע נמסר לפחות פעם אחת לכל endpoint פעיל ומתאים, כבקשת POST עם ארבע כותרות קבועות</td>
+<td>בדיקה מקצה לקצה מול ה־sink</td>
+<td>M5</td>
+</tr>
+<tr>
+<td>F5</td>
+<td>החתימה היא HMAC-SHA256 על חותמת הזמן והגוף; מקבל דוחה חתימה ישנה מחמש דקות</td>
+<td>וקטורי בדיקה משותפים ל־Go ול־Python</td>
+<td>M5</td>
+</tr>
+<tr>
+<td>F6</td>
+<td>כשל זמני (זמן קצוב, חיבור, 5xx, 429) מנוסה שוב עם המתנה גדלה ופיזור אקראי, עד תקרה</td>
+<td>בדיקת תכונה על ההמתנה; בדיקות worker</td>
+<td>M5</td>
+</tr>
+<tr>
+<td>F7</td>
+<td>אחרי הניסיון האחרון המסירה „מתה”; אפשר להריץ אותה שוב ולרשום את המתות בעמודים</td>
+<td>בדיקת אינטגרציה</td>
+<td>M5</td>
+</tr>
+<tr>
+<td>F8</td>
+<td>כל ניסיון נרשם: התחלה, משך, קוד תשובה או שגיאה</td>
+<td>בדיקת אינטגרציה</td>
+<td>M5</td>
+</tr>
+<tr>
+<td>F9</td>
+<td>דיירת רואה ונוגעת רק במשאבים שלה</td>
+<td>בדיקות BOLA: דיירת ב' מקבלת 404 על מזהים של א'</td>
+<td>M1</td>
+</tr>
+</tbody>
+</table>
+<p>ארבע הכותרות של F4 הן:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">Hookline-Event-Id      the event's id; receivers deduplicate by it
+Hookline-Delivery-Id   one per (event, endpoint)
+Hookline-Attempt       1, 2, 3, ...
+Hookline-Signature     t=&lt;unix seconds&gt;,v1=&lt;hex HMAC-SHA256(secret, &quot;&lt;t&gt;.&lt;raw body&gt;&quot;)&gt;
+</code></pre>
+
+
+</div>
+
+<p>הטבלה השנייה היא של דרישות לא פונקציונליות. כאן כל שורה היא <strong>יעד</strong>: מספר שאת מכוונת אליו, לא תוצאה שמישהו
+מדד בשבילך. הפרויקט מספק את הכלים למדידה (ספים לבדיקת העומס, היסטוגרמות, ומונים ב־sink), ואת התוצאות את רושמת
+בעצמך בקובץ <code>docs/EVALUATION.md</code>, עם התאריך והמחשב.</p>
+<table>
+<thead>
+<tr>
+<th>מזהה</th>
+<th>יעד</th>
+<th>איך בודקים</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>N1</td>
+<td>‏99% מבקשות הקליטה מחזירות 2xx בפחות מ־200 מילישניות, בפרופיל העומס של הפרויקט, על המחשב שלך</td>
+<td>ספי k6 והיסטוגרמת זמני הבקשות</td>
+</tr>
+<tr>
+<td>N2</td>
+<td>‏99% מהמסירות למקבלים בריאים מגיעות תוך 30 שניות מהקליטה</td>
+<td>היסטוגרמת פיגור המסירה, והתראות קצב שריפה</td>
+</tr>
+<tr>
+<td>N3</td>
+<td>מקבל שכל בקשה אליו נתקעת לא מעלה את הפיגור של המקבלים הבריאים מעל N2</td>
+<td>ניסוי כאוס: sink אחד במצב timeout</td>
+</tr>
+<tr>
+<td>N4</td>
+<td>הריגה של relay, ‏dispatcher או worker בכל רגע לא מאבדת אף מסירה</td>
+<td>ניסוי כאוס: השוואת הסט הצפוי למה שה־sink קיבל</td>
+</tr>
+<tr>
+<td>N5</td>
+<td>דיירת מעל מגבלת הקצב שלה מקבלת 429 עם <code>Retry-After</code>; האחרות לא מושפעות</td>
+<td>בדיקת אינטגרציה ותרחיש k6 של שתי דיירות</td>
+</tr>
+<tr>
+<td>N6</td>
+<td>בעומס יתר, הקליטה משילה עומס עם 503 במקום לצבור תור בלי גבול</td>
+<td>בדיקת עומס מעל הקיבולת</td>
+</tr>
+<tr>
+<td>N7</td>
+<td>מפתחות API שמורים כגיבוב; סודות חתימה לא נכתבים ללוג; כתובות פרטיות נדחות</td>
+<td>בדיקות יחידה על הגנת SSRF; סריקת לוגים</td>
+</tr>
+<tr>
+<td>N8</td>
+<td>לכל בקשה ומסירה יש מעקב; לוחות RED; runbook לכל התראה</td>
+<td>בדיקה ידנית ב־Grafana באבן דרך M8</td>
+</tr>
+<tr>
+<td>N9</td>
+<td>הכול רץ על מחשב נייד אחד</td>
+<td>צריכת המשאבים שתרשמי</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>טעות נפוצה:</strong> לכתוב בקורות החיים „p99 מתחת ל־200 מילישניות” כי זה כתוב במפרט. המספר במפרט הוא היעד. מה
+שמותר לכתוב הוא מה שמדדת, עם התנאים שבהם מדדת. פרק 39 עוסק בזה.</p>
+</blockquote>
+<h2 id="373">37.3 ארכיטקטורה</h2>
+<p>זה המבנה המלא, כפי שיהיה אחרי אבן הדרך השישית. בשבוע הראשון יש בו רק תיבה אחת, ה־API, וכל השאר נבנה סביבה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-mermaid">flowchart LR
+  T[Tenant] --&gt;|POST /v1/events| API
+  API --&gt;|tx: event + outbox| PG[(PostgreSQL)]
+  API --&gt;|rate limit| R[(Redis)]
+  Relay --&gt;|poll outbox SKIP LOCKED| PG
+  Relay --&gt;|publish key=tenant| K[[Redpanda topic hookline.events]]
+  K --&gt; Disp[Dispatcher]
+  Disp --&gt;|subscriptions cache| R
+  Disp --&gt;|insert deliveries| PG
+  W[Workers] --&gt;|claim due deliveries SKIP LOCKED| PG
+  W --&gt;|signed POST| S[Receivers / sink]
+  W --&gt;|attempts, status| PG
+</code></pre>
+
+
+</div>
+
+<p>מודול Go אחד בונה ארבעה קבצי הרצה, ולצידם שירות Python אחד:</p>
+<table>
+<thead>
+<tr>
+<th>רכיב</th>
+<th>תיקייה</th>
+<th>תפקיד</th>
+<th>אבן דרך</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>api</td>
+<td><code>cmd/api</code></td>
+<td>HTTP, אימות, הגבלת קצב לכל דיירת, השלת עומס, קליטה אידמפוטנטית</td>
+<td>M1, M2, M6</td>
+</tr>
+<tr>
+<td>relay</td>
+<td><code>cmd/relay</code></td>
+<td>מופע פעיל אחד; מפרסם שורות outbox ל־Redpanda לפי הסדר ומסמן אותן</td>
+<td>M4</td>
+</tr>
+<tr>
+<td>dispatcher</td>
+<td><code>cmd/dispatcher</code></td>
+<td>צרכן ב־consumer group; פורש כל אירוע לשורת מסירה לכל מנוי מתאים</td>
+<td>M4</td>
+</tr>
+<tr>
+<td>worker</td>
+<td><code>cmd/worker</code></td>
+<td>תופס מסירות שהגיע זמנן, שולח חתום, רושם ניסיון, מתזמן ניסיון חוזר</td>
+<td>M5, M6</td>
+</tr>
+<tr>
+<td>sink</td>
+<td><code>sink/</code></td>
+<td>המקבל המדומה מפרק 8: מאמת חתימות, מסנן כפילויות, סופר, ומתקלקל לפי פקודה</td>
+<td>M3</td>
+</tr>
+<tr>
+<td>hookline-admin</td>
+<td><code>cmd/hookline-admin</code></td>
+<td>כלי המפעילה: מיגרציות ויצירת דיירת</td>
+<td>M1, M2</td>
+</tr>
+</tbody>
+</table>
+<p>והתשתית, כולה מקומית. הגרסאות המדויקות, נכון לאוקטובר 2026, נמצאות בנספח ג ובקובץ ה־compose של הפרויקט.</p>
+<table>
+<thead>
+<tr>
+<th>תפקיד</th>
+<th>רכיב</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>מסד הנתונים</td>
+<td>PostgreSQL 18</td>
+</tr>
+<tr>
+<td>ה־broker</td>
+<td>Redpanda, מימוש של פרוטוקול Kafka בקובץ הרצה אחד</td>
+</tr>
+<tr>
+<td>מטמון והגבלת קצב</td>
+<td>Redis 8</td>
+</tr>
+<tr>
+<td>איסוף טלמטריה</td>
+<td>ה־collector של OpenTelemetry</td>
+</tr>
+<tr>
+<td>מדדים, לוגים ומעקבים</td>
+<td>Prometheus, ‏Loki ו־Tempo</td>
+</tr>
+<tr>
+<td>לוחות בקרה</td>
+<td>Grafana</td>
+</tr>
+</tbody>
+</table>
+<h3 id="3731">37.3.1 המסלול של אירוע אחד</h3>
+<p>כדאי לדעת לספר את המסלול הזה בעל פה, כי זו השאלה הראשונה בכל ראיון על הפרויקט:</p>
+<ol>
+<li>הדיירת שולחת <code>POST /v1/events</code> עם מפתח אידמפוטנטיות. ה־API בודק את המפתח, ובטרנזקציה אחת כותב את שורת
+   האירוע ואת שורת ה־outbox שלו. רק אחרי ה־<code>COMMIT</code> הוא מחזיר 202.</li>
+<li>ה־relay הוא המופע היחיד שמחזיק נעילה מייעצת (advisory lock). הוא קורא שורות outbox שלא פורסמו, ומפרסם
+   אותן ל־topic בשם <code>hookline.events</code> עם מפתח לפי דיירת. אחר כך הוא מסמן אותן כמפורסמות.</li>
+<li>ה־dispatcher צורך את ה־topic, מוצא את המנויים שמתאימים לסוג האירוע, ומכניס שורת מסירה לכל אחד. אילוץ ייחודיות
+   על הזוג אירוע ו־endpoint הופך עיבוד חוזר של אותה הודעה לחסר נזק. רק אחר כך הוא מאשר את ה־offset.</li>
+<li>‏worker תופס מסירה שהגיע זמנה עם <code>FOR UPDATE SKIP LOCKED</code> וחכירה, חותם את הגוף, ושולח. הוא רושם את הניסיון,
+   ומסמן „נמסר”, מתזמן ניסיון חוזר, או מסמן „מת”.</li>
+<li>ה־sink מאמת את החתימה, מסנן לפי מזהה האירוע, וסופר. ספירת הייחודיים שלו היא ההוכחה של N4.</li>
+</ol>
+<blockquote>
+<p><strong>איך Rust עושה את זה:</strong> את ההפרדה הזאת בין „נכתב” ל„נשלח” את מכירה מערוצי <code>mpsc</code> עם חוצץ: השולח לא מחכה
+לצרכן. כאן החוצץ הוא טבלה במסד וטופיק ב־Kafka, ולכן הוא שורד קריסה של כל תהליך. המחיר הוא שכל צרכן חייב להיות
+אידמפוטנטי, כי אחרי קריסה הוא יקבל שוב הודעות שכבר ראה.</p>
+</blockquote>
+<h2 id="374">37.4 מודל נתונים</h2>
+<p>שבע טבלאות ב־PostgreSQL, כולן במיגרציות בתיקייה <code>migrations/</code>. אבן הדרך השנייה יוצרת את כולן
+בבת אחת, גם את אלה שישמשו רק באבן הדרך החמישית, כדי שאף אבן דרך מאוחרת לא תצטרך לשכתב טבלה.</p>
+<table>
+<thead>
+<tr>
+<th>טבלה</th>
+<th>עמודות מרכזיות</th>
+<th>הכלל שהמסד אוכף</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tenants</code></td>
+<td>מזהה, שם, גיבוב מפתח ה־API, קצב ופרץ</td>
+<td>גיבוב ייחודי באורך 32 בתים</td>
+</tr>
+<tr>
+<td><code>endpoints</code></td>
+<td>מזהה, דיירת, כתובת, סוד, פעיל, זמן יצירה</td>
+<td>הזוג דיירת ומזהה ייחודי, כדי שמנויים יפנו אליו</td>
+</tr>
+<tr>
+<td><code>subscriptions</code></td>
+<td>מזהה, דיירת, endpoint, סוג אירוע</td>
+<td>מפתח זר מורכב לאותה דיירת; זוג endpoint וסוג ייחודי</td>
+</tr>
+<tr>
+<td><code>events</code></td>
+<td>מזהה (uuid), דיירת, סוג, גוף (jsonb), מפתח אידמפוטנטיות, גיבוב הגוף</td>
+<td>הזוג דיירת ומפתח ייחודי</td>
+</tr>
+<tr>
+<td><code>outbox</code></td>
+<td>מזהה רץ, אירוע, זמן יצירה, זמן פרסום</td>
+<td>אינדקס חלקי על שורות שלא פורסמו</td>
+</tr>
+<tr>
+<td><code>deliveries</code></td>
+<td>מזהה, דיירת, אירוע, endpoint, מצב, ניסיונות, מועד הניסיון הבא, חכירה</td>
+<td>הזוג אירוע ו־endpoint ייחודי; ארבעה מצבים בלבד</td>
+</tr>
+<tr>
+<td><code>attempts</code></td>
+<td>מזהה רץ, מסירה, מספר, התחלה, משך, קוד, שגיאה</td>
+<td>רק הוספה; הזוג מסירה ומספר ייחודי</td>
+</tr>
+</tbody>
+</table>
+<p>זו המיגרציה של האירועים וה־outbox, מהקובץ <code>migrations/00003_events_outbox.sql</code>. שימי לב לאילוץ הייחודיות: הוא,
+ולא קוד ב־Go, מחליט שבקשה חוזרת היא כפילות.</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-sql">-- +goose Up
+CREATE TABLE events (
+    id              uuid PRIMARY KEY,
+    tenant_id       uuid NOT NULL REFERENCES tenants (id) ON DELETE CASCADE,
+    type            text NOT NULL CHECK (length(type) BETWEEN 1 AND 128),
+    payload         jsonb NOT NULL,
+    idempotency_key text NOT NULL CHECK (length(idempotency_key) BETWEEN 1 AND 255),
+    body_hash       bytea NOT NULL CHECK (length(body_hash) = 32),
+    created_at      timestamptz NOT NULL DEFAULT now(),
+    -- The constraint, not application code, decides that a retried request is a duplicate.
+    UNIQUE (tenant_id, idempotency_key)
+);
+
+-- The transactional outbox (chapter 13): written in the same transaction as the event, read by the relay
+-- (milestone M4), which publishes each row to Redpanda and then sets published_at.
+CREATE TABLE outbox (
+    id           bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    event_id     uuid NOT NULL REFERENCES events (id) ON DELETE CASCADE,
+    created_at   timestamptz NOT NULL DEFAULT now(),
+    published_at timestamptz
+);
+-- The relay only ever looks for unpublished rows, in id order; published rows leave the index.
+CREATE INDEX outbox_unpublished_idx ON outbox (id) WHERE published_at IS NULL;
+</code></pre>
+
+
+</div>
+
+<p>שלוש החלטות קטנות במודל שכדאי לדעת לנמק:</p>
+<ul>
+<li><strong>מזהים הם UUID גרסה 7.</strong> ‏48 הביטים הראשונים הם זמן במילישניות, ולכן מזהה חדש נכנס בקצה הימני של אינדקס
+  ה־B-tree ולא בעמוד אקראי. הפונקציה <code>domain.NewID</code> מייצרת אותם, בלי ספרייה חיצונית.</li>
+<li><strong>מפתח זר מורכב בין מנוי ל־endpoint.</strong> המנוי מפנה לזוג של דיירת ו־endpoint. לכן דיירת לא יכולה
+  להירשם ליעד של דיירת אחרת, גם אם באג בקוד ישכח לבדוק. ההגנה מפני BOLA יושבת גם במסד.</li>
+<li><strong>מזהה רץ ל־outbox ול־attempts.</strong> הסדר שלהם חשוב (הפרסום הולך לפי הסדר), ואף אחד מבחוץ לא מבקש אותם לפי
+  מזהה, אז מספר עולה מספיק וזול יותר.</li>
+</ul>
+<h2 id="375">37.5 החלטות וחלופות</h2>
+<p>לכל החלטה במפרט יש שלוש עמודות: החלופה הפשוטה יותר, למה לא היא כאן, ומה היה משנה את ההחלטה. העמודה האחרונה
+היא מה שמבדיל תשובה של בכירה בראיון: היא מראה שההחלטה תלויה בהקשר, ושאת יודעת באיזה.</p>
+<table>
+<thead>
+<tr>
+<th>החלטה</th>
+<th>החלופה הפשוטה</th>
+<th>למה לא כאן</th>
+<th>מה היה משנה את דעתי</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>‏outbox טרנזקציוני ו־relay ל־Redpanda</td>
+<td>פרסום ל־Kafka ישירות מה־API</td>
+<td>כתיבה כפולה: האירוע נשמר והפרסום אבד, או ההפך</td>
+<td>מסד שכבר יש לו CDC מובנה, כמו Debezium</td>
+</tr>
+<tr>
+<td>‏Kafka בין ה־relay ל־dispatcher, תור PostgreSQL למסירות</td>
+<td>‏Kafka לכל דבר, עם topics לניסיונות חוזרים</td>
+<td>ניסיון מתוזמן והרצה מחדש לכל מסירה טבעיים כשורה עם מועד; topics לניסיונות מתרבים ומסתירים מצב של שורה</td>
+<td>נפח מסירות שמסד אחד לא מאנדקס ומנקה בנוחות</td>
+</tr>
+<tr>
+<td>‏relay פעיל יחיד בנעילה מייעצת</td>
+<td>הרבה relays עם <code>SKIP LOCKED</code></td>
+<td>שומר על סדר פרסום לכל דיירת בפשטות</td>
+<td>ה־relay נעשה צוואר בקבוק; אז מחלקים את ה־outbox לפי דיירת</td>
+</tr>
+<tr>
+<td>„לפחות פעם אחת” וסינון במקבל</td>
+<td>הבטחה של „בדיוק פעם אחת”</td>
+<td>אי אפשר להבטיח אותה מול HTTP של צד שלישי; חוזה ברור הוא חוזה כן</td>
+<td>אף פעם, מול HTTP של צד שלישי</td>
+</tr>
+<tr>
+<td>מפסק זרם ומחיצה אטומה לכל endpoint בכל worker</td>
+<td>מפסק משותף ב־Redis</td>
+<td>מצב מקומי פשוט יותר ונכשל בבטחה</td>
+<td>הרבה workers שפוגעים ב־endpoint מת לפני שהמפסקים המקומיים נפתחים</td>
+</tr>
+<tr>
+<td>דלי אסימונים ב־Redis לכל דיירת</td>
+<td>מגביל בזיכרון בכל עותק של ה־API</td>
+<td>עותקים מכפילים את המגבלה בפועל</td>
+<td>פריסה עם עותק יחיד</td>
+</tr>
+<tr>
+<td>גיבוב SHA-256 למפתחות API</td>
+<td>‏bcrypt או argon2</td>
+<td>המפתחות הם 32 בתים אקראיים; גיבוב איטי מגן על סיסמאות חלשות, לא על מפתחות אקראיים</td>
+<td>מפתחות שבני אדם בוחרים</td>
+</tr>
+<tr>
+<td>‏Go לשירותים, Python ל־sink</td>
+<td>שפה אחת</td>
+<td>הספר מלמד את שתיהן; ה־sink הוא כלי, לא המוצר</td>
+<td>צוות שמכיר רק אחת</td>
+</tr>
+</tbody>
+</table>
+<p>ההחלטה על גיבוב המפתחות מופיעה בקוד, בקובץ <code>internal/domain/apikey.go</code>, יחד עם הנימוק שלה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// NewAPIKey returns a fresh API key and its hash. The key is shown to the operator once; the hash goes to
+// the database. 32 random bytes are 256 bits of entropy, so a fast hash is enough: nobody can guess the
+// preimage, which is what a slow hash such as argon2 protects for low-entropy passwords.
+func NewAPIKey() (string, APIKeyHash) {
+    key := APIKeyPrefix + random32()
+    return key, HashAPIKey(key)
+}
+</code></pre>
+
+
+</div>
+
+<p>הקידומת <code>hk_</code> לא נועדה לאבטחה. היא הופכת מפתח שדלף למשהו שסורקי סודות מזהים, ומבדילה אותו מסוד החתימה,
+שמתחיל ב־<code>whsec_</code>.</p>
+<h2 id="376">37.6 מצבי כשל</h2>
+<p>לפני שכותבים שורת קוד, עוברים על כל רכיב ושואלים: מה קורה אם הוא נופל בדיוק עכשיו? הטבלה הזאת היא התשובה,
+וכל שורה בה קשורה לבדיקה. כך גם נראה הסעיף „מצבי כשל” במסמך תכנון אמיתי (פרק 29).</p>
+<table>
+<thead>
+<tr>
+<th>כשל</th>
+<th>התוצאה בלי טיפול</th>
+<th>הטיפול</th>
+<th>ההוכחה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ה־API קורס אחרי ה־<code>COMMIT</code> ולפני התשובה</td>
+<td>הדיירת מנסה שוב</td>
+<td>מפתח האידמפוטנטיות מחזיר את האירוע המקורי</td>
+<td>הבדיקה של F3</td>
+</tr>
+<tr>
+<td>ה־relay קורס אחרי פרסום ולפני סימון</td>
+<td>אירוע כפול ב־topic</td>
+<td>ההכנסה של ה־dispatcher אידמפוטנטית (אילוץ ייחודיות)</td>
+<td>בדיקה עם נקודת קריסה מאולצת</td>
+</tr>
+<tr>
+<td>שני relays עולים</td>
+<td>פרסום כפול או לא לפי הסדר</td>
+<td>נעילה מייעצת: רק אחד מחזיק, השני מחכה</td>
+<td>בדיקת המנהיג: הורגים אחד</td>
+</tr>
+<tr>
+<td>ה־dispatcher קורס לפני אישור ה־offset</td>
+<td>האירוע מעובד שוב</td>
+<td>הזוג אירוע ו־endpoint ייחודי</td>
+<td>בדיקת הצרכן</td>
+</tr>
+<tr>
+<td>‏worker מת כשהוא מחזיק מסירה</td>
+<td>המסירה תקועה במצב „בשליחה”</td>
+<td>החכירה פגה והמסירה חוזרת להמתנה</td>
+<td>בדיקת החכירה</td>
+</tr>
+<tr>
+<td>מקבל למטה שעות</td>
+<td>ניסיונות נערמים, ה־workers עסוקים</td>
+<td>המפסק נפתח, ההמתנה מוגבלת בתקרה, „מת” אחרי הניסיון האחרון, הרצה מחדש אחר כך</td>
+<td>ניסוי הכאוס של N3</td>
+</tr>
+<tr>
+<td>מקבל איטי</td>
+<td>ה־workers חסומים, אחרים מורעבים</td>
+<td>זמן קצוב לכל ניסיון ומחיצה אטומה לכל endpoint</td>
+<td>ניסוי הכאוס של N3</td>
+</tr>
+<tr>
+<td>הצפה מדיירת אחת</td>
+<td>כולם מאטים</td>
+<td>הגבלת קצב לכל דיירת, והשלת עומס כללית</td>
+<td>‏N5 ו־N6</td>
+</tr>
+<tr>
+<td>‏Redis למטה</td>
+<td>אין הגבלת קצב ואין מטמון</td>
+<td>המגביל נכשל פתוח, עם מדד ולוג (החלטה מתועדת); המטמון חוזר ל־PostgreSQL</td>
+<td>בדיקה עם Redis עצור</td>
+</tr>
+<tr>
+<td>‏Redpanda למטה</td>
+<td>אירועים מחכים ב־outbox</td>
+<td>ה־relay מנסה שוב עם המתנה גדלה; הקליטה ממשיכה; התראה על גיל ה־outbox</td>
+<td>בדיקה עם ה־broker עצור</td>
+</tr>
+</tbody>
+</table>
+<p>שתי שורות בטבלה דורשות מחשבה נוספת. „המגביל נכשל פתוח” פירושו שכש־Redis למטה, דיירות לא מוגבלות. זו בחירה:
+החלופה, להיכשל סגור, הייתה הופכת תקלה ב־Redis לתקלה בקליטה של כולם. השורה הראשונה מסבירה למה הקליטה כותבת
+את האירוע ואת ה־outbox באותה טרנזקציה: אם ה־API קורס בין שתי כתיבות נפרדות, אירוע נשמר ולא יימסר לעולם.</p>
+<h2 id="377">37.7 איך מודדים הצלחה</h2>
+<p>ארבע שאלות, ולכל אחת מדידה שאפשר לחזור עליה:</p>
+<table>
+<thead>
+<tr>
+<th>שאלה</th>
+<th>המדידה</th>
+<th>איפה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>הקוד עושה מה שהוא אומר?</td>
+<td>‏<code>go test ./...</code> ובדיקות ה־sink ירוקות, כולל אינטגרציה מול PostgreSQL אמיתי</td>
+<td>מקומית, ומאבן הדרך השביעית גם ב־CI</td>
+</tr>
+<tr>
+<td>ההבטחה של „לפחות פעם אחת” מחזיקה?</td>
+<td>הסקריפט <code>scripts/verify-delivery.sh</code> משווה את הסט הצפוי למה שה־sink קיבל אחרי ניסוי כאוס</td>
+<td>אבן הדרך העשירית</td>
+</tr>
+<tr>
+<td>היעדים מתקיימים?</td>
+<td>ספי k6 עבור N1, והיסטוגרמת הפיגור עבור N2, לאורך ההרצה</td>
+<td>‏<code>docs/EVALUATION.md</code>, עם תאריך ומחשב</td>
+</tr>
+<tr>
+<td>אפשר להפעיל את זה?</td>
+<td>‏runbook לכל התראה, ותחקיר אחד על גרסה שבורה בכוונה</td>
+<td>אבן הדרך השמינית</td>
+</tr>
+</tbody>
+</table>
+<p>התוצאה של השאלה השנייה צריכה להיות „0 חסרות”. כפילויות מותרות, ונספרות: הן המחיר של „לפחות פעם אחת”, ומספר
+גבוה שלהן מצביע על בעיה (למשל, חכירה קצרה מדי). הקובץ <code>docs/EVALUATION.md</code> מגיע עם מקומות ריקים ולא עם
+מספרים. כל מספר שייכנס אליו הוא מספר שאת מדדת.</p>
+<h2 id="378-starter">37.8 איך עובדים עם ה־starter</h2>
+<p>הפרויקט מגיע בשתי גרסאות, זו לצד זו, בתיקייה <code>exercises/project-hookline/</code>:</p>
+<table>
+<thead>
+<tr>
+<th>תיקייה</th>
+<th>מה בה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>hookline/</code></td>
+<td>המימוש המלא, אבן דרך אחר אבן דרך. לקרוא כשנתקעת, לא להעתיק</td>
+</tr>
+<tr>
+<td><code>hookline-starter/</code></td>
+<td>אותו עץ בדיוק: אותן בדיקות, מיגרציות, חוזה OpenAPI, קובץ compose ו־Makefile. גוף של כל פונקציה שהיא עבודה שלך הוחלף ב־<code>panic("TODO: see chapter 38")</code></td>
+</tr>
+</tbody>
+</table>
+<p>ה־starter נוצר אוטומטית מהמימוש המלא, ולכן הוא תמיד מתאים לו. מה שנשאר בו שלם הוא תשתית: ההגדרות, השרת
+וה־middleware מפרק 6, החבילות של פרטי הבעיה והעימוד מפרק 9, החיבור למסד ממפרק 11, טיפוסי התחום, חיווט
+הנתיבים, ופונקציות ה־<code>main</code>. מה שהוחלף הוא מה שכל אבן דרך מלמדת: ה־handlers, המאגרים, והלוגיקה.</p>
+<h3 id="3781">37.8.1 ההתקנה</h3>
+<p>מעתיקים את ה־starter לתיקיית העבודה שלך, ובודקים שהוא מתקמפל:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">mkdir -p ~/senior-course/hookline
+cp -r $COURSE/exercises/project-hookline/hookline-starter/. ~/senior-course/hookline/
+cd ~/senior-course/hookline
+go build ./...
+go vet ./...
+make test-unit
+</code></pre>
+
+
+</div>
+
+<p>הפקודות <code>go build</code> ו־<code>go vet</code> מצליחות מהיום הראשון. הפקודה <code>make test-unit</code> נכשלת, וזה המצב הנכון:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">--- FAIL: TestCreateTenantStoresOnlyTheHash (0.00s)
+panic: TODO: see chapter 38 [recovered, repanicked]
+FAIL    example.com/hookline/internal/admin 0.944s
+--- FAIL: TestHealthNeedsNoKey (0.00s)
+panic: TODO: see chapter 38 [recovered, repanicked]
+FAIL    example.com/hookline/internal/api   0.870s
+ok      example.com/hookline/internal/config    2.675s
+ok      example.com/hookline/internal/db    3.612s
+ok      example.com/hookline/internal/domain    2.991s
+</code></pre>
+
+
+</div>
+
+<p>החבילות שעוברות כבר הן התשתית שקיבלת שלמה. החבילות שנכשלות הן המפה של העבודה: כל אבן דרך בפרק 38 אומרת אילו
+מהן היא מוריקה, ובאיזו פקודה בודקים.</p>
+<h3 id="3782">37.8.2 כללי העבודה</h3>
+<ul>
+<li><strong>הבדיקות הן המפרט.</strong> אל תשני קובץ בדיקה כדי שיעבור. אם בדיקה נראית לך שגויה, קראי את הסעיף בפרק 38, ואז
+  השווי לבדיקה באותו מקום בתיקייה <code>hookline/</code>.</li>
+<li><strong>קומיט לכל אבן דרך.</strong> בסוף כל אבן דרך, כשהבדיקות שלה ירוקות, עושים קומיט עם הודעה כמו <code>M1: API skeleton</code>.
+  ההיסטוריה הזאת היא חלק ממה שתציגי בסוף.</li>
+<li><strong>מקודם לפני מחדש.</strong> חלק מהקוד כבר כתבת בפרקים 6, 9 ו־11. כשאבן דרך אומרת „מהפרק הקודם”, פתחי את הפתרון שלך
+  והתאימי אותו, במקום לכתוב מאפס.</li>
+<li><strong>הרגע של „תקועה”.</strong> אחרי חצי שעה בלי התקדמות, פתחי את הקובץ המקביל ב־<code>hookline/</code>, קראי את הפונקציה האחת שחסרה
+  לך, סגרי אותו, וכתבי אותה בעצמך.</li>
+</ul>
+<blockquote>
+<p><strong>שימי לב:</strong> החבילה <code>internal/store/storetest</code> היא חבילת בדיקות התאמה, ולא קוד ייצור. אותן בדיקות רצות על
+המאגר שבזיכרון ועל המאגר ב־PostgreSQL. זה המנגנון שמבטיח ש„להחליף את המאגר” לא ישבור אף handler.</p>
+</blockquote>
+<h2 id="_3">סיכום</h2>
+<ul>
+<li>‏Hookline מוסר webhooks חתומים „לפחות פעם אחת” לכל מקבל מנוי, עם בידוד בין מקבלים והרצה מחדש של כשלים.</li>
+<li>כל דרישה פונקציונלית באה עם בדיקה, וכל דרישה לא פונקציונלית היא יעד שאת מודדת ורושמת בעצמך.</li>
+<li>ארבעה תהליכים ב־Go ושירות אחד ב־Python, מעל מסד אחד, מתווך הודעות אחד ומטמון אחד.</li>
+<li>המסלול: קליטה בטרנזקציה עם outbox, פרסום, פריסה לשורות מסירה, ושליחה חתומה.</li>
+<li>שבע טבלאות. אילוצי ייחודיות הם שמחליטים על כפילויות, ומפתח זר מורכב אוכף בעלות של דיירת.</li>
+<li>לכל החלטה יש חלופה פשוטה ותנאי שהיה משנה אותה. זו צורת התשובה שמראיינים מחפשים.</li>
+<li>לכל כשל יש טיפול ובדיקה. „0 חסרות” אחרי כאוס היא ההוכחה של ההבטחה המרכזית.</li>
+<li>ה־starter הוא העץ המלא עם גופי פונקציות ריקים. הבדיקות הן המפרט, ואבן דרך נגמרת כשהן ירוקות.</li>
+</ul>
+<h2 id="_4">מונחים לזכור</h2>
+<table>
+<thead>
+<tr>
+<th>מונח בעברית</th>
+<th>באנגלית</th>
+<th>במשפט אחד</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>דיירת</td>
+<td>tenant</td>
+<td>לקוחה של המערכת שמשאביה מבודדים משל לקוחות אחרות</td>
+</tr>
+<tr>
+<td>מקבל</td>
+<td>receiver</td>
+<td>ה־endpoint של לקוח הדיירת שאליו נמסרים ה־webhooks</td>
+</tr>
+<tr>
+<td>„לפחות פעם אחת”</td>
+<td>at-least-once</td>
+<td>אחריות מסירה שמבטיחה שאף הודעה לא תאבד, במחיר של כפילויות אפשריות</td>
+</tr>
+<tr>
+<td>מפתח אידמפוטנטיות</td>
+<td>idempotency key</td>
+<td>ערך שהלקוח שולח כדי שניסיון חוזר של אותה בקשה לא ייצור תוצאה שנייה</td>
+</tr>
+<tr>
+<td>תבנית ה־outbox</td>
+<td>outbox pattern</td>
+<td>כתיבת ההודעה לטבלה באותה טרנזקציה של השינוי, ופרסום שלה אחר כך</td>
+</tr>
+<tr>
+<td>נעילה מייעצת</td>
+<td>advisory lock</td>
+<td>נעילה ב־PostgreSQL על מספר שהיישום בוחר; כאן היא בוחרת relay פעיל יחיד</td>
+</tr>
+<tr>
+<td>חכירה</td>
+<td>lease</td>
+<td>בעלות זמנית על שורה שפגה מעצמה אם הבעלים מת</td>
+</tr>
+<tr>
+<td>תור מתים</td>
+<td>dead-letter queue</td>
+<td>המקום של מסירות שמיצו את הניסיונות שלהן; כאן מצב <code>dead</code> בטבלה</td>
+</tr>
+<tr>
+<td>מפסק זרם</td>
+<td>circuit breaker</td>
+<td>רכיב שמפסיק לשלוח ליעד שנכשל שוב ושוב, ובודק אותו מחדש אחרי זמן</td>
+</tr>
+<tr>
+<td>מחיצה אטומה</td>
+<td>bulkhead</td>
+<td>מגבלה על משאבים לכל יעד, כדי שיעד אחד לא יתפוס את כולם</td>
+</tr>
+<tr>
+<td>הגנת BOLA</td>
+<td>broken object level authorization</td>
+<td>בדיקה שמשתמש ניגש רק לאובייקטים שלו, גם כשהוא יודע מזהה של אחר</td>
+</tr>
+<tr>
+<td>יעד</td>
+<td>target</td>
+<td>מספר שמכוונים אליו ומודדים מולו, ולא תוצאה שכבר נמדדה</td>
+</tr>
+<tr>
+<td>חלופה פשוטה</td>
+<td>simpler alternative</td>
+<td>הפתרון הקל יותר שנשקל ונדחה, יחד עם הסיבה</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_5">טעויות נפוצות</h2>
+<ul>
+<li><strong>להתחיל מהקוד ולא מהבדיקה.</strong> בפרויקט הזה הבדיקות כבר כתובות; מתחילים מלקרוא אותן, ורק אז ממלאים פונקציה.</li>
+<li><strong>להבטיח „בדיוק פעם אחת”.</strong> מול HTTP של צד שלישי זה בלתי אפשרי. מבטיחים „לפחות פעם אחת” ונותנים למקבל מזהה
+  לסינון.</li>
+<li><strong>לכתוב את האירוע ואז לפרסם ל־Kafka מתוך ה־handler.</strong> זו כתיבה כפולה: קריסה בין שתיהן מאבדת אירוע או
+  מפרסמת אירוע שלא נשמר. לשם כך יש outbox.</li>
+<li><strong>לבדוק כפילות בקוד לפני ההכנסה.</strong> שתי בקשות במקביל יעברו את הבדיקה שתיהן. אילוץ ייחודיות במסד הוא שמכריע.</li>
+<li><strong>להחזיר 403 על משאב של דיירת אחרת.</strong> 403 מגלה שהמזהה קיים. התשובה הנכונה היא אותו 404 שמזהה לא קיים מקבל.</li>
+<li><strong>להעתיק את היעדים לתוצאות.</strong> מספר במפרט הוא כוונה. מה שנכנס לקובץ ההערכה ולקורות החיים הוא מה שמדדת.</li>
+<li><strong>לשנות קובץ בדיקה ב־starter כדי שיעבור.</strong> זה משנה את המפרט. אם בדיקה לא מסתדרת, קוראים שוב את הסעיף בפרק 38.</li>
+</ul>
+<h2 id="_6">שאלות ראיון</h2>
+<ol>
+<li>
+<p><strong>ספרי לי על המסלול של אירוע אחד במערכת שבנית.</strong> הדיירת שולחת אירוע עם מפתח אידמפוטנטיות, וה־API כותב את
+   האירוע ואת שורת ה־outbox בטרנזקציה אחת, ורק אז מחזיר 202. תהליך relay יחיד מפרסם את שורות ה־outbox, עם מפתח
+   לפי דיירת. ה־dispatcher פורש כל אירוע לשורת מסירה לכל מנוי, עם אילוץ ייחודיות שהופך עיבוד חוזר לחסר נזק.
+   ‏Workers תופסים מסירות עם <code>SKIP LOCKED</code> וחכירה, שולחים חתום, ורושמים כל ניסיון. בכל שלב אומרים מה קורה אם
+   הוא נופל, כי זה מה שהמראיין ישאל אחר כך.
+   <strong>המשך:</strong> למה לא לפרסם ל־Kafka ישירות מה־API? כי אז יש שתי כתיבות לשתי מערכות בלי טרנזקציה משותפת, וקריסה
+   ביניהן משאירה אותן לא עקביות; ה־outbox הופך אותן לכתיבה אחת ועוד פרסום שאפשר לחזור עליו.</p>
+</li>
+<li>
+<p><strong>למה „לפחות פעם אחת” ולא „בדיוק פעם אחת”?</strong> כי כשבקשת HTTP למקבל נגמרת בזמן קצוב, אי אפשר לדעת אם הוא
+   עיבד אותה. כדי לא לאבד, שולחים שוב, וזו כפילות אפשרית. הבטחה של „בדיוק פעם אחת” דורשת שיתוף פעולה מהצד השני
+   בכל מקרה: מזהה יציב וסינון אצלו. לכן החוזה הכן הוא „לפחות פעם אחת” עם <code>Hookline-Event-Id</code>. בתוך המערכת עצמה
+   אפשר להתקרב ל„בדיוק פעם אחת” עם אילוצים ואידמפוטנטיות, אבל הגבול עם העולם נשאר „לפחות”.</p>
+</li>
+<li>
+<p><strong>למה תור המסירות ב־PostgreSQL ולא ב־Kafka?</strong> כל מסירה צריכה מועד ניסיון משלה, מצב שאפשר לשאול עליו, הרצה
+   מחדש, והיסטוריה. בשורה עם <code>next_attempt_at</code> כל אלה הם עמודה ושאילתה. ב־Kafka צריך topics לכל רמת השהיה, ואין
+   דרך פשוטה לראות מסירה אחת. המחיר: המסד נושא את העומס של השורות, האינדקסים והניקוי. כשהנפח יעבור את מה שמסד
+   אחד מנקה בנוחות, אחלק לפי דיירת, או אעבור לתורים ייעודיים.</p>
+</li>
+<li>
+<p><strong>איך מבטיחים שדיירת אחת לא רואה משאבים של אחרת?</strong> שלוש שכבות. הדיירת נקבעת רק מהמפתח שבכותרת, ואף פרמטר
+   בבקשה לא בוחר אותה. כל שאילתה מסננת לפי מזהה הדיירת, ומשאב של אחרת מחזיר את אותו 404 כמו מזהה לא קיים. ובמסד,
+   מפתח זר מורכב מונע ממנוי להפנות ל־endpoint של דיירת אחרת. הבדיקות שולחות את המזהים של דיירת א' עם המפתח של
+   דיירת ב' לכל נתיב, ומצפות ל־404.</p>
+</li>
+<li>
+<p><strong>למה גיבוב מהיר למפתחות API ולא argon2?</strong> גיבוב איטי נועד להאט ניחוש של סיסמאות שבני אדם בוחרים, שיש להן
+   מעט אנטרופיה. מפתח של 32 בתים אקראיים הוא 256 ביטים; אין מה לנחש. גיבוב מהיר מאפשר חיפוש לפי אינדקס בכל
+   בקשה, בלי לשלם עשרות מילישניות. אם המפתחות היו נבחרים בידי אנשים, הייתי בוחרת אחרת.</p>
+</li>
+</ol>
+<h2 id="obsidian">פתק Obsidian</h2>
+<p>הפתק המוכן נמצא גם כקובץ: <code>obsidian/37-hookline-spec.md</code>. זה תוכנו:</p>
+<ul>
+<li><strong>ההבטחה:</strong> כל אירוע נמסר חתום, „לפחות פעם אחת”, לכל endpoint מנוי ופעיל; המקבל מסנן לפי מזהה האירוע.</li>
+<li><strong>שחקנים:</strong> דיירת שולחת, מקבל מקבל, מפעילה מפעילה.</li>
+<li><strong>מסלול:</strong> קליטה עם outbox, פרסום, פריסה למסירות, שליחה חתומה, וספירה ב־sink.</li>
+<li><strong>דרישה מול יעד:</strong> דרישה נבדקת בבדיקה; יעד נמדד על המחשב שלי ונרשם עם תאריך.</li>
+<li><strong>כפילויות:</strong> אילוצי ייחודיות במסד מחליטים, לא קוד שבודק לפני הכנסה.</li>
+<li><strong>בידוד:</strong> הדיירת מגיעה מהמפתח בלבד; משאב של אחרת הוא 404; מפתח זר מורכב במסד.</li>
+<li><strong>החלטה טובה:</strong> החלופה הפשוטה, למה לא כאן, ומה היה משנה את דעתי.</li>
+<li><strong>starter:</strong> הבדיקות הן המפרט; קומיט לכל אבן דרך; „תקועה” היא חצי שעה.</li>
+<li><strong>שאלה פתוחה:</strong> ___</li>
+</ul>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">setup     cp -r $COURSE/exercises/project-hookline/hookline-starter/. ~/senior-course/hookline/
+build     go build ./... &amp;&amp; go vet ./...
+tests     make test-unit            (red at first; green package by package)
+headers   Hookline-Event-Id  Hookline-Delivery-Id  Hookline-Attempt  Hookline-Signature
+signature t=&lt;unix&gt;,v1=&lt;hex HMAC-SHA256(secret, &quot;&lt;t&gt;.&lt;raw body&gt;&quot;)&gt;   tolerance 5 min
+tables    tenants endpoints subscriptions events outbox deliveries attempts
+unique    events(tenant_id, idempotency_key)   deliveries(event_id, endpoint_id)
+statuses  pending -&gt; in_flight -&gt; delivered | dead     replay: dead -&gt; pending
+binaries  cmd/api  cmd/relay  cmd/dispatcher  cmd/worker  cmd/hookline-admin   sink/ (Python)
+proof     scripts/verify-delivery.sh -&gt; &quot;0 missing&quot;; duplicates allowed and counted
+my path   ingest -&gt; ___ -&gt; ___ -&gt; ___ -&gt; receiver
+</code></pre>
+
+
+</div>
+
+<h2 id="_7">תרגיל</h2>
+<p><strong>מטרה:</strong> להכין את סביבת הפרויקט מה־starter, להכיר את העץ ואת הבדיקות, ולהתחיל את אבן הדרך הראשונה מהקוד של פרק 6.
+<strong>זמן:</strong> יום לימוד אחד, יום 22, כ־55 דקות קריאה וכ־55 דקות בנייה; אבן הדרך עצמה ממשיכה ביום 23.
+<strong>ידע מקדים:</strong> הפרק; פרק 6 (השרת, ה־middleware והכיבוי המסודר); פרק 9, סעיפים 9.3 עד 9.5.</p>
+<p>ההוראות המלאות של הפרויקט, ההתקנה ורשימת אבני הדרך נמצאות ב־
+<a href="../exercises/project-hookline/README.md"><code>exercises/project-hookline/README.md</code></a>. הצעדים של אבן הדרך הראשונה
+נמצאים בפרק 38, סעיף 38.1.</p>
+<p><strong>קריטריון סיום:</strong></p>
+<ul>
+<li>ה־starter מועתק לתיקיית העבודה, והבנייה והבדיקה הסטטית עוברות.</li>
+<li>הרצת <code>make test-unit</code> נכשלת רק בחבילות של אבני הדרך, וכל חבילות התשתית ירוקות.</li>
+<li>את יודעת לספר את המסלול של אירוע אחד בחמישה משפטים, ולומר מה קורה כשכל רכיב בו נופל.</li>
+<li>הבדיקה <code>TestHealthNeedsNoKey</code> עוברת, אחרי שהתחלת את אבן הדרך הראשונה לפי סעיף 38.1.</li>
+</ul>
+<h2 id="_8">העשרה אופציונלית</h2>
+<ul>
+<li>טיוטת ה־IETF על הכותרת <code>Idempotency-Key</code>: החוזה שהקליטה בפרויקט מממשת.</li>
+<li>המפרט הפתוח Standard Webhooks לכותרות ולחתימה. השווי אותו לכותרות של F4.</li>
+<li>המאמר הקלאסי של Pat Helland על מערכות בלי טרנזקציות מבוזרות, משנת 2007: למה מערכות גדולות בונות על
+  אידמפוטנטיות ולא על תיאום בין מסדים.</li>
+<li>נסי לכתוב לבד, לפני שאת ממשיכה, את שורת מצב הכשל של „PostgreSQL למטה”: מה התוצאה, מה הטיפול, ואיזו בדיקה
+  תוכיח אותו.</li>
+</ul>
+</main>
+<nav class="bottom"><a href="index.html">תוכן העניינים</a> · <a href="35-coding-drills.html">← פרק 35: תרגילי קוד מעשיים</a> · <a href="38-hookline-milestones.html">פרק 38: אבני הדרך →</a></nav>
+<script type="module">
+  // Render ```mermaid blocks in the browser (needs internet once; cached afterwards).
+  const blocks = document.querySelectorAll("pre > code.language-mermaid");
+  if (blocks.length) {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs")).default;
+    for (const code of blocks) {
+      const div = document.createElement("div");
+      div.className = "mermaid";
+      div.textContent = code.textContent;
+      code.parentElement.replaceWith(div);
+    }
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run();
+  }
+</script>
+</body>
+</html>

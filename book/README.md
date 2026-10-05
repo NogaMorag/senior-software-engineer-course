@@ -72,8 +72,8 @@ title: "תוכן העניינים הראשי"
 
 | פרק | קובץ | מצב |
 | --- | --- | --- |
-| פרק 19: Docker כמו שצריך | [`19-docker-done-right.md`](19-docker-done-right.md) | ⏳ |
-| פרק 20: Kubernetes על kind | [`20-kubernetes-on-kind.md`](20-kubernetes-on-kind.md) | ⏳ |
+| פרק 19: Docker כמו שצריך | [`19-docker-done-right.md`](19-docker-done-right.md) | ✅ |
+| פרק 20: Kubernetes על kind | [`20-kubernetes-on-kind.md`](20-kubernetes-on-kind.md) | ✅ |
 | פרק 21: הפעלת Kubernetes ו־Helm | [`21-kubernetes-operations-helm.md`](21-kubernetes-operations-helm.md) | ✅ |
 | פרק 22: Terraform | [`22-terraform.md`](22-terraform.md) | ✅ |
 | פרק 23: GitHub Actions | [`23-github-actions.md`](23-github-actions.md) | ✅ |
@@ -89,7 +89,7 @@ title: "תוכן העניינים הראשי"
 
 | פרק | קובץ | מצב |
 | --- | --- | --- |
-| פרק 26: אסטרטגיית בדיקות ובדיקות עומס | [`26-testing-strategy-load.md`](26-testing-strategy-load.md) | ⏳ |
+| פרק 26: אסטרטגיית בדיקות ובדיקות עומס | [`26-testing-strategy-load.md`](26-testing-strategy-load.md) | ✅ |
 | פרק 27: סקירת קוד וניתוח סטטי | [`27-code-review-static-analysis.md`](27-code-review-static-analysis.md) | ✅ |
 | פרק 28: אבטחה לשירותי backend | [`28-security-backend.md`](28-security-backend.md) | ✅ |
 
@@ -97,8 +97,8 @@ title: "תוכן העניינים הראשי"
 
 | פרק | קובץ | מצב |
 | --- | --- | --- |
-| פרק 29: שיטת תכנון ומסמכי תכנון | [`29-system-design-method.md`](29-system-design-method.md) | ⏳ |
-| פרק 30: מערכות שמשתנות | [`30-evolving-systems.md`](30-evolving-systems.md) | ⏳ |
+| פרק 29: שיטת תכנון ומסמכי תכנון | [`29-system-design-method.md`](29-system-design-method.md) | ✅ |
+| פרק 30: מערכות שמשתנות | [`30-evolving-systems.md`](30-evolving-systems.md) | ✅ |
 | פרק 31: לעבוד כבכירה | [`31-working-as-senior.md`](31-working-as-senior.md) | ✅ |
 | פרק 32: הנדסה בעזרת AI | [`32-ai-assisted-engineering.md`](32-ai-assisted-engineering.md) | ✅ |
 | פרק 33: היתרון של Rust | [`33-rust-edge.md`](33-rust-edge.md) | ✅ |

@@ -1,0 +1,1349 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>פרק 35: תרגילי קוד מעשיים</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="top"><a href="index.html">תוכן העניינים</a> · <a href="34-senior-interview-loop.html">← פרק 34: תהליך הגיוס הבכיר</a> · <a href="37-hookline-spec.html">פרק 37: Hookline: מפרט וארכיטקטורה →</a></nav>
+<main class="book">
+<div class="toc"><span class="toctitle">תוכן הפרק</span><ul>
+<li><a href="#_1">מה נלמד בפרק</a></li>
+<li><a href="#_2">ידע מקדים</a></li>
+<li><a href="#351">35.1 איך נראה ראיון קוד מעשי</a><ul>
+<li><a href="#3511">35.1.1 מה ידוע</a></li>
+<li><a href="#3512">35.1.2 השיטה: שישה צעדים</a></li>
+<li><a href="#3513">35.1.3 שעון מוזרק</a></li>
+<li><a href="#3514">35.1.4 איך עובדים עם התרגילים</a></li>
+</ul>
+</li>
+<li><a href="#352">35.2 מגביל קצב</a><ul>
+<li><a href="#3521">35.2.1 הדרישה</a></li>
+<li><a href="#3522">35.2.2 הממשק</a></li>
+<li><a href="#3523">35.2.3 הבדיקות שמגדירות אותו</a></li>
+<li><a href="#3524">35.2.4 הלב של הפתרון</a></li>
+<li><a href="#3525">35.2.5 מה מראיינת תשאל</a></li>
+</ul>
+</li>
+<li><a href="#353">35.3 מתזמן משימות</a><ul>
+<li><a href="#3531">35.3.1 הדרישה</a></li>
+<li><a href="#3532">35.3.2 הממשק</a></li>
+<li><a href="#3533">35.3.3 התכנון: לולאה אחת, טיימר אחד</a></li>
+<li><a href="#3534">35.3.4 איך בודקים את זה בלי לחכות</a></li>
+<li><a href="#3535">35.3.5 מה מראיינת תשאל</a></li>
+</ul>
+</li>
+<li><a href="#354-ttl">35.4 מטמון עם TTL</a><ul>
+<li><a href="#3541">35.4.1 הדרישה</a></li>
+<li><a href="#3542">35.4.2 הממשק והמבנה</a></li>
+<li><a href="#3543">35.4.3 הלב של הפתרון</a></li>
+<li><a href="#3544">35.4.4 טיימר יחסי בבדיקה</a></li>
+<li><a href="#3545">35.4.5 מה מראיינת תשאל</a></li>
+</ul>
+</li>
+<li><a href="#355-webhooks">35.5 מקבל webhooks שבטוח לניסיונות חוזרים</a><ul>
+<li><a href="#3551">35.5.1 הדרישה</a></li>
+<li><a href="#3552">35.5.2 שלושה תפקידים למשלוח</a></li>
+<li><a href="#3553">35.5.3 שתי החלטות קטנות שחשובות</a></li>
+<li><a href="#3554-goroutines">35.5.4 הבדיקה עם goroutines</a></li>
+<li><a href="#3555">35.5.5 מה מראיינת תשאל</a></li>
+</ul>
+</li>
+<li><a href="#356">35.6 הזמנה בלי הזמנה כפולה</a><ul>
+<li><a href="#3561">35.6.1 הדרישה</a></li>
+<li><a href="#3562">35.6.2 בזיכרון: נעילה לכל משאב</a></li>
+<li><a href="#3563-postgresql">35.6.3 ב־PostgreSQL: המסד אוכף</a></li>
+<li><a href="#3564">35.6.4 החלופות ומחיריהן</a></li>
+<li><a href="#3565-postgresql">35.6.5 להריץ את הגרסה של PostgreSQL</a></li>
+</ul>
+</li>
+<li><a href="#357">35.7 תרגיל סקירת קוד</a><ul>
+<li><a href="#3571">35.7.1 הסבב</a></li>
+<li><a href="#3572">35.7.2 התרגיל</a></li>
+<li><a href="#3573">35.7.3 איך משווים למפתח</a></li>
+</ul>
+</li>
+<li><a href="#_3">סיכום</a></li>
+<li><a href="#_4">מונחים לזכור</a></li>
+<li><a href="#_5">טעויות נפוצות</a></li>
+<li><a href="#_6">שאלות ראיון</a></li>
+<li><a href="#obsidian">פתק Obsidian</a></li>
+<li><a href="#_7">תרגיל</a></li>
+<li><a href="#_8">העשרה אופציונלית</a></li>
+</ul>
+</div>
+
+<h1 id="35">פרק 35: תרגילי קוד מעשיים</h1>
+<p>בראיון קוד למשרה בכירה ב־backend מבקשים לרוב לבנות משהו קטן ואמיתי: מגביל קצב, מתזמן, מטמון, מקבל webhooks,
+הזמנה של משאב. הפרק נותן שיטה לסבב כזה וחמישה תרגילים ב־Go, שבהם הבדיקות הן המפרט, ואחריהם תרגיל של סקירת
+קוד. בכל תרגיל, החשוב הוא לא רק שהבדיקות עוברות, אלא שאת יודעת לומר בקול מה בחרת, ומה זה עולה.</p>
+<h2 id="_1">מה נלמד בפרק</h2>
+<ul>
+<li>איך נראה סבב קוד מעשי, לפי מה שהמחקר מצא, ושיטה של שישה צעדים לעבור אותו.</li>
+<li>שעון מוזרק ושעון מזויף: איך בודקים קוד שתלוי בזמן בלי לחכות לזמן.</li>
+<li>מגביל קצב: דלי אסימונים לכל מפתח, וגבול לזיכרון.</li>
+<li>מתזמן משימות עם השהיה, המשך, ניסיונות חוזרים עם המתנה גדלה וביטול.</li>
+<li>מטמון עם זמן חיים: פינוי עצל ופעיל, וגודל חסום לפי LRU.</li>
+<li>מקבל webhooks שבטוח לניסיונות חוזרים, כולל משלוחים כפולים שמגיעים באותו רגע.</li>
+<li>הזמנה בלי הזמנה כפולה, פעם בזיכרון עם נעילה לכל משאב ופעם עם אילוץ החרגה ב־PostgreSQL.</li>
+<li>סקירת קוד בזמן קצוב, עם דירוג לפי חומרה.</li>
+</ul>
+<h2 id="_2">ידע מקדים</h2>
+<ul>
+<li>פרק 5: goroutines, ה־context, נעילות וגלאי המרוצים. כל תרגיל רץ עם <code>-race</code>.</li>
+<li>פרק 6: <code>net/http</code> ו־<code>httptest</code>, לתרגיל 4.</li>
+<li>פרק 10: PostgreSQL בקונטיינר ו־pgx, לתרגיל 5.</li>
+<li>פרק 11: טרנזקציות ונעילות; תרגיל 5 מראה חלופה שבה המסד עצמו אוכף.</li>
+<li>פרק 12: מטמון, אי־תוקף והתפרצות מטמון. תרגיל 3 הוא מטמון בזיכרון של תהליך אחד.</li>
+<li>פרק 14: ניסיונות חוזרים, המתנה גדלה ואידמפוטנטיות של handler. תרגילים 2 ו־4 בונים עליהם.</li>
+<li>פרק 16: דלי אסימונים. תרגיל 1 כותב אותו מחדש, מאפס, בזמן קצוב.</li>
+<li>פרק 34, סעיף 34.1: מבנה תהליך הגיוס, וסבבים שבהם מותר או אסור להשתמש ב־AI.</li>
+</ul>
+<h2 id="351">35.1 איך נראה ראיון קוד מעשי</h2>
+<h3 id="3511">35.1.1 מה ידוע</h3>
+<p>לפי <a href="../00-stage1/01-market-research.md">מחקר השוק של הספר</a>, שלב הקוד בתהליך ישראלי הוא מטלת בית, או קוד חי של 45
+עד 90 דקות, „מעשי יותר מאלגוריתמי” (מחקר השוק, סעיף 3.3, ביטחון בינוני). שאלות כמו מגביל קצב, מטמון LRU עם זמן
+חיים, ומתזמן משימות מצוטטות הרבה כסבבי קוד בטעם backend, אבל המקורות הם אתרי הכנה ומאגרי שאלות, ולא נמצא מקור
+ישראלי ראשוני (מחקר השוק, סעיף 3.2, ביטחון נמוך עד בינוני).</p>
+<p>שלושה ממצאים גלובליים שמשפיעים על הצורה (מחקר השוק, סעיף 3.2):</p>
+<ul>
+<li><strong>בעיה בכמה חלקים, במקום חידה.</strong> בסקר של מראיינים, 58% שינו את השאלות לכיוון בעיות מותאמות בכמה חלקים, בגלל
+  חשש מרמאות בעזרת AI. ובסבב החדש של Meta עובדים על פרויקט של כמה קבצים, ומרחיבים אותו.</li>
+<li><strong>אלגוריתמים לא נעלמו.</strong> באותו סקר, אף אחד מ־52 המראיינים בחברות הגדולות לא אמר שהחברה שלו ויתרה על שאלות
+  אלגוריתמיות. הספר לא מלמד אותן; אם את מכוונת לחברה כזאת, ראי את ההעשרה בסוף הפרק.</li>
+<li><strong>סבב סקירת קוד:</strong> עדות אחת, וביטחון נמוך. סעיף 35.7 מתרגל אותו, כי ההכנה זולה.</li>
+</ul>
+<h3 id="3512">35.1.2 השיטה: שישה צעדים</h3>
+<p>מה שמבדיל בכירה בסבב כזה הוא סדר העבודה, יותר מהקוד. זו שיטת עבודה, לא ממצא של המחקר:</p>
+<table>
+<thead>
+<tr>
+<th>צעד</th>
+<th>מה עושים</th>
+<th>כמה זמן מתוך 45 דקות</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>הבהרה</td>
+<td>שואלים על הדרישות, על הקנה מידה, על מה שקורה בקצוות; כותבים את התשובות כהערה</td>
+<td>5</td>
+</tr>
+<tr>
+<td>ממשק קודם</td>
+<td>כותבים את החתימות והטיפוסים, ומראים אותם לפני שכותבים גוף</td>
+<td>3</td>
+</tr>
+<tr>
+<td>בדיקות, או רשימה שלהן</td>
+<td>הנתיב העיקרי ושני מקרי קצה. אם אין זמן לכתוב, אומרים אותם בקול</td>
+<td>7</td>
+</tr>
+<tr>
+<td>גרסה פשוטה ונכונה</td>
+<td>נעילה אחת גדולה, מבנה נתונים פשוט. עובד לפני שמהיר</td>
+<td>15</td>
+</tr>
+<tr>
+<td>קצוות ומקביליות</td>
+<td>גלאי המרוצים, ביטול, שגיאות, זמן שהולך אחורה</td>
+<td>10</td>
+</tr>
+<tr>
+<td>המחירים בקול</td>
+<td>מה היית משנה בקנה מידה גדול יותר, ולמה לא עשית את זה עכשיו</td>
+<td>5</td>
+</tr>
+</tbody>
+</table>
+<p>שני עקרונות חוצים את כל הצעדים. ראשית, <strong>חושבים בקול</strong>: מראיינת שלא שומעת אותך לא יכולה לתת לך נקודות על שיקול
+דעת, וגם לא יכולה לעזור כשאת תקועה. שנית, <strong>„נכון קודם, ואז מהיר”</strong>: גרסה עם נעילה אחת שעוברת את הבדיקות שווה
+יותר מגרסה עם נעילות עדינות שנתקעת.</p>
+<blockquote>
+<p><strong>שימי לב:</strong> בסבב שבו מותר AI, השיטה זהה, ורק צעד הגרסה הפשוטה מתקצר. מה שנבדק אז הוא בדיוק הצעדים האחרים:
+ההבהרה, הבדיקות, ומציאת הבעיות בקוד שהכלי כתב (מחקר השוק, סעיף 3.2). אם לא אמרו שמותר, שאלי.</p>
+</blockquote>
+<h3 id="3513">35.1.3 שעון מוזרק</h3>
+<p>ארבעה מחמשת התרגילים תלויים בזמן: אסימונים שמתמלאים, משימה שמחכה דקה, ערך שפג, חלון של כפילויות. בדיקה שמחכה
+דקה אמיתית היא בדיקה שלא תריצי. לכן כל תרגיל מקבל את השעון כפרמטר, וזה גם הדבר הראשון שמראיינת תשאל עליו: „איך
+תבדקי את זה?”.</p>
+<p>שתי צורות. כשהקוד צריך רק את השעה הנוכחית, הוא מקבל פונקציה, <code>now func() time.Time</code>. כשהוא צריך גם טיימר, הוא
+מקבל את הממשק מהחבילה <code>clock</code> של התרגיל (הקובץ <code>clock/clock.go</code>):</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// Clock is what code needs from time: the current instant and a timer.
+type Clock interface {
+    Now() time.Time
+    NewTimer(d time.Duration) Timer
+}
+
+// Timer is the part of *time.Timer the drills use.
+type Timer interface {
+    C() &lt;-chan time.Time
+    Stop() bool
+}
+</code></pre>
+
+
+</div>
+
+<p>בייצור מעבירים <code>clock.Real()</code>, ובבדיקות <code>clock.NewFake(t0)</code>. השעון המזויף זז רק כשהבדיקה קוראת ל־<code>Advance</code>,
+ואז יורים כל הטיימרים שהגיע זמנם. יש בו עוד מתודה אחת שחשובה לבדיקות של מקביליות, <code>BlockUntil(n)</code>: היא ממתינה עד
+שיש לפחות <code>n</code> טיימרים פעילים. בלעדיה, בדיקה יכולה להזיז את הזמן לפני שהקוד הספיק לכוון את הטיימר, ואז הטיימר
+יחושב מהזמן החדש ולא יירה לעולם. תראי אותה בעבודה בסעיף 35.4.</p>
+<h3 id="3514">35.1.4 איך עובדים עם התרגילים</h3>
+<p>כל תרגיל הוא חבילה במודול אחד, <code>example.com/ch35-drills</code>. בכל חבילה, קובץ הבדיקות הוא המפרט, וקובץ הקוד מכיל
+טיפוסים, חתימות ו־<code>panic("TODO")</code>. בהערה בראש כל קובץ כתובה מסגרת הזמן. לכל תרגיל:</p>
+<ol>
+<li>הפעילי שעון עצר.</li>
+<li>קראי את קובץ הבדיקות קודם, וכתבי לעצמך שתי שאלות שהיית שואלת את המראיינת.</li>
+<li>כתבי בקול, כאילו מישהי מקשיבה. אפשר להקליט.</li>
+<li>הריצי את הבדיקות של החבילה בלבד, עם גלאי המרוצים.</li>
+<li>כשהזמן נגמר, עצרי, ורשמי כמה זמן לקח ואיפה נתקעת, גם אם לא סיימת.</li>
+<li>רק אז השווי לפתרון בתיקייה <code>solution/</code>.</li>
+</ol>
+<p>הפקודה לתרגיל אחד, למשל הראשון:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">cd ~/senior-course/ch35
+go test -race ./ratelimit
+</code></pre>
+
+
+</div>
+
+<h2 id="352">35.2 מגביל קצב</h2>
+<h3 id="3521">35.2.1 הדרישה</h3>
+<p>מגביל קצב לכל מפתח (לקוח, מפתח API, כתובת): כל מפתח מקבל דלי של <code>burst</code> אסימונים שמתמלא בקצב <code>rate</code> אסימונים
+לשנייה. בקשה לוקחת אסימון אחד; אם אין, היא נדחית, והתשובה אומרת כמה זמן לחכות. הזיכרון צריך להיות חסום, והמגביל
+בטוח לשימוש מקבילי. מסגרת הזמן: 25 דקות.</p>
+<p>שאלות הבהרה שכדאי לשאול כאן:</p>
+<ul>
+<li>האם המגבלה לכל תהליך, או משותפת לכמה עותקים של השירות? (כאן: לכל תהליך. משותפת, זה פרק 16.)</li>
+<li>מה מחזירים בדחייה? (כאן: <code>RetryAfter</code>, כדי שהשכבה מעל תוכל לשלוח את הכותרת <code>Retry-After</code>.)</li>
+<li>מה קורה למפתח שלא נראה שעה? (כאן: <code>Prune</code>.)</li>
+</ul>
+<h3 id="3522">35.2.2 הממשק</h3>
+<p>הממשק, מתוך קוד ההתחלה (הקובץ <code>ratelimit/ratelimit.go</code> בתיקייה <code>starter/</code>):</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// Decision is the answer for one request.
+type Decision struct {
+    Allowed    bool
+    RetryAfter time.Duration // when refused: how long until one token has accrued
+}
+
+// New returns a limiter. now is the clock: time.Now in production, a fake in tests.
+func New(rate float64, burst int, now func() time.Time) (*Limiter, error) {
+    panic(&quot;TODO: drill 1, see chapter 35, section 35.2&quot;)
+}
+
+// Allow takes one token from key's bucket, or refuses and says when to come back.
+func (l *Limiter) Allow(key string) Decision {
+    panic(&quot;TODO: drill 1, see chapter 35, section 35.2&quot;)
+}
+
+// Prune forgets every key whose bucket has refilled completely, and returns how many it
+// forgot.
+func (l *Limiter) Prune() int {
+    panic(&quot;TODO: drill 1, see chapter 35, section 35.2&quot;)
+}
+</code></pre>
+
+
+</div>
+
+<h3 id="3523">35.2.3 הבדיקות שמגדירות אותו</h3>
+<table>
+<thead>
+<tr>
+<th>בדיקה</th>
+<th>מה היא דורשת</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TestNewRejectsBadConfig</code></td>
+<td>קצב אפס, שלילי, NaN או אינסופי, <code>burst</code> אפס ושעון חסר מחזירים <code>ErrConfig</code></td>
+</tr>
+<tr>
+<td><code>TestBurstThenRefuse</code></td>
+<td>שלוש בקשות עוברות, הרביעית נדחית עם <code>RetryAfter</code> של 500 מילי־שניות</td>
+</tr>
+<tr>
+<td><code>TestRefillOverTime</code></td>
+<td>בדיוק אסימון אחד אחרי חצי שנייה, ולעולם לא יותר מ־<code>burst</code></td>
+</tr>
+<tr>
+<td><code>TestRetryAfterShrinksWithPartialToken</code></td>
+<td>חצי אסימון שנצבר מקצר את ההמתנה, וההמתנה המדויקת מספיקה</td>
+</tr>
+<tr>
+<td><code>TestKeysAreIndependent</code></td>
+<td>מפתח אחד לא גוזל ממפתח אחר</td>
+</tr>
+<tr>
+<td><code>TestClockGoingBackwardsEarnsNothing</code></td>
+<td>שעון שחזר אחורה לא נותן אסימונים, גם כשהוא חוזר קדימה</td>
+</tr>
+<tr>
+<td><code>TestConcurrentCallersShareOneBucket</code></td>
+<td>אלף בקשות מ־100 goroutines על מפתח אחד: בדיוק 50 עוברות</td>
+</tr>
+<tr>
+<td><code>TestPruneForgetsOnlyFullBuckets</code></td>
+<td>רק דליים מלאים נשכחים, ומפתח שנשכח מתנהג כמו חדש</td>
+</tr>
+</tbody>
+</table>
+<h3 id="3524">35.2.4 הלב של הפתרון</h3>
+<p>מילוי עצל: אין טיימר ואין goroutine ברקע. כל דלי זוכר כמה אסימונים היו בו ומתי נגע בו מישהו לאחרונה, וכשמגיעה
+בקשה הוא מחשב כמה נצברו מאז. מתוך הפתרון (הקובץ <code>ratelimit/ratelimit.go</code>):</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// Allow takes one token from key's bucket, or refuses and says when to come back.
+func (l *Limiter) Allow(key string) Decision {
+    l.mu.Lock()
+    defer l.mu.Unlock()
+    now := l.now()
+    b, ok := l.buckets[key]
+    if !ok {
+        // A new key starts full: a client that has never been seen gets its whole burst.
+        b = &amp;bucket{tokens: l.burst, last: now}
+        l.buckets[key] = b
+    }
+    l.refill(b, now)
+    if b.tokens &gt;= 1 {
+        b.tokens--
+        return Decision{Allowed: true}
+    }
+    wait := time.Duration(math.Ceil((1 - b.tokens) / l.rate * float64(time.Second)))
+    return Decision{RetryAfter: wait}
+}
+
+// refill adds the tokens earned since the bucket was last touched. There is no timer:
+// the bucket is brought up to date only when someone asks. A clock that went backwards
+// earns nothing and does not move last, so it cannot be used to earn tokens twice.
+func (l *Limiter) refill(b *bucket, now time.Time) {
+    if elapsed := now.Sub(b.last); elapsed &gt; 0 {
+        b.tokens = math.Min(l.burst, b.tokens+elapsed.Seconds()*l.rate)
+        b.last = now
+    }
+}
+</code></pre>
+
+
+</div>
+
+<p>שלושה פרטים שמראיינת תשים לב אליהם. מפתח חדש מתחיל מלא, כי לקוח שלא נראה מעולם מגיע לו כל ה־burst. הזמן שעבר
+נבדק כחיובי, ולכן שעון שחזר אחורה לא נותן כלום ולא מזיז את <code>last</code>. וההמתנה מעוגלת למעלה, כדי שמי שמחכה בדיוק
+<code>RetryAfter</code> לא תידחה שוב בגלל ננו־שנייה.</p>
+<p>ו־<code>Prune</code> נשען על תובנה אחת: דלי מלא מתנהג בדיוק כמו מפתח שלא נראה מעולם. לכן מותר לשכוח אותו בלי לשנות אף
+החלטה, והזיכרון נשאר חסום במספר המפתחות שהיו פעילים לאחרונה.</p>
+<h3 id="3525">35.2.5 מה מראיינת תשאל</h3>
+<table>
+<thead>
+<tr>
+<th>שאלה</th>
+<th>תשובה עם המחיר</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>למה דלי אסימונים ולא חלון קבוע?</td>
+<td>חלון קבוע מאפשר פי שניים מהמגבלה סביב גבול החלון. דלי מאפשר burst מוגדר ומחליק אחריו. חלון נע עם יומן מדויק, אבל זוכר כל בקשה</td>
+</tr>
+<tr>
+<td>נעילה אחת לכל המגביל?</td>
+<td>פשוט ונכון, וצוואר בקבוק אם יש אלפי בקשות במקביל. הצעד הבא: חלוקה לכמה מפות לפי גיבוב של המפתח, כל אחת עם נעילה</td>
+</tr>
+<tr>
+<td>למה <code>float64</code> לאסימונים?</td>
+<td>קצב של חצי אסימון לשנייה צריך שברים. החלופה: לשמור זמן במקום אסימונים, כמו באלגוריתם GCRA, שזוכר רק מתי הבקשה הבאה מותרת</td>
+</tr>
+<tr>
+<td>ואם יש שלושה עותקים של השירות?</td>
+<td>כל אחד נותן את המגבלה, וביחד פי שלושה. מגבלה משותפת צריכה מאגר משותף, למשל סקריפט Lua ב־Redis, כמו בפרק 16</td>
+</tr>
+<tr>
+<td>ומה אם Redis למטה?</td>
+<td>החלטה מתועדת: לפתוח (לאפשר) עם מדד והתראה, או לסגור. ב־Hookline המגביל נפתח, ראי פרק 37</td>
+</tr>
+</tbody>
+</table>
+<h2 id="353">35.3 מתזמן משימות</h2>
+<h3 id="3531">35.3.1 הדרישה</h3>
+<p>מתזמן בתוך תהליך: מגישים משימה עם מזהה ושעה, והוא מריץ אותה בשעה שלה, לכל היותר <code>workers</code> במקביל. משימה שנכשלה
+מנוסה שוב אחרי המתנה גדלה, עד מספר ניסיונות; שגיאה קבועה לא מנוסה שוב. אפשר להשהות ולהמשיך את כל המתזמן, ולבטל
+משימה אחת, גם באמצע ריצה. מסגרת הזמן: 35 דקות. זה התרגיל הארוך מהחמישה.</p>
+<p>מצבי המשימה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-mermaid">stateDiagram-v2
+  [*] --&gt; Pending: Submit
+  Pending --&gt; Running: due, worker free, not paused
+  Running --&gt; Succeeded: nil
+  Running --&gt; Pending: error, attempts left
+  Running --&gt; Failed: permanent or last attempt
+  Pending --&gt; Cancelled: Cancel
+  Running --&gt; Cancelled: Cancel, attempt returns
+  Running --&gt; Pending: Run stopped
+</code></pre>
+
+
+</div>
+
+<h3 id="3532">35.3.2 הממשק</h3>
+<table>
+<thead>
+<tr>
+<th>מתודה</th>
+<th>מה היא עושה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>New(clk, workers)</code></td>
+<td>מתזמן עם שעון ומגבלת מקביליות</td>
+</tr>
+<tr>
+<td><code>Submit(id, at, task, opts)</code></td>
+<td>מוסיפה משימה; <code>ErrDuplicate</code> למזהה קיים</td>
+</tr>
+<tr>
+<td><code>Cancel(id)</code></td>
+<td>ממתינה: לא תרוץ. רצה: ה־context שלה מבוטל, והיא מסומנת <code>Cancelled</code> כשהיא חוזרת</td>
+</tr>
+<tr>
+<td><code>Pause()</code>, <code>Resume()</code></td>
+<td>אין התחלות חדשות; ניסיונות שרצים ממשיכים</td>
+</tr>
+<tr>
+<td><code>Status(id)</code></td>
+<td>תמונת מצב: מצב, מספר ניסיונות, מועד הניסיון הבא, השגיאה האחרונה</td>
+</tr>
+<tr>
+<td><code>Done(id)</code></td>
+<td>channel שנסגר כשהמשימה מגיעה למצב סופי</td>
+</tr>
+<tr>
+<td><code>Run(ctx)</code></td>
+<td>הלולאה; חוזרת כשה־context מבוטל, אחרי שכל הניסיונות שרצו חזרו</td>
+</tr>
+</tbody>
+</table>
+<p>והאפשרויות של הניסיונות החוזרים, מתוך קוד ההתחלה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// Options control retries. The zero value means one attempt.
+type Options struct {
+    MaxAttempts int                             // attempts in total, including the first; &lt; 1 means 1
+    Backoff     func(attempt int) time.Duration // delay after failed attempt n (1-based); nil means no delay
+}
+</code></pre>
+
+
+</div>
+
+<h3 id="3533">35.3.3 התכנון: לולאה אחת, טיימר אחד</h3>
+<p>התכנון הנאיבי הוא goroutine לכל משימה, שישנה עד הזמן שלה. הוא עובד, אבל השהיה, ביטול ומגבלת מקביליות הופכים
+אותו לסבך של channels. התכנון בפתרון הוא לולאה אחת: בכל התעוררות היא מתחילה את כל מה שהגיע זמנו, ככל שיש
+workers פנויים, ואז ישנה עד המשימה הבאה, או עד שמשהו משתנה. מתוך הפתרון (הקובץ <code>scheduler/scheduler.go</code>):</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// startDue starts every attempt that may start now and returns a timer for the earliest
+// pending task that is not due yet (nil if there is none, or while paused).
+func (s *Scheduler) startDue(ctx context.Context, wg *sync.WaitGroup) clock.Timer {
+    s.mu.Lock()
+    defer s.mu.Unlock()
+    if s.paused {
+        return nil
+    }
+    now := s.clk.Now()
+    pending := make([]*entry, 0, len(s.tasks))
+    for _, e := range s.tasks {
+        if e.state == Pending {
+            pending = append(pending, e)
+        }
+    }
+    // Earliest first, then first submitted: the order is deterministic. A heap would make
+    // this O(log n) per change instead of O(n log n) per wake-up.
+    sort.Slice(pending, func(i, j int) bool {
+        if !pending[i].next.Equal(pending[j].next) {
+            return pending[i].next.Before(pending[j].next)
+        }
+        return pending[i].seq &lt; pending[j].seq
+    })
+    for _, e := range pending {
+        if e.next.After(now) {
+            // Not due: sleep until it is. Workers that free up later send a wake-up.
+            return s.clk.NewTimer(e.next.Sub(now))
+        }
+        if s.running == s.workers {
+            return nil // a finishing attempt will wake the loop
+        }
+        s.start(ctx, wg, e)
+    }
+    return nil
+}
+</code></pre>
+
+
+</div>
+
+<p>את הלולאה מעירים בשני מקרים: טיימר שירה, או הודעה ב־channel בשם <code>wake</code>, שכל שינוי שולח אליו (הגשה, המשך, ניסיון
+שהסתיים). ל־channel יש מקום להודעה אחת, והשליחה לא חוסמת לעולם: הודעה אחת ממתינה מספיקה, כי הלולאה קוראת את כל
+המצב מחדש כשהיא מתעוררת.</p>
+<p>כשניסיון חוזר, מחליטים מה הלאה, תחת אותה נעילה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    var permanent permanentError
+    switch {
+    case e.stopped:
+        s.finish(e, Cancelled)
+    case err == nil:
+        s.finish(e, Succeeded)
+    case runCtx.Err() != nil:
+        // Shutdown, not a failure of the task: give the attempt back.
+        e.state, e.next = Pending, s.clk.Now()
+        e.attempt--
+    case errors.As(err, &amp;permanent) || e.attempt &gt;= e.opts.MaxAttempts:
+        s.finish(e, Failed)
+    default:
+        var delay time.Duration
+        if e.opts.Backoff != nil {
+            delay = e.opts.Backoff(e.attempt)
+        }
+        e.state, e.next = Pending, s.clk.Now().Add(delay)
+    }
+    s.notify()
+</code></pre>
+
+
+</div>
+
+<p>הסדר של ה־<code>case</code> הוא ההחלטות. ביטול גובר על הכול, גם על הצלחה. ניסיון שנקטע בגלל כיבוי של <code>Run</code> לא נספר, והמשימה
+חוזרת להמתנה, כי זו לא אשמתה. וניסיון שזרק panic הופך לשגיאה קבועה (בפונקציה <code>call</code>), כך שמשימה אחת לא מפילה
+את התהליך ולא „מחזיקה” worker לנצח.</p>
+<h3 id="3534">35.3.4 איך בודקים את זה בלי לחכות</h3>
+<p>ההמתנה בין ניסיונות היא שנייה ואז שתיים, והבדיקה לא מחכה לאף אחת מהן. מתוך הבדיקה <code>TestRetryWaitsForBackoff</code>
+(הקובץ <code>scheduler/scheduler_test.go</code>):</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    eventually(t, &quot;first attempt failed&quot;, func() bool { st = status(t, s, &quot;a&quot;); return st.Attempts == 1 &amp;&amp; st.State == Pending })
+    if !st.NextRun.Equal(t0.Add(time.Second)) || !errors.Is(st.Err, errBoom) {
+        t.Fatalf(&quot;after attempt 1: NextRun %v, Err %v; want t0+1s, boom&quot;, st.NextRun, st.Err)
+    }
+    clk.Advance(999 * time.Millisecond)
+    settle()
+    if calls.Load() != 1 {
+        t.Fatal(&quot;retried before the backoff of 1s had passed&quot;)
+    }
+    clk.Advance(time.Millisecond)
+    eventually(t, &quot;second attempt failed&quot;, func() bool { st = status(t, s, &quot;a&quot;); return st.Attempts == 2 &amp;&amp; st.State == Pending })
+    if want := clk.Now().Add(2 * time.Second); !st.NextRun.Equal(want) {
+        t.Fatalf(&quot;after attempt 2: NextRun %v, want %v (backoff doubles)&quot;, st.NextRun, want)
+    }
+    clk.Advance(2 * time.Second)
+    st = waitState(t, s, &quot;a&quot;, Succeeded)
+</code></pre>
+
+
+</div>
+
+<p>שני כלים עובדים כאן יחד. הזמן מזויף, ולכן <code>Advance</code> של 999 מילי־שניות הוא מיידי. וה־goroutines אמיתיות, ולכן
+הבדיקה ממתינה בזמן אמיתי (עד שתי שניות) למצב שהיא מצפה לו, ב־<code>eventually</code>. החשוב הוא הסדר: <strong>מחכים שהניסיון
+הראשון יירשם, ורק אז מזיזים את הזמן.</strong> אילו הזמן היה זז קודם, המתזמן היה מחשב את מועד הניסיון הבא מהזמן החדש,
+והבדיקה הייתה ממתינה לשווא.</p>
+<p>למה כאן אין צורך ב־<code>BlockUntil</code>? כי המתזמן שומר לכל משימה מועד <strong>מוחלט</strong>. גם אם הזמן זז לפני שהלולאה כיוונה
+טיימר, היא תחשב <code>e.next.Sub(now)</code> שלילי ותתחיל מיד. טיימר יחסי, כמו של המטמון בסעיף הבא, הוא סיפור אחר.</p>
+<h3 id="3535">35.3.5 מה מראיינת תשאל</h3>
+<table>
+<thead>
+<tr>
+<th>שאלה</th>
+<th>תשובה עם המחיר</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>למה מיון בכל התעוררות?</td>
+<td>‏O(n log n) לכל שינוי, וזה בסדר לאלפי משימות. ערימה (<code>container/heap</code>) הופכת את זה ל־O(log n), במחיר קוד מסובך יותר</td>
+</tr>
+<tr>
+<td>מה משמעות השהיה?</td>
+<td>כאן: אין התחלות חדשות, וניסיונות שרצים ממשיכים. החלופה, לבטל אותם, הופכת השהיה לביטול; מבררים בהבהרה</td>
+</tr>
+<tr>
+<td>ביטול באמצע ריצה?</td>
+<td>ביטול שיתופי: ה־context מבוטל, והמשימה צריכה להקשיב לו. משימה שמתעלמת ממנו תמשיך עד שתסיים</td>
+</tr>
+<tr>
+<td>פיזור אקראי בהמתנה?</td>
+<td>הפונקציה <code>Backoff</code> מוזרקת, ולכן אפשר להעביר פיזור מלא כמו בפרק 14. בבדיקות מעבירים פונקציה בלי אקראיות</td>
+</tr>
+<tr>
+<td>ואם התהליך קורס?</td>
+<td>כל המשימות בזיכרון אובדות. מתזמן עמיד שומר אותן במסד, כמו התור של פרק 14, וזה כבר מעבר לתרגיל</td>
+</tr>
+</tbody>
+</table>
+<h2 id="354-ttl">35.4 מטמון עם TTL</h2>
+<h3 id="3541">35.4.1 הדרישה</h3>
+<p>מטמון בזיכרון עם קיבולת חסומה: לכל ערך זמן חיים (TTL), ברירת מחדל או לכל ערך בנפרד. ערך שפג לא מוחזר, ומוסר
+בשני מסלולים: בעצלות, כשמישהו ניגש אליו, ובאופן פעיל, בסריקה תקופתית. כשהמטמון מלא, יוצא הערך שהשתמשו בו הכי
+מזמן (LRU). בטוח לשימוש מקבילי, וגנרי בטיפוסים. מסגרת הזמן: 25 דקות.</p>
+<h3 id="3542">35.4.2 הממשק והמבנה</h3>
+<p>החתימות, מתוך קוד ההתחלה:</p>
+<table>
+<thead>
+<tr>
+<th>מתודה</th>
+<th>מה היא עושה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>New[K, V](capacity, ttl, now)</code></td>
+<td><code>ErrConfig</code> לקיבולת או TTL לא תקינים</td>
+</tr>
+<tr>
+<td><code>Get(key)</code></td>
+<td>ערך וסימן הצלחה; פגיעה מקדמת את הערך, ערך שפג נמחק</td>
+</tr>
+<tr>
+<td><code>Set</code>, <code>SetWithTTL</code></td>
+<td>כתיבה מחדש מחליפה ערך ותפוגה ומקדמת; TTL אפס או שלילי מוחק</td>
+</tr>
+<tr>
+<td><code>Delete</code>, <code>Len</code></td>
+<td><code>Len</code> סופרת גם ערכים שפגו ועוד לא נמחקו</td>
+</tr>
+<tr>
+<td><code>DeleteExpired()</code></td>
+<td>המסלול הפעיל: מוחק כל מה שפג, ומחזיר כמה</td>
+</tr>
+<tr>
+<td><code>RunJanitor(ctx, clk, every)</code></td>
+<td>קורא ל־<code>DeleteExpired</code> כל פרק זמן, עד שה־context מבוטל</td>
+</tr>
+</tbody>
+</table>
+<p>המבנה הקלאסי הוא שני אינדקסים על אותם ערכים: מפה מהמפתח לאיבר, ורשימה מקושרת כפולה מהשימוש האחרון לראשון.
+מפה נותנת חיפוש ב־O(1), והרשימה נותנת הקדמה ופינוי ב־O(1). החבילה <code>container/list</code> מהספרייה הסטנדרטית מספיקה.</p>
+<h3 id="3543">35.4.3 הלב של הפתרון</h3>
+<p>מתוך הפתרון (הקובץ <code>ttlcache/ttlcache.go</code>):</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// Get returns the value for key if it is present and not expired. A hit makes the entry
+// the most recently used; an expired entry is removed on the spot.
+func (c *Cache[K, V]) Get(key K) (V, bool) {
+    // A full Mutex, not an RWMutex: even a hit writes (it moves the entry to the front).
+    c.mu.Lock()
+    defer c.mu.Unlock()
+    el, ok := c.items[key]
+    if !ok {
+        var zero V
+        return zero, false
+    }
+    e := el.Value.(*entry[K, V])
+    if !c.now().Before(e.expires) {
+        c.remove(el)
+        var zero V
+        return zero, false
+    }
+    c.order.MoveToFront(el)
+    return e.value, true
+}
+</code></pre>
+
+
+</div>
+
+<p>ההערה הראשונה היא תשובה לשאלה שמראיינים אוהבים: „למה לא <code>RWMutex</code>, הרי זו קריאה?”. כי ב־LRU גם פגיעה כותבת: היא
+מזיזה את האיבר לראש הרשימה. שתי קריאות במקביל תחת נעילת קריאה היו משנות את הרשימה יחד, וזה מרוץ נתונים.</p>
+<p>והסריקה הפעילה, שימי לב לשורה שקוראת את האיבר הבא <strong>לפני</strong> המחיקה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// DeleteExpired removes every expired entry and returns how many it removed. It walks the
+// whole cache while holding the lock: O(n). That is acceptable for a cache of thousands of
+// entries swept every few seconds; for millions, keep a second index ordered by expiry.
+func (c *Cache[K, V]) DeleteExpired() int {
+    c.mu.Lock()
+    defer c.mu.Unlock()
+    now := c.now()
+    n := 0
+    for el := c.order.Front(); el != nil; {
+        next := el.Next() // read before remove, which clears the links
+        if !now.Before(el.Value.(*entry[K, V]).expires) {
+            c.remove(el)
+            n++
+        }
+        el = next
+    }
+    return n
+}
+</code></pre>
+
+
+</div>
+
+<h3 id="3544">35.4.4 טיימר יחסי בבדיקה</h3>
+<p>ה־janitor מכוון טיימר יחסי: „עוד עשר שניות מעכשיו”. כאן הבדיקה כן צריכה לחכות שהטיימר קיים לפני שהיא מזיזה את
+הזמן, אחרת „עכשיו” יחושב אחרי ההזזה. מתוך <code>TestJanitorSweepsOnItsInterval</code> (הקובץ <code>ttlcache/ttlcache_test.go</code>):</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    // The janitor sets a relative timer; wait until it exists before moving time.
+    clk.BlockUntil(1)
+    clk.Advance(50 * time.Second) // one sweep, nothing expired yet
+    clk.BlockUntil(1)
+    if c.Len() != 3 {
+        t.Fatalf(&quot;Len = %d before expiry, want 3&quot;, c.Len())
+    }
+    clk.Advance(10 * time.Second) // now at the TTL: the next sweep removes all three
+</code></pre>
+
+
+</div>
+
+<p>הקריאה השנייה ל־<code>BlockUntil</code> עושה עבודה כפולה: היא מחכה שהסריקה הראשונה הסתיימה (כי הטיימר הבא נוצר רק אחריה),
+ולכן הבדיקה של <code>Len</code> שאחריה לא מתחרה בסריקה.</p>
+<h3 id="3545">35.4.5 מה מראיינת תשאל</h3>
+<table>
+<thead>
+<tr>
+<th>שאלה</th>
+<th>תשובה עם המחיר</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>עצל או פעיל?</td>
+<td>עצל לבד משאיר בזיכרון ערכים שאיש לא יקרא, עד שה־LRU ידחוף אותם. פעיל לבד מחזיר ערך שפג בין שתי סריקות. לכן שניהם</td>
+</tr>
+<tr>
+<td>הסריקה היא O(n) תחת נעילה?</td>
+<td>כן. לאלפי ערכים כל כמה שניות זה בסדר. למיליונים: אינדקס שלישי לפי תפוגה, או דגימה אקראית כמו ש־Redis עושה</td>
+</tr>
+<tr>
+<td>כשמלא, למה לא לפנות קודם ערך שפג?</td>
+<td>זה דורש למצוא אותו, כלומר סריקה או אינדקס לפי תפוגה. LRU מפנה ב־O(1); ערך שפג ייצא בסריקה הבאה</td>
+</tr>
+<tr>
+<td>שתי בקשות לאותו מפתח חסר?</td>
+<td>שתיהן ילכו למקור. זו התפרצות מטמון, והפתרון (<code>singleflight</code>) בפרק 12</td>
+</tr>
+<tr>
+<td>ערכים גדולים במיוחד?</td>
+<td>הקיבולת כאן במספר ערכים. חסימה לפי בתים דורשת לדעת את הגודל של כל ערך</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>איך Rust עושה את זה:</strong> רשימה מקושרת כפולה היא המקום שבו ה־borrow checker הכי מורגש: לכל צומת שני בעלים,
+ולכן משתמשים בדרך כלל בספרייה מוכנה, או באינדקסים לתוך <code>Vec</code> במקום מצביעים. ב־Go אוסף הזבל פותר את
+שאלת הבעלות, ו־<code>container/list</code> מספיקה; מה שנשאר באחריותך הוא הנעילה.</p>
+</blockquote>
+<h2 id="355-webhooks">35.5 מקבל webhooks שבטוח לניסיונות חוזרים</h2>
+<h3 id="3551">35.5.1 הדרישה</h3>
+<p>השולח מבטיח „לפחות פעם אחת”: הוא שולח שוב כשהוא לא קיבל תשובה, וזה כולל מקרים שבהם הבקשה הראשונה דווקא הצליחה.
+המקבל צריך להפוך את זה ל„פעם אחת” מבחינת ההשפעה: משלוחים של אותו מזהה אירוע, בתוך חלון זמן, מעובדים פעם אחת,
+<strong>כולל משלוחים כפולים שמגיעים באותו רגע</strong>. זה בדיוק הצד המקבל של Hookline. מסגרת הזמן: 30 דקות.</p>
+<p>החוזה, כפי שהבדיקות מגדירות אותו:</p>
+<table>
+<thead>
+<tr>
+<th>מקרה</th>
+<th>תשובה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>המשלוח שעיבד</td>
+<td>200 עם הסטטוס <code>processed</code></td>
+</tr>
+<tr>
+<td>משלוח של מזהה שכבר עובד בתוך החלון</td>
+<td>200 עם הסטטוס <code>duplicate</code></td>
+</tr>
+<tr>
+<td>משלוח של מזהה שעובד כרגע</td>
+<td>ממתין לראשון, ואז אותה תוצאה</td>
+</tr>
+<tr>
+<td>העיבוד נכשל או זרק panic</td>
+<td>500, והמזהה <strong>לא</strong> נזכר, כדי שהניסיון הבא יעבד</td>
+</tr>
+<tr>
+<td>שיטה שאינה POST, בלי מזהה, גוף שאינו JSON, גוף גדול מדי</td>
+<td>405, 400, 400, 413</td>
+</tr>
+</tbody>
+</table>
+<h3 id="3552">35.5.2 שלושה תפקידים למשלוח</h3>
+<p>הנקודה העדינה היא המשלוחים שמגיעים יחד. בדיקה ואז כתיבה, בשני צעדים נפרדים, תיתן לשניים לעבור יחד. לכן ההחלטה
+מה משלוח עושה נעשית בצעד אחד, תחת נעילה, ויש לה שלוש תוצאות: כפילות של מזהה שעובד, „מוביל” שמעבד, או „עוקב”
+שממתין למוביל. מתוך הפתרון (הקובץ <code>webhook/webhook.go</code>):</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// claim decides, atomically, what this delivery does: it is a duplicate of a processed id,
+// or the leader that processes the id, or a follower that waits for the leader.
+func (h *Handler) claim(id string) (c *call, leader, dup bool) {
+    h.mu.Lock()
+    defer h.mu.Unlock()
+    h.prune()
+    if _, ok := h.done[id]; ok {
+        return nil, false, true
+    }
+    if c, ok := h.inflight[id]; ok {
+        return c, false, false
+    }
+    c = &amp;call{finished: make(chan struct{})}
+    h.inflight[id] = c
+    return c, true, false
+}
+
+// complete records the outcome and releases the followers. A failure is not remembered,
+// so the sender's next retry is processed again.
+func (h *Handler) complete(id string, c *call) {
+    h.mu.Lock()
+    delete(h.inflight, id)
+    if c.err == nil {
+        h.done[id] = h.now()
+        h.order = append(h.order, id)
+    }
+    h.mu.Unlock()
+    close(c.finished)
+}
+</code></pre>
+
+
+</div>
+
+<p>הצורה מוכרת: זה מה שהחבילה <code>singleflight</code> עושה, עם שני הבדלים. התוצאה נזכרת אחרי שהעבודה הסתיימה, למשך החלון.
+וכישלון לא נזכר, כי „עובד” צריך לסמן הצלחה, לא הגעה.</p>
+<h3 id="3553">35.5.3 שתי החלטות קטנות שחשובות</h3>
+<ul>
+<li><strong>העיבוד מנותק מהבקשה.</strong> המוביל מעביר למעבד <code>context.WithoutCancel(r.Context())</code>. אם השולח מתנתק באמצע, העבודה
+  נגמרת ונרשמת, והעוקבים מקבלים את התשובה שלה. בלי זה, ניתוק של השולח היה מבטל עבודה שכמעט הסתיימה.</li>
+<li><strong>החלון נגזם בלי סריקה.</strong> המזהים נכנסים לתור לפי סדר הסיום, ולכן אלה שיצאו מהחלון הם תמיד תחילת התור. הגיזום
+  עולה כמספר המזהים שהוסרו, לא כמספר המזהים שבזיכרון. זו גם התשובה לשאלה „והזיכרון?”.</li>
+</ul>
+<h3 id="3554-goroutines">35.5.4 הבדיקה עם goroutines</h3>
+<p>חמישים משלוחים של אותו אירוע משתחררים יחד משער, והמעבד ישן קצת כדי שהם יחפפו. מתוך
+<code>TestConcurrentDuplicatesAreProcessedOnce</code> (הקובץ <code>webhook/webhook_test.go</code>):</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    close(gate)
+    wg.Wait()
+    if c := calls.Load(); c != 1 {
+        t.Fatalf(&quot;processor called %d times for %d concurrent deliveries of one event, want 1&quot;, c, n)
+    }
+</code></pre>
+
+
+</div>
+
+<p>הבדיקה הזאת תופסת מימוש שבודק ואז כותב, כמעט תמיד. כדי לתפוס אותו <strong>תמיד</strong>, יש בדיקה שנייה,
+<code>TestDuplicateWaitsForTheDeliveryInFlight</code>, שעוצרת את המוביל בתוך המעבד, שולחת כפילות, ומוודאת שהיא לא חוזרת ולא
+נכנסת למעבד עד שהמוביל משתחרר.</p>
+<h3 id="3555">35.5.5 מה מראיינת תשאל</h3>
+<table>
+<thead>
+<tr>
+<th>שאלה</th>
+<th>תשובה עם המחיר</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ואם יש שלושה עותקים של המקבל?</td>
+<td>הזיכרון של כל תהליך לא רואה את האחרים. צריך מאגר משותף: מפתח ייחודי ב־Redis עם זמן חיים, או, טוב יותר, אילוץ ייחודי במסד שבו נכתבת ההשפעה</td>
+</tr>
+<tr>
+<td>למה „טוב יותר” במסד?</td>
+<td>כי אז רישום המזהה וההשפעה הם טרנזקציה אחת. בזיכרון או ב־Redis, קריסה בין ההשפעה לרישום תגרום לעיבוד כפול</td>
+</tr>
+<tr>
+<td>כמה ארוך החלון?</td>
+<td>לפחות כמו טווח הניסיונות של השולח. ב־Hookline, ניסיונות עם המתנה גדלה ותקרה, ושליחה מחדש ידנית שיכולה להגיע מאוחר מאוד</td>
+</tr>
+<tr>
+<td>למה 200 לכפילות ולא 409?</td>
+<td>מבחינת השולח, כפילות היא הצלחה. 409 נראה כמו כישלון, ושולחים רבים לא מנסים שוב קוד 4xx (Hookline לא מנסה שוב 4xx פרט ל־408 ו־429)</td>
+</tr>
+<tr>
+<td>ובדיקת חתימה?</td>
+<td>חסרה בתרגיל בכוונה. במקבל אמיתי היא באה לפני הכול, וב־Hookline היא בפרק 8 ובאבן הדרך M5</td>
+</tr>
+</tbody>
+</table>
+<h2 id="356">35.6 הזמנה בלי הזמנה כפולה</h2>
+<h3 id="3561">35.6.1 הדרישה</h3>
+<p>הזמנה של משאב (חדר, שולחן, מכשיר בדיקה) לטווח זמן, כך ששתי הזמנות של אותו משאב לעולם לא חופפות. הטווח חצי־פתוח,
+<code>[Start, End)</code>: הזמנה שמסתיימת ב־10:00 ואחת שמתחילה ב־10:00 לא חופפות. שני מימושים לאותו חוזה: בזיכרון, ועם
+PostgreSQL. מסגרת הזמן: 35 דקות לשניהם.</p>
+<p>החוזה, מתוך קוד ההתחלה (הקובץ <code>booking/booking.go</code>):</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// Store is the contract both implementations meet.
+type Store interface {
+    // Book reserves resource for [start, end) or returns ErrConflict or ErrInvalid.
+    Book(ctx context.Context, resource, who string, start, end time.Time) (Booking, error)
+    // Cancel removes a booking, freeing its range.
+    Cancel(ctx context.Context, id int64) error
+    // List returns the bookings of resource ordered by start.
+    List(ctx context.Context, resource string) ([]Booking, error)
+}
+</code></pre>
+
+
+</div>
+
+<p>אותן בדיקות רצות על שני המימושים. הבדיקה המרכזית שולחת 40 בקשות במקביל לאותו חדר, בטווחים חופפים שונים, ודורשת
+הצלחה אחת בדיוק ו־39 התנגשויות.</p>
+<h3 id="3562">35.6.2 בזיכרון: נעילה לכל משאב</h3>
+<p>הבדיקה וההכנסה חייבות להיות צעד אחד. נעילה אחת לכל המאגר תעבוד, אבל תגרום להזמנות של חדרים שונים לחכות זו לזו.
+לכן לכל משאב נעילה משלו, ולמפה של המשאבים נעילה נפרדת שמוחזקת רק כדי למצוא או ליצור משאב. מתוך הפתרון (הקובץ
+<code>booking/memory.go</code>):</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// Book checks for an overlap and inserts while holding the resource's lock: the check and
+// the insert are one step, so two callers cannot both see a free slot.
+func (m *Memory) Book(_ context.Context, name, who string, start, end time.Time) (Booking, error) {
+    if err := validate(name, who, start, end); err != nil {
+        return Booking{}, err
+    }
+    r := m.resource(name)
+    r.mu.Lock()
+    defer r.mu.Unlock()
+    // Bookings are sorted and never overlap, so their ends are sorted too: the first
+    // booking that ends after start is the only one that can collide.
+    i, _ := slices.BinarySearchFunc(r.bookings, start, func(b Booking, t time.Time) int {
+        if b.End.After(t) {
+            return 1
+        }
+        return -1
+    })
+    if i &lt; len(r.bookings) &amp;&amp; overlaps(r.bookings[i].Start, r.bookings[i].End, start, end) {
+        return Booking{}, ErrConflict
+    }
+    m.mu.Lock() // lock order: resource, then store. Cancel takes them in the same order.
+    m.nextID++
+    b := Booking{ID: m.nextID, Resource: name, Who: who, Start: start, End: end}
+    m.byID[b.ID] = name
+    m.mu.Unlock()
+    r.bookings = slices.Insert(r.bookings, i, b)
+    return b, nil
+}
+</code></pre>
+
+
+</div>
+
+<p>שני פרטים. ההזמנות של משאב שמורות ממוינות, ומאחר שהן לא חופפות, גם זמני הסיום שלהן ממוינים, ולכן חיפוש בינארי
+מוצא את ההזמנה היחידה שיכולה להתנגש. ובתוך <code>Book</code> נלקחת גם הנעילה של המאגר, כדי לתת מזהה; לכן יש סדר נעילות קבוע,
+משאב ואז מאגר, ו־<code>Cancel</code> שומרת עליו. סדר הפוך בשתי פונקציות הוא מתכון לקיפאון.</p>
+<h3 id="3563-postgresql">35.6.3 ב־PostgreSQL: המסד אוכף</h3>
+<p>כאן אין בדיקה באפליקציה בכלל. הסכמה אומרת למסד לסרב לשורה שהמשאב שלה שווה למשאב של שורה קיימת <strong>והטווח שלה חופף</strong>
+לטווח שלה. זה אילוץ החרגה (exclusion constraint). מתוך הפתרון (הקובץ <code>booking/postgres.go</code>):</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">const Schema = `
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+
+CREATE TABLE IF NOT EXISTS bookings (
+    id       bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    resource text NOT NULL,
+    who      text NOT NULL,
+    during   tstzrange NOT NULL CHECK (NOT isempty(during)),
+    CONSTRAINT bookings_no_overlap EXCLUDE USING gist (resource WITH =, during WITH &amp;&amp;)
+);
+`
+</code></pre>
+
+
+</div>
+
+<p>למה צריך את <code>btree_gist</code>? אילוץ החרגה נבנה על אינדקס GiST. החפיפה (<code>&amp;&amp;</code>) של טווחים נתמכת ב־GiST מובנה, אבל
+שוויון על עמודת <code>text</code> הוא פעולה של B-tree. ההרחבה <code>btree_gist</code> מוסיפה ל־GiST את אותן פעולות על
+טיפוסים רגילים, וכך אפשר לשלב את שניהם באילוץ אחד. כך בדיוק מתואר הצירוף בתיעוד של PostgreSQL 18, בפרק על טיפוסי
+טווח, בדוגמה של הזמנת חדרים (נבדק באוקטובר 2026).</p>
+<p>ההכנסה עצמה פשוטה, והמיפוי של השגיאה הוא כל העבודה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    b := Booking{Resource: resource, Who: who, Start: start, End: end}
+    err := p.DB.QueryRow(ctx,
+        `INSERT INTO bookings (resource, who, during) VALUES ($1, $2, tstzrange($3, $4, '[)')) RETURNING id`,
+        resource, who, start, end).Scan(&amp;b.ID)
+    var pgErr *pgconn.PgError
+    if errors.As(err, &amp;pgErr) &amp;&amp; pgErr.Code == exclusionViolation {
+        return Booking{}, ErrConflict
+    }
+    if err != nil {
+        return Booking{}, err
+    }
+    return b, nil
+</code></pre>
+
+
+</div>
+
+<p>קוד השגיאה <code>23P01</code> הוא <code>exclusion_violation</code>, ממחלקה 23 של הפרות אילוצים. אין <code>SELECT</code> לפני ה־<code>INSERT</code>, ולכן
+אין חלון בין הבדיקה לכתיבה, ואין חשיבות לכמה תהליכים מזמינים יחד.</p>
+<h3 id="3564">35.6.4 החלופות ומחיריהן</h3>
+<table>
+<thead>
+<tr>
+<th>דרך</th>
+<th>איך</th>
+<th>מחיר</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>נעילה בזיכרון</td>
+<td>נעילה לכל משאב, בדיקה והכנסה</td>
+<td>עובדת רק בתהליך אחד; קריסה מוחקת הכול</td>
+</tr>
+<tr>
+<td><code>SELECT ... FOR UPDATE</code> על שורת המשאב</td>
+<td>נועלים את שורת החדר, בודקים חפיפה, מכניסים</td>
+<td>נכון, אבל כל קוד שכותב הזמנה חייב לזכור לנעול (פרק 11)</td>
+</tr>
+<tr>
+<td>רמת בידוד <code>SERIALIZABLE</code></td>
+<td>בודקים ומכניסים בטרנזקציה, והמסד מזהה התנגשות</td>
+<td>נכון, אבל צריך לנסות שוב טרנזקציות שנכשלו, והשגיאות פחות ספציפיות (פרק 11)</td>
+</tr>
+<tr>
+<td>נעילה מייעצת</td>
+<td><code>pg_advisory_xact_lock</code> על גיבוב של המשאב</td>
+<td>עובדת בין תהליכים, ושוב תלויה בכך שכל קוד זוכר (פרק 18)</td>
+</tr>
+<tr>
+<td>אילוץ החרגה</td>
+<td>המסד מסרב לחפיפה</td>
+<td>הכי חזק: אי אפשר לשכוח אותו. דורש <code>btree_gist</code> והרשאה ליצור הרחבה, וקושר את הלוגיקה ל־PostgreSQL</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>איך Rust עושה את זה:</strong> הצורה של המאגר בזיכרון הייתה <code>Mutex&lt;HashMap&lt;String, Arc&lt;Mutex&lt;Vec&lt;Booking&gt;&gt;&gt;&gt;&gt;</code>,
+והקומפיילר היה מכריח אותך לשחרר את הנעילה החיצונית לפני שאת מחזיקה את הפנימית לאורך זמן. ב־Go אותו מבנה כתוב
+בשני שדות <code>sync.Mutex</code>, וסדר הנעילות הוא משמעת שלך, לא של הקומפיילר.</p>
+</blockquote>
+<h3 id="3565-postgresql">35.6.5 להריץ את הגרסה של PostgreSQL</h3>
+<p>הבדיקות של PostgreSQL קוראות את <code>DATABASE_URL</code>, ומדלגות כשהוא לא מוגדר. כדי להריץ אותן, מפעילים את המסד של הפרק
+(קובץ compose בתיקייה <code>data/</code>, עם שם פרויקט קבוע), מריצים, ומורידים:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">cd ~/senior-course/ch35
+docker compose -p ch35 -f data/compose.yaml up -d --wait
+export DATABASE_URL=postgres://course:change-me@localhost:5435/drills
+go test -race -v -run 'Booking|Cancel|Double|Different' ./booking
+docker compose -p ch35 -f data/compose.yaml down -v
+</code></pre>
+
+
+</div>
+
+<p>עם המסד, כל בדיקה רצה פעמיים, כתת־בדיקה <code>memory</code> ותת־בדיקה <code>postgres</code>. בלעדיו, תת־הבדיקות של <code>postgres</code> מסומנות
+<code>SKIP</code> עם ההסבר.</p>
+<h2 id="357">35.7 תרגיל סקירת קוד</h2>
+<h3 id="3571">35.7.1 הסבב</h3>
+<p>בסבב סקירה מקבלים pull request ובו בעיות שתולות, וזמן קצוב. לפי העדות היחידה שהמחקר מצא, כחצי שעה, והציון ניתן על
+דירוג הבעיות לפי חומרה, לא על מספרן (מחקר השוק, סעיף 3.2, ביטחון נמוך). כאן מסגרת הזמן 20 דקות, כי זה התרגיל
+השלישי של היום.</p>
+<h3 id="3572">35.7.2 התרגיל</h3>
+<p>ה־PR מוסיף סינון כפילויות למקבל webhooks. הוא קצר, כ־70 שורות, וקרוב מאוד לתרגיל 4, ולכן תזהי בו דברים. החומר:</p>
+<table>
+<thead>
+<tr>
+<th>קובץ</th>
+<th>מה בו</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>data/review-drill-pr.md</code></td>
+<td>התיאור של ה־PR, כפי שהכותב שלח אותו</td>
+</tr>
+<tr>
+<td><code>data/review-drill.diff</code></td>
+<td>השינוי עצמו: קובץ חדש, בדיקה חדשה, ושינוי ב־handler</td>
+</tr>
+<tr>
+<td><code>starter/review.md</code></td>
+<td>התבנית לסקירה שלך</td>
+</tr>
+<tr>
+<td><code>solution/review-key.md</code></td>
+<td>מפתח התשובות. לא פותחים לפני שהסקירה שמורה</td>
+</tr>
+</tbody>
+</table>
+<p>השיטה:</p>
+<ol>
+<li>קראי את התיאור. רשמי מה ה־PR טוען שהוא עושה, ומה צריך להיות נכון כדי שזה יהיה נכון.</li>
+<li>סדרי את הקבצים לפי סיכון לפני שאת קוראת שורה: מה משנה מתי השולח חושב שסיימנו? מה מצב משותף?</li>
+<li>קראי לפי הסדר הזה. לכל בעיה: קובץ ושורה, חומרה, ומה היית כותבת לכותב, כולל כיוון לתיקון.</li>
+<li>סמני חומרה בחמש דרגות: חוסם, כדאי לתקן, שאלה, הערה קטנה, מחמאה. לפחות מחמאה אחת אמיתית.</li>
+<li>כתבי החלטה ומשפט סיכום.</li>
+<li>שמרי את הקובץ ועשי commit. רק אז פתחי את המפתח.</li>
+</ol>
+<h3 id="3573">35.7.3 איך משווים למפתח</h3>
+<p>המפתח מסדר את הממצאים לפי חומרה, ומראה לכל אחד הערה מוצעת. כשאת משווה, השאלות החשובות הן לא „כמה מצאתי”, אלא:</p>
+<ul>
+<li>האם שלושת הממצאים הראשונים שלך הם שלושת החוסמים שבמפתח?</li>
+<li>האם כל הערה חוסמת שלך אומרת למה זה חשוב, ומציעה כיוון?</li>
+<li>מה החמצת, ומה היה צריך לגרום לך להסתכל שם?</li>
+</ul>
+<p>בסוף המפתח יש טבלה שמראה מה כלים היו תופסים לבד. התשובה, כשהרצנו אותם על השינוי: כמעט כלום. זה בדיוק הטיעון
+בעד סבב כזה.</p>
+<h2 id="_3">סיכום</h2>
+<ul>
+<li>סבב קוד בישראל, נכון לאוקטובר 2026: מטלת בית או קוד חי של 45 עד 90 דקות, מעשי יותר מאלגוריתמי, בביטחון בינוני.</li>
+<li>השיטה: הבהרה, ממשק, בדיקות, גרסה פשוטה ונכונה, קצוות ומקביליות, ומחירים בקול.</li>
+<li>קוד שתלוי בזמן מקבל את השעון כפרמטר. בבדיקה מזיזים זמן מזויף, ומחכים בזמן אמיתי למצב, לא לזמן.</li>
+<li>מגביל קצב: מילוי עצל, אסימונים חלקיים, ושכחה של דליים מלאים כגבול לזיכרון.</li>
+<li>מתזמן: לולאה אחת עם טיימר אחד, ערוץ התעוררות שלא חוסם, וסדר <code>case</code> שהוא סדר ההחלטות.</li>
+<li>מטמון: מפה ורשימה, נעילה מלאה כי גם פגיעה כותבת, ופינוי עצל ופעיל יחד.</li>
+<li>מקבל webhooks: ההחלטה מי מעבד נעשית בצעד אחד; הצלחה נזכרת, כישלון לא; במספר עותקים, המזהה עובר למסד.</li>
+<li>הזמנה: נעילה לכל משאב בתהליך אחד, ואילוץ החרגה עם <code>btree_gist</code> כשהמסד צריך לאכוף.</li>
+<li>סקירת קוד: לפי סיכון, עם חומרה, עם כיוון. החוסמים קודם.</li>
+</ul>
+<h2 id="_4">מונחים לזכור</h2>
+<table>
+<thead>
+<tr>
+<th>מונח בעברית</th>
+<th>באנגלית</th>
+<th>במשפט אחד</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>קוד חי</td>
+<td>Live coding</td>
+<td>פתרון בעיה מעשית מול מראיינת, בזמן קצוב, בקול</td>
+</tr>
+<tr>
+<td>שעון מוזרק</td>
+<td>Injected clock</td>
+<td>שעון שהקוד מקבל כפרמטר, כדי שבדיקה תוכל להחליף אותו</td>
+</tr>
+<tr>
+<td>שעון מזויף</td>
+<td>Fake clock</td>
+<td>שעון שזז רק כשהבדיקה מזיזה אותו, ויורה טיימרים שהגיע זמנם</td>
+</tr>
+<tr>
+<td>דלי אסימונים</td>
+<td>Token bucket</td>
+<td>מגבלה שמאפשרת פרץ מוגדר ואחריו קצב קבוע</td>
+</tr>
+<tr>
+<td>מילוי עצל</td>
+<td>Lazy refill</td>
+<td>חישוב האסימונים שנצברו רק כשמגיעה בקשה, בלי טיימר</td>
+</tr>
+<tr>
+<td>ביטול שיתופי</td>
+<td>Cooperative cancellation</td>
+<td>ביטול שמבקש מהקוד לעצור דרך ה־context, ותלוי בכך שהקוד מקשיב</td>
+</tr>
+<tr>
+<td>שגיאה קבועה</td>
+<td>Permanent error</td>
+<td>שגיאה שניסיון חוזר לא יתקן, ולכן לא מנסים שוב</td>
+</tr>
+<tr>
+<td>זמן חיים (TTL)</td>
+<td>Time to live</td>
+<td>כמה זמן ערך במטמון נחשב תקף</td>
+</tr>
+<tr>
+<td>פינוי</td>
+<td>Eviction</td>
+<td>הוצאה של ערך מהמטמון כדי לפנות מקום</td>
+</tr>
+<tr>
+<td>LRU</td>
+<td>Least recently used</td>
+<td>מדיניות פינוי שמוציאה את הערך שהשתמשו בו הכי מזמן</td>
+</tr>
+<tr>
+<td>חלון כפילויות</td>
+<td>Dedupe window</td>
+<td>הזמן שבו מזהה שעובד נזכר, ומשלוח חוזר שלו נחשב כפילות</td>
+</tr>
+<tr>
+<td>מוביל ועוקב</td>
+<td>Leader and follower</td>
+<td>המשלוח שמעבד, ומשלוחים כפולים שממתינים לתוצאה שלו</td>
+</tr>
+<tr>
+<td>טווח חצי־פתוח</td>
+<td>Half-open range</td>
+<td>טווח שכולל את ההתחלה ולא את הסוף, כך שטווחים צמודים לא חופפים</td>
+</tr>
+<tr>
+<td>אילוץ החרגה</td>
+<td>Exclusion constraint</td>
+<td>אילוץ במסד שמסרב לשורה שמתנגשת בשורה קיימת לפי אופרטורים שמוגדרים בו</td>
+</tr>
+<tr>
+<td>סדר נעילות</td>
+<td>Lock ordering</td>
+<td>כלל שלפיו כל הקוד לוקח נעילות באותו סדר, כדי למנוע קיפאון</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_5">טעויות נפוצות</h2>
+<ul>
+<li><strong>לקפוץ לקוד לפני ההבהרה.</strong> עשר דקות אחר כך מתגלה שהמגבלה הייתה משותפת לכמה עותקים. חמש דקות של שאלות קודם.</li>
+<li><strong><code>time.Now()</code> ו־<code>time.Sleep</code> בתוך הקוד.</strong> אי אפשר לבדוק בלי לחכות, והבדיקות נעשות איטיות ומהבהבות. מזריקים
+  שעון.</li>
+<li><strong>בדיקה ואז כתיבה בשתי נעילות נפרדות.</strong> בין השתיים נכנס משלוח שני. ההחלטה והרישום, תחת נעילה אחת.</li>
+<li><strong><code>RWMutex</code> למטמון LRU.</strong> פגיעה מזיזה את האיבר ברשימה, כלומר כותבת. גלאי המרוצים יראה את זה בבדיקה המקבילית.</li>
+<li><strong>לזכור מזהה לפני שהעיבוד הצליח.</strong> כישלון אחד והאירוע אבוד, כי כל ניסיון חוזר ייענה „כפילות”.</li>
+<li><strong>לבטל עבודה כשהשולח מתנתק.</strong> ה־context של הבקשה מבוטל כשהיא נגמרת. עבודה שצריכה להסתיים לא רצה עליו.</li>
+<li><strong>לשתוק כשנתקעים.</strong> המראיינת יכולה לעזור רק אם היא שומעת איפה את. אומרים מה ניסית ומה את חושדת.</li>
+</ul>
+<h2 id="_6">שאלות ראיון</h2>
+<ol>
+<li>
+<p><strong>מגביל קצב: דלי אסימונים או חלון נע? מתי כל אחד?</strong> דלי אסימונים זוכר שני מספרים לכל מפתח, מאפשר פרץ מוגדר,
+   ומחליק אחריו; הוא מתאים כשמותר ללקוח להתפרץ מעט. חלון נע עם יומן מדויק זוכר כל בקשה בחלון, ולכן מדויק יותר
+   ויקר יותר בזיכרון; גרסת המונה המשוקלל שלו זולה ומקורבת. חלון קבוע הכי פשוט, ומאפשר פי שניים מהמגבלה סביב גבול
+   החלון. הבחירה תלויה במה שהלקוחות צריכים, לא בטעם.</p>
+</li>
+<li>
+<p><strong>איך בודקים קוד שתלוי בזמן?</strong> מזריקים את השעון: פונקציה שמחזירה את הזמן, או ממשק עם טיימר. בבדיקה, שעון
+   מזויף שזז רק כשמזיזים אותו. בקוד מקבילי מוסיפים כלל: מחכים בזמן אמיתי למצב שמצפים לו, ורק אז מזיזים את הזמן
+   המזויף. המחיר: עוד פרמטר בכל בנאי, ועוד חבילה קטנה. התמורה: בדיקות של דקות ושעות שרצות במילי־שניות.</p>
+</li>
+</ol>
+<p><strong>המשך:</strong> ומה עם טיימר יחסי, כמו ticker? אז צריך לחכות שהטיימר נוצר לפני ההזזה, למשל עם <code>BlockUntil</code>, אחרת
+   „עוד עשר שניות” יחושב מהזמן החדש והטיימר לא יירה.</p>
+<ol start="3">
+<li>
+<p><strong>המקבל שלך רץ בשלושה עותקים. מה קורה לסינון הכפילויות?</strong> בזיכרון, כל עותק רואה רק את המשלוחים שהגיעו אליו,
+   ומשלוח חוזר שהגיע לעותק אחר יעובד שוב. הפתרון הוא מאגר משותף. מפתח ב־Redis עם <code>SET NX</code> וזמן חיים עובד, אבל
+   קריסה בין ההשפעה לרישום עדיין גורמת לכפילות. הדרך החזקה: אילוץ ייחודי על מזהה האירוע במסד שבו נכתבת ההשפעה,
+   באותה טרנזקציה. המחיר: כתיבה למסד בכל משלוח.</p>
+</li>
+<li>
+<p><strong>שתי דרכים למנוע הזמנה כפולה, ומה כל אחת עולה.</strong> נעילה: לכל משאב בזיכרון, או נעילת שורת המשאב במסד עם
+   <code>FOR UPDATE</code>. היא נכונה כל עוד כל קוד שכותב הזמנות זוכר לנעול, והגרסה שבזיכרון לא עובדת בין תהליכים. אילוץ
+   החרגה: המסד מסרב לחפיפה, ואי אפשר לשכוח אותו, במחיר הרחבה, הרשאות, ותלות ב־PostgreSQL. בדרך כלל עדיף שהמסד
+   יאכוף את מה שאסור שיקרה לעולם.</p>
+</li>
+</ol>
+<p><strong>המשך:</strong> ומה אם הזמנה אחת תופסת שני חדרים יחד? באילוץ החרגה מכניסים שתי שורות באותה טרנזקציה, וכישלון של אחת
+   מבטל את שתיהן. בנעילות, נועלים את שני החדרים בסדר קבוע, למשל לפי שם, כדי למנוע קיפאון.</p>
+<ol start="5">
+<li>
+<p><strong>למה <code>Get</code> במטמון LRU צריך נעילת כתיבה?</strong> כי פגיעה מזיזה את האיבר לראש הרשימה, ושתי פגיעות במקביל תחת נעילת
+   קריאה היו משנות את אותה רשימה יחד. החלופות: לוותר על הקדמה בכל פגיעה (קירוב, כמו בחלק מהמטמונים המהירים), או
+   לחלק את המטמון לכמה חלקים עם נעילה לכל חלק. כל אחת מוותרת על משהו מהדיוק של ה־LRU או מהפשטות.</p>
+</li>
+<li>
+<p><strong>נתקעת באמצע ראיון קוד. מה עושים?</strong> אומרים את זה בקול, עם מה שניסית ומה את חושדת. חוזרים לבדיקה הקטנה ביותר
+   שנכשלת, ומדפיסים מצב. אם הבאג לא נמצא בכמה דקות, מציעים לפשט: נעילה אחת גדולה במקום עדינות, גרסה בלי
+   מקביליות שעוברת, ואז שיפור. מראיינת מעדיפה לראות דרך שיטתית החוצה מאשר שתיקה וקוד מושלם.</p>
+</li>
+</ol>
+<h2 id="obsidian">פתק Obsidian</h2>
+<p>הפתק המוכן נמצא גם כקובץ: <code>obsidian/35-coding-drills.md</code>. זה תוכנו:</p>
+<ul>
+<li><strong>הסבב:</strong> קוד חי של 45 עד 90 דקות, או מטלת בית. מעשי יותר מאלגוריתמי.</li>
+<li><strong>השיטה:</strong> הבהרה, ממשק, בדיקות, גרסה פשוטה ונכונה, קצוות ומקביליות, מחירים בקול.</li>
+<li><strong>זמן:</strong> שעון מוזרק. בבדיקה, מחכים למצב ואז מזיזים זמן; לטיימר יחסי, קודם מחכים שהוא קיים.</li>
+<li><strong>מגביל קצב:</strong> מילוי עצל; דלי מלא שקול למפתח שלא נראה, ולכן מותר לשכוח אותו.</li>
+<li><strong>מתזמן:</strong> לולאה אחת, טיימר אחד, ערוץ התעוררות שלא חוסם. ביטול גובר על הכול.</li>
+<li><strong>מטמון:</strong> מפה ורשימה; גם פגיעה כותבת; עצל ופעיל יחד.</li>
+<li><strong>מקבל webhooks:</strong> ההחלטה בצעד אחד; זוכרים הצלחה, לא הגעה; כמה עותקים, המזהה עובר למסד.</li>
+<li><strong>הזמנה:</strong> נעילה לכל משאב, או אילוץ החרגה עם <code>btree_gist</code>. המסד אוכף מה שאסור שיקרה לעולם.</li>
+<li><strong>שאלה פתוחה:</strong> ___</li>
+</ul>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">method      clarify (5) -&gt; API (3) -&gt; tests (7) -&gt; simple + correct (15) -&gt; edges + concurrency (10) -&gt; tradeoffs aloud (5)
+clock       now func() time.Time | clock.Clock{Now, NewTimer}; tests: clock.NewFake(t0), Advance, BlockUntil(n)
+run         go test -race ./ratelimit   (./scheduler ./ttlcache ./webhook ./booking)
+pg          docker compose -p ch35 -f data/compose.yaml up -d --wait
+            export DATABASE_URL=postgres://course:change-me@localhost:5435/drills
+            docker compose -p ch35 -f data/compose.yaml down -v
+limiter     tokens = min(burst, tokens + elapsed*rate); RetryAfter = ceil((1-tokens)/rate)
+dedupe      claim under one lock -&gt; leader | follower (wait) | duplicate; remember success only
+booking     EXCLUDE USING gist (resource WITH =, during WITH &amp;&amp;)  needs btree_gist; SQLSTATE 23P01
+review      risk order -&gt; blocking | should-fix | question | nit | praise -&gt; verdict
+my times    limiter ___ scheduler ___ cache ___ webhook ___ booking ___ review ___
+</code></pre>
+
+
+</div>
+
+<h2 id="_7">תרגיל</h2>
+<p><strong>מטרה:</strong> לפתור חמישה תרגילי קוד ב־Go, שבהם הבדיקות הן המפרט, כל אחד במסגרת הזמן שלו ובקול, כולל הגרסה של
+PostgreSQL בתרגיל ההזמנה; ולכתוב סקירה של PR שבור לפני שמסתכלים במפתח. <strong>זמן:</strong> שני ימי לימוד, ימים 94 ו־95, כ־85
+דקות בנייה בכל אחד. <strong>ידע מקדים:</strong> פרקים 5, 6, 10, 11, 12, 14 ו־16, ו־Docker לגרסה של PostgreSQL.</p>
+<p>הצעדים המלאים, קוד ההתחלה, רשימת הבדיקה, הרמזים והפתרון נמצאים ב־
+<a href="../exercises/ch35-drills/README.md"><code>exercises/ch35-drills/README.md</code></a>.</p>
+<p><strong>קריטריון סיום:</strong></p>
+<ul>
+<li>הבדיקות של מגביל הקצב, המתזמן והמטמון עוברות עם <code>-race</code>, והזמן של כל תרגיל רשום בפתק.</li>
+<li>הבדיקות של מקבל ה־webhooks ושל ההזמנה עוברות עם גלאי המרוצים, כולל בדיקת ההזמנה הכפולה מול PostgreSQL.</li>
+<li>הסקירה שלך שמורה ב־commit לפני שפתחת את המפתח, וההשוואה למפתח רשומה בסופה.</li>
+</ul>
+<h2 id="_8">העשרה אופציונלית</h2>
+<ul>
+<li>התיעוד של PostgreSQL 18 על טיפוסי טווח, ובו הסעיף על אילוצים על טווחים, ועל ההרחבה <code>btree_gist</code>.</li>
+<li>החבילה <code>golang.org/x/time/rate</code>: מימוש דלי אסימונים של צוות Go, עם המתנה והזמנה מראש של אסימונים. השווי לתרגיל 1.</li>
+<li>החבילה <code>golang.org/x/sync/singleflight</code>: הצורה של מוביל ועוקבים מתרגיל 4, בלי זיכרון אחרי הסיום.</li>
+<li>אם את מכוונת לחברה גדולה שעדיין שואלת שאלות אלגוריתמיות, הספר לא מכסה אותן. מאגר השאלות של interviewing.io,
+  שמופיע ברשימת המקורות של מחקר השוק, הוא נקודת פתיחה.</li>
+</ul>
+</main>
+<nav class="bottom"><a href="index.html">תוכן העניינים</a> · <a href="34-senior-interview-loop.html">← פרק 34: תהליך הגיוס הבכיר</a> · <a href="37-hookline-spec.html">פרק 37: Hookline: מפרט וארכיטקטורה →</a></nav>
+<script type="module">
+  // Render ```mermaid blocks in the browser (needs internet once; cached afterwards).
+  const blocks = document.querySelectorAll("pre > code.language-mermaid");
+  if (blocks.length) {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs")).default;
+    for (const code of blocks) {
+      const div = document.createElement("div");
+      div.className = "mermaid";
+      div.textContent = code.textContent;
+      code.parentElement.replaceWith(div);
+    }
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run();
+  }
+</script>
+</body>
+</html>

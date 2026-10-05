@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>פרק 16: עומס: הגבלת קצב, לחץ חוזר והשלת עומס</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="top"><a href="index.html">תוכן העניינים</a> · <a href="15-timeouts-retries-breakers.html">← פרק 15: זמנים קצובים, ניסיונות חוזרים ומפסקי זרם</a> · <a href="17-consistency-replication-partitioning.html">פרק 17: עקביות, שכפול וחלוקה למחיצות →</a></nav>
+<main class="book">
+<div class="toc"><span class="toctitle">תוכן הפרק</span><ul>
+<li><a href="#_1">מה נלמד בפרק</a></li>
+<li><a href="#_2">ידע מקדים</a></li>
+<li><a href="#161">16.1 מה קורה לשירות בעומס יתר</a><ul>
+<li><a href="#1611">16.1.1 תור נוצר גם כשאין תור</a></li>
+<li><a href="#1612">16.1.2 חוק ליטל</a></li>
+<li><a href="#1613">16.1.3 למה זמן התגובה מתפוצץ ליד הרוויה</a></li>
+<li><a href="#1614">16.1.4 אותו דבר בשירות אמיתי</a></li>
+</ul>
+</li>
+<li><a href="#162-token-bucket-go">16.2 token bucket ב־Go</a><ul>
+<li><a href="#1621">16.2.1 האלגוריתם</a></li>
+<li><a href="#1622">16.2.2 המימוש, בלי טיימר</a></li>
+<li><a href="#1623">16.2.3 למה השעון מוזרק</a></li>
+<li><a href="#1624-golangorgxtimerate">16.2.4 מול golang.org/x/time/rate</a></li>
+</ul>
+</li>
+<li><a href="#163-redis">16.3 הגבלת קצב מבוזרת ב־Redis</a><ul>
+<li><a href="#1631">16.3.1 למה דלי בזיכרון לא מספיק</a></li>
+<li><a href="#1632-lua">16.3.2 סקריפט Lua, אטומי</a></li>
+<li><a href="#1633-go-evalsha">16.3.3 הקריאה מ־Go, ו־EVALSHA</a></li>
+<li><a href="#1634-redis">16.3.4 כש־Redis לא זמין</a></li>
+<li><a href="#1635-429-retry-after">16.3.5 429, ‏Retry-After, ושדות המגבלה</a></li>
+</ul>
+</li>
+<li><a href="#164">16.4 לחץ חוזר</a></li>
+<li><a href="#165">16.5 השלת עומס ועדיפויות</a><ul>
+<li><a href="#1651">16.5.1 מגבלת קצב מול השלת עומס</a></li>
+<li><a href="#1652-middleware">16.5.2 ה־middleware</a></li>
+<li><a href="#1653">16.5.3 עדיפויות</a></li>
+<li><a href="#1654">16.5.4 איפה בשרשרת</a></li>
+<li><a href="#1655">16.5.5 המדידה</a></li>
+</ul>
+</li>
+<li><a href="#166">16.6 תורים חסומים ומגבלות מקביליות</a><ul>
+<li><a href="#1661">16.6.1 תור לא חסום רק מסתיר עומס</a></li>
+<li><a href="#1662">16.6.2 איך בוחרים את המגבלה</a></li>
+<li><a href="#1663">16.6.3 התמונה המלאה</a></li>
+</ul>
+</li>
+<li><a href="#_3">סיכום</a></li>
+<li><a href="#_4">מונחים לזכור</a></li>
+<li><a href="#_5">טעויות נפוצות</a></li>
+<li><a href="#_6">שאלות ראיון</a></li>
+<li><a href="#obsidian">פתק Obsidian</a></li>
+<li><a href="#_7">תרגיל</a></li>
+<li><a href="#_8">העשרה אופציונלית</a></li>
+</ul>
+</div>
+
+<h1 id="16">פרק 16: עומס: הגבלת קצב, לחץ חוזר והשלת עומס</h1>
+<p>פרק 15 הגן על השירות שלך מפני תלויות חלשות. הפרק הזה הופך את הכיוון: איך שירות מגן על עצמו כשמגיעות אליו
+יותר בקשות ממה שהוא מסוגל לשרת. התשובה הקצרה היא „להגיד לא מוקדם, במקום להיכשל מאוחר”, והפרק מראה למה: קצת
+תורת תורים, דלי אסימונים בזיכרון וב־Redis, לחץ חוזר, השלת עומס עם עדיפויות ותורים חסומים. מגביל קצב הוא
+גם שאלת קוד נפוצה בראיונות backend, ואת תכתבי אותו פעמיים: לשרת אחד ולכמה.</p>
+<h2 id="_1">מה נלמד בפרק</h2>
+<ul>
+<li>למה זמן התגובה מתפוצץ כשהשירות מתקרב לרוויה, ומה אומר חוק ליטל.</li>
+<li>דלי אסימונים ב־Go עם שעון מוזרק, בדיקות שרצות מיד, והשוואה ל־<code>golang.org/x/time/rate</code>.</li>
+<li>הגבלת קצב מבוזרת: סקריפט Lua אטומי ב־Redis, ולמה שתי פקודות נפרדות לא מספיקות.</li>
+<li>תשובת 429 עם <code>Retry-After</code>, ושדות הכותרת שמתארים את המגבלה ללקוחה.</li>
+<li>לחץ חוזר: תור חסום שחוסם את היצרן, מול תור חסום שמסרב.</li>
+<li>השלת עומס עם מגבלת מקביליות ועדיפויות, ולמה תור לא חסום רק מסתיר עומס.</li>
+</ul>
+<h2 id="_2">ידע מקדים</h2>
+<ul>
+<li>פרק 15: מחיצה אטומה כסמפור על channel, ו־<code>Retry-After</code> כחלק מניסיון חוזר מנומס.</li>
+<li>פרק 5, סעיפים 5.2 ו־5.4: channels עם מאגר, בחירה עם <code>select</code>, וביטול.</li>
+<li>פרק 6, סעיפים 6.2 ו־6.6: middleware ו־<code>httptest</code>.</li>
+<li>פרק 12, סעיפים 12.1 ו־12.5: Redis בקונטיינר, go-redis, וסקריפט Lua ראשון: מגביל בחלון קבוע. כאן הוא
+  הופך לדלי אסימונים.</li>
+<li>הכלים Docker ו־compose מפרק 2. התרגיל לא מייבא קוד מתרגילים קודמים.</li>
+</ul>
+<h2 id="161">16.1 מה קורה לשירות בעומס יתר</h2>
+<h3 id="1611">16.1.1 תור נוצר גם כשאין תור</h3>
+<p>לשירות יש קיבולת: נניח ארבעה עובדים, ו־20 מילישניות לבקשה. הוא יכול לשרת לכל היותר 200 בקשות בשנייה. בקשה
+שמגיעה כשכל העובדים תפוסים מחכה, גם אם בקוד לא כתבת שום תור: goroutine שמחכה לסמפור, חיבור שמחכה לקבלה,
+מאגר במערכת ההפעלה. התור הזה קיים תמיד. השאלה היא רק אם הוא חסום ואם רואים אותו.</p>
+<p>חמישה מושגים מתורת התורים מספיקים כדי להבין את כל הפרק:</p>
+<table>
+<thead>
+<tr>
+<th>מושג</th>
+<th>סימן</th>
+<th>משמעות</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>קצב הגעה</td>
+<td>λ</td>
+<td>כמה בקשות מגיעות ביחידת זמן</td>
+</tr>
+<tr>
+<td>זמן שירות</td>
+<td>S</td>
+<td>כמה זמן בקשה אחת צריכה מעובד, בלי המתנה</td>
+</tr>
+<tr>
+<td>ניצולת</td>
+<td>ρ</td>
+<td>החלק מהזמן שבו השרת עסוק; לשרת אחד זו המכפלה של λ ב־S</td>
+</tr>
+<tr>
+<td>זמן במערכת</td>
+<td>W</td>
+<td>המתנה ועוד שירות, מה שהלקוחה מרגישה</td>
+</tr>
+<tr>
+<td>במערכת</td>
+<td>L</td>
+<td>כמה בקשות נמצאות בפנים, ממתינות או בשירות</td>
+</tr>
+</tbody>
+</table>
+<h3 id="1612">16.1.2 חוק ליטל</h3>
+<p><strong>חוק ליטל (Little's law)</strong> קושר את שלושת האחרונים, לכל מערכת יציבה, בלי שום הנחה על הפיזור:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">L = λ × W
+</code></pre>
+
+
+</div>
+
+<p>אם מגיעות 100 בקשות בשנייה וכל אחת שוהה 50 מילישניות, אז בממוצע 5 בקשות נמצאות בפנים. החוק שימושי בשני
+כיוונים. מכאן: כמה מקביליות צריך כדי להחזיק קצב נתון. ומשם: אם מגבילים את L, ‏W לא יכול לגדול בלי שהקצב
+שמתקבל ירד. הבדיקה <code>TestLittlesLaw</code> בתרגיל מודדת את שני צדי המשוואה בשתי דרכים נפרדות, ומראה שהם מסכימים.</p>
+<h3 id="1613">16.1.3 למה זמן התגובה מתפוצץ ליד הרוויה</h3>
+<p>לשרת אחד עם הגעות וזמני שירות אקראיים (המודל שנקרא M/M/1), התאוריה נותנת נוסחה פשוטה לזמן במערכת:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">W = S / (1 - ρ)
+</code></pre>
+
+
+</div>
+
+<p>עם זמן שירות של 10 מילישניות: בניצולת של חצי, 20 מילישניות; ב־90 אחוז, 100; ב־99 אחוז, אלף. המכנה הולך
+לאפס, וזמן התגובה לאינסוף. בניצולת של 100 אחוז ומעלה אין מצב יציב בכלל: התור גדל כל עוד העומס נמשך.</p>
+<p>הסימולציה <code>cmd/queuesim</code> מריצה את המודל הזה בזמן מדומה, בלי לישון, ומדפיסה טבלה. היא גם מריצה כל ניצולת
+פעמיים, עם תור לא חסום ועם תור שמוגבל ל־20 ממתינים:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">go run ./cmd/queuesim
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">   rho      queue  W mean ms  W p99 ms    L seen  lambda*W  rejected %
+  0.50  unbounded        ___       ___       ___       ___         ___
+  0.90  unbounded        ___       ___       ___       ___         ___
+  0.90     max 20        ___       ___       ___       ___         ___
+  0.99  unbounded        ___       ___       ___       ___         ___
+  1.20  unbounded        ___       ___       ___       ___         ___
+  1.20     max 20        ___       ___       ___       ___         ___
+</code></pre>
+
+
+</div>
+
+<p>העתיקי את השורות האלה מההרצה שלך. שלושה דברים לחפש בהן:</p>
+<ul>
+<li><strong>העקומה.</strong> הממוצע בעמודה השלישית עוקב אחרי הנוסחה, ו־p99 גרוע ממנו פי כמה.</li>
+<li><strong>החוק.</strong> העמודות <code>L seen</code> ו־<code>lambda*W</code> כמעט זהות בכל שורה יציבה, ובשורה של 1.20 בלי גבול הן נפרדות,
+  כי אין שם מצב יציב שהחוק חל עליו.</li>
+<li><strong>התור החסום.</strong> בשורות עם גבול, זמן התגובה נשאר סביר, והמחיר מופיע בעמודה האחרונה: בקשות שנדחו.</li>
+</ul>
+<p>זו כל התזה של הפרק בטבלה אחת. מעל הרוויה אין דרך לשרת את כולן; יש רק בחירה בין לדחות חלק מהן מהר, לבין
+לגרום לכולן לחכות עד שהן מוותרות.</p>
+<h3 id="1614">16.1.4 אותו דבר בשירות אמיתי</h3>
+<p>הפקודה <code>cmd/server</code> היא שירות עם הקיבולת מהסעיף הקודם, ו־<code>cmd/load</code> שולחת אליו בקשות בקצב קבוע, בלי לחכות
+לתשובות הקודמות. זה <strong>מודל פתוח (open model)</strong>: כמו משתמשות אמיתיות, שלא מתאמות ביניהן. הריצי את השרת
+בטרמינל אחד:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">go run ./cmd/server
+</code></pre>
+
+
+</div>
+
+<p>ובטרמינל שני, עומס של פי אחד וחצי מהקיבולת:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">go run ./cmd/load -rate 300 -for 5s
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">sent ___ in 5s (___/s), dropped by the client ___
+status    count       p50       p90       p99       max
+200         ___       ___       ___       ___       ___
+error       ___       ___       ___       ___       ___
+</code></pre>
+
+
+</div>
+
+<p>רשמי את הפלט שלך. מה שקורה שם: חלק מהבקשות מצליחות אחרי המתנה ארוכה, וחלק נכשלות בזמן הקצוב של הלקוחה,
+שתי שניות. גם הבקשות שהצליחו כמעט חסרות ערך, כי משתמשת אמיתית כבר לא מחכה להן. ואחרי שהעומס נגמר, השרת
+ממשיך עוד זמן מה לעבוד על התור שנערם.</p>
+<h2 id="162-token-bucket-go">16.2 token bucket ב־Go</h2>
+<h3 id="1621">16.2.1 האלגוריתם</h3>
+<p><strong>הגבלת קצב (rate limiting)</strong> מגבילה כמה בקשות לקוחה אחת יכולה לשלוח, כדי שאף אחת לא תתפוס את כל הקיבולת.
+האלגוריתם הנפוץ הוא <strong>דלי אסימונים (token bucket)</strong>: לכל לקוחה דלי עם מקום למספר קבוע של אסימונים, שמתמלא
+בקצב קבוע. כל בקשה לוקחת אסימון; כשהדלי ריק, הבקשה נדחית.</p>
+<table>
+<thead>
+<tr>
+<th>פרמטר</th>
+<th>מה הוא קובע</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>קצב המילוי</td>
+<td>הקצב הממוצע שמותר לאורך זמן</td>
+</tr>
+<tr>
+<td>גודל הדלי</td>
+<td>פרץ (burst): כמה בקשות מותר לשלוח בבת אחת אחרי שקט</td>
+</tr>
+</tbody>
+</table>
+<p>שתי התכונות האלה יחד הן הסיבה שהאלגוריתם נפוץ: לקוחה שבדרך כלל שקטה יכולה לשלוח פרץ קצר, אבל לאורך זמן
+היא מוגבלת לקצב. חלון קבוע, „100 בקשות לכל דקה עגולה”, כמו בסעיף 12.5.2, פשוט יותר, אבל מאפשר פי שניים מהמגבלה
+סביב קצה החלון.</p>
+<h3 id="1622">16.2.2 המימוש, בלי טיימר</h3>
+<p>הדלי בקובץ <code>ratelimit/bucket.go</code> לא ממלא את עצמו ברקע. הוא מחשב בכל בקשה כמה אסימונים נצברו מאז הבקשה
+הקודמת. אין goroutine ואין טיימר, ולכן מיליון דליים, אחד לכל לקוחה, עולים רק זיכרון:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func (b *Bucket) AllowN(n int) Decision {
+    b.mu.Lock()
+    defer b.mu.Unlock()
+    now := b.now()
+    // Refill lazily: no timer, just the tokens earned since the last call. A clock that
+    // went backwards earns nothing.
+    if elapsed := now.Sub(b.last); elapsed &gt; 0 {
+        b.tokens = math.Min(b.burst, b.tokens+elapsed.Seconds()*b.rate)
+        b.last = now
+    }
+    need := float64(n)
+    if need &gt; b.burst {
+        return Decision{Remaining: int(b.tokens)}
+    }
+    if b.tokens &gt;= need {
+        b.tokens -= need
+        return Decision{Allowed: true, Remaining: int(b.tokens)}
+    }
+    wait := time.Duration(math.Ceil((need - b.tokens) / b.rate * float64(time.Second)))
+    return Decision{Remaining: int(b.tokens), RetryAfter: wait}
+}
+</code></pre>
+
+
+</div>
+
+<p>ההחלטה מחזירה שלושה דברים, כי הלקוחה צריכה את שלושתם: האם מותר, כמה נשאר, ומתי לחזור. הזמן לחזרה מעוגל
+למעלה, כדי שלקוחה שמצייתת לו לא תגיע רגע לפני שהאסימון מוכן ותידחה שוב.</p>
+<h3 id="1623">16.2.3 למה השעון מוזרק</h3>
+<p>הפונקציה <code>now</code> היא פרמטר של <code>NewBucket</code>. בייצור עובר <code>time.Now</code>, ובבדיקות עובר שעון מזויף שזז רק כשהבדיקה
+מזיזה אותו. כך בדיקה של „חצי שנייה אחר כך” לוקחת אפס זמן, ותמיד נותנת אותה תוצאה. מהקובץ
+<code>ratelimit/bucket_test.go</code>, מקרה המילוי מהטבלה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">        {&quot;refill&quot;, []step{
+            {0, 5, true, 0, 0},
+            {250 * time.Millisecond, 1, false, 0, 250 * time.Millisecond}, // half a token so far
+            {250 * time.Millisecond, 1, true, 0, 0},
+            {time.Second, 1, true, 1, 0}, // two more tokens, one taken
+        }},
+</code></pre>
+
+
+</div>
+
+<p>כל שורה היא צעד: כמה זמן עבר, כמה אסימונים התבקשו, ומה ההחלטה הצפויה. הטבלה מכסה דלי מלא שמתרוקן, מילוי,
+תקרה, בקשה גדולה מהדלי, וזמן חזרה לכמה אסימונים. בלי שעון מוזרק, אותה בדיקה הייתה ישנה, איטית, ונכשלת
+לפעמים במכונה עמוסה.</p>
+<h3 id="1624-golangorgxtimerate">16.2.4 מול <code>golang.org/x/time/rate</code></h3>
+<p>לספריית ההרחבה של Go יש דלי אסימונים מוכן, <code>rate.Limiter</code>. הגרסה, נכון לאוקטובר 2026, קבועה בקובץ
+<code>go.mod</code> של התרגיל ורשומה בנספח ג. במתודה <code>AllowN</code> שלו הזמן הוא ארגומנט, ולכן אפשר להשוות את שני המימושים על אותו ציר זמן בלי לישון.
+מהקובץ <code>ratelimit/compare_test.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">        c.Advance(gap)
+        got := ours.Allow().Allowed
+        want := theirs.AllowN(c.Now(), 1)
+        if got != want {
+            t.Fatalf(&quot;event %d at +%v: ours allowed=%v, x/time/rate allowed=%v&quot;, i, gap, got, want)
+        }
+</code></pre>
+
+
+</div>
+
+<p>חמשת אלפים אירועים, עם פרצים והפסקות, ושני המימושים עונים זהה בכל אחד. מה ההבדלים, אם כך:</p>
+<table>
+<thead>
+<tr>
+<th>נושא</th>
+<th>הדלי של התרגיל</th>
+<th><code>rate.Limiter</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>שעון</td>
+<td>מוזרק בבנאי</td>
+<td>זמן כארגומנט בגרסאות עם <code>N</code>, או <code>time.Now</code></td>
+</tr>
+<tr>
+<td>המתנה במקום סירוב</td>
+<td>אין</td>
+<td>המתודה <code>Wait</code>, שמכבדת context</td>
+</tr>
+<tr>
+<td>הזמנה מראש</td>
+<td>אין</td>
+<td>המתודה <code>Reserve</code>, עם ביטול</td>
+</tr>
+<tr>
+<td>זמן חזרה</td>
+<td>בתוך ההחלטה</td>
+<td>המתודה <code>DelayFrom</code> של ההזמנה</td>
+</tr>
+<tr>
+<td>שינוי מגבלה בזמן ריצה</td>
+<td>אין</td>
+<td>המתודות <code>SetLimit</code> ו־<code>SetBurst</code></td>
+</tr>
+</tbody>
+</table>
+<p>בשירות בתהליך אחד, בחרי בספרייה. התרגיל כותב את הדלי בעצמו כי הוא שאלת ראיון נפוצה (סעיף 3.2 בקובץ
+<code>00-stage1/01-market-research.md</code>, בביטחון נמוך עד בינוני), וכי סעיף 16.3 מעביר את אותו היגיון ל־Redis.</p>
+<blockquote>
+<p><strong>איך Rust עושה את זה:</strong> ב־Rust היית מגיעה לספרייה כמו governor. הוא מממש אלגוריתם ששקול לדלי אסימונים
+(GCRA), ומקבל את מקור הזמן כפרמטר טיפוס. ב־Go אין גנריות על „שעון”, ולכן מעבירים פונקציה שמחזירה זמן. זה פחות אלגנטי,
+ועובד באותה מידה.</p>
+</blockquote>
+<h2 id="163-redis">16.3 הגבלת קצב מבוזרת ב־Redis</h2>
+<h3 id="1631">16.3.1 למה דלי בזיכרון לא מספיק</h3>
+<p>לשירות יש שלושה עותקים מאחורי מאזן עומסים. אם לכל עותק יש דלי משלו, לקוחה מקבלת פי שלושה מהמגבלה, וכל
+הוספת עותק משנה את המגבלה בלי שאיש החליט. צריך דלי אחד משותף, במקום שכל העותקים רואים: Redis.</p>
+<p>הגרסה הראשונה שעולה לראש היא „לקרוא את המונה, להחליט, לכתוב”. היא שגויה: בין הקריאה לכתיבה, עותק אחר קורא
+את אותו ערך, ושניהם מחליטים שיש מקום. בתרגיל יש גרסה כזאת, <code>naiveAllow</code>, בקובץ הבדיקות, והבדיקה
+<code>TestNaiveReadThenWriteOvershoots</code> מריצה מאה בקשות מקבילות מול מגבלה של עשר:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">REDIS_ADDR=127.0.0.1:6316 go test -race -run Naive -v ./ratelimit
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">    redis_test.go:148: naive read-then-write allowed ___ of 100 with a limit of 10
+</code></pre>
+
+
+</div>
+
+<p>רשמי את המספר שקיבלת. הוא יהיה שונה בכל הרצה ובכל מכונה, וכמעט תמיד גדול מעשר.</p>
+<h3 id="1632-lua">16.3.2 סקריפט Lua, אטומי</h3>
+<p>ב־Redis סקריפט Lua רץ <strong>באופן אטומי</strong>: בזמן שהוא רץ, השרת לא מריץ שום פקודה אחרת. התיעוד של Redis אומר זאת
+במפורש, וזה בדיוק מה שצריך: הקריאה, המילוי, הלקיחה והכתיבה הופכים לפעולה אחת. זה הסקריפט, בקובץ
+<code>ratelimit/tokenbucket.lua</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-lua">-- One clock for every instance: Redis' own, in milliseconds. (Lua 5.1 prints numbers
+-- with 14 significant digits, so microseconds would not survive the round trip.)
+local t = redis.call('TIME')
+local now = tonumber(t[1]) * 1000 + math.floor(tonumber(t[2]) / 1000)
+
+local state = redis.call('HMGET', KEYS[1], 'tokens', 'ts')
+local tokens = tonumber(state[1]) or burst
+local ts = tonumber(state[2]) or now
+
+-- Refill for the time since the last request, never above burst.
+tokens = math.min(burst, tokens + math.max(0, now - ts) * rate / 1000)
+
+local allowed = 0
+local retry_ms = 0
+if tokens &gt;= n then
+  tokens = tokens - n
+  allowed = 1
+else
+  retry_ms = math.ceil((n - tokens) * 1000 / rate)
+end
+
+redis.call('HSET', KEYS[1], 'tokens', tostring(tokens), 'ts', tostring(now))
+-- An idle bucket is full again after burst/rate seconds; after that the key is useless.
+redis.call('PEXPIRE', KEYS[1], math.ceil(burst * 1000 / rate) + 1000)
+return {allowed, math.floor(tokens), retry_ms}
+</code></pre>
+
+
+</div>
+
+<p>ארבע החלטות בסקריפט הזה, וכל אחת מונעת באג אמיתי:</p>
+<ul>
+<li><strong>שעון אחד.</strong> הזמן נלקח מ־Redis עצמו, עם <code>TIME</code>, ולא מהעותקים. שעונים של מכונות שונות לא מסונכרנים
+  בדיוק, ושעון שמקדים היה „מייצר” אסימונים. סקריפט רשאי לקרוא ל־<code>TIME</code> ואחר כך לכתוב, כי לעותקים
+  משוכפלות רק הכתיבות שלו, ולא הסקריפט עצמו: ברירת מחדל מגרסה 5, והדרך היחידה מגרסה 7.</li>
+<li><strong>מפתחות רק דרך <code>KEYS</code>.</strong> כל מפתח שהסקריפט נוגע בו עובר כארגומנט מפתח. התיעוד דורש זאת כדי שסקריפט יעבוד
+  נכון גם באשכול, שבו Redis צריך לדעת לאיזה שרת לנתב אותו.</li>
+<li><strong>תפוגה.</strong> דלי שלא נגעו בו מתמלא תוך זמן קבוע, ואחרי זה אין טעם לשמור אותו. בלי תפוגה, כל לקוחה שאי פעם
+  פנתה משאירה מפתח לנצח.</li>
+<li><strong>מספרים כמחרוזות.</strong> שפת Lua 5.1 מדפיסה מספר עם 14 ספרות משמעותיות. זמן במיקרו־שניות היה מאבד דיוק בכל
+  כתיבה, ולכן הזמן נשמר באלפיות.</li>
+</ul>
+<h3 id="1633-go-evalsha">16.3.3 הקריאה מ־Go, ו־EVALSHA</h3>
+<p>שליחת הסקריפט בכל בקשה מבזבזת רשת, ולכן ב־Redis יש מטמון סקריפטים לפי גיבוב. הפקודה <code>EVALSHA</code> מריצה סקריפט
+לפי הגיבוב שלו בלבד, גיבוב SHA1. אבל המטמון הזה <strong>נדיף</strong>, לפי התיעוד: הוא נמחק בהפעלה מחדש, במעבר לעותק אחר, ובפקודה
+<code>SCRIPT FLUSH</code>. אז <code>EVALSHA</code> עונה בשגיאה שמתחילה ב־<code>NOSCRIPT</code>, והלקוח צריך לשלוח את הסקריפט המלא.
+הספרייה go-redis עושה את זה בשבילך. מהקובץ <code>ratelimit/redis.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// tokenBucket is loaded once per process. Run sends EVALSHA with the script's SHA1 and,
+// when Redis answers NOSCRIPT (restart, failover, SCRIPT FLUSH), falls back to EVAL,
+// which also puts the script back in Redis' cache.
+var tokenBucket = redis.NewScript(tokenBucketLua)
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    res, err := tokenBucket.Run(ctx, r.Client, []string{r.Prefix + key}, r.Rate, r.Burst, 1).Int64Slice()
+    if err != nil {
+        return Decision{}, fmt.Errorf(&quot;ratelimit: redis: %w&quot;, err)
+    }
+</code></pre>
+
+
+</div>
+
+<p>הבדיקה <code>TestRedisSurvivesScriptFlush</code> מוחקת את מטמון הסקריפטים באמצע ומראה שהמגביל ממשיך לעבוד, והדלי עצמו
+נשאר. ואלה שלוש הבדיקות שמוכיחות את מה שהסעיף טוען:</p>
+<table>
+<thead>
+<tr>
+<th>בדיקה</th>
+<th>מה היא מראה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TestRedisTwoInstancesShareOneLimit</code></td>
+<td>שני לקוחות נפרדים, כמו שני עותקים, חולקים דלי אחד</td>
+</tr>
+<tr>
+<td><code>TestRedisIsAtomicUnderConcurrency</code></td>
+<td>מאה בקשות מקבילות, בדיוק עשר מותרות</td>
+</tr>
+<tr>
+<td><code>TestRedisRefills</code></td>
+<td>מילוי לפי הזמן של Redis, ותפוגה על המפתח</td>
+</tr>
+</tbody>
+</table>
+<h3 id="1634-redis">16.3.4 כש־Redis לא זמין</h3>
+<p>המגביל הוא עכשיו תלות, ופרק 15 חל עליו. כש־Redis לא עונה יש שתי ברירות, ושתיהן החלטה מודעת:</p>
+<table>
+<thead>
+<tr>
+<th>בחירה</th>
+<th>מה קורה</th>
+<th>מתי</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>פתוח בכשל (fail open)</td>
+<td>הבקשה עוברת בלי הגבלה</td>
+<td>כשההגבלה היא הוגנות, וזמינות חשובה יותר</td>
+</tr>
+<tr>
+<td>סגור בכשל (fail closed)</td>
+<td>הבקשה נדחית ב־503</td>
+<td>כשההגבלה מגינה על כסף או על אבטחה</td>
+</tr>
+</tbody>
+</table>
+<p>ב־Hookline הבחירה היא פתוח בכשל, עם מדד ולוג, כי מגביל לא זמין לא אמור להפיל את קליטת האירועים. ה־middleware
+מקבל את הבחירה כאפשרות, ומדווח על כל כשל בפונקציה שמועברת אליו.</p>
+<h3 id="1635-429-retry-after">16.3.5 429, ‏<code>Retry-After</code>, ושדות המגבלה</h3>
+<p>בקשה שנדחתה בגלל מגבלת קצב מקבלת את הקוד <strong>429</strong>. הכותרת <code>Retry-After</code> אומרת ללקוחה מתי לחזור,
+בשניות שלמות. לקוחה שמכבדת אותה, כמו זו של פרק 15, לא מבזבזת ניסיונות. מהקובץ <code>ratelimit/middleware.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">        h := w.Header()
+        h.Set(&quot;RateLimit-Policy&quot;, policy)
+        h.Set(&quot;RateLimit&quot;, fmt.Sprintf(`&quot;default&quot;;r=%d`, d.Remaining))
+        if !d.Allowed {
+            h.Set(&quot;Retry-After&quot;, RetryAfterSeconds(d.RetryAfter))
+            http.Error(w, &quot;rate limit exceeded&quot;, http.StatusTooManyRequests)
+            return
+        }
+</code></pre>
+
+
+</div>
+
+<p>שני השדות האחרים מגיעים מטיוטה של קבוצת עבודה ב־IETF. נכון לאוקטובר 2026 הטיוטה בגרסה 11, מסוף מאי 2026,
+והיא עדיין טיוטה ולא RFC; המצב נבדק באתר datatracker. היא מגדירה:</p>
+<table>
+<thead>
+<tr>
+<th>שדה</th>
+<th>דוגמה מהטיוטה</th>
+<th>משמעות</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>RateLimit-Policy</code></td>
+<td><code>"burst";q=100;w=60</code></td>
+<td>המדיניות: מכסה בחלון זמן בשניות</td>
+</tr>
+<tr>
+<td><code>RateLimit</code></td>
+<td><code>"default";r=50;t=30</code></td>
+<td>המצב: כמה נשאר, ובתוך כמה שניות</td>
+</tr>
+</tbody>
+</table>
+<p>ועוד כלל מהטיוטה: כשיש גם <code>Retry-After</code>, היא קודמת. הרבה ממשקים ציבוריים עדיין משתמשים בשדות לא תקניים
+בסגנון <code>X-RateLimit-Remaining</code>. בטיוטה הכוונה היא ש־<code>q</code> ו־<code>w</code> יתארו את המכסה; בדלי אסימונים התרגיל כותב את
+גודל הדלי כמכסה, ואת הזמן למילוי מלא כחלון.</p>
+<h2 id="164">16.4 לחץ חוזר</h2>
+<p><strong>לחץ חוזר (back-pressure)</strong> הוא דרך של צרכן איטי לגרום ליצרן להאט. בתוך תהליך Go, הכלי הוא channel עם מאגר
+חסום: כשהוא מלא, שליחה חוסמת. התרגיל עוטף את זה בטיפוס עם שם לכל אחת משתי המדיניות, בקובץ
+<code>bounded/queue.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// Put waits for room: a full queue slows the producer down to the consumer's pace.
+// It gives up when ctx is done.
+func (q *Queue[T]) Put(ctx context.Context, v T) error {
+    select {
+    case q.ch &lt;- v:
+        return nil
+    case &lt;-ctx.Done():
+        return ctx.Err()
+    }
+}
+
+// TryPut adds v if there is room and returns ErrFull otherwise, without waiting.
+func (q *Queue[T]) TryPut(v T) error {
+    select {
+    case q.ch &lt;- v:
+        return nil
+    default:
+        return ErrFull
+    }
+}
+</code></pre>
+
+
+</div>
+
+<table>
+<thead>
+<tr>
+<th>מדיניות</th>
+<th>מה קורה ליצרן</th>
+<th>מתי מתאים</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>חסימה</td>
+<td>מחכה עד שיש מקום, וכך מאט</td>
+<td>היצרן יכול להאט: קורא קובץ, צורך Kafka</td>
+</tr>
+<tr>
+<td>סירוב</td>
+<td>מקבל שגיאה מיד</td>
+<td>היצרן לא יכול להאט: בקשת HTTP של לקוחה</td>
+</tr>
+<tr>
+<td>בלי גבול</td>
+<td>לא מרגיש כלום</td>
+<td>אף פעם בייצור; התור רק גדל</td>
+</tr>
+</tbody>
+</table>
+<p>הפקודה <code>cmd/pipeline</code> מריצה יצרן שמהיר פי שניים מהצרכן, בשלוש המדיניות:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">go run ./cmd/pipeline
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">mode       produced  rejected  consumed  max queued  max wait  drain after stop
+unbounded  ___       ___       ___       ___         ___       ___
+block      ___       ___       ___       ___         ___       ___
+reject     ___       ___       ___       ___         ___       ___
+</code></pre>
+
+
+</div>
+
+<p>רשמי את המספרים שלך. בשורה הראשונה התור גדל כל הזמן, וההמתנה המרבית וזמן הניקוז אחרי העצירה גדלים איתו.
+בשתי האחרות התור לא עובר את הקיבולת שלו, וההמתנה חסומה. ההבדל ביניהן הוא מי משלם: בחסימה היצרן ייצר פחות,
+ובסירוב חלק מהפריטים נזרקו.</p>
+<p>ההבחנה החשובה: בין שירותים ב־HTTP אין לחץ חוזר מובנה. שרת לא יכול „לחסום” לקוחה שנמצאת בצד השני של העולם,
+והניסיון לעשות את זה הוא בדיוק התור הבלתי נראה מסעיף 16.1. מה שיש לשרת הוא לסרב: 429 ללקוחה שעברה את
+המגבלה שלה, ו־503 כשהשרת עצמו מלא. הסירוב עם <code>Retry-After</code> הוא הלחץ החוזר של HTTP. ב־Kafka, לעומת זאת, הצרכן
+מושך (pull): הוא לוקח כשהוא מוכן, ולחץ חוזר שם טבעי.</p>
+<h2 id="165">16.5 השלת עומס ועדיפויות</h2>
+<h3 id="1651">16.5.1 מגבלת קצב מול השלת עומס</h3>
+<p><strong>השלת עומס (load shedding)</strong> היא סירוב לבקשות כשהשירות עצמו בעומס, בלי קשר למי שלחה אותן. היא משלימה את
+הגבלת הקצב ולא מחליפה אותה:</p>
+<table>
+<thead>
+<tr>
+<th>נושא</th>
+<th>הגבלת קצב</th>
+<th>השלת עומס</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>מה היא מודדת</td>
+<td>בקשות של לקוחה אחת לאורך זמן</td>
+<td>בקשות בטיפול עכשיו, של כולן</td>
+</tr>
+<tr>
+<td>מפני מה היא מגינה</td>
+<td>לקוחה אחת שתופסת הכול</td>
+<td>השירות כולו מפני קריסה</td>
+</tr>
+<tr>
+<td>קוד תשובה</td>
+<td>429</td>
+<td>503</td>
+</tr>
+<tr>
+<td>דוגמה</td>
+<td>שוכרת שולחת פי עשרה מהמכסה שלה</td>
+<td>כל השוכרות בשיא, או שהשירות איטי כי מסד הנתונים איטי</td>
+</tr>
+</tbody>
+</table>
+<p>הגבלת קצב לבדה לא מספיקה. אם מסד הנתונים מאט פי שניים, אותו קצב בקשות דורש פי שניים מקביליות (חוק ליטל),
+והשירות קורס בלי שאף לקוחה עברה את המכסה שלה. לכן הגבול שהשלת עומס שמה הוא על <strong>מקביליות</strong>: מספר הבקשות
+בטיפול, ולא הקצב.</p>
+<h3 id="1652-middleware">16.5.2 ה־middleware</h3>
+<p>השכבה בקובץ <code>shed/shed.go</code> סופרת בקשות בטיפול, ובקשה שחוצה את הגבול מקבלת 503 מיד:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">        p := s.o.Priority(r)
+        limit := s.o.Limit
+        if p == Low {
+            limit -= s.o.ReservedForHigh
+        }
+        // Count first, then check: two requests racing for the last slot cannot both win.
+        if n := s.inFlight.Add(1); n &gt; int64(limit) {
+            s.inFlight.Add(-1)
+            s.shed[p].Add(1)
+            w.Header().Set(&quot;Retry-After&quot;, s.retryAfter)
+            http.Error(w, &quot;overloaded, try again later&quot;, http.StatusServiceUnavailable)
+            return
+        }
+        defer s.inFlight.Add(-1)
+        s.served.Add(1)
+        next.ServeHTTP(w, r)
+</code></pre>
+
+
+</div>
+
+<p>הסדר „קודם להוסיף, אחר כך לבדוק” הוא העיקר. הסדר ההפוך, לקרוא את המונה, לבדוק ואז להוסיף, הוא אותו באג של
+סעיף 16.3: שתי בקשות קוראות את אותו ערך, ושתיהן נכנסות. הוספה אטומית מחזירה לכל בקשה מספר משלה, ורק אחת
+יכולה לקבל את המקום האחרון. הבדיקה <code>TestNeverMoreThanTheLimitInFlight</code> שולחת מאתיים בקשות מקבילות ובודקת את
+השיא.</p>
+<h3 id="1653">16.5.3 עדיפויות</h3>
+<p>לא כל הבקשות שוות. בדיקת בריאות של מאזן העומסים, פעולת ניהול, או לקוחה שמשלמת על רמת שירות גבוהה צריכות
+לעבור גם כשהשאר נדחות. המימוש פשוט: חלק מהמגבלה <strong>שמור</strong> לעדיפות גבוהה. בקשה בעדיפות נמוכה נדחית כבר כשהשאר
+מלא, וגבוהה נדחית רק בגבול הכולל. הבדיקה <code>TestHighPriorityKeepsItsReserve</code> עוברת על התרחיש הזה צעד אחר צעד.</p>
+<blockquote>
+<p><strong>שימי לב:</strong> את העדיפות קובע השירות, לא הלקוחה. כותרת עדיפות שמגיעה מהאינטרנט היא קלט; כל לקוחה תשלח
+„גבוהה”. סמכי רק על כותרת שהתשתית שלך מוסיפה, או גזרי את העדיפות מזהות שאומתה.</p>
+</blockquote>
+<h3 id="1654">16.5.4 איפה בשרשרת</h3>
+<p>בפקודה <code>cmd/server</code> השלת העומס היא השכבה החיצונית, לפני הגבלת הקצב. בקשה שנדחית שם לא עולה כלום, אפילו לא
+פנייה ל־Redis. אם הסדר היה הפוך, בעומס כבד כל בקשה הייתה פונה ל־Redis לפני שנזרקת, והמגביל היה מעמיס על
+עצמו בדיוק כשקשה.</p>
+<h3 id="1655">16.5.5 המדידה</h3>
+<p>הריצי את השרת עם מגבלה של שמונה בקשות בטיפול, ואת אותו עומס כמו בסעיף 16.1.4:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">go run ./cmd/server -shed 8
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">go run ./cmd/load -rate 300 -for 5s
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">status    count       p50       p90       p99       max
+200         ___       ___       ___       ___       ___
+503         ___       ___       ___       ___       ___
+</code></pre>
+
+
+</div>
+
+<p>השווי לטבלה של 16.1.4. מה שאמור להופיע: הבקשות שהצליחו מהירות עכשיו, ה־503 כמעט מיידיות, ואין יותר כישלונות
+בזמן קצוב. למה דווקא שמונה: לפי חוק ליטל, ארבעה עובדים של 20 מילישניות הם 200 בקשות בשנייה, ושמונה בקשות
+בטיפול הן לכל היותר כ־40 מילישניות במערכת. הגבול קובע את זמן התגובה המרבי, והקיבולת קובעת כמה נדחות.</p>
+<p>אחר כך נסי עדיפויות: את השרת עם שני מקומות שמורים, ושני מקורות עומס במקביל, אחד מהם בעדיפות גבוהה. ההוראות
+המדויקות בקובץ ה־README של התרגיל. רשמי כמה נדחו מכל עדיפות.</p>
+<h2 id="166">16.6 תורים חסומים ומגבלות מקביליות</h2>
+<h3 id="1661">16.6.1 תור לא חסום רק מסתיר עומס</h3>
+<p>תור לא חסום נראה כמו פתרון: אף בקשה לא נדחית. אבל אם הקצב שנכנס גבוה מהקיבולת, התור גדל בלי סוף, וכל פריט
+חדש מחכה יותר מקודמו. הטבלה של 16.1.3, בשורת 1.20 בלי גבול, מראה זמני תגובה שאין להם משמעות, והשורה עם גבול
+מראה זמן סביר ושיעור דחייה. לתור לא חסום יש עוד שני מחירים:</p>
+<ul>
+<li><strong>זיכרון.</strong> בסוף התהליך נופל מחוסר זיכרון, וכל מה שהיה בתור הולך לאיבוד.</li>
+<li><strong>עבודה מתה.</strong> כשהשירות מגיע סוף סוף לבקשה, הלקוחה כבר ויתרה. השרת עונה, ואיש לא מקשיב.</li>
+</ul>
+<p>הכלל: לכל תור יש גבול, וכשהוא מלא, מישהו מקבל תשובה ברורה. זה כולל תורים שלא נראים כמו תור: סמפור שמחכים לו
+בלי גבול, מאגר של channel שגדל עם ההגדרות, ה־backlog של שקע ההאזנה.</p>
+<h3 id="1662">16.6.2 איך בוחרים את המגבלה</h3>
+<p>חוק ליטל נותן נקודת התחלה. המקביליות במצב תקין היא הקצב התקין כפול זמן התגובה התקין, ומגבלה של פי שניים
+או שלושה ממנה משאירה מקום לתנודות. ומהכיוון השני: המגבלה לא צריכה לעבור את הקצב כפול היעד לזמן התגובה.
+שני כיווני הטעות:</p>
+<table>
+<thead>
+<tr>
+<th>מגבלה</th>
+<th>מה רואים</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>נמוכה מדי</td>
+<td>503 בעומס רגיל, והקיבולת לא מנוצלת</td>
+</tr>
+<tr>
+<td>גבוהה מדי</td>
+<td>השלת העומס לא מתחילה עד שזמן התגובה כבר גרוע</td>
+</tr>
+</tbody>
+</table>
+<p>מגבלה קבועה נכונה רק כל עוד השירות ותלויותיו מתנהגים כמו ביום שבו היא נקבעה. מגבלות <strong>אדפטיביות</strong> משנות את
+עצמן לפי זמן התגובה הנמדד, ברוח בקרת העומס של TCP: מגדילות לאט כשהכול תקין, וחותכות מהר כשזמן התגובה עולה.
+זה מעבר להיקף התרגיל, אבל כדאי להכיר את הרעיון לראיון.</p>
+<h3 id="1663">16.6.3 התמונה המלאה</h3>
+<p>שני הפרקים יחד, לאורך בקשה אחת:</p>
+<table>
+<thead>
+<tr>
+<th>שכבה</th>
+<th>מנגנון</th>
+<th>פרק</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>הכניסה לשירות</td>
+<td>השלת עומס לפי מקביליות, עם עדיפויות</td>
+<td>16.5</td>
+</tr>
+<tr>
+<td>לכל לקוחה</td>
+<td>הגבלת קצב, בזיכרון או ב־Redis</td>
+<td>16.2, 16.3</td>
+</tr>
+<tr>
+<td>תורים פנימיים</td>
+<td>גבול, ומדיניות חסימה או סירוב</td>
+<td>16.4</td>
+</tr>
+<tr>
+<td>קריאה לתלות</td>
+<td>תקציב זמן, ניסיונות עם תקציב, מפסק, מחיצה</td>
+<td>15</td>
+</tr>
+<tr>
+<td>כשהתלות לא זמינה</td>
+<td>הידרדרות מכובדת</td>
+<td>15.7</td>
+</tr>
+</tbody>
+</table>
+<p>ב־Hookline כל אחד מהם מקבל מקום: מגביל לכל שוכרת ב־Redis ושכבת השלה בשירות הקליטה, ומפסק ומחיצה לכל נקודת קצה
+בעובדי המשלוח.</p>
+<h2 id="_3">סיכום</h2>
+<ul>
+<li>תור קיים תמיד, גם כשלא כתבת אותו; השאלה היא אם הוא חסום ואם רואים אותו.</li>
+<li>חוק ליטל: מספר הבקשות בפנים הוא הקצב כפול הזמן; ליד הרוויה זמן התגובה מתפוצץ.</li>
+<li>דלי אסימונים: קצב לאורך זמן ופרץ קצר; מילוי עצל בלי טיימר, ושעון מוזרק לבדיקות.</li>
+<li>הגבלה מבוזרת דורשת פעולה אטומית אחת: סקריפט Lua עם השעון של Redis, ותפוגה לכל מפתח.</li>
+<li>מטמון הסקריפטים נדיף; הספרייה עוברת לסקריפט המלא כשהגיבוב לא מוכר.</li>
+<li>הגבלת קצב עונה 429 לבקשות של לקוחה אחת; השלת עומס עונה 503 לפי מקביליות; שתיהן עם <code>Retry-After</code>.</li>
+<li>לחץ חוזר בתוך תהליך הוא חסימה; בין שירותים הוא סירוב מהיר. לכל תור יש גבול.</li>
+</ul>
+<h2 id="_4">מונחים לזכור</h2>
+<table>
+<thead>
+<tr>
+<th>מונח בעברית</th>
+<th>באנגלית</th>
+<th>במשפט אחד</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>חוק ליטל</td>
+<td>Little's law</td>
+<td>מספר הבקשות במערכת שווה לקצב ההגעה כפול הזמן במערכת</td>
+</tr>
+<tr>
+<td>ניצולת</td>
+<td>utilization</td>
+<td>החלק מהזמן שבו השרת עסוק</td>
+</tr>
+<tr>
+<td>רוויה</td>
+<td>saturation</td>
+<td>ניצולת שמתקרבת למלאה, וזמן התגובה עולה בחדות</td>
+</tr>
+<tr>
+<td>מודל פתוח</td>
+<td>open model</td>
+<td>בקשות מגיעות בקצב משלהן, בלי לחכות לקודמות</td>
+</tr>
+<tr>
+<td>הגבלת קצב</td>
+<td>rate limiting</td>
+<td>גבול על מספר הבקשות של לקוחה ביחידת זמן</td>
+</tr>
+<tr>
+<td>דלי אסימונים</td>
+<td>token bucket</td>
+<td>דלי שמתמלא בקצב קבוע; כל בקשה לוקחת אסימון</td>
+</tr>
+<tr>
+<td>פרץ</td>
+<td>burst</td>
+<td>כמה בקשות מותר לשלוח בבת אחת אחרי שקט</td>
+</tr>
+<tr>
+<td>פתוח בכשל</td>
+<td>fail open</td>
+<td>כשהמנגנון לא זמין, הבקשה עוברת</td>
+</tr>
+<tr>
+<td>סגור בכשל</td>
+<td>fail closed</td>
+<td>כשהמנגנון לא זמין, הבקשה נדחית</td>
+</tr>
+<tr>
+<td>לחץ חוזר</td>
+<td>back-pressure</td>
+<td>צרכן איטי גורם ליצרן להאט או לקבל סירוב</td>
+</tr>
+<tr>
+<td>השלת עומס</td>
+<td>load shedding</td>
+<td>סירוב מהיר לבקשות כשהשירות עצמו מלא</td>
+</tr>
+<tr>
+<td>מגבלת מקביליות</td>
+<td>concurrency limit</td>
+<td>גבול על מספר הבקשות שבטיפול באותו רגע</td>
+</tr>
+<tr>
+<td>תור חסום</td>
+<td>bounded queue</td>
+<td>תור עם קיבולת קבועה ומדיניות למצב מלא</td>
+</tr>
+<tr>
+<td>מגבלה אדפטיבית</td>
+<td>adaptive limit</td>
+<td>מגבלת מקביליות שמשתנה לפי זמן התגובה הנמדד</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_5">טעויות נפוצות</h2>
+<ul>
+<li><strong>מגביל בזיכרון בשירות עם כמה עותקים.</strong> כל עותק נותן את המגבלה מחדש. מגבלה משותפת צריכה מקום משותף.</li>
+<li><strong>קריאה ואחריה כתיבה ב־Redis.</strong> שתי בקשות קוראות את אותו ערך ושתיהן עוברות. פעולה אחת: סקריפט, או פקודה אטומית.</li>
+<li><strong>שעון של כל עותק בסקריפט מבוזר.</strong> שעון שמקדים מייצר אסימונים. השתמשי בשעון של Redis.</li>
+<li><strong>ערך <code>Retry-After</code> של אפס או עם שבר.</strong> לקוחות חוזרות מיד, או לא מבינות את הערך. שניות שלמות, מעוגלות למעלה, לפחות 1.</li>
+<li><strong>הגבלת קצב בלי השלת עומס.</strong> כשתלות מאטה, המקביליות עולה בלי שאף לקוחה עברה את המכסה. הגבילי גם מקביליות.</li>
+<li><strong>תור לא חסום כ„בינתיים”.</strong> הוא דוחה את הכשל לרגע שבו הוא גדול יותר. גבול, ותשובה ברורה כשהוא מלא.</li>
+</ul>
+<h2 id="_6">שאלות ראיון</h2>
+<ol>
+<li><strong>תכנני מגביל קצב לממשק ציבורי שרץ על עשרה עותקים.</strong> קודם המדיניות: למי המגבלה (מפתח API, שוכרת, כתובת),
+   קצב ופרץ, ומה קורה בחריגה: 429 עם <code>Retry-After</code>. האלגוריתם: דלי אסימונים, כי הוא מאפשר פרץ ושומר על קצב
+   ממוצע. המקום: מגבלה משותפת לעשרה עותקים צריכה מאגר משותף, למשל Redis, עם סקריפט אטומי, שעון של Redis
+   ותפוגה למפתחות. ואז הכשלים: Redis איטי או למטה, ובחירה מודעת בין פתוח לסגור בכשל, עם זמן קצוב קצר לפנייה
+   ל־Redis. החלופה הזולה, מגבלה בזיכרון חלקי מספר העותקים, לא מדויקת כשהתנועה לא מאוזנת, אבל אין לה תלות.</li>
+</ol>
+<p><strong>המשך:</strong> מפתח חם אחד של לקוחה ענקית מעמיס על שרת Redis אחד. מה עושים? מחלקים את המכסה בין כמה מפתחות, או
+   מחזיקים חלק מהאסימונים מקומית בכל עותק ומסנכרנים מדי פעם, ומשלמים בדיוק.</p>
+<ol start="2">
+<li>
+<p><strong>למה סקריפט ולא <code>INCR</code> עם <code>EXPIRE</code>?</strong> הפקודה <code>INCR</code> לבדה אטומית, וכמעט מספיקה לחלון קבוע; גם שם התפוגה צריכה לקרות באותו צעד, ולכן סעיף 12.5.2 כבר עטף את שתיהן בסקריפט.
+   אבל דלי אסימונים צריך לקרוא שני ערכים, לחשב, ולכתוב, ובין קריאה לכתיבה עותק אחר יכול לפעול. סקריפט רץ
+   באופן אטומי, ולכן הכול הופך לצעד אחד. המחיר: בזמן הסקריפט Redis לא עושה שום דבר אחר, ולכן הסקריפט חייב
+   להיות קצר, וכל המפתחות שלו עוברים כארגומנטים כדי שיעבוד באשכול.</p>
+</li>
+<li>
+<p><strong>מה ההבדל בין הגבלת קצב, השלת עומס ולחץ חוזר?</strong> הגבלת קצב היא חוזה עם לקוחה: כמה מותר לה לשלוח, ‏429
+   כשהיא חורגת. השלת עומס מגינה על השירות עצמו: כשמספר הבקשות בטיפול עובר גבול, דוחים מהר עם 503, בלי קשר
+   למי שלחה. לחץ חוזר הוא מנגנון שבו הצרכן מאט את היצרן, וזה עובד כשהיצרן יכול לחכות, כמו בתוך תהליך או
+   בצרכן של Kafka. בין שירותים ב־HTTP, לחץ חוזר נראה כמו סירוב, כי שרת לא יכול לחסום לקוחה מרחוק.</p>
+</li>
+<li>
+<p><strong>למה זמן התגובה מתפוצץ ליד 100 אחוז ניצולת?</strong> כי ההמתנה תלויה בשונות, לא רק בממוצע. כשיש מעט זמן פנוי,
+   כל פרץ קטן של בקשות יוצר תור, והתור לא מספיק להתרוקן לפני הפרץ הבא. לשרת אחד עם הגעות אקראיות, הזמן
+   במערכת הוא זמן השירות חלקי אחד פחות הניצולת, ולכן ב־90 אחוז הוא פי עשרה מזמן השירות. המסקנה המעשית:
+   מתכננים לניצולת נמוכה בהרבה מ־100, ושמים גבול כדי שמעבר לה תהיה דחייה ולא תור.</p>
+</li>
+</ol>
+<p><strong>המשך:</strong> איך זה מתחבר לחוק ליטל? אם מגבילים את מספר הבקשות בפנים, הזמן במערכת חסום, וכל עודף בקצב הופך
+   לדחייה במקום להמתנה.</p>
+<ol start="5">
+<li><strong>איך תבדקי מגביל קצב בלי לישון בבדיקות?</strong> מזריקים את השעון: הדלי מקבל פונקציה שמחזירה זמן, והבדיקה
+   מעבירה שעון מזויף שזז רק כשהיא מזיזה אותו. כך „חצי שנייה אחר כך” הוא שורה אחת, והתוצאה זהה בכל הרצה.
+   אפשר גם להשוות למימוש מוכר על אותו ציר זמן, כמו <code>rate.Limiter</code>, שהזמן אצלו ארגומנט. בדיקות מול Redis
+   אמיתי כבר כן לוקחות זמן, ולכן הן מעטות וקצרות.</li>
+</ol>
+<h2 id="obsidian">פתק Obsidian</h2>
+<p>הפתק המוכן נמצא גם כקובץ: <code>obsidian/16-overload-rate-limiting.md</code>. זה תוכנו:</p>
+<ul>
+<li><strong>תור תמיד קיים:</strong> goroutine שמחכה, חיבור שמחכה; השאלה היא אם הוא חסום.</li>
+<li><strong>חוק ליטל:</strong> בפנים שווה קצב כפול זמן; מגבילים את מה שבפנים כדי לחסום את הזמן.</li>
+<li><strong>רוויה:</strong> זמן התגובה הוא זמן השירות חלקי אחד פחות הניצולת; ב־90 אחוז פי עשרה.</li>
+<li><strong>דלי אסימונים:</strong> קצב ופרץ; מילוי עצל; זמן חזרה מעוגל למעלה; שעון מוזרק.</li>
+<li><strong>מבוזר:</strong> סקריפט אטומי, שעון של Redis, מפתחות רק בארגומנטים, תפוגה לכל דלי.</li>
+<li><strong>מטמון סקריפטים:</strong> נדיף; תשובת NOSCRIPT, והספרייה שולחת את הסקריפט המלא.</li>
+<li><strong>קודים:</strong> 429 ללקוחה שחרגה, 503 לשירות מלא; תמיד עם <code>Retry-After</code> בשניות שלמות.</li>
+<li><strong>לחץ חוזר:</strong> חסימה כשהיצרן יכול לחכות, סירוב כשלא; ב־HTTP רק סירוב.</li>
+<li><strong>השלת עומס:</strong> מקביליות ולא קצב; קודם מוסיפים ואז בודקים; מקום שמור לעדיפות גבוהה.</li>
+<li><strong>שאלה פתוחה:</strong> ___</li>
+</ul>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">L = lambda * W          W = S / (1 - rho)   (M/M/1)
+ratelimit.NewBucket(rate, burst, now)  -&gt;  Decision{Allowed, Remaining, RetryAfter}
+rate.NewLimiter(rate.Limit(r), b).AllowN(t, n)        # golang.org/x/time/rate
+redis.NewScript(src).Run(ctx, rdb, keys, args...)    # EVALSHA, falls back to EVAL on NOSCRIPT
+redis.call('TIME')  HMGET/HSET  PEXPIRE               # inside the Lua script
+429 + Retry-After: &lt;seconds&gt;      503 + Retry-After when shedding
+RateLimit-Policy: &quot;default&quot;;q=&lt;burst&gt;;w=&lt;seconds&gt;    RateLimit: &quot;default&quot;;r=&lt;remaining&gt;
+q.Put(ctx, v) blocks    q.TryPut(v) -&gt; bounded.ErrFull
+shed.New(shed.Options{Limit: 8, ReservedForHigh: 2, RetryAfter: time.Second})
+docker compose -p ch16 -f data/compose.yaml up -d --wait   ...   down -v
+my naive overshoot: ___ of 100 (limit 10)
+my load run: no shed p99 ___  shed p99 ___  503 count ___
+</code></pre>
+
+
+</div>
+
+<h2 id="_7">תרגיל</h2>
+<p><strong>מטרה:</strong> לכתוב דלי אסימונים עם שעון מוזרק, מגביל מבוזר בסקריפט Lua ב־Redis, שכבה להשלת עומס עם עדיפויות
+ותור חסום; ולמדוד בעצמך מה קורה לשירות בעומס, עם השלה ובלעדיה. <strong>זמן:</strong> שני ימי לימוד, ימים 48 ו־49, כ־65 דקות בנייה ביום 48 וכ־55 ביום 49. <strong>ידע מקדים:</strong> הפרק, פרק 15, ו־Redis מפרק 12.</p>
+<p>הצעדים, קוד ההתחלה, הרמזים והפתרון נמצאים
+ב־<a href="../exercises/ch16-ratelimit/README.md"><code>exercises/ch16-ratelimit/README.md</code></a>.</p>
+<p><strong>קריטריון סיום:</strong></p>
+<ul>
+<li>בדיקות השעון המוזרק מכסות מילוי, פרץ ודלי ריק, ורצות בלי לישון.</li>
+<li>בדיקות Redis רצות מול Redis אמיתי ומראות שני לקוחות שחולקים מגבלה אחת.</li>
+<li>בדיקה מראה שבקשות מעל המגבלה נדחות מיד עם 503 ו־<code>Retry-After</code>.</li>
+<li>תוצאות כלי העומס, עם השלה ובלעדיה, ומספר החריגה של הגרסה הנאיבית, רשומים בפתק.</li>
+</ul>
+<h2 id="_8">העשרה אופציונלית</h2>
+<ul>
+<li>הטיוטה של IETF על שדות המגבלה, באתר datatracker. השם שלה הוא <code>draft-ietf-httpapi-ratelimit-headers</code>. בדקי
+  מה השתנה מאז גרסה 11.</li>
+<li>בתיעוד של Redis, הדף על סקריפטים ב־Lua: מטמון הסקריפטים, שכפול התוצאות, ודגלי סקריפט.</li>
+<li>ממשי ב־Redis חלון הזזה על קבוצה ממוינת, והשווי את מספר הפקודות והזיכרון לדלי אסימונים.</li>
+<li>הוסיפי ל־<code>cmd/server</code> מגבלה אדפטיבית פשוטה: הגדלה באחד כשזמן התגובה תקין, וחיתוך בחצי כשהוא עולה.</li>
+</ul>
+</main>
+<nav class="bottom"><a href="index.html">תוכן העניינים</a> · <a href="15-timeouts-retries-breakers.html">← פרק 15: זמנים קצובים, ניסיונות חוזרים ומפסקי זרם</a> · <a href="17-consistency-replication-partitioning.html">פרק 17: עקביות, שכפול וחלוקה למחיצות →</a></nav>
+<script type="module">
+  // Render ```mermaid blocks in the browser (needs internet once; cached afterwards).
+  const blocks = document.querySelectorAll("pre > code.language-mermaid");
+  if (blocks.length) {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs")).default;
+    for (const code of blocks) {
+      const div = document.createElement("div");
+      div.className = "mermaid";
+      div.textContent = code.textContent;
+      code.parentElement.replaceWith(div);
+    }
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run();
+  }
+</script>
+</body>
+</html>
