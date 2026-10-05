@@ -24,8 +24,8 @@ stay English and which are translated**, and the one rendering each translated c
 
 | Area | Words |
 | --- | --- |
-| Go | goroutine, channel, `select`, context, slice, map, interface, struct, method, receiver, module, package, generics, `defer`, panic, `go vet`, pprof |
-| Python | asyncio, event loop, coroutine, task, `TaskGroup`, FastAPI, pydantic, fixture, uv, ruff, mypy |
+| Go | goroutine, channel, `select`, context, slice, map, struct, receiver, module, package, generics, `defer`, panic, `go vet`, pprof (interface and method are translated: see §3) |
+| Python | asyncio, coroutine, `asyncio.Task`, `TaskGroup`, FastAPI, pydantic, fixture, uv, ruff, mypy |
 | Containers | Docker, image, container, layer, Dockerfile, registry, tag, distroless, compose |
 | Kubernetes | Kubernetes, cluster, node, pod, Deployment, ReplicaSet, Service, Ingress, ConfigMap, Secret (the object), namespace, probe, HPA, Helm, chart, release, values, kind, kubectl |
 | Kafka | Kafka, Redpanda, topic, partition, offset, consumer group, producer, consumer, broker, rebalance, `acks` |
@@ -98,6 +98,10 @@ stay English and which are translated**, and the one rendering each translated c
 | load test | בדיקת עומס | |
 | table-driven test | בדיקה טבלאית | |
 | benchmark | בנצ'מרק | |
+| interface (Go, and the general concept) | ממשק | the keyword stays `interface`; Rust's trait stays trait |
+| method | מתודה | receiver stays English |
+| event loop | לולאת האירועים | asyncio's loop; the identifier stays English |
+| task (asyncio, background job) | משימה | the class `asyncio.Task` stays an identifier |
 
 ## 4. Words to avoid
 

@@ -1,0 +1,10 @@
+The planted leak of section 5.9 (day 10). In your pool.go, replace the
+stage 3 loop "for d := range out { ... }" with this one, run the tests,
+read the leak report, then put the original loop back.
+
+for d := range out {
+	results[d.i] = d.res
+	if ctx.Err() != nil {
+		break // BUG: stop reading early; workers block on out forever
+	}
+}

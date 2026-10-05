@@ -78,6 +78,7 @@ hypothesis 6.168.4 · psycopg 3.3.6 · redis 8.1.0 · opentelemetry-sdk 1.45.0.
 | gcr.io/distroless/static-debian13 | `nonroot` |
 | golang | 1.27.1 |
 | python | 3.14.8-slim |
+| redocly/cli | 2.57.0 (OpenAPI lint, chapter 9; Docker Hub tag pushed 2026-09-30, amd64+arm64) |
 
 ## GitHub Actions majors
 actions/checkout@v7 · actions/setup-go@v7 · actions/setup-python@v7 · astral-sh/setup-uv@v10 · actions/cache@v6 ·

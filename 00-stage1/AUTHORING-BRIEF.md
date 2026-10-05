@@ -27,7 +27,7 @@ granted. Address her in second person feminine singular. Never condescend; never
   numbered sections; then the closing apparatus **in this order with these exact headings**: `## סיכום`,
   `## מונחים לזכור` (table `| מונח בעברית | באנגלית | במשפט אחד |`), `## טעויות נפוצות`, `## שאלות ראיון`,
   `## פתק Obsidian`, `## תרגיל`, `## העשרה אופציונלית`. (Chapter 0 has no apparatus.)
-- Length: comparable to book 1 chapters (about 18–32 KB of Markdown). Depth over breadth: explain *why*, show the
+- Length: comparable to book 1 chapters (about 20–45 KB of Markdown, a third of which may be code copied from the exercise). Depth over breadth: explain *why*, show the
   real code, show what goes wrong.
 - Interview questions: 4–6, numbered, bold question, an answer that explains reasoning and tradeoffs (never "the
   correct answer"); at most two carry `**המשך:** <follow-up question> <1–2 sentence answer>`.
@@ -98,7 +98,7 @@ uv run --no-project python tools/consistency_check.py      # fix every finding a
   artefacts (`bin/`, `.venv/`) in the repo (they are git-ignored, but keep the tree clean).
 - Anything that uses Docker (compose stacks, testcontainers, kind, k6 against containers) must run under the
   machine-wide exclusive lock and be torn down afterwards, because other writers share this Docker daemon:
-  `/Users/nogamorag/dnai-orchestration-workspace/SCRIPTS/test-lock.sh <command>` and `docker compose -p <unique> ... down -v`.
+  `"$TEST_LOCK" (the machine-wide lock script; its path is given in your prompt) <command>` and `docker compose -p <unique> ... down -v`.
   Use a unique compose project name per exercise (`-p chNN`).
 - Do **not** edit `book/README.md`, the appendices, other parts' chapters, `00-stage1/*` or `tools/*` (report needed
   changes instead). Do **not** run `git commit` or `git push`; the coordinator commits per part.
