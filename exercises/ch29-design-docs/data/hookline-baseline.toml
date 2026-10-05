@@ -1,0 +1,39 @@
+# Hookline in production, a year from now. Every number is an assumption, not a measurement:
+# replace them with yours and keep the reason next to each one.
+name = "Hookline baseline"
+
+[traffic]
+requests_per_day = 10_000_000  # ingested events: 200 tenants, 50,000 events a day each
+peak_factor = 4.0              # business hours plus month-end invoicing bursts
+
+[[records]]
+name = "events"
+bytes = 1_500          # 1 KiB JSON payload, ids, key, hash, tuple header
+per_request = 1.0
+retention_days = 30
+
+[[records]]
+name = "deliveries"
+bytes = 250
+per_request = 2.0      # average endpoints subscribed per event (fan-out)
+retention_days = 30
+
+[[records]]
+name = "attempts"
+bytes = 120
+per_request = 2.4      # 2 deliveries x 1.2 attempts each (most succeed the first time)
+retention_days = 30
+
+[[transfers]]
+name = "ingest in"
+bytes = 1_300          # request body plus HTTP headers
+per_request = 1.0
+
+[[transfers]]
+name = "webhooks out"
+bytes = 1_600          # body plus Hookline-* headers plus TLS framing
+per_request = 2.4
+
+[storage]
+index_overhead = 0.5   # four or five indexes per table; measure with pg_total_relation_size
+replicas = 2           # primary and one streaming replica

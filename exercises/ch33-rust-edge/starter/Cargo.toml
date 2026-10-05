@@ -1,0 +1,9 @@
+[package]
+name = "tokenbucket"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.99"
+description = "The chapter 16 token bucket, ported from Go: an injected clock, one bucket, and a bucket per key."
+publish = false
+
+[dependencies]

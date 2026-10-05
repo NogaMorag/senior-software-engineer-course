@@ -1,0 +1,21 @@
+# Two regions, active-passive: the same traffic as the baseline, plus what crosses regions.
+name = "Two regions: cross-region replication"
+
+[traffic]
+requests_per_day = 10_000_000
+peak_factor = 4.0
+
+[[records]]
+name = "WAL"
+bytes = 4_500          # assumption: about 2x the 2.3 KB of rows written per event (updates, page images)
+per_request = 1.0
+retention_days = 2     # WAL kept for a lagging standby (wal_keep_size or a replication slot)
+
+[[transfers]]
+name = "WAL to region B"
+bytes = 4_500
+per_request = 1.0
+
+[storage]
+index_overhead = 0.0   # WAL has no indexes
+replicas = 1           # it lives on the primary's disk

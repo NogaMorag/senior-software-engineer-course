@@ -1,0 +1,5 @@
+# Stable Rust as of 2026-10-05 (channel manifest dated 2026-10-01); see appendix C.
+[toolchain]
+channel = "1.99.0"
+components = ["rustfmt", "clippy"]
+profile = "minimal"

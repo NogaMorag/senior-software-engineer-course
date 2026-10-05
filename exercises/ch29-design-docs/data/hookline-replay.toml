@@ -1,0 +1,22 @@
+# Replay after outages. Worst case assumed: once a day, a large tenant's receiver is down for
+# 6 hours and its dead deliveries are replayed. The "requests" here are replayed deliveries.
+name = "Replay of a 6-hour outage, once a day"
+
+[traffic]
+requests_per_day = 432_000  # 20 deliveries/s to that endpoint x 21,600 s of outage
+peak_factor = 10.0          # the replay runs paced at 50/s; 432,000 a day averages 5/s
+
+[[records]]
+name = "attempts"
+bytes = 120
+per_request = 1.1      # most replays succeed on the first attempt
+retention_days = 30
+
+[[transfers]]
+name = "webhooks out"
+bytes = 1_600
+per_request = 1.1
+
+[storage]
+index_overhead = 0.5
+replicas = 2
