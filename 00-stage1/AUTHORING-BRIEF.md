@@ -48,6 +48,8 @@ granted. Address her in second person feminine singular. Never condescend; never
   sentence followed by a code block); no arrows, `=`, `+`, `/` between Hebrew words; no em-dashes in Hebrew; maqaf
   after Hebrew prefixes on Latin words (ב־Go); a sentence/bullet/table cell starts with a Hebrew word when possible;
   paragraphs ≤5 lines; natural Hebrew, not calques of English. Use the TERMINOLOGY renderings, one per concept.
+- The author is never "הכותב" or "הכותבת": write "בהרצה שבה נכתב הספר" / "במחשב שעליו נכתב הספר". An author-run result
+  is shown only when labelled that way, and the reader is asked to record her own.
 - Honesty: never present a number as measured unless the exercise measures it; write "תמדדי ותרשמי" and leave a
   placeholder. No invented statistics, no unsupported superlatives.
 - No employer material, no company names from the reader's work, no secrets (tokens/keys only as obvious placeholders
