@@ -59,6 +59,7 @@ EOF
   printf '#!/bin/sh\necho "Go: go1.27.1"\necho "Scanner: govulncheck@v1.8.0"\n' > "$work/bin/govulncheck"
   chmod +x "$work/bin/govulncheck"
   fake actionlint "v1.7.12"
+  fake golangci-lint "golangci-lint has version 2.14.0 built with go1.27.0 from 114493f9 on 2026-09-24T11:07:15Z"
   fake kind "kind v0.33.0 go1.26.7 linux/amd64"
   fake kubectl "Client Version: v1.37.1"
   fake helm "v4.3.0+gfake"

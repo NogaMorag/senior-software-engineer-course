@@ -69,8 +69,12 @@ ok  	example.com/ch05-linkcheck	1.2s
 
 </div>
 
-**3. קראי את `linkcheck.go`** מלמעלה למטה: `ErrBroken` ו־`ErrSkipped`, `Result` ו־`Verdict` (סדר הבדיקות
-בה חשוב), השדות של `Checker`, ו־`client` ו־`workers`.
+**3. קראי את `linkcheck.go`** מלמעלה למטה, בסדר הזה:
+
+- שתי השגיאות, `ErrBroken` ו־`ErrSkipped`.
+- הטיפוס `Result` והפונקציה `Verdict` (סדר הבדיקות בה חשוב).
+- השדות של `Checker`.
+- שתי מתודות העזר, `client` ו־`workers`.
 
 **4. מלאי את `TODO 1`** (`checkOne`), לפי סעיף 5.4. ההערה בקוד מפרטת את הצעדים. הנקודה העדינה: כש־`Do`
 נכשלת וה־context כבר לא תקין, שומרים את `ctx.Err()`, ולא את השגיאה של הלקוח.
@@ -88,8 +92,18 @@ go test -race -run 'TestCheckClassifies/^Check$' -v .
 
 </div>
 
-הבדיקה שולחת חמש כתובות: תקינה, 404, איטית, לא חוקית, ושרת סגור. היא דורשת את הסיווגים `ok`, `broken`,
-`timeout`, `error` ו־`error`, ומסתיימת תוך פחות משתי שניות: הנתיב האיטי לא מחכה לעשר השניות שלו.
+הבדיקה שולחת חמש כתובות: תקינה, 404, איטית, לא חוקית, ושרת סגור. היא דורשת את חמשת הסיווגים האלה, לפי
+הסדר:
+
+<div dir="ltr" align="left">
+
+```text
+ok  broken  timeout  error  error
+```
+
+</div>
+
+והיא מסתיימת תוך פחות משתי שניות: הנתיב האיטי לא מחכה לעשר השניות שלו.
 
 **7. שמרי את העבודה:**
 
@@ -105,10 +119,15 @@ git commit -m "Chapter 5: checkOne with per-request timeout"
 
 ## יום 9: מגבלה, ביטול, וה־worker pool
 
-**8. כתבי מחדש את `Check` עם `errgroup`**, לפי סעיף 5.6: `errgroup.WithContext`,
-`g.SetLimit(c.workers())`, בדיקה של `gctx.Err()` בתחילת כל goroutine (ואז `ErrSkipped`), החזרת שגיאה רק
-כש־`FailFast` דולק, ובסוף השגיאה של `Wait` או `ctx.Err()`. הוסיפי את הייבוא של
-`golang.org/x/sync/errgroup`; הוא כבר ב־`go.mod`.
+**8. כתבי מחדש את `Check` עם `errgroup`**, לפי סעיף 5.6:
+
+- קבוצה עם context משותף: `errgroup.WithContext`.
+- מגבלה מיד אחריה: `g.SetLimit(c.workers())`.
+- בתחילת כל goroutine, בדיקה של `gctx.Err()`; אם הוא בוטל, התוצאה היא `ErrSkipped`.
+- החזרת שגיאה רק כשהשדה `FailFast` דולק.
+- בסוף, השגיאה של `Wait`, ואם אין, `ctx.Err()`.
+
+הוסיפי את הייבוא של `golang.org/x/sync/errgroup`; הוא כבר ב־`go.mod`.
 
 <div dir="ltr" align="left">
 
@@ -159,8 +178,8 @@ go run -race . -fix atomic
 ב־`exit status 66`. שתי האחרונות ידפיסו `checked: 8000 of 8000` בלי אזהרה. רשמי בפתק את המספר שקיבלת
 בריצה הראשונה.
 
-**13. עכשיו בקוד שלך.** הוסיפי ל־`Checker` שדה `checked int`, והגדילי אותו (`c.checked++`) בתוך
-ה־goroutine של `Check`. הריצי את הבדיקות עם `-race`, ראי את הדוח מצביע על השורה שלך, ומחקי את השדה (או
+**13. עכשיו בקוד שלך.** הוסיפי ל־`Checker` שדה `checked int`. בתוך ה־goroutine של `Check`, הגדילי אותו
+עם `c.checked++`. הריצי את הבדיקות עם `-race`, ראי את הדוח מצביע על השורה שלך, ומחקי את השדה (או
 הפכי אותו ל־`atomic.Int64`).
 
 **14. הדליפה השתולה.** פתחי את `data/planted-leak.txt` של הקורס, והחליפי לרגע את לולאת האיסוף ב־`pool.go`
@@ -249,10 +268,12 @@ exit: 1
 
 ## רשימת בדיקה
 
--
-  [ ] `checkOne` משתמשת ב־`context.WithTimeout` וב־`http.NewRequestWithContext`, ושומרת `ctx.Err()` כשה־context נגמר.
+- [ ] הפונקציה `checkOne` גוזרת context עם `context.WithTimeout`, ובונה את הבקשה עם
+  `http.NewRequestWithContext`.
+- [ ] כשה־context נגמר, `checkOne` שומרת את `ctx.Err()`.
 - [ ] `Check` משתמשת ב־`errgroup.WithContext` וב־`SetLimit`, וכל goroutine כותבת רק לתא שלה.
-- [ ] `CheckPool` סוגרת את `jobs` במחולל ואת `out` אחרי `wg.Wait()`, והאוסף קורא עד הסגירה.
+- [ ] הפונקציה `CheckPool` סוגרת את `jobs` במחולל, ואת `out` רק אחרי `wg.Wait()`.
+- [ ] האוסף ב־`CheckPool` קורא עד הסגירה.
 - [ ] ראית את דוח המרוץ של `racedemo` ואת הדוח על השדה ששתלת בקוד שלך.
 - [ ] ראית את דוח הדליפה השתולה, והחזרת את הלולאה המקורית.
 - [ ] הפקודה `go test -race -count=3 ./...` ירוקה, ו־`gofmt -l .` לא מדפיסה דבר.
@@ -263,22 +284,22 @@ exit: 1
   התקיני את `build-essential` (צעד 2) ופתחי טרמינל חדש.
 - **ביום 8, `go test -race .` נופלת על `panic: TODO 3: CheckPool`.** זה צפוי: `CheckPool` נכתבת ביום 9.
   עד אז מריצים עם המסנן `'TestCheckClassifies/^Check$'`.
-- **הבקשה האיטית מסווגת `broken` או `error` במקום `cancelled` או `timeout`.** שמרת את השגיאה של הלקוח,
-  שהיא הסיבה של הביטול עטופה. בדקי קודם את `ctx.Err()`, כמו בהערה של `TODO 1`.
+- **הבקשה האיטית מסווגת כשבורה או כשגיאה, ולא כזמן קצוב או ביטול.** שמרת את השגיאה של הלקוח, שהיא הסיבה
+  של הביטול עטופה. בדקי קודם את `ctx.Err()`, כמו בהערה של `TODO 1`.
 - **הבדיקות נתקעות עד שהן נכשלות על timeout אחרי עשר דקות.** כמעט תמיד `jobs` לא נסגר: ה־workers מחכים
   ב־`range` לנצח, ו־`wg.Wait()` איתם. ודאי שבמחולל יש `defer close(jobs)`, ושהוא חוזר כש־`ctx.Done()`
   נסגר.
 - **`panic: send on closed channel`.** סגרת את `out` מתוך worker, או לפני ש־`wg.Wait()` חזרה. רק
   ה־goroutine שמחכה לכולם סוגרת אותו.
-- **`max in flight = 20, want at most 3`.** ה־errgroup בלי `SetLimit`, או שהמגבלה נקבעה אחרי הקריאה
-  הראשונה ל־`Go`. `SetLimit` באה מיד אחרי `WithContext`.
+- **`max in flight = 20, want at most 3`.** ה־errgroup נוצר בלי `SetLimit`. הקריאה ל־`SetLimit` באה מיד
+  אחרי `WithContext`, לפני ה־`Go` הראשון (שינוי מגבלה בזמן שיש goroutines פעילות זורק panic).
 
 ## רמזים
 
-- ב־`Verdict`, הסדר של ה־`case` חשוב: `ErrSkipped` לפני הבדיקות של context, ו־`ErrBroken` אחרונה. השגיאות
-  שאת יוצרת צריכות לעטוף עם `%w`, כדי ש־`errors.Is` יעבוד.
+- ב־`Verdict`, סדר הענפים חשוב: `ErrSkipped` לפני הבדיקות של context, ו־`ErrBroken` אחרונה.
+- השגיאות שאת יוצרת עוטפות עם `%w`, כדי ש־`errors.Is` יעבוד.
 - את `Elapsed` מודדים סביב `Do` בלבד: לפני השורה `start := time.Now()` ואחריה `time.Since(start)`.
-- ב־`CheckPool`, הטיפוסים `job` ו־`done` יכולים להיות מוגדרים בתוך הפונקציה. ה־index עובר יחד עם ה־URL
+- ב־`CheckPool`, הטיפוסים `job` ו־`done` יכולים להיות מוגדרים בתוך הפונקציה. האינדקס עובר יחד עם הכתובת
   ועם התוצאה, וזה כל הסוד של שמירת הסדר.
 - אם בדיקת המקביליות נכשלת עם `max in flight = 1`, הבקשות רצות אחת אחרי השנייה: אולי `Wait` נקראת בתוך
   הלולאה, או ש־`checkOne` נקראת לפני ה־`go`.
@@ -287,8 +308,8 @@ exit: 1
 
 ## הפתרון
 
-`solution/linkcheck.go`, `solution/pool.go`, `solution/report.go` ו־`solution/cmd/linkcheck/main.go`.
-**למה הוא עובד:** הסדר נשמר בלי שום נעילה, כי כל goroutine כותבת לתא אחר ב־slice שהוקצה מראש, ו־`Wait`
+הפתרון נמצא בתיקייה `solution/`, באותו מבנה כמו נקודת ההתחלה; הקבצים שמילאת הם `linkcheck.go`
+ו־`pool.go`. **למה הוא עובד:** הסדר נשמר בלי שום נעילה, כי כל goroutine כותבת לתא אחר ב־slice שהוקצה מראש, ו־`Wait`
 (של `errgroup` או של `WaitGroup`) היא נקודת הסנכרון שאחריה כל הכתיבות נראות. הביטול עובר בשני כיוונים דרך
 אותו עץ contexts: ההורה (Ctrl-C) מבטל הכול, ו־fail-fast מבטל את הילד המשותף. כל goroutine ב־`CheckPool`
 שייכת למשהו שממתין לה, ולכן בדיקת הדליפות שקטה.

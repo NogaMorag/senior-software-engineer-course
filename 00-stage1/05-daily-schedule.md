@@ -39,14 +39,15 @@ the same change.
 ### Day 0 — Installations: WSL2, Docker, Git, VS Code, Go, uv
 - **Objective:** a working, verified workbench before any first use, installed calmly with time to troubleshoot.
 - **Read:** ch 2, sections 2.1–2.8 (on a Mac, ch 2, section 2.13 replaces 2.2–2.4; the rest is read as is).
-- **Time:** 100 min (read 25 / install 65 / note 10). Do it the weekend before Week 1; if a step fails, ch 2,
+- **Time:** 105 min (read 25 / install 70 / note 10). Do it the weekend before Week 1; if a step fails, ch 2,
   section 2.11 and appendix B are the first stops.
 - **Exercise:** `ch02-workbench`, install half only: enable WSL2 and install Ubuntu; set up the terminal; install
   Docker Desktop with the WSL2 backend and turn on integration for the distro; install Git and create an SSH key;
-  install VS Code with the WSL extension; install Go and uv with Python at the versions in appendix C. Restart the
-  terminal and check each tool's version.
-- **Done when:** inside a fresh WSL2 terminal each of Docker, Git, VS Code (opened from WSL), Go, uv and Python
-  reports the version pinned in appendix C; the public SSH key is added to your GitHub account.
+  install VS Code with the WSL extension; install Go and the pinned Go tools plus golangci-lint (section 2.7.1,
+  checksum-verified), and uv with Python, at the versions in appendix C. Restart the terminal and check each tool's
+  version.
+- **Done when:** inside a fresh WSL2 terminal each of Docker, Git, VS Code (opened from WSL), Go, the Go tools,
+  golangci-lint, uv and Python reports the version pinned in appendix C; the public SSH key is added to your GitHub account.
 - **You can explain:** why everything lives inside the WSL2 file system and not under the Windows drive; why a new
   terminal is needed after an install changes the PATH.
 
@@ -58,11 +59,12 @@ the same change.
 - **Objective:** know the method, the daily rhythm, the honesty rule and what to do when stuck; set up the notes.
 - **Read:** ch 0, sections 0.1–0.10.
 - **Time:** 75 min (read 40 / build 25 / note 10).
-- **Exercise:** chapter 0 has no exercise slug. Create the Obsidian vault from the appendix D templates, a progress
-  note listing the six checkpoints and ten milestones with their days, and a "stuck log" note you will append to
-  whenever something takes more than twenty minutes.
-- **Done when:** the vault opens, the progress note lists all six checkpoint days and M1–M10, and the stuck log
-  exists.
+- **Exercise:** chapter 0 has no exercise slug. Create the Obsidian vault with the RTL Support plugin and the book's
+  CSS snippet active (section 0.5), using the appendix D templates; a progress note listing the six checkpoints and
+  ten milestones with their days; and a "stuck log" note you will append to whenever something takes more than
+  twenty minutes. Choose your study days and fixed hour for the next two weeks.
+- **Done when:** the vault opens with the plugin and snippet active, the progress note lists all six checkpoint days
+  and M1–M10 and records your study days and hour, and the stuck log exists with the four entry headings.
 - **You can explain:** what "done when" means and why the day ends there; the order in which to cut work when
   behind.
 
@@ -70,10 +72,13 @@ the same change.
 - **Objective:** read real postings like a hiring manager and see where you stand.
 - **Read:** ch 1, sections 1.1–1.8.
 - **Time:** 90 min (read 40 / build 40 / note 10).
-- **Exercise:** `ch01-reading-postings`: save five real current postings for senior backend or infrastructure roles
-  as text files; run the given tally script over them; fill the skills-gap matrix (have / partial / missing).
-- **Done when:** five posting files exist, the tally output is saved, and the gap matrix has every row filled with
-  the chapter of this book that closes it.
+- **Exercise:** `ch01-reading-postings`: if the book is not yet inside WSL, run the first two blocks of ch 2,
+  section 2.9 (bring the book in, set `COURSE`); fill the one TODO in `skilltally` (`keyword_pattern`) until its
+  tests pass; save five real current postings for senior backend or infrastructure roles as text files; run the tool
+  over them; check two skills by hand; fill the skills-gap matrix (have / partial / missing). The commit waits for
+  day 3.
+- **Done when:** the tool's tests pass, five posting files exist with URL and date on the first line, `tally.md` is
+  saved from your postings, and every gap-matrix row has a state, evidence and the chapter that closes it.
 - **You can explain:** the difference between scope, ownership and judgment as senior signals; how your Rust and
   C++ background reads to an infrastructure hiring manager.
 
@@ -83,7 +88,7 @@ the same change.
 - **Time:** 90 min (read 25 / build 55 / note 10).
 - **Exercise:** `ch02-workbench`, first-use half: clone the course repository inside WSL2; run `doctor.sh`; build
   and test the hello-world Go module; run the pytest smoke test through uv; run Docker's hello-world container;
-  practise stopping, restarting and cleaning up Docker and WSL2 as section 2.12 describes; make the first commit.
+  practise stopping, restarting and cleaning up Docker and WSL2 as section 2.12 describes; make the first commit (it includes ch01).
 - **Done when:** `doctor.sh` reports every tool green, the Go test and the pytest smoke test pass, the hello-world
   container prints its greeting, and the first commit is in the log.
 - **You can explain:** what `doctor.sh` checks and why it is reused later; how to free disk space taken by Docker
@@ -104,7 +109,8 @@ the same change.
 - **Read:** ch 3, sections 3.6–3.10.
 - **Time:** 110 min (read 35 / build 65 / note 10).
 - **Exercise:** `ch03-logstat`, part 2: top paths with a map and a sorted slice; malformed lines counted and
-  reported, not fatal; table-driven tests for the parser; staticcheck and gofmt clean.
+  reported, not fatal; the provided table-driven tests pass (parser, stats, CLI, examples); escape-analysis output
+  and one explaining sentence in the note; staticcheck and gofmt clean.
 - **Done when:** all table tests pass including the malformed-line cases; staticcheck reports nothing; the README
   checklist of the exercise is ticked.
 - **You can explain:** what a slice header is and why `append` can surprise you; why table-driven tests are the Go
@@ -161,8 +167,9 @@ the same change.
 - **Objective:** find data races and goroutine leaks before they find you.
 - **Read:** ch 5, sections 5.8–5.10.
 - **Time:** 80 min (read 30 / build 40 / note 10).
-- **Exercise:** `ch05-linkcheck`, part 3: run the tests with the race detector; introduce the chapter's planted
-  shared counter, see the race report, fix it; add the leak check from section 5.9.
+- **Exercise:** `ch05-linkcheck`, part 3: run the race demo with and without the race detector and with both fixes;
+  plant a shared counter in your own `Check`, see the race report, remove it; paste the planted leak from
+  `data/planted-leak.txt`, read the leak report, restore the loop; run the full battery with `-count=3`.
 - **Done when:** the whole test suite passes under the race detector and the leak check reports no goroutines left
   behind.
 - **You can explain:** what the race detector can and cannot prove; the most common way goroutines leak.
@@ -196,9 +203,9 @@ the same change.
 - **Objective:** look inside a running service and measure one hot path.
 - **Read:** ch 6, sections 6.7–6.9.
 - **Time:** 100 min (read 30 / build 60 / note 10).
-- **Exercise:** `ch06-shorty`, part 3: move to the project layout of section 6.7 with a Makefile; expose
-  `/debug/pprof` on a separate port; capture a CPU profile under a small load; write one benchmark for the resolve
-  path and record your own numbers.
+- **Exercise:** `ch06-shorty`, part 3: implement `DebugHandler` on the separate debug port; write the Makefile of
+  section 6.7 for the existing layout; capture a CPU profile under a small load; run the provided resolve benchmark
+  and record your own numbers.
 - **Done when:** the Makefile targets build, test and lint; a CPU profile is saved and its top function noted; the
   benchmark result is recorded in the note with the machine it ran on.
 - **You can explain:** why pprof is not exposed on the public port; what a benchmark's ns/op and allocs/op mean.
@@ -219,9 +226,11 @@ the same change.
 - **Objective:** project hygiene a senior Python reviewer expects.
 - **Read:** ch 7, sections 7.1–7.4.
 - **Time:** 90 min (read 35 / build 45 / note 10).
-- **Exercise:** `ch07-eventcheck`, part 1: a uv project with lock file and a script entry; ruff and mypy in strict
-  mode; event types modelled with `Protocol` and `TypedDict` where the chapter shows them.
-- **Done when:** the project syncs from the lock file on a clean checkout and both ruff and mypy pass.
+- **Exercise:** `ch07-eventcheck`, part 1: read the uv project (lock file, `eventcheck` script entry, ruff and mypy
+  strict config) and complete the reporters in `report.py`: the `SummaryDict` JSON shape (`TypedDict`) and the text
+  reporter behind a `Protocol`.
+- **Done when:** the project syncs from the lock file on a clean checkout (`uv sync --locked`), `tests/test_report.py`
+  passes, and ruff and mypy pass.
 - **You can explain:** what the lock file guarantees; when `Protocol` beats an abstract base class.
 
 ---
@@ -232,11 +241,12 @@ the same change.
 - **Objective:** finish a typed, packaged, tested CLI and measure before optimizing.
 - **Read:** ch 7, sections 7.5–7.8.
 - **Time:** 105 min (read 30 / build 65 / note 10).
-- **Exercise:** `ch07-eventcheck`, part 2: validate a JSONL file of webhook events with pydantic v2, report errors
-  with line numbers; parametrized tests with fixtures and one monkeypatch; one cProfile run on the large sample
-  file, with your measured top entries in the note.
-- **Done when:** the CLI reports every planted bad line with its line number; tests, ruff and mypy pass; the profile
-  output is saved.
+- **Exercise:** `ch07-eventcheck`, part 2: pydantic v2 models with field and model validators, and the line checker
+  that reports errors with line numbers; run the ready parametrized tests (fixtures, `tmp_path`, `monkeypatch`, a
+  `slow` mark); one cProfile run on a generated 200,000-line file and two `timeit` measurements, with your measured
+  numbers in the note.
+- **Done when:** the CLI reports all six planted bad lines with line numbers and exits 1; all tests, ruff and mypy
+  pass; the profile output is saved.
 - **You can explain:** what pydantic validates that type hints alone do not; why you profile before changing code.
 
 ### Day 17 — asyncio: the loop, TaskGroup, cancellation, timeouts
@@ -274,8 +284,8 @@ the same change.
 - **Time:** 110 min (read 35 / build 65 / note 10).
 - **Exercise:** `ch09-catalog-api`, part 2: cursor pagination on the list route; the in-memory idempotency-key
   middleware that replays the stored response for a repeated key and rejects the same key with a different body.
-- **Done when:** tests show stable pages while items are inserted, a replayed response for a repeated key, and a
-  conflict for a reused key with a different body.
+- **Done when:** tests show stable pages while items are inserted, a replayed response for a repeated key, a
+  422 for a reused key with a different body, and a 409 for a concurrent request with the same key.
 - **You can explain:** why offset pagination breaks under inserts; what an idempotency key promises the client.
 
 ---
@@ -288,7 +298,8 @@ the same change.
 - **Time:** 105 min (read 35 / build 60 / note 10).
 - **Exercise:** `ch09-catalog-api`, part 3: generate the tiny `Ping`/`GetItem` gRPC service with buf and call it
   from a test; add request size limits and input validation to the HTTP routes.
-- **Done when:** the gRPC test passes; an oversized body and an invalid field both get problem-details errors.
+- **Done when:** the gRPC test passes; an oversized body and an invalid field both get problem-details errors; all 31 tests pass with `-race`
+  and regenerating with buf leaves the committed code unchanged.
 - **You can explain:** two cases for gRPC and two against it; why size limits belong before parsing.
 
 ### Day 22 — Hookline specification and M1 start
@@ -334,7 +345,7 @@ the same change.
   indexes, recording your timings; fix the N+1 example; write the pgx repository with keyset pagination and its
   tests.
 - **Done when:** all five queries have a recorded before and after plan; the repository tests pass against the
-  container.
+  container; the `cmd/nplus1` output for customer 1 is in the note.
 - **You can explain:** column order in a composite index; how keyset pagination avoids scanning skipped rows.
 
 ---
@@ -355,8 +366,9 @@ the same change.
 - **Read:** ch 11, sections 11.4–11.5.
 - **Time:** 85 min (read 30 / build 45 / note 10).
 - **Exercise:** `ch11-isolation-lab`, part 2: fix the lost update with `FOR UPDATE`; build the `SKIP LOCKED` work
-  queue with two consumers; provoke the chapter's deadlock and read PostgreSQL's report.
-- **Done when:** the lost-update test now passes as fixed; two consumers never take the same row; the deadlock
+  queue whose test runs eight workers over 300 jobs; an ordered `Transfer` that never deadlocks; provoke the chapter's deadlock and read PostgreSQL's report.
+- **Done when:** the fix tests pass (`FOR UPDATE` provably waits; 25 concurrent withdrawals leave
+  exactly 20 successes); no job is handled twice; the deadlock
   error is captured in the note.
 - **You can explain:** what `SKIP LOCKED` buys a queue; how consistent lock ordering prevents deadlocks.
 
@@ -364,8 +376,8 @@ the same change.
 - **Objective:** schema changes as code and the retry loop SERIALIZABLE needs.
 - **Read:** ch 11, sections 11.6–11.8.
 - **Time:** 110 min (read 35 / build 65 / note 10).
-- **Exercise:** `ch11-isolation-lab`, part 3: goose migrations for the lab schema (up and down); a pgx pool with
-  explicit limits; fix write skew with SERIALIZABLE plus the retry-on-serialization-failure helper.
+- **Exercise:** `ch11-isolation-lab`, part 3: goose migrations for the lab schema (up and down); read the pool's
+  explicit limits and work out how many replicas fit under `max_connections`; fix write skew with SERIALIZABLE plus the retry-on-serialization-failure helper.
 - **Done when:** migrations apply and roll back cleanly on an empty database; the write-skew test passes as fixed
   and the helper's test shows a retry happening.
 - **You can explain:** why a retry must re-run the whole transaction; how pool size interacts with PostgreSQL's
@@ -403,8 +415,8 @@ the same change.
 - **Objective:** caching patterns and their failure modes.
 - **Read:** ch 12, sections 12.1–12.3.
 - **Time:** 100 min (read 35 / build 55 / note 10).
-- **Exercise:** `ch12-cache-aside`, part 1: Redis in a container; cache-aside with go-redis over the chapter 10
-  repository; TTL and invalidation on write; tests against the real Redis that skip with a message when it is
+- **Exercise:** `ch12-cache-aside`, part 1: Redis in a container; cache-aside with go-redis over a self-contained
+  products repository that mirrors chapter 10's; TTL and invalidation on write; tests against the real Redis that skip with a message when it is
   absent.
 - **Done when:** a test shows a miss then a hit, and a write that invalidates the cached value.
 - **You can explain:** cache-aside versus write-through; why invalidation after the write, not before.
@@ -414,7 +426,7 @@ the same change.
 - **Read:** ch 12, sections 12.4–12.6.
 - **Time:** 100 min (read 35 / build 55 / note 10).
 - **Exercise:** `ch12-cache-aside`, part 2: the stampede demo with N concurrent misses counted at the repository;
-  the singleflight fix; an atomic counter with INCR.
+  the singleflight fix; an atomic counter with INCR; a fixed-window Lua rate limiter; the full `-race` run.
 - **Done when:** the demo prints the repository call count without and with singleflight, both from your run, and a
   test asserts one call with singleflight.
 - **You can explain:** what singleflight collapses and what it does not (other processes); two cases where a cache
@@ -470,8 +482,8 @@ the same change.
 - **Objective:** at-least-once processing with franz-go's semantics.
 - **Read:** ch 13, sections 13.4–13.6.
 - **Time:** 110 min (read 40 / build 60 / note 10).
-- **Exercise:** `ch13-outbox`, part 2: a Go producer with keys and acks set as the chapter shows; a consumer in a
-  group that commits offsets after processing; start a second consumer and watch the rebalance.
+- **Exercise:** `ch13-outbox`, part 2: read and run the provided Go producer (keys, acks); complete the consumer
+  loop so it commits offsets only after processing; start a second consumer and watch the rebalance.
 - **Done when:** after killing a consumer mid-batch, the restarted group reprocesses the uncommitted messages and
   none are lost.
 - **You can explain:** why committing after processing gives at-least-once; what a rebalance does to in-flight work.
@@ -518,7 +530,7 @@ the same change.
 - **Objective:** durable jobs with scheduled retries.
 - **Read:** ch 14, sections 14.1–14.4.
 - **Time:** 110 min (read 35 / build 65 / note 10).
-- **Exercise:** `ch14-jobqueue`, part 1: the Postgres job table with `run_at` and attempts; claiming with `SKIP
+- **Exercise:** `ch14-jobqueue`, part 1: the provided job table (`run_at`, attempts) and the retry branch of `Fail`; claiming with `SKIP
   LOCKED`; the backoff function with exponential growth, a cap and full jitter, with tests; an idempotent handler.
 - **Done when:** backoff tests check the bounds of each attempt's delay and the cap; a failing job is rescheduled
   with a later `run_at`.
@@ -529,7 +541,7 @@ the same change.
 - **Read:** ch 14, sections 14.5–14.7.
 - **Time:** 105 min (read 35 / build 60 / note 10).
 - **Exercise:** `ch14-jobqueue`, part 2: move a job to the dead state after the maximum attempts; a replay
-  operation; graceful drain of workers on shutdown.
+  operation; read the scheduler and run its tests; graceful drain of workers on shutdown.
 - **Done when:** tests show a job going dead after the last attempt, replay making it runnable again, and shutdown
   waiting for the claimed job.
 - **You can explain:** why dead letters need a replay path; what a worker must do with a claimed job when told to
@@ -600,7 +612,8 @@ the same change.
 - **Read:** ch 16, sections 16.1–16.3.
 - **Time:** 110 min (read 35 / build 65 / note 10).
 - **Exercise:** `ch16-ratelimit`, part 1: a token bucket with an injected clock so tests run instantly; the Redis
-  Lua limiter with tests against a real Redis.
+  Lua limiter with tests against a real Redis; run the queue simulation and record its table; record the naive
+  read-then-write overshoot; a first unprotected load run and per-tenant limiting through the server.
 - **Done when:** clock-driven tests cover refill, burst and empty bucket; the Lua limiter test shows two clients
   sharing one limit.
 - **You can explain:** why the clock is injected; why the Redis limiter is a Lua script and not two commands.
@@ -609,8 +622,9 @@ the same change.
 - **Objective:** say no early instead of failing late.
 - **Read:** ch 16, sections 16.4–16.6.
 - **Time:** 100 min (read 35 / build 55 / note 10).
-- **Exercise:** `ch16-ratelimit`, part 2: a load-shedding middleware with a concurrency limit that returns 503 with
-  `Retry-After`; run the small load script against it with and without shedding and record what you observe.
+- **Exercise:** `ch16-ratelimit`, part 2: a bounded queue with blocking and rejecting policies and the pipeline run; a load-shedding middleware with a concurrency limit that returns 503 with
+  `Retry-After`; run the small load script against it with and without shedding and record what you observe; a priority run with reserved
+  slots.
 - **Done when:** a test shows requests above the limit shed immediately; your load-script results are in the note.
 - **You can explain:** rate limiting versus load shedding; why an unbounded queue only hides overload.
 
@@ -619,7 +633,8 @@ the same change.
 - **Read:** ch 17, sections 17.1–17.4.
 - **Time:** 115 min (read 40 / build 65 / note 10).
 - **Exercise:** `ch17-replica-lag`, part 1: the compose file with a primary and a streaming replica; the Go probe
-  that writes on the primary, reads back on the replica and reports the lag it observes.
+  that writes on the primary, reads back on the replica and reports the lag it observes; then the two read-your-writes fixes, session stickiness
+  (`ForRead`) and an LSN token (`ReadNote`).
 - **Done when:** the probe runs and its observed lag values from your machine are in the note; you can make a read
   miss its own write by reading from the replica.
 - **You can explain:** eventual versus read-your-writes consistency; one way to give a user read-your-writes with a
@@ -633,9 +648,9 @@ the same change.
 - **Objective:** choose partition keys and reason about trade-offs without myths.
 - **Read:** ch 17, sections 17.5–17.7.
 - **Time:** 85 min (read 40 / build 35 / note 10).
-- **Exercise:** `ch17-replica-lag`, part 2: run the partition-key skew simulator with a uniform key, a skewed key and
-  a composite key; record the per-partition load it prints.
-- **Done when:** the three simulator runs are saved and the note says which key you would choose for Hookline's
+- **Exercise:** `ch17-replica-lag`, part 2: run the partition-key skew simulator with uniform, skewed and composite keys plus a
+  range-partitioner run; complete `Ring.Node`; record the per-partition load it prints.
+- **Done when:** the four simulator runs are saved and the note says which key you would choose for Hookline's
   events and why.
 - **You can explain:** what makes a partition hot; what PACELC adds to CAP.
 
@@ -643,8 +658,8 @@ the same change.
 - **Objective:** know why distributed locks are hard and how to make them safe enough.
 - **Read:** ch 18, sections 18.1–18.4.
 - **Time:** 110 min (read 45 / build 55 / note 10).
-- **Exercise:** `ch18-leader`, part 1: two processes contending for a PostgreSQL session advisory lock; a fencing
-  token checked by the resource on every write.
+- **Exercise:** `ch18-leader`, part 1: two psql sessions contending for a session advisory lock and the `campaign`
+  function; a Redis lock held by two at once; a fencing token checked by the resource on every write.
 - **Done when:** a test shows a stale holder's write rejected by the fencing check.
 - **You can explain:** why a lock with a TTL can be held by two processes at once; how a fencing token fixes it.
 
@@ -724,17 +739,18 @@ the same change.
 - **Objective:** know what is inside an image and name it properly.
 - **Read:** ch 19, sections 19.5–19.7.
 - **Time:** 100 min (read 30 / build 60 / note 10).
-- **Exercise:** `ch19-images`, part 2: run both images together with compose; scan them with Trivy or Grype and
-  generate an SBOM with Syft, set up as the chapter describes; tag with a version and the commit.
-- **Done when:** scan reports and SBOM files are saved; the note lists any finding and what you decided about it.
+- **Exercise:** `ch19-images`, part 2: run both images together with compose, health-checked; scan them with Trivy
+  and with Grype and generate an SBOM with Syft, set up as the chapter describes; tag with a version and the commit.
+- **Done when:** `check_images.sh` ends in `PASS`; scan reports and SBOM files are saved; the note records at least
+  one finding and what you decided about it.
 - **You can explain:** why `latest` is not a deploy tag; what an SBOM is for after an incident.
 
 ### Day 60 — Kubernetes on kind: pods, deployments, ReplicaSets
 - **Objective:** a first real cluster and the objects that run workloads.
 - **Read:** ch 20, sections 20.1–20.4.
 - **Time:** 100 min (read 40 / build 50 / note 10).
-- **Exercise:** `ch20-k8s-basics`, part 1: create a kind cluster with the pinned node image; load the shorty image
-  into it; write a Deployment; delete a pod and watch the ReplicaSet replace it.
+- **Exercise:** `ch20-k8s-basics`, part 1: create a kind cluster with the pinned node image; load the shorty and
+  receiver images into it; write a Deployment; delete a pod and watch the ReplicaSet replace it.
 - **Done when:** the Deployment reports all replicas ready and a deleted pod is replaced automatically.
 - **You can explain:** pod versus Deployment versus ReplicaSet; why the image must be loaded into kind.
 
@@ -746,20 +762,22 @@ the same change.
 - **Objective:** make shorty reachable, configurable and health-checked.
 - **Read:** ch 20, sections 20.5–20.7.
 - **Time:** 85 min (read 30 / build 45 / note 10).
-- **Exercise:** `ch20-k8s-basics`, part 2: a Service; configuration from a ConfigMap and a Secret; readiness and
-  liveness probes; port-forward and call it.
+- **Exercise:** `ch20-k8s-basics`, part 2: a Service; configuration from a ConfigMap and a Secret; startup,
+  liveness and readiness probes; port-forward and call it; a one-off pod that reaches the receiver by DNS name.
 - **Done when:** calls through the port-forward succeed; breaking the readiness route removes the pod from the
-  Service endpoints without restarting it.
+  Service endpoints without restarting it; the sender gets 200 from the receiver; `run_all.sh` ends in `PASS`.
 - **You can explain:** readiness versus liveness; why a Kubernetes Secret is not encryption by itself.
 
 ### Day 62 — Requests and limits, HPA, rollouts and rollbacks
 - **Objective:** run workloads with resources, scale and safe releases.
 - **Read:** ch 21, sections 21.1–21.3.
 - **Time:** 110 min (read 35 / build 65 / note 10).
-- **Exercise:** `ch21-ops-helm`, part 1: requests and limits for shorty; metrics-server and an HPA; a deliberately
+- **Exercise:** `ch21-ops-helm`, part 1: requests and limits for shorty and the three QoS classes; throttling
+  measured under three CPU limits and an OOM kill; metrics-server and an HPA under in-cluster load; a deliberately
   broken rollout and its undo.
-- **Done when:** the HPA reports current utilization; the broken rollout stalls with old pods still serving, and the
-  undo restores the previous revision.
+- **Done when:** the three QoS classes appear and the three throttling times are in the note; a shorty pod shows
+  `OOMKilled` with exit code 137; the HPA reports current utilization, scales up under load and back down; the
+  broken rollout stalls with old pods still serving, and the undo restores the previous revision.
 - **You can explain:** what happens when a container exceeds its memory limit versus its CPU limit; why a rolling
   update with readiness probes protects users.
 
@@ -768,9 +786,11 @@ the same change.
 - **Read:** ch 21, sections 21.4–21.7.
 - **Time:** 120 min (read 35 / build 75 / note 10).
 - **Exercise:** `ch21-ops-helm`, part 2: an ingress on kind; the debugging drill with four planted faults, using
-  describe, logs, events and exec; a Helm chart for shorty validated with lint and template.
+  describe, logs, events and an ephemeral debug container; a Helm chart for shorty with a values schema, validated
+  with lint and template; install, upgrade, a failed upgrade that rolls itself back, rollback and uninstall; the
+  smoke test and cleanup.
 - **Done when:** all four planted faults are found and fixed with the evidence that pointed to each in the note;
-  the chart lints, renders and installs.
+  the chart lints, renders and installs; `check_static.sh` and `smoke.sh` pass and the cluster is deleted.
 - **You can explain:** your order of checks when a pod will not start; what Helm values and templates separate.
 
 ### Day 64 — Terraform: providers, resources, state, plan and apply
@@ -778,8 +798,10 @@ the same change.
 - **Read:** ch 22, sections 22.1–22.3.
 - **Time:** 100 min (read 40 / build 50 / note 10).
 - **Exercise:** `ch22-terraform`, part 1: a configuration with the kubernetes provider against kind that creates a
-  namespace and a ConfigMap; plan, apply, change one value, plan again, destroy.
-- **Done when:** the second plan shows exactly the one change you made; destroy leaves the namespace gone.
+  namespace and a ConfigMap; plan, apply, change one value, plan again, drift made by hand with `kubectl edit`,
+  destroy.
+- **Done when:** the second plan shows exactly the one change you made; the plan reveals the manual edit; destroy
+  leaves the namespace gone.
 - **You can explain:** what state records and why losing it is dangerous; what a plan shows before anything changes.
 
 ### Day 65 — Variables, modules, remote state, the Helm provider
@@ -789,7 +811,7 @@ the same change.
 - **Exercise:** `ch22-terraform`, part 2: variables and outputs; a module; the shorty chart released through the helm
   provider; read the remote-state and locking section. The AWS free-tier section is optional and can be skipped.
 - **Done when:** one apply creates the namespace and the shorty release through the module, and destroy removes
-  both.
+  both; `check_static.sh` and `smoke.sh` pass, the cluster is deleted, and no state file is in Git.
 - **You can explain:** why teams keep state remotely with locking; when Terraform should and should not manage Helm
   releases.
 
@@ -801,19 +823,26 @@ the same change.
 - **Objective:** CI that tests with a real database and builds an image.
 - **Read:** ch 23, sections 23.1–23.4.
 - **Time:** 110 min (read 35 / build 65 / note 10).
-- **Exercise:** `ch23-ci`, part 1: workflows for the chapter 6 and chapter 11 exercises, the latter with a
-  PostgreSQL service container; an image build and push to GHCR.
-- **Done when:** actionlint passes on both workflows and the jobs are wired as the chapter specifies.
-- **You can explain:** jobs versus steps; how a service container is reached from a job.
+- **Exercise:** `ch23-ci`, part 1: workflows for the chapter 6 and chapter 8 exercises; the chapter 11 workflow
+  with a PostgreSQL service container and fail-on-skip; an image job that publishes to GHCR from `main` only; the
+  local run of every step with the image build (`run_ci_locally.sh --image`).
+- **Done when:** `tests/lint.sh` (actionlint, shellcheck, permissions) is clean on all three workflows and the local
+  run is green with no skipped tests in ch11.
+- **You can explain:** jobs versus steps; how a service container is reached from a job; why green without a
+  database is a failure.
 
 ### Day 67 — Deploying to kind in CI, environments, secrets, releases (lighter day)
 - **Objective:** a release pipeline with least privilege.
 - **Read:** ch 23, sections 23.5–23.8.
 - **Time:** 85 min (read 35 / build 40 / note 10).
-- **Exercise:** `ch23-ci`, part 2: a job that creates kind, deploys the image and runs a smoke test; an environment
-  with a protected secret; a release workflow on tag; minimal permissions on every workflow.
-- **Done when:** actionlint passes on all workflows and every workflow declares its permissions.
-- **You can explain:** why workflow permissions default to minimal; what an environment protects.
+- **Exercise:** `ch23-ci`, part 2: a job that creates kind, deploys the image and runs a smoke test before the image
+  is published; a release workflow on tag that goes through the `production` environment, with every action pinned
+  to a full SHA; the actionlint drill on the broken workflow (six findings); optionally, a first run in your own
+  GitHub repository.
+- **Done when:** the static checks are clean and every workflow declares its permissions; the local `--kind` run
+  ends with its summary and leaves no cluster; the six broken-workflow findings and their fixes are in the note.
+- **You can explain:** why permissions are written in the file and start from read-only; what an environment
+  protects; major-version tags versus SHA pinning.
 
 ### Day 68 — M7: distroless images for every Hookline service
 - **Objective:** Hookline built as small, non-root images.
@@ -877,18 +906,22 @@ the same change.
 - **Objective:** metrics that answer questions, and a dashboard.
 - **Read:** ch 24, sections 24.4–24.6.
 - **Time:** 110 min (read 40 / build 60 / note 10).
-- **Exercise:** `ch24-telemetry`, part 2: request count, error count and duration histogram on shorty; PromQL for
-  rate, error ratio and a latency percentile; a RED dashboard as provisioned JSON.
-- **Done when:** the dashboard loads from the provisioned file and its panels move when you send traffic.
+- **Exercise:** `ch24-telemetry`, part 2: traffic from the load generator; PromQL for rate and a latency percentile,
+  including the deliberate mistake without `le`; the three USE instruments of `linkworker`; the provisioned "RED
+  overview" dashboard plus one panel of your own exported back to the file.
+- **Done when:** the dashboard loads from the provisioned file and its panels move while traffic runs; the USE
+  metrics test is green; your measured request rate and p99 are in the note.
 - **You can explain:** counters versus histograms; RED for services versus USE for resources.
 
 ### Day 74 — Loki, Tempo, trace context through Kafka
 - **Objective:** connect logs and traces, and carry a trace across a message.
 - **Read:** ch 24, sections 24.7–24.9.
 - **Time:** 115 min (read 40 / build 65 / note 10).
-- **Exercise:** `ch24-telemetry`, part 3: structured logs into Loki with trace IDs; jump from a log line to its
-  trace; inject trace context into a Kafka message header on produce and extract it on consume.
-- **Done when:** one trace in Tempo shows the producer span and the consumer span as one trace.
+- **Exercise:** `ch24-telemetry`, part 3: inject trace context into a Kafka record header on produce and extract it
+  on consume, with `kotel`; jump from a log line in Loki to its trace and back; run `tests/check_stack.sh`, then
+  take the stack down.
+- **Done when:** one trace in Tempo shows the producer, the consumer and the call to the receiver; the Redpanda test
+  ran (not skipped) and passed; `tests/check_stack.sh` ends with `ALL CHECKS PASSED`.
 - **You can explain:** how trace context travels in a message; why logs should carry the trace ID.
 
 ### Day 75 — SLIs, SLOs, error budgets, burn-rate alerts
@@ -974,10 +1007,10 @@ the same change.
 - **Read:** ch 27, sections 27.1–27.6.
 - **Time:** 90 min (read 35 / build 45 / note 10).
 - **Exercise:** `ch27-review`: review the provided diff and write your comments; only then compare with the answer
-  key in `solution/`; run vet, staticcheck, golangci-lint, ruff, mypy and govulncheck on the seeded module and fix
-  what they report.
+  key in `solution/`; install golangci-lint (the exercise's step); run vet, staticcheck, golangci-lint, govulncheck,
+  ruff and mypy on the seeded Go module and Python package and fix what they report.
 - **Done when:** your review comments are saved before you open the key, with the missed issues listed afterwards;
-  every linter passes on the seeded module.
+  every linter passes on the seeded module and package, and the tests pass.
 - **You can explain:** how you decide where to look first in a large diff; how govulncheck differs from a plain
   dependency scanner.
 
@@ -996,9 +1029,11 @@ the same change.
 - **Read:** ch 28, sections 28.5–28.8.
 - **Time:** 110 min (read 40 / build 60 / note 10).
 - **Exercise:** `ch28-security`, part 2: an SSRF-safe URL validator and a dialer that re-checks the resolved address;
-  hashed API keys; fill the STRIDE table template for the exercise service.
+  hashed API keys; secrets redacted from logs; an SBOM and a dependency scan; fill the STRIDE table template for the
+  exercise service.
 - **Done when:** tests reject private, loopback and link-local targets including a hostname that resolves to one;
-  API keys are stored only as hashes; the STRIDE table is filled.
+  API keys are stored only as hashes and no secret reaches the log; the SBOM exists and the scan results are saved
+  with their date; the STRIDE table is filled.
 - **You can explain:** why validating the URL string alone is not enough against SSRF; why API keys are hashed.
 
 ### Day 85 — M9: integration, contract, property and load tests
@@ -1046,7 +1081,7 @@ the same change.
 - **Time:** 115 min (read 50 / build 55 / note 10).
 - **Exercise:** `ch29-design-docs`: finish the sizing calculator script and its tests; write one design doc with
   the template (a Hookline extension of your choice), with one ADR.
-- **Done when:** calculator tests pass; the design doc has goals, non-goals, sizing, alternatives and risks, and
+- **Done when:** calculator tests pass and ruff and mypy are clean; the design doc has goals, non-goals, sizing, alternatives and risks, and
   the ADR records one decision with its consequences.
 - **You can explain:** the six steps of the method; how a quick estimate changes a design.
 
@@ -1055,8 +1090,10 @@ the same change.
 - **Read:** ch 30, sections 30.1–30.5.
 - **Time:** 115 min (read 40 / build 65 / note 10).
 - **Exercise:** `ch30-expand-contract`: rename a column in four goose migrations while the Go writer and reader run;
-  the test proves no failed request across the steps.
-- **Done when:** the test passes across all four steps with zero failed requests.
+  the test proves no failed request across the steps; the same rename for the `user.renamed` event.
+- **Done when:** the rollout test passes with `-race` across all four steps with zero failed requests; the
+  compatibility matrix and lock-queue tests pass; the event tests pass and the note says when `fullname` may be
+  dropped from the event.
 - **You can explain:** why expand and contract needs a deploy between steps; one use of a feature flag in the same
   change.
 
@@ -1065,9 +1102,9 @@ the same change.
 - **Read:** ch 31, sections 31.1–31.6.
 - **Time:** 90 min (read 40 / build 40 / note 10).
 - **Exercise:** `ch31-senior-craft` (non-coding): an estimate with ranges for a Hookline feature; a written status
-  update for it; a mentoring plan for a junior joining the project.
+  update for it; a mentoring plan for a junior engineer joining the project.
 - **Done when:** the estimate states ranges and assumptions; the status update fits on one screen and leads with
-  risk; the mentoring plan has weekly goals.
+  status, date and risk; the mentoring plan has weekly goals.
 - **You can explain:** why estimates are ranges; how you lead without authority.
 
 ---
@@ -1091,7 +1128,7 @@ the same change.
 - **Exercise:** `ch33-rust-edge` (optional if Rust is not installed): port the chapter 16 token bucket to Rust with
   `cargo test`; write the one-page Rust-versus-Go comparison.
 - **Done when:** the comparison page exists with at least one case for each language; the Rust tests pass if you did
-  the port.
+  the port; the interview sentence is written.
 - **You can explain:** when you would choose Rust over Go for an infrastructure component, and when not.
 
 ### Day 93 — The senior interview loop
@@ -1100,8 +1137,9 @@ the same change.
 - **Time:** 110 min (read 45 / build 55 / note 10).
 - **Exercise:** `ch34-interview-loop` (non-coding): five behavioural stories on the worksheet, one of them about
   Hookline; the CV checklist applied to your CV; the negotiation worksheet.
-- **Done when:** each story has situation, action, result and what you learned, each told aloud in under the time
-  the chapter gives; the CV passes the checklist.
+- **Done when:** each story has situation, task, action, result and what you would do differently, each told aloud
+  in under three minutes; each of the five signals is covered by at least two stories; the CV passes the checklist;
+  the negotiation sheet has a range with source and date and a written answer to the expectations question.
 - **You can explain:** the stages of a senior loop; how you tell a story where things went wrong honestly.
 
 ### Day 94 — Coding drills: rate limiter, scheduler, TTL cache
@@ -1110,7 +1148,7 @@ the same change.
 - **Time:** 120 min (read 25 / build 85 / note 10).
 - **Exercise:** `ch35-drills`, part 1: the rate limiter, the task scheduler (pause, resume, retry, cancel) and the TTL
   cache, each in the time box the chapter gives, talking aloud as in an interview.
-- **Done when:** the given tests pass for all three; the note records your time per drill and where you stalled.
+- **Done when:** the given tests pass with `-race` for all three; the note records your time per drill and where you stalled.
 - **You can explain:** the trade-offs you named in each drill; how you test concurrency in an interview.
 
 ### Day 95 — Coding drills: retry-safe webhook handler, booking, review drill
@@ -1119,8 +1157,8 @@ the same change.
 - **Time:** 115 min (read 20 / build 85 / note 10).
 - **Exercise:** `ch35-drills`, part 2: the retry-safe webhook handler, booking without double booking, and the code
   review drill.
-- **Done when:** the given tests pass for both drills, the double-booking test included; your review comments are
-  saved before you check the key.
+- **Done when:** the given tests pass with `-race` for both drills, the double-booking test included against
+  PostgreSQL; your review is committed before you open the key, and the comparison with the key is recorded.
 - **You can explain:** two ways to prevent double booking and their costs.
 
 ---
@@ -1139,10 +1177,10 @@ the same change.
 
 ### Day 97 — System design interviews: mock 2 and the question bank
 - **Objective:** a second mock and the full question bank.
-- **Read:** ch 36, sections 36.5–36.8.
-- **Time:** 115 min (read 35 / build 70 / note 10).
+- **Read:** ch 36, sections 36.5–36.8 (36.8: its intro only; the bank is used through the quiz).
+- **Time:** 120 min (read 25 / build 85 / note 10).
 - **Exercise:** `ch36-question-bank`, part 2: a timed mock of a case you have not practised (job scheduler, ticket
-  booking or metrics ingestion); render the question bank and run the self-quiz script.
+  booking or metrics ingestion); render the question bank, run two 10-question self-quiz rounds and list the weak topics.
 - **Done when:** the second mock is self-scored with two fixes written; the self-quiz is done and the weak topics are
   listed.
 - **You can explain:** for each weak topic, the alternative, its cost and your evidence.

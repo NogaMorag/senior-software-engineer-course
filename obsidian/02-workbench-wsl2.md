@@ -25,6 +25,7 @@ course    export COURSE="$HOME/senior-software-engineer-course"     my work: ~/s
 verify    sha256sum -c <file>.sha256sum | sha256sum -c --ignore-missing <SHA256SUMS>
 go        ~/.local/go  GOBIN=~/.local/bin  go version  -> go1.27.1
 go tools  go install <module>@<pin>: staticcheck goose buf protoc-gen-go protoc-gen-go-grpc govulncheck actionlint
+lint      golangci-lint 2.14.0: release tarball + golangci-lint-2.14.0-checksums.txt -> ~/.local/bin
 uv        curl -LsSf https://astral.sh/uv/0.12.23/install.sh | sh ; uv python install 3.14
 doctor    bash ch02/doctor.sh [--part-e] ; echo $?   (exit = number of failures)
 docker    docker version | docker run --rm hello-world | docker system df | docker system prune

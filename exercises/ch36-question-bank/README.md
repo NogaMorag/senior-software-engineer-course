@@ -12,10 +12,10 @@ lang: he
 בונים קוד: הכלי מוכן ובדוק, והעבודה היא התרגול.
 
 **זמן משוער:** שני ימי לימוד. יום 96: כ־65 דקות (ראיון מדומה 45, ציון והשוואה 15, מעבר מהיר על שני מקרים 5).
-יום 97: כ־70 דקות (ראיון מדומה 45, ציון 10, הכלי והמבחן העצמי 15).
+יום 97: כ־85 דקות (ראיון מדומה 45, ציון 10, הכלי, המבחן העצמי ורשימת הנושאים החלשים 30).
 
 **ידע מקדים:** פרק 36 (השעון, הלוח וששת המקרים); פרק 29 (שיטת ששת הצעדים, והמחשבון שבו תשתמשי להערכות); פרק 7
-(פרויקט uv: בדיקות, ruff ו־mypy). התרגיל לא מייבא קוד מתרגילים קודמים. הכלי משתמש רק בספרייה הסטנדרטית של Python,
+(פרויקט uv: בדיקות, בדיקת סגנון ובדיקת טיפוסים). התרגיל לא מייבא קוד מתרגילים קודמים. הכלי משתמש רק בספרייה הסטנדרטית של Python,
 והגרסאות של כלי הפיתוח מקובעות ב־`pyproject.toml` (נכון לאוקטובר 2026, ראי נספח ג).
 
 ## מה בתיקייה הזאת
@@ -86,7 +86,7 @@ cp templates/mock-scorecard.md mock-1-notifications.md
 ## יום 97: ראיון שני, ומבחן עצמי על המאגר
 
 **1. בחירת מקרה, בלי לקרוא אותו.** בחרי אחד מהשלושה שלא תרגלת: מתזמן עבודות (36.5), הזמנת כרטיסים (36.6), או
-קליטת מדדים (36.7). קראי את שני האחרים, ואת סעיף 36.8.
+קליטת מדדים (36.7). קראי את שני האחרים, ואת הפתיחה של סעיף 36.8, עד תחילת המאגר עצמו.
 
 <div dir="ltr" align="left">
 
@@ -139,8 +139,8 @@ git diff --stat
 
 ```bash
 cd ~/senior-course/ch36/quiz
-uv run quiz ask ../data/questions.jsonl -n 15 -c go -c python -c backend -c distributed -c cloud-native
-uv run quiz ask ../data/questions.jsonl -n 15 -c operations -c quality-security -c senior-craft -c coding -c project
+uv run quiz ask ../data/questions.jsonl -n 10 -c go -c python -c backend -c distributed -c cloud-native
+uv run quiz ask ../data/questions.jsonl -n 10 -c operations -c quality-security -c senior-craft -c coding -c project
 ```
 
 </div>
@@ -209,8 +209,8 @@ git commit -m "Chapter 36: two mock design interviews, scorecards, self-quiz and
 <div dir="ltr" align="left">
 
 ```text
-known 11 of 15
-review #47 (backend, chapter 13)
+known 7 of 10
+review #47 (backend, chapter 14)
 ```
 
 </div>
@@ -219,7 +219,7 @@ review #47 (backend, chapter 13)
 
 - [ ] שני דפי ציון מלאים, עם הזמנים בפועל והעמודה של מה שהיה במקרה בפרק.
 - [ ] שלושה תיקונים אחרי הראיון הראשון, ושניים אחרי השני, כל אחד פעולה לראיון הבא.
-- [ ] ‏`uv run pytest -q` ירוק, ו־ruff ו־mypy נקיים.
+- [ ] הבדיקות ירוקות, ו־ruff ו־mypy נקיים.
 - [ ] ‏`quiz check` מדווח על סכמה תקינה, גם אחרי שתי השאלות שלך.
 - [ ] הפקת המאגר לא שינתה את הפרק, או שהשינוי הוא רק השאלות שהוספת.
 - [ ] הקובץ `weak.md` קיים, ולכל נושא בו יש חלופה, מחיר וראיה.

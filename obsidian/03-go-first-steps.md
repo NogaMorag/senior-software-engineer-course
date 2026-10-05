@@ -24,7 +24,7 @@ gofmt -l .          go vet ./...          staticcheck ./...
 go build -o /dev/null -gcflags=-m .       # escape analysis
 s[low:high:max]     slices.Clone(s)       make([]T, 0, n)
 v, ok := m[k]       slices.SortFunc(rows, func(a, b T) int { return cmp.Compare(a.X, b.X) })
-len("שלום") = ___   utf8.RuneCountInString("שלום") = ___
+len(word) = ___   utf8.RuneCountInString(word) = ___   # word: 4 Hebrew letters
 sc.Buffer(make([]byte, 0, 64*1024), 1024*1024);  check sc.Err() after the loop
 ```
 

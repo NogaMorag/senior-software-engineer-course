@@ -16,7 +16,7 @@ title: "נספח ג: גרסאות כלים"
 
 | סוג | הקובץ |
 | --- | --- |
-| כלים שמותקנים בבית שלך | פקודות ההתקנה בפרק 2, והמינימום שהרופא בודק (`exercises/ch02-workbench/solution/doctor.sh`) |
+| כלים שמותקנים בתיקיית הבית שלך | פקודות ההתקנה בפרק 2, והמינימום שהרופא בודק (`exercises/ch02-workbench/solution/doctor.sh`) |
 | מודולים של Go | `go.mod` של כל מודול, עם `go.sum` לצידו |
 | חבילות Python | `pyproject.toml` עם גרסאות מדויקות, ו־`uv.lock` שנועל את כל העץ |
 | images | קובצי compose בתיקייה `data/` של כל תרגיל, `Dockerfile`, קובצי kind, וסקריפטים שמריצים כלי בקונטיינר |
@@ -47,7 +47,7 @@ go list -m -versions honnef.co/go/tools
 </div>
 
 הכלל: **משדרגים בכוונה, אחד בכל פעם, ומריצים את הבדיקות מחדש.** שדרוג של כמה דברים יחד הופך כישלון לחידה, כי
-אי אפשר לדעת איזה מהם שבר. גרסה ראשית חדשה (Helm 4, k6 2, provider של Terraform בגרסה 3) כמעט תמיד שוברת משהו,
+אי אפשר לדעת איזה מהם שבר. גרסה ראשית חדשה (כמו המעבר ל־Helm 4 או ל־k6 2) כמעט תמיד שוברת משהו,
 ושם קוראים קודם את הערות השחרור. ואחרי שדרוג, מעדכנים את הקובץ שבו הגרסה מוצמדת ואת השורה כאן.
 
 העמודה „נבדק ב” אומרת מתי ומול איזה מקור נבדקה הגרסה:
@@ -124,7 +124,7 @@ go list -m -versions honnef.co/go/tools
 | `pgregory.net/rapid` | v1.3.0 | תרגיל 26, ‏Hookline | 2026-10-05, proxy |
 | `github.com/santhosh-tekuri/jsonschema/v6` | v6.0.3 | תרגיל 26 | קובץ |
 | `golang.org/x/time` | v0.16.0 | תרגיל 16 | 2026-10-05, proxy |
-| `golang.org/x/sync` | v0.23.0 | תרגילים 5, 6, 12, 19, 20, 21, 24, ‏`ch23-ci/solution/ch06` | 2026-10-05, קובץ (הכותבים) |
+| `golang.org/x/sync` | v0.23.0 | תרגילים 5, 6, 12, 19, 20, 21, 24, ‏`ch23-ci/solution/ch06`, ‏Hookline | 2026-10-05, קובץ (נבדק בכתיבת התרגיל) |
 | `golang.org/x/text` | v0.40.0 (התיקון), ו־v0.3.7 הפגיע בכוונה | `seeded/go.mod` בתרגיל פרק 27 | קובץ |
 | `github.com/golang-jwt/jwt/v5` | v5.3.1 | תרגיל 28 | 2026-10-05, proxy |
 | `github.com/coreos/go-oidc/v3` | v3.21.0 | לא מוצמד בקובץ: פרק 28 מזכיר אותו בלבד | 2026-10-05, proxy |
@@ -175,13 +175,13 @@ go list -m -versions honnef.co/go/tools
 | `python` | 3.14.8-slim | כל `Dockerfile` של Python | 2026-10-05, Hub |
 | `redocly/cli` | 2.57.0 | README של תרגיל פרק 9 | 2026-10-05, Hub |
 | `anchore/syft`, ‏`anchore/grype`, ‏`aquasec/trivy` | v1.54.0, ‏v0.120.0, ‏0.75.0 | `tests/scan_images.sh` בתרגיל 19; README של תרגיל 28 | 2026-10-05, GH |
-| `ghcr.io/yannh/kubeconform` | v0.8.0 | `tests/check_static.sh` בתרגיל 21 | 2026-10-05, קובץ (הכותבים) |
-| `busybox` | 1.37.0 | `tests/drill_check.sh` בתרגיל 21; פרק 21, סעיף 21.5.2 | 2026-10-05, קובץ (הכותבים) |
-| ‏cloud-provider-kind (‏`cloud-controller-manager`) | v0.12.0 | README של תרגיל פרק 21 | 2026-10-05, קובץ (הכותבים) |
+| `ghcr.io/yannh/kubeconform` | v0.8.0 | `tests/check_static.sh` בתרגיל 21 | 2026-10-05, קובץ (נבדק בכתיבת התרגיל) |
+| `busybox` | 1.37.0 | `tests/drill_check.sh` בתרגיל 21; פרק 21, סעיף 21.5.2 | 2026-10-05, קובץ (נבדק בכתיבת התרגיל) |
+| ‏cloud-provider-kind (‏`cloud-controller-manager`) | v0.12.0 | README של תרגיל פרק 21 | 2026-10-05, קובץ (נבדק בכתיבת התרגיל) |
 
 ## GitHub Actions
 
-ה־workflows של הבדיקות מצמידים גרסה ראשית; ה־workflow שמפרסם (`release.yml`) מצמיד SHA מלא, עם התגית כהערה
+קובצי הבדיקות מצמידים גרסה ראשית. קובץ הפרסום (`release.yml`) מצמיד SHA מלא, עם התגית כהערה
 (פרק 23, סעיף 23.6).
 
 | action | גרסה | איפה היא מוצמדת | נבדק ב |
@@ -197,14 +197,14 @@ go list -m -versions honnef.co/go/tools
 | `actions/setup-python`, ‏`actions/cache`, ‏`actions/upload-artifact` | v7, ‏v6, ‏v7 | לא בשימוש בקובצי התרגיל | 2026-10-05, GH |
 | `azure/setup-helm`, ‏`hashicorp/setup-terraform` | v5, ‏v4 | לא בשימוש בקובצי התרגיל | 2026-10-05, GH |
 | `golangci/golangci-lint-action`, ‏`grafana/setup-k6-action` | v9, ‏v1 | לא בשימוש בקובצי התרגיל | 2026-10-05, GH |
-| `softprops/action-gh-release` | v3 | מוזכר בפרק 23; התרגיל משתמש ב־`gh release create` | 2026-10-05, קובץ (הכותבים) |
+| `softprops/action-gh-release` | v3 | מוזכר בפרק 23; התרגיל משתמש ב־`gh release create` | 2026-10-05, קובץ (נבדק בכתיבת התרגיל) |
 
 ## שונות
 
 | כלי | גרסה | איפה היא מוצמדת | נבדק ב |
 | --- | --- | --- | --- |
-| metrics-server | v0.9.0 | `data/metrics-server/kustomization.yaml` בתרגיל פרק 21 | 2026-10-05, קובץ (הכותבים) |
-| shellcheck | 0.11.0 (הגרסה היציבה) | README של תרגיל פרק 23 מתקין אותו מ־`apt`, בגרסת ההפצה | 2026-10-05, קובץ (הכותבים) |
+| metrics-server | v0.9.0 | `data/metrics-server/kustomization.yaml` בתרגיל פרק 21 | 2026-10-05, קובץ (נבדק בכתיבת התרגיל) |
+| shellcheck | 0.11.0 (הגרסה היציבה) | README של תרגיל פרק 23 מתקין אותו מ־`apt`, בגרסת ההפצה | 2026-10-05, קובץ (נבדק בכתיבת התרגיל) |
 | Rust | 1.99.0, עם rustfmt ו־clippy | `rust-toolchain.toml` בתרגיל פרק 33 (אופציונלי) | 2026-10-05, רשמי |
 
 ## אי־התאמות ידועות
@@ -212,8 +212,9 @@ go list -m -versions honnef.co/go/tools
 נמצאו בסריקה של קובצי התרגילים מול הטבלאות למעלה, באוקטובר 2026. הן לא שוברות אף בדיקה, אבל כדאי לדעת עליהן
 לפני שמשדרגים:
 
-- **‏`golang.org/x/sync` בשתי גרסאות.** רוב המודולים מצמידים v0.23.0. שני המודולים של Hookline מצמידים ישירות
-  v0.22.0, וכמה מודולים אחרים מקבלים v0.22.0 כתלות עקיפה (תרגילים 11, 26, 30, ‏`ch23-ci/solution/ch11`).
+- **‏`golang.org/x/sync` בשלוש גרסאות.** כל המודולים שמצמידים אותו ישירות, כולל Hookline, מצמידים v0.23.0. אחרים
+  מקבלים אותו כתלות עקיפה: v0.22.0 בתרגילים 11, 26, 30 וב־`ch23-ci/solution/ch11`, ו־v0.17.0 בתרגילים 10, 13, 14,
+  17, 18 ו־35.
 - **‏`golang.org/x/text` כתלות עקיפה** מופיע בארבע גרסאות שונות בין התרגילים (v0.29.0 עד v0.42.0). הוא לא
   מוצמד במפורש, ו־Go בוחר אותו לפי התלויות. הגרסה הפגיעה v0.3.7 בתרגיל פרק 27 היא בכוונה.
 - **גבול עליון ל־Python.** בתרגילים 1 ו־2 כתוב `>=3.14,<3.15`, ובשאר `>=3.14` בלבד.

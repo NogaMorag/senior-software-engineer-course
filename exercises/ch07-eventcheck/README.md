@@ -25,6 +25,7 @@ lang: he
 | `starter/src/eventcheck/models.py` | המודלים, עם `TODO 4` עד `TODO 6` (שלושה בודקי תקינות) |
 | `starter/src/eventcheck/checker.py` | בדיקת השורות, עם `TODO 7` עד `TODO 9` |
 | `starter/src/eventcheck/cli.py`, `generate.py`, `__main__.py` | שורת הפקודה והמחולל, שלמים |
+| `starter/src/eventcheck/__init__.py`, `py.typed` | סימון החבילה, וסימון שהיא מפרסמת טיפוסים (סעיף 7.7.2) |
 | `tests/conftest.py` | ה־fixtures: אירועים תקינים, כתיבת קובץ זמני, קובץ גדול בטווח `session` |
 | `tests/test_report.py`, `test_models.py`, `test_checker.py`, `test_cli.py` | 37 בדיקות; עותקים זהים בתוך `starter/` ו־`solution/` |
 | `data/events.jsonl` | 25 אירועים, שישה מהם פגומים בכוונה |
@@ -74,7 +75,7 @@ uv run eventcheck --help
 | `checker.py` | המחלקות של בעיה, הצלחה, כישלון ודוח |
 | `report.py` | שני ממשקים מבניים ושני מילונים עם צורה |
 
-**4. הריצי את הבודקים.** ruff עובר כבר עכשיו. mypy נכשל על שגיאה אחת, וזה מכוון: הבדיקה ב־`test_report.py`
+**4. הריצי את הבודקים.** הכלי ruff עובר כבר עכשיו. הכלי mypy נכשל על שגיאה אחת, וזה מכוון: הבדיקה ב־`test_report.py`
 מבקשת מפתח שעוד לא הוספת ל־`SummaryDict`.
 
 <div dir="ltr" align="left">
@@ -119,9 +120,9 @@ git commit -m "Chapter 7: eventcheck project, reporters, ruff and mypy strict"
 
 **8. מלאי את המשימות 4 עד 6** בקובץ `models.py`:
 
-- `to_utc`: אותו רגע בזמן, באזור UTC.
-- `invoice_prefix`: `ValueError` עם ההודעה שבהערה, אם המזהה לא מתחיל ב־`inv_`.
-- `location_when_in_transit`: משלוח בדרך בלי מיקום הוא שגיאה; אחרת מחזירים את `self`.
+- **הבודק `to_utc`:** אותו רגע בזמן, באזור UTC.
+- **הבודק `invoice_prefix`:** אם המזהה לא מתחיל ב־`inv_`, זורקים `ValueError` עם ההודעה שבהערה.
+- **הבודק `location_when_in_transit`:** משלוח בדרך בלי מיקום הוא שגיאה; אחרת מחזירים את `self`.
 
 <div dir="ltr" align="left">
 

@@ -103,6 +103,7 @@ stay English and which are translated**, and the one rendering each translated c
 | TTL | זמן חיים (TTL) | |
 | negative caching | מטמון שלילי | |
 | router | נתב | |
+| fan-out / fan-in | פיזור / איסוף (fan-out, fan-in) | never פריסה, which is deploy |
 | expand and contract | הרחבה ואז כיווץ | |
 | backfill | מילוי לאחור | |
 | dual write | כתיבה כפולה | |

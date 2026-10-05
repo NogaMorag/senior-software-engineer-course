@@ -15,3 +15,7 @@
 - Indirect golang.org/x/text versions differ across modules (v0.29–v0.42): harmless, note in appendix C (already listed there).
 - Hookline: x/sync v0.22.0 → v0.23.0 (asked of the capstone writer in M6).
 - Hookline M5 smoke step in §38.5.4 uses `docker compose exec postgres psql ... UPDATE`, not run as written (writer ran the docker exec equivalent): run it once.
+- Fan-out is rendered "פריסה" in chapter 38's terms table (and possibly chapter 36): use "פיזור" (TERMINOLOGY.md). Chapter 38 is the capstone writer's; fix at the chapter 37–39 review.
+- Appendix F writes the time split "קריאה 25 / בנייה 55 / פתק 10": kept deliberately, the format is inherited from book 1's appendix F and is a fixed label, not prose (record in 09-review.md).
+- Question bank #3 recommends sync.Map, which no chapter teaches: add one line in chapter 5 §5.5 or change the answer.
+- Chapter 32 §32.1.2: verify that Claude Code, Cursor and Copilot all read AGENTS.md on their current docs pages.

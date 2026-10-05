@@ -168,6 +168,7 @@ check_tool "protoc-gen-go" "1.36.12" "chapter 2, section 2.7" protoc-gen-go --ve
 check_tool "protoc-gen-go-grpc" "1.6.2" "chapter 2, section 2.7" protoc-gen-go-grpc --version
 check_tool_line "Scanner" "govulncheck" "1.8.0" "chapter 2, section 2.7" govulncheck -version
 check_tool "actionlint" "1.7.12" "chapter 2, section 2.7" actionlint -version
+check_tool "golangci-lint" "2.14.0" "chapter 2, section 2.7" golangci-lint --version
 
 echo "Course folders:"
 check_dir "COURSE" "${COURSE:-}" "book"

@@ -10,7 +10,7 @@ lang: he
 **מטרה:** סביבה מותקנת ומאומתת, וסקריפט שמוכיח את זה בכל רגע; בדיקת עשן ל־Go ול־Python; קונטיינר ראשון;
 וההתחייבות הראשונה במאגר שלך. ביום 57 מוסיפים את הכלים של חלק ה ומרחיבים את הסקריפט.
 
-**זמן משוער:** שלושה ימי לימוד. יום 0: כ־65 דקות התקנה. יום 3: כ־55 דקות בנייה. יום 57: כ־45 דקות התקנה.
+**זמן משוער:** שלושה ימי לימוד. יום 0: כ־70 דקות התקנה. יום 3: כ־55 דקות בנייה. יום 57: כ־45 דקות התקנה.
 
 **ידע מקדים:** פרק 0, ופרק 2 כולו (כל יום קורא את הסעיפים שלו). התרגיל לא מייבא קוד מתרגיל קודם.
 
@@ -18,7 +18,7 @@ lang: he
 
 | קובץ | תפקיד |
 | --- | --- |
-| `starter/doctor.sh` | הרופא: בודק כל כלי של יום 0 (כולל כלי ה־Go) ואת תיקיות הקורס; בלוק חלק ה מסומן `TODO` ליום 57 |
+| `starter/doctor.sh` | הרופא: בודק כל כלי של יום 0 (כולל כלי ה־Go ו־golangci-lint) ואת תיקיות הקורס; בלוק חלק ה מסומן `TODO` ליום 57 |
 | `starter/test_doctor.sh` | מריץ את `doctor.sh` מול כלים מזויפים ובודק קודי יציאה (11 בדיקות) |
 | `starter/hello/` | מודול Go: `main.go` עם `TODO` אחד, ו־`main_test.go` עם בדיקה טבלאית |
 | `starter/smoke/` | פרויקט uv: `src/smoke/__init__.py` עם `TODO` אחד, `tests/test_smoke.py`, קובץ נעילה |
@@ -30,7 +30,8 @@ lang: he
 
 ## יום 0: התקנות
 
-**1. התקיני לפי פרק 2, סעיפים 2.2 עד 2.8**, בסדר שלהם, כולל כלי ה־Go של סעיף 2.7.1. על Mac, סעיף 2.13 במקומם.
+**1. התקיני לפי פרק 2, סעיפים 2.2 עד 2.8**, בסדר שלהם. סעיף 2.7.1 כולל את כלי ה־Go ואת golangci-lint, עם
+בדיקת הטביעה שלו. על Mac, סעיף 2.13 מחליף את ההוראות של Windows.
 
 **2. פתחי לשונית חדשה ובדקי גרסאות.** הסקריפט עוד לא אצלך (הוא מגיע עם הספר ביום 3), ולכן בודקים ידנית:
 
@@ -43,6 +44,7 @@ code --version | head -1
 go version
 staticcheck -version
 buf --version
+golangci-lint --version
 uv --version
 uv python find 3.14
 ssh -T git@github.com
@@ -147,7 +149,7 @@ wsl --shutdown
 
 </div>
 
-**9. ההתחייבות הראשונה.**
+**9. ההתחייבות הראשונה.** היא כוללת גם את `ch01` מתרגיל פרק 1. אם כבר התחייבת עליו, היא תכיל רק את `ch02`.
 
 <div dir="ltr" align="left">
 
@@ -155,7 +157,7 @@ wsl --shutdown
 cd ~/senior-course
 git status --short
 git add .
-git commit -m "ch02: workbench, doctor and smoke tests"
+git commit -m "ch01-ch02: postings tally, workbench, doctor and smoke tests"
 git log --oneline
 ```
 
@@ -197,10 +199,11 @@ Go tools (go install, Day 0):
   ok    staticcheck        2026.2.1     (need >= 2026.2.1)
   ...
   ok    actionlint         1.7.12       (need >= 1.7.12)
+  ok    golangci-lint      2.14.0       (need >= 2.14.0)
 Course folders:
   ok    COURSE             found        (/home/noga/senior-software-engineer-course)
   ok    senior-course      git-repo     (/home/noga/senior-course)
-doctor: 18 ok, 0 failed
+doctor: 19 ok, 0 failed
 doctor: the workbench is ready
 ```
 
@@ -235,14 +238,14 @@ test_doctor: 11 passed, 0 failed
 
 ## רשימת בדיקה
 
-- [ ] ביום 0, כל כלי מדפיס גרסה שמתאימה לנספח ג, ו־`ssh -T git@github.com` מברך אותך בשמך.
+- [ ] ביום 0, כל כלי מדפיס גרסה שמתאימה לנספח ג, והחיבור ב־SSH ל־GitHub מברך אותך בשמך.
 - [ ] העבודה שלך נמצאת תחת `~/senior-course`, לא תחת `/mnt/c`.
-- [ ] `doctor.sh` מסתיים בקוד יציאה 0.
+- [ ] הסקריפט `doctor.sh` מסתיים בקוד יציאה 0.
 - [ ] שש השורות של הבדיקה הטבלאית עוברות, ו־`go vet` שקט.
 - [ ] שלוש בדיקות ה־pytest עוברות, וכלי הניתוח הסטטי נקיים.
 - [ ] הקונטיינר מדפיס `Hello from Docker!`, וכתבת בפתק את מה שמדדת ב־`docker system df`.
 - [ ] בהתחייבות הראשונה אין `.venv` ואין קבצי בנייה.
-- [ ] ביום 57, `doctor.sh --part-e` מסתיים ב־0, ו־`test_doctor.sh` מדווח על 11 הצלחות.
+- [ ] ביום 57, הרופא עם הדגל `--part-e` מסתיים ב־0, והבדיקות שלו מדווחות על 11 הצלחות.
 
 ## טעויות נפוצות ותיקונים
 
