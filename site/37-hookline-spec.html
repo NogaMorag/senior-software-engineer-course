@@ -143,7 +143,7 @@ without one bad customer slowing everyone else, and with a way to see and replay
 </tr>
 <tr>
 <td>F2</td>
-<td>דיירת מנה endpoint לסוג אירוע מדויק או לכל הסוגים (<code>*</code>)</td>
+<td>דיירת רושמת endpoint כמנוי לסוג אירוע מדויק או לכל הסוגים (<code>*</code>)</td>
 <td>בדיקת API</td>
 <td>M1</td>
 </tr>
@@ -276,7 +276,7 @@ Hookline-Signature     t=&lt;unix seconds&gt;,v1=&lt;hex HMAC-SHA256(secret, &qu
   T[Tenant] --&gt;|POST /v1/events| API
   API --&gt;|tx: event + outbox| PG[(PostgreSQL)]
   API --&gt;|rate limit| R[(Redis)]
-  Relay --&gt;|poll outbox SKIP LOCKED| PG
+  Relay --&gt;|poll outbox FOR UPDATE, leader only| PG
   Relay --&gt;|publish key=tenant| K[[Redpanda topic hookline.events]]
   K --&gt; Disp[Dispatcher]
   Disp --&gt;|subscriptions cache| R
@@ -333,8 +333,8 @@ Hookline-Signature     t=&lt;unix seconds&gt;,v1=&lt;hex HMAC-SHA256(secret, &qu
 <tr>
 <td>hookline-admin</td>
 <td><code>cmd/hookline-admin</code></td>
-<td>כלי המפעילה: מיגרציות ויצירת דיירת</td>
-<td>M1, M2</td>
+<td>כלי המפעילה: מיגרציות, יצירת דיירת ויצירת ה־topic</td>
+<td>M1, M2, M4</td>
 </tr>
 </tbody>
 </table>
@@ -378,7 +378,7 @@ Hookline-Signature     t=&lt;unix seconds&gt;,v1=&lt;hex HMAC-SHA256(secret, &qu
 <ol>
 <li>הדיירת שולחת <code>POST /v1/events</code> עם מפתח אידמפוטנטיות. ה־API בודק את המפתח, ובטרנזקציה אחת כותב את שורת
    האירוע ואת שורת ה־outbox שלו. רק אחרי ה־<code>COMMIT</code> הוא מחזיר 202.</li>
-<li>ה־relay הוא המופע היחיד שמחזיק advisory lock (נעילה ב־PostgreSQL על מספר שהיישום בוחר). הוא קורא שורות outbox שלא פורסמו, ומפרסם
+<li>ה־relay הוא המופע היחיד שמחזיק advisory lock: נעילה של המסד על מספר שהיישום בוחר. הוא קורא שורות outbox שלא פורסמו, ומפרסם
    אותן ל־topic בשם <code>hookline.events</code> עם מפתח לפי דיירת. אחר כך הוא מסמן אותן כמפורסמות.</li>
 <li>ה־dispatcher צורך את ה־topic, מוצא את המנויים שמתאימים לסוג האירוע, ומכניס שורת מסירה לכל אחד. אילוץ ייחודיות
    על הזוג אירוע ו־endpoint הופך עיבוד חוזר של אותה הודעה לחסר נזק. רק אחר כך הוא מאשר את ה־offset.</li>
@@ -393,7 +393,8 @@ Hookline-Signature     t=&lt;unix seconds&gt;,v1=&lt;hex HMAC-SHA256(secret, &qu
 </blockquote>
 <h2 id="374">37.4 מודל נתונים</h2>
 <p>שבע טבלאות ב־PostgreSQL, כולן במיגרציות בתיקייה <code>migrations/</code>. אבן הדרך השנייה יוצרת את כולן
-בבת אחת, גם את אלה שישמשו רק באבן הדרך החמישית, כדי שאף אבן דרך מאוחרת לא תצטרך לשכתב טבלה.</p>
+בבת אחת, גם את אלה שישמשו רק באבן הדרך החמישית, כדי שאף אבן דרך מאוחרת לא תצטרך לשכתב טבלה. טבלה שמינית
+וקטנה, של בחירת המנהיג, מגיעה באבן הדרך השישית, והיא מופיעה בסוף הסעיף.</p>
 <table>
 <thead>
 <tr>
@@ -416,7 +417,7 @@ Hookline-Signature     t=&lt;unix seconds&gt;,v1=&lt;hex HMAC-SHA256(secret, &qu
 <tr>
 <td><code>subscriptions</code></td>
 <td>מזהה, דיירת, endpoint, סוג אירוע</td>
-<td>מפתח זר מורכב לאותה דיירת; זוג endpoint וסוג ייחודי</td>
+<td>מפתח זר מורכב לאותה דיירת; השלישייה דיירת, endpoint וסוג ייחודית</td>
 </tr>
 <tr>
 <td><code>events</code></td>
@@ -473,8 +474,34 @@ CREATE INDEX outbox_unpublished_idx ON outbox (id) WHERE published_at IS NULL;
 
 </div>
 
-<p>אבן הדרך החמישית מוסיפה לטבלה <code>deliveries</code> עמודה אחת, <code>attempt_base</code>, במיגרציה <code>00005</code>. היא מאפשרת להפעיל שוב
-מסירה מתה בלי לאפס את מונה הניסיונות (פרק 38, סעיף 38.5). זה השינוי היחיד בסכמה אחרי אבן הדרך השנייה.</p>
+<p>אחרי אבן הדרך השנייה הסכמה משתנה רק שלוש פעמים, וכל שינוי הוא הוספה במיגרציה משלו:</p>
+<table>
+<thead>
+<tr>
+<th>מיגרציה</th>
+<th>אבן דרך</th>
+<th>מה היא מוסיפה, ולמה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>00005</code></td>
+<td>M5</td>
+<td>העמודה <code>attempt_base</code> בטבלת המסירות: הפעלה חוזרת של מסירה מתה בלי לאפס את מונה הניסיונות (סעיף 38.5)</td>
+</tr>
+<tr>
+<td><code>00006</code></td>
+<td>M6</td>
+<td>הטבלה <code>leader_terms</code>: הקדנציה של ה־relay המוביל, שמשמשת כ־fencing token (סעיף 38.6)</td>
+</tr>
+<tr>
+<td><code>00007</code></td>
+<td>M8</td>
+<td>העמודה <code>trace_context</code> בטבלת האירועים: המעקב של הקליטה ממשיך בתהליכים הבאים (סעיף 38.8)</td>
+</tr>
+</tbody>
+</table>
+<p>ה־starter מגיע עם כל שבע המיגרציות, ולכן המסד שלך יגיע לגרסה 7 כבר באבן הדרך השנייה.</p>
 <p>שלוש החלטות קטנות במודל שכדאי לדעת לנמק:</p>
 <ul>
 <li><strong>מזהים הם UUID גרסה 7.</strong> ‏48 הביטים הראשונים הם זמן במילישניות, ולכן מזהה חדש נכנס בקצה הימני של אינדקס
@@ -728,15 +755,17 @@ FAIL    example.com/hookline/internal/admin 0.944s
 --- FAIL: TestHealthNeedsNoKey (0.00s)
 panic: TODO: see chapter 38 [recovered, repanicked]
 FAIL    example.com/hookline/internal/api   0.870s
+...
 ok      example.com/hookline/internal/config    2.675s
 ok      example.com/hookline/internal/db    3.612s
 ok      example.com/hookline/internal/domain    2.991s
+...
 </code></pre>
 
 
 </div>
 
-<p>החבילות שעוברות כבר הן התשתית שקיבלת שלמה. החבילות שנכשלות הן המפה של העבודה: כל אבן דרך בפרק 38 אומרת אילו
+<p>הפלט כאן מקוצר, והזמנים אצלך יהיו אחרים. החבילות שעוברות כבר הן התשתית שקיבלת שלמה. החבילות שנכשלות הן המפה של העבודה: כל אבן דרך בפרק 38 אומרת אילו
 מהן היא מוריקה, ובאיזו פקודה בודקים.</p>
 <h3 id="3782">37.8.2 כללי העבודה</h3>
 <ul>
@@ -880,7 +909,8 @@ ok      example.com/hookline/internal/domain    2.991s
 <p><strong>איך מבטיחים שדיירת אחת לא רואה משאבים של אחרת?</strong> שלוש שכבות. הדיירת נקבעת רק מהמפתח שבכותרת, ואף פרמטר
    בבקשה לא בוחר אותה. כל שאילתה מסננת לפי מזהה הדיירת, ומשאב של אחרת מחזיר את אותו 404 כמו מזהה לא קיים. ובמסד,
    מפתח זר מורכב מונע ממנוי להפנות ל־endpoint של דיירת אחרת. הבדיקות שולחות את המזהים של דיירת א' עם המפתח של
-   דיירת ב' לכל נתיב, ומצפות ל־404.</p>
+   דיירת ב' לכל נתיב, ומצפות ל־404. המחיר קטן אבל קיים: כל אינדקס מתחיל במזהה הדיירת, והמפתח הזר המורכב צריך
+   אילוץ ייחודיות שנראה מיותר. בתמורה, באג אחד בקוד לא מספיק כדי לחשוף נתונים של דיירת אחרת.</p>
 </li>
 <li>
 <p><strong>למה גיבוב מהיר למפתחות API ולא argon2?</strong> גיבוב איטי נועד להאט ניחוש של סיסמאות שבני אדם בוחרים, שיש להן
@@ -909,7 +939,8 @@ build     go build ./... &amp;&amp; go vet ./...
 tests     make test-unit            (red at first; green package by package)
 headers   Hookline-Event-Id  Hookline-Delivery-Id  Hookline-Attempt  Hookline-Signature
 signature t=&lt;unix&gt;,v1=&lt;hex HMAC-SHA256(secret, &quot;&lt;t&gt;.&lt;raw body&gt;&quot;)&gt;   tolerance 5 min
-tables    tenants endpoints subscriptions events outbox deliveries attempts
+tables    tenants endpoints subscriptions events outbox deliveries attempts   (+ leader_terms, M6)
+later     00005 attempt_base (M5)   00006 leader_terms (M6)   00007 events.trace_context (M8)
 unique    events(tenant_id, idempotency_key)   deliveries(event_id, endpoint_id)
 statuses  pending -&gt; in_flight -&gt; delivered | dead     replay: dead -&gt; pending
 binaries  cmd/api  cmd/relay  cmd/dispatcher  cmd/worker  cmd/hookline-admin   sink/ (Python)

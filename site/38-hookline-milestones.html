@@ -621,6 +621,11 @@ ok      example.com/hookline/internal/admin 3.010s
 <td>לקרוא כל אחד, ולהריץ עלייה וירידה</td>
 </tr>
 <tr>
+<td><code>migrations/00005</code> עד <code>00007</code></td>
+<td>שלמים</td>
+<td>של אבני דרך מאוחרות (פרק 37, סעיף 37.4); רצות כבר עכשיו, ונקראות בסעיפים שלהן</td>
+</tr>
+<tr>
 <td><code>internal/db/db.go</code>, ‏<code>internal/testdb/testdb.go</code></td>
 <td>שלמים</td>
 <td>מפרק 11, עם שם המודול של הפרויקט</td>
@@ -658,15 +663,16 @@ go run ./cmd/hookline-admin migrate up
 <div dir="ltr" align="left">
 
 
-<pre><code class="language-text">schema version: 4
+<pre><code class="language-text">schema version: 7
 schema version: 0
-schema version: 4
+schema version: 7
 </code></pre>
 
 
 </div>
 
-<p>עכשיו קראי את ארבע המיגרציות, ומלאי לעצמך טבלה: אילוץ, והבאג שהוא מונע. שלושה שכדאי במיוחד להבין:</p>
+<p>הגרסה היא 7 ולא 4, כי ה־starter כולל גם את שלוש המיגרציות של אבני הדרך המאוחרות. עכשיו קראי את ארבע הראשונות,
+ומלאי לעצמך טבלה: אילוץ, והבאג שהוא מונע. ארבעה שכדאי במיוחד להבין:</p>
 <ul>
 <li><strong>הייחודיות של הזוג <code>(tenant_id, id)</code> בטבלת ה־endpoints.</strong> היא נראית מיותרת, כי המזהה כבר מפתח ראשי. הוא קיים כדי שהמנויים יוכלו
   להפנות לזוג, וכך המסד דוחה מנוי של דיירת אחת ל־endpoint של אחרת.</li>
@@ -1071,7 +1077,7 @@ DATABASE_URL= REDIS_ADDR= go test -race ./internal/cache/
 <div dir="ltr" align="left">
 
 
-<pre><code class="language-bash">DATABASE_URL= REDIS_ADDR= go test -race -run 'TestConformance/ActiveSubscriptions' ./internal/store/memory/
+<pre><code class="language-bash">DATABASE_URL= REDIS_ADDR= go test -race -run 'TestActiveSubscriptions' ./internal/store/memory/
 DATABASE_URL= REDIS_ADDR= go test -race ./internal/subcache/
 </code></pre>
 
@@ -1187,7 +1193,7 @@ ok      example.com/hookline/internal/store/postgres    4.074s
 ok      example.com/hookline/internal/store/storetest   3.183s
 ok      example.com/hookline/internal/subcache  3.270s
 ...
-62 passed in 1.63s
+___ passed in ___s
 </code></pre>
 
 
@@ -1195,7 +1201,7 @@ ok      example.com/hookline/internal/subcache  3.270s
 
 <h3 id="3837">38.3.7 קריטריון סיום</h3>
 <ul>
-<li>בדיקות המטמון עוברות מול Redis, כולל ההתפרצות: ארבעים קריאות מקבילות טוענות מהמקור פעם אחת.</li>
+<li>בדיקות המטמון עוברות, וגם אלה שצריכות Redis רצות ולא מדלגות. בדיקת ההתפרצות: ארבעים קריאות מקבילות טוענות מהמקור פעם אחת.</li>
 <li>‏<code>TestChangesInvalidateTheSubscriptionCache</code> עוברת: שלושה שינויים, שלוש מחיקות, ואף מחיקה על קריאה או על כתיבה שנכשלה.</li>
 <li>‏<code>make sink-test</code> נקי, כולל הבדיקה הסטטית של הטיפוסים.</li>
 <li>‏<code>make up</code> מעלה את כל השירותים במצב בריא, ו־<code>curl localhost:8091/stats</code> מחזיר מונים באפס.</li>
@@ -1207,7 +1213,7 @@ ok      example.com/hookline/internal/subcache  3.270s
 <li><strong>מחיקה לפני השמירה.</strong> קורא שמגיע בין המחיקה ל־<code>COMMIT</code> מחזיר את הערך הישן למטמון, ושום דבר לא מוחק אותו שוב.</li>
 <li><strong>להחזיר שגיאה כשהמחיקה נכשלת.</strong> הלקוח ינסה שוב שינוי שכבר נשמר, ויקבל 409. השינוי נשמר; המחיקה רק מקצרת את ההמתנה.</li>
 <li><strong>שני workers ל־sink.</strong> כל תהליך סופר בנפרד, והמונים ב־<code>/stats</code> יחצו לשניים. ה־Dockerfile מריץ worker אחד.</li>
-<li><strong>להשכיח את <code>-count=1</code>.</strong> כמו באבן הדרך השנייה: Go לא יודע ש־Redis השתנה, ומחזיר תוצאה שמורה.</li>
+<li><strong>לשכוח את <code>-count=1</code>.</strong> כמו באבן הדרך השנייה: Go לא יודע ש־Redis השתנה, ומחזיר תוצאה שמורה.</li>
 </ul>
 <h3 id="3839">38.3.9 הרחבה</h3>
 <ul>
@@ -1312,7 +1318,7 @@ ok      example.com/hookline/internal/subcache  3.270s
 
 
 <pre><code class="language-go">        rows, err := tx.Query(ctx, `
-            SELECT o.id, e.id, e.tenant_id, e.type
+            SELECT o.id, e.id, e.tenant_id, e.type, COALESCE(e.trace_context, '')
             FROM outbox o JOIN events e ON e.id = o.event_id
             WHERE o.published_at IS NULL
             ORDER BY o.id
@@ -1323,7 +1329,8 @@ ok      example.com/hookline/internal/subcache  3.270s
 
 </div>
 
-<p>‏<code>FOR UPDATE OF o</code> נועל רק את שורות ה־outbox, ולא את האירועים. שאר <code>RunOnce</code> הוא הקוד של פרק 13 כמעט כמו שהוא:
+<p>העמודה החמישית, <code>trace_context</code>, מגיעה רק באבן הדרך השמינית (סעיף 38.8); עד אז היא תמיד ריקה. ‏<code>FOR UPDATE OF o</code>
+נועל רק את שורות ה־outbox, ולא את האירועים. שאר <code>RunOnce</code> הוא הקוד של פרק 13 כמעט כמו שהוא:
 פרסום, הנקודה <code>AfterPublish</code> שבה הבדיקות „הורגות” את ה־relay, ואז סימון באותה טרנזקציה. הלולאה <code>Run</code> מוסיפה
 דבר אחד: כשהפרסום נכשל, כי Redpanda למטה, היא מחכה זמן שמכפיל את עצמו, והקליטה ממשיכה לעבוד. האירועים מחכים
 ב־outbox. זו בדיוק השורה האחרונה בטבלת הכשלים בפרק 37, סעיף 37.6.</p>
@@ -1647,7 +1654,7 @@ go test -race ./internal/backoff/
 </div>
 
 <ul>
-<li><strong>היומן נשאר רציף.</strong> המספר בטבלת הניסיונות ממשיך לעלות, וכך גם הכותרת <code>Hookline-Attempt</code>. המקבלת רואה שזה ניסיון חוזר.</li>
+<li><strong>היומן נשאר רציף.</strong> המספר בטבלת הניסיונות ממשיך לעלות, וכך גם הכותרת <code>Hookline-Attempt</code>. המקבל רואה שזה ניסיון חוזר.</li>
 <li><strong>התנאי <code>status = 'dead'</code> בתוך הפקודה.</strong> שתי לחיצות במקביל מזיזות את המסירה פעם אחת. השנייה מקבלת 409, והבדיקה
   <code>TestConcurrentReplaysMoveTheDeliveryOnce</code> שולחת שמונה כאלה במקביל.</li>
 <li><strong>רק הפעלה של מסירה אחת.</strong> הפעלה המונית אחרי תקלה ארוכה, עם קצב ובקרה, היא ההרחבה שמסמך התכנון בפרק 29 מתאר.</li>
@@ -1737,7 +1744,7 @@ make worker       # terminal 4
 
 
 <pre><code class="language-text">$ curl -s localhost:8091/stats
-{&quot;received&quot;:5,&quot;unique&quot;:5,&quot;duplicates&quot;:0,&quot;rejected&quot;:0,&quot;failed&quot;:0,&quot;hooks&quot;:{&quot;smoke&quot;:{&quot;received&quot;:5,&quot;unique&quot;:5,&quot;duplicates&quot;:0,&quot;rejected&quot;:0,&quot;failed&quot;:0}}}
+{&quot;received&quot;:5,&quot;unique&quot;:5,&quot;duplicates&quot;:0,&quot;rejected&quot;:0,&quot;failed&quot;:0,&quot;hooks&quot;:{&quot;demo&quot;:{&quot;received&quot;:5,&quot;unique&quot;:5,&quot;duplicates&quot;:0,&quot;rejected&quot;:0,&quot;failed&quot;:0}}}
 </code></pre>
 
 
@@ -1782,7 +1789,7 @@ ok      example.com/hookline/internal/subcache  3.270s
 <h3 id="3857">38.5.7 קריטריון סיום</h3>
 <ul>
 <li>‏<code>TestPipelineEndToEnd</code> עוברת: כל אירוע מגיע חתום לכל מקבל מתאים, מסירה מתה מופעלת שוב ונמסרת.</li>
-<li>‏<code>TestSignMatchesSharedVectors</code> בגו ובדיקות החתימה ב־Python עוברות על אותו קובץ.</li>
+<li>‏<code>TestSignMatchesSharedVectors</code> ב־Go ובדיקות החתימה ב־Python עוברות על אותו קובץ.</li>
 <li>בדיקת החכירה עוברת: ‏worker שנתקע מאבד את המסירה, והתוצאה המאוחרת שלו נדחית.</li>
 <li>‏<code>TestPoolDrainsOnShutdown</code> עוברת: ביטול באמצע בקשה מחכה לה ורושם את התוצאה.</li>
 <li>כל המודול נקי ב־<code>make lint</code>, וכל הבדיקות ירוקות עם <code>-race</code> מול ה־compose.</li>
@@ -2027,7 +2034,7 @@ DATABASE_URL= go test -race -run 'RateLimited|OverItsLimit|OnlyIngest|FailsOpen|
 ארבעה דברים:</p>
 <ul>
 <li>מעלה את הסביבה ואת ארבעת הבינאריים;</li>
-<li>יוצר שני endpoints, אחד לכל מקבל, ומנה את שניהם לכל האירועים;</li>
+<li>יוצר שני endpoints, אחד לכל מקבל, ורושם את שניהם כמנויים לכל האירועים;</li>
 <li>מעביר את המקבל השני למצב <code>timeout_mode</code>, שבו כל בקשה נתקעת עד שה־worker מוותר;</li>
 <li>שולח 300 אירועים, ומדפיס את פיגור המסירה של המקבל הבריא, מהקליטה ועד המסירה.</li>
 </ul>
@@ -2790,12 +2797,9 @@ make check-telemetry
 <td>Grafana</td>
 <td>האם שני הלוחות נטענו?</td>
 </tr>
-<tr>
-<td>בכתובת <code>http://localhost:3000</code>, בתיקייה Hookline.</td>
-<td></td>
-</tr>
 </tbody>
 </table>
+<p>אחר כך פתחי את Grafana בכתובת <code>http://localhost:3000</code>, בתיקייה Hookline.</p>
 <p><strong>יום 79: הגרסה השבורה והתחקיר.</strong> הריצי את התקרית המבוימת:</p>
 <div dir="ltr" align="left">
 
@@ -2810,7 +2814,7 @@ make check-telemetry
 יחידה במקום <code>1s</code>. כל ניסיון נגמר בזמן קצוב. הקליטה נשארת ירוקה, וה־API עונה 202 לכל אירוע. הסקריפט מחכה ש־<code>DeliveryAttemptsFailing</code>
 תידלק, מחזיר את הגרסה הקודמת, ומדפיס ציר זמן ומספרים: כמה מסירות, כמה הגיעו מאוחר מ־30 שניות, ומה הפיגור המרבי.</p>
 <p>עם הפלט הזה, כתבי את התחקיר בקובץ <code>docs/postmortem-&lt;date&gt;.md</code>, לפי התבנית <code>docs/postmortem-TEMPLATE.md</code>. בקובץ
-שבמימוש המלא יש סעיף מסומן „Author's run”, עם הריצה של כותב הפרויקט, ומקומות ריקים לריצה שלך. המספרים שלך יהיו אחרים,
+שבמימוש המלא יש סעיף מסומן „Author's run”, עם ההרצה שבה נכתב הספר, ומקומות ריקים לריצה שלך. המספרים שלך יהיו אחרים,
 ורק הם נכנסים לתחקיר שלך.</p>
 <h3 id="3885">38.8.5 הבדיקות שצריכות להוריק</h3>
 <div dir="ltr" align="left">
@@ -2883,7 +2887,7 @@ deliveries=___ delivered=___ dead=___ late_over_30s=___ max_lag_s=___ attempts=_
   והמסלול נשבר לשניים.</li>
 <li><strong>‏SLI שרואה רק הצלחות.</strong> כשאף מסירה לא מגיעה, אין לו נתונים, ושום SLO לא נדלק. צריך גם אות על כשלים.</li>
 <li><strong>‏label עם מזהה של endpoint או דיירת.</strong> כל ערך הוא סדרה חדשה, ו־Prometheus נחנק.</li>
-<li><strong>לגבול של SLI שאינו גבול של דלי.</strong> אי אפשר לחשב „בתוך 200 מילישניות” מהיסטוגרמה שהגבולות שלה 0.1 ו־0.25.</li>
+<li><strong>לקבוע ל־SLI גבול שאינו גבול של דלי.</strong> אי אפשר לחשב „בתוך 200 מילישניות” מהיסטוגרמה שהגבולות שלה 0.1 ו־0.25.</li>
 <li><strong>להעתיק לתחקיר את מספרי הדוגמה.</strong> התחקיר מתעד את מה שקרה אצלך, עם השעות והמספרים שלך.</li>
 </ul>
 <h3 id="3889">38.8.9 הרחבה</h3>
@@ -3396,7 +3400,8 @@ make supply-chain
 <div dir="ltr" align="left">
 
 
-<pre><code class="language-bash">cp -r hookline/.github/. .github/ &amp;&amp; actionlint
+<pre><code class="language-bash">cp -r ~/senior-course/hookline/.github/. ~/senior-course/.github/
+cd ~/senior-course &amp;&amp; actionlint &amp;&amp; cd hookline
 </code></pre>
 
 
@@ -3974,7 +3979,7 @@ sink      curl -s localhost:8091/stats    curl -s -X POST localhost:8091/control
 retry     408 429 5xx timeout refused -&gt; retry      other 4xx 3xx -&gt; dead      replay: dead -&gt; pending
 m7        make images | make chart-check | KEEP=1 make kind-smoke | make tf-check | make kind-down
 kube      export KUBECONFIG=/tmp/hookline-kind.kubeconfig; kubectl -n hookline get pods
-ci        cp -r hookline/.github/. .github/ &amp;&amp; actionlint
+ci        cp -r ~/senior-course/hookline/.github/. ~/senior-course/.github/ &amp;&amp; (cd ~/senior-course &amp;&amp; actionlint)
 m8        make obs-up | make promtool | make check-telemetry | make stage-incident | make obs-down
 grafana   http://localhost:3000 (folder Hookline)   prometheus :9090   tempo :3200   loki :3100
 m9        make load-ingest | make load-two-tenants | make images &amp;&amp; make supply-chain   (RATE= NOISY_RATE= QUIET_RATE=)
@@ -3991,7 +3996,7 @@ skip      -skip drops later milestones' tests: Invalidat ActiveSubscriptions (M3
 
 <h2 id="_7">תרגיל</h2>
 <p><strong>מטרה:</strong> לבנות את Hookline אבן דרך אחר אבן דרך, מה־starter ועד הדגמה, כשכל אבן דרך נגמרת בבדיקות ירוקות ובקומיט.
-<strong>זמן:</strong> עשר אבני דרך לאורך הספר, לפי הסדר: ימים 22 ו־23, ימים 29 ו־30, ימים 33 ו־34, ימים 39 ו־40, ימים 43 ו־44, ימים 54 ו־55, ימים 68 עד 70, ימים 77 עד 79, ימים 85 ו־86, ימים 98 ו־99; כ־55 עד 90 דקות בנייה בכל יום.
+<strong>זמן:</strong> עשר אבני דרך לאורך הספר, לפי הסדר: ימים 22 ו־23, ימים 29 ו־30, ימים 33 ו־34, ימים 39 ו־40, ימים 43 ו־44, ימים 54 ו־55, ימים 68 עד 70, ימים 77 עד 79, ימים 85 ו־86, ימים 98 ו־99; כ־55 עד 95 דקות בנייה בכל יום.
 <strong>ידע מקדים:</strong> פרק 37, וכל סעיף כאן מפרט את הפרקים שאבן הדרך שלו נשענת עליהם.</p>
 <p>ההוראות של הפרויקט ורשימת אבני הדרך נמצאות ב־
 <a href="../exercises/project-hookline/README.md"><code>exercises/project-hookline/README.md</code></a>.</p>

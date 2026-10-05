@@ -11,19 +11,25 @@ lang: he
 endpoint מנוי, עם בידוד בין מקבלים, ניסיונות חוזרים, הרצה מחדש של כשלים, ותצפיתיות מלאה. בסוף יש לך פרויקט אחד,
 שלך, שאת יודעת להסביר בראיון שורה אחר שורה, עם מספרים שמדדת בעצמך.
 
-**זמן משוער:** עשר אבני דרך לאורך הספר, בימים 22 עד 99; כ־55 עד 90 דקות בנייה בכל יום של אבן דרך. הטבלה בצעד 2
+**זמן משוער:** עשר אבני דרך לאורך הספר, בימים 22 עד 99; כ־55 עד 95 דקות בנייה בכל יום של אבן דרך. הטבלה בצעד 2
 מפרטת את הימים של כל אחת.
 
-**ידע מקדים:** פרק 37 (המפרט), ופרק 38 לפי אבן הדרך. הפרויקט מעתיק ומתאים קוד מהתרגילים שלך: החבילה
-`internal/platform` מפרק 6 (`ch06-shorty`), החבילות של פרטי הבעיה, העימוד והאידמפוטנטיות מפרק 9
-(`ch09-catalog-api`), וחיבור המסד, המיגרציות והמסד הזמני לבדיקות מפרק 11 (`ch11-isolation-lab`). מאבן הדרך
-השלישית: המקבל מפרק 8 (`ch08-receiver`), המטמון מפרק 12 (`ch12-cache-aside`), ה־outbox והלקוחות של Kafka מפרק 13
-(`ch13-outbox`), וההמתנה, התור וה־workers מפרק 14 (`ch14-jobqueue`). מאבן הדרך השישית: המפסק והמחיצה מפרק 15
-(`ch15-resilience-lab`), הגבלת הקצב וההשלה מפרק 16 (`ch16-ratelimit`), ובחירת המנהיג מפרק 18 (`ch18-leader`).
-מאבן הדרך השביעית: ה־Dockerfiles מפרק 19, ‏kind מפרק 20, ה־chart מפרק 21, ‏Terraform מפרק 22 וה־CI מפרק 23.
-מאבן הדרך השמינית: הטלמטריה מפרק 24 (`ch24-telemetry`, כולל ה־sink עם OpenTelemetry), והכללים, התבניות וסקריפט
-התקרית מפרק 25 (`ch25-slo`). מאבן הדרך התשיעית: הסכמה, בדיקות התכונה ו־k6 מפרק 26 (`ch26-testing`), והגנת
-SSRF, הסתרת הסודות ומודל האיומים מפרק 28 (`ch28-security`). באבן הדרך העשירית: ההערכה, הכאוס וההדגמה של פרק 39.
+**ידע מקדים:** פרק 37 (המפרט), ופרק 38 לפי אבן הדרך. הפרויקט מעתיק ומתאים קוד מהתרגילים שלך:
+
+- אבני הדרך הראשונה והשנייה: החבילה `internal/platform` מפרק 6 (`ch06-shorty`), פרטי הבעיה, העימוד
+  והאידמפוטנטיות מפרק 9 (`ch09-catalog-api`), וחיבור המסד, המיגרציות והמסד הזמני לבדיקות מפרק 11
+  (`ch11-isolation-lab`).
+- אבני הדרך השלישית עד החמישית: המקבל מפרק 8 (`ch08-receiver`), המטמון מפרק 12 (`ch12-cache-aside`), ה־outbox
+  והלקוחות של Kafka מפרק 13 (`ch13-outbox`), וההמתנה, התור וה־workers מפרק 14 (`ch14-jobqueue`).
+- אבן הדרך השישית: המפסק והמחיצה מפרק 15 (`ch15-resilience-lab`), הגבלת הקצב וההשלה מפרק 16 (`ch16-ratelimit`),
+  ובחירת המנהיג מפרק 18 (`ch18-leader`).
+- אבן הדרך השביעית: ה־Dockerfiles מפרק 19, ‏kind מפרק 20, ה־chart מפרק 21, ‏Terraform מפרק 22 וה־CI מפרק 23.
+- אבן הדרך השמינית: הטלמטריה מפרק 24 (`ch24-telemetry`, כולל ה־sink עם OpenTelemetry), והכללים, התבניות וסקריפט
+  התקרית מפרק 25 (`ch25-slo`).
+- אבן הדרך התשיעית: הסכמה, בדיקות התכונה ו־k6 מפרק 26 (`ch26-testing`), והגנת SSRF, הסתרת הסודות ומודל האיומים
+  מפרק 28 (`ch28-security`).
+- אבן הדרך העשירית: ההערכה, הכאוס וההדגמה של פרק 39.
+
 הגרסאות של הספריות ושל המסד מקובעות ב־`go.mod` ובקובץ ה־compose, נכון לאוקטובר 2026 (נספח ג).
 
 ## מה בתיקייה הזאת
@@ -31,7 +37,7 @@ SSRF, הסתרת הסודות ומודל האיומים מפרק 28 (`ch28-secur
 | קובץ או תיקייה | תפקיד |
 | --- | --- |
 | `README.md` | הקובץ הזה: ההתקנה, הדרך, ורשימת אבני הדרך |
-| `hookline/` | המימוש המלא, מעודכן עד אבן הדרך האחרונה שפורסמה. לקרוא כשנתקעת |
+| `hookline/` | המימוש המלא של כל עשר אבני הדרך. לקרוא כשנתקעת |
 | `hookline-starter/` | העץ שאת מתחילה ממנו: אותו עץ, אותן בדיקות, עם `panic("TODO: see chapter 38")` בגופי הפונקציות שהן עבודה שלך |
 | `hookline-starter/STARTER.md` | הסבר קצר באנגלית על איך ה־starter נוצר |
 
@@ -50,7 +56,7 @@ SSRF, הסתרת הסודות ומודל האיומים מפרק 28 (`ch28-secur
 | `internal/store/memory` | המאגר בזיכרון | M1 |
 | `internal/api` | ה־handlers, האימות והקליטה; ‏`server.go` שלם | M1 |
 | `internal/admin` | יצירת דיירת | M1 |
-| `migrations/` | ארבע מיגרציות goose לכל מודל הנתונים, ועמודה אחת שנוספה באבן הדרך החמישית (שלמות) | M2, M5 |
+| `migrations/` | ארבע מיגרציות goose לכל מודל הנתונים, ושלוש תוספות של אבני דרך מאוחרות (שלמות) | M2, M5, M6, M8 |
 | `internal/db`, ‏`internal/testdb` | ה־pool, המיגרציות מתוך Go, ומסד זמני לבדיקות, מפרק 11 (שלמים) | M2 |
 | `internal/store/postgres` | המאגר ב־PostgreSQL | M2 |
 | `deploy/compose.yaml` | הסביבה בפרויקט compose בשם `hookline`: PostgreSQL, ‏Redis, ‏Redpanda, הקונסולה וה־sink | M2 עד M4 |
@@ -173,33 +179,24 @@ ok  	example.com/hookline/internal/admin	3.010s
 
 </div>
 
-אחרי אבן הדרך החמישית, כל המודול מול ה־compose (`go test -race -count=1 ./...`) מסתיים כך, והזמנים אצלך יהיו אחרים:
+אחרי אבן הדרך החמישית, שתי פקודות ה־`go test` של סעיף 38.5.5, מול ה־compose, מסתיימות כך, והזמנים אצלך יהיו אחרים:
 
 <div dir="ltr" align="left">
 
 ```text
-ok  	example.com/hookline/internal/admin	1.534s
-ok  	example.com/hookline/internal/api	2.040s
 ok  	example.com/hookline/internal/backoff	1.817s
-ok  	example.com/hookline/internal/bus	2.656s
-ok  	example.com/hookline/internal/cache	3.612s
-ok  	example.com/hookline/internal/config	2.497s
-ok  	example.com/hookline/internal/db	2.815s
 ok  	example.com/hookline/internal/delivery	4.267s
-ok  	example.com/hookline/internal/dispatch	4.349s
-ok  	example.com/hookline/internal/domain	3.762s
-ok  	example.com/hookline/internal/e2e	5.467s
-ok  	example.com/hookline/internal/outbox	4.776s
-ok  	example.com/hookline/internal/page	4.339s
-ok  	example.com/hookline/internal/platform	4.002s
-ok  	example.com/hookline/internal/problem	3.882s
+ok  	example.com/hookline/internal/api	2.040s
 ok  	example.com/hookline/internal/store	3.395s
 ok  	example.com/hookline/internal/store/memory	3.646s
 ok  	example.com/hookline/internal/store/postgres	4.074s
 ok  	example.com/hookline/internal/store/storetest	3.183s
+ok  	example.com/hookline/internal/e2e	5.467s
+ok  	example.com/hookline/internal/outbox	4.776s
+ok  	example.com/hookline/internal/dispatch	4.349s
+ok  	example.com/hookline/internal/bus	2.656s
+ok  	example.com/hookline/internal/cache	3.612s
 ok  	example.com/hookline/internal/subcache	3.270s
-ok  	example.com/hookline/internal/wire	3.076s
-ok  	example.com/hookline/migrations	3.585s
 ```
 
 </div>
@@ -209,7 +206,7 @@ ok  	example.com/hookline/migrations	3.585s
 <div dir="ltr" align="left">
 
 ```text
-{"received":5,"unique":5,"duplicates":0,"rejected":0,"failed":0,"hooks":{"smoke":{"received":5,"unique":5,"duplicates":0,"rejected":0,"failed":0}}}
+{"received":5,"unique":5,"duplicates":0,"rejected":0,"failed":0,"hooks":{"demo":{"received":5,"unique":5,"duplicates":0,"rejected":0,"failed":0}}}
 ```
 
 </div>
@@ -222,9 +219,10 @@ ok  	example.com/hookline/migrations	3.585s
 - [ ] ‏M1: החוזה עובר את redocly, ו־`TestSpecCoversEveryRoute` ירוקה.
 - [ ] ‏M2: המיגרציות עולות, יורדות עד 0 ועולות שוב.
 - [ ] ‏M2: הפקודה של סעיף 38.2.5 ירוקה מול המסד, ואף בדיקה שלה לא מדלגת.
+- [ ] ‏M2: ‏`make lint` נקי, כולל staticcheck.
 - [ ] ‏M3: בדיקות המטמון וההתפרצות עוברות מול Redis, ו־`make sink-test` נקי.
 - [ ] ‏M4: בדיקת נקודת הקריסה עוברת: כל אירוע מתפרסם פעמיים, ויש מסירה אחת לכל endpoint.
-- [ ] ‏M5: ‏`TestPipelineEndToEnd` ירוקה, ו־`go test -race -count=1 ./...` ירוק מול ה־compose.
+- [ ] ‏M5: ‏`TestPipelineEndToEnd` ירוקה, והפקודות של סעיף 38.5.5 ירוקות מול ה־compose.
 - [ ] ‏M6: המפסק, המחיצה, הגבלת הקצב וההשלה עוברים; שני relays, אחד מוביל.
 - [ ] ‏M6: ‏`make lab-n3` ו־`GUARDS=off make lab-n3` רצו, והמספרים שלך רשומים ב־`docs/EVALUATION.md`.
 - [ ] ‏M7: שלוש הבדיקות של סעיף 38.7.5 עוברות, ו־Terraform התקין והסיר את ה־release על kind.
@@ -234,7 +232,6 @@ ok  	example.com/hookline/migrations	3.585s
 - [ ] ‏M9: ‏`make supply-chain` רץ, ומודל האיומים כולל שורה משלך.
 - [ ] ‏M10: ‏`make chaos` מסתיים ב־„PASS: 0 missing”, ו־`docs/EVALUATION.md` מכסה את N1 עד N9 עם המספרים שלך.
 - [ ] ‏M10: ההדגמה תורגלה עם שעון, והמאגר פומבי עם CI ירוק (פרק 39, סעיף 39.6).
-- [ ] ‏M2: ‏`make lint` נקי, כולל staticcheck.
 - [ ] קומיט לכל אבן דרך שהסתיימה, ו־`make down` בסוף כל יום.
 
 ## טעויות נפוצות ותיקונים

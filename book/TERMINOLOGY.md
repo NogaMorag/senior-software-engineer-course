@@ -137,7 +137,7 @@ stay English and which are translated**, and the one rendering each translated c
 | prompt | הנחיה | book 1; chapter 32 |
 | spec | מפרט | chapter 32: what an agent or a person is asked to build, with its edges |
 
-Appendices are named with Hebrew letters in prose: נספח א … נספח ו (never נספח ג).
+Appendices are named with Hebrew letters in prose: נספח א … נספח ו (never the Latin letter, as in "נספח C").
 
 ## 4. Words to avoid
 

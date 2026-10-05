@@ -77,7 +77,7 @@ without one bad customer slowing everyone else, and with a way to see and replay
 | מזהה | דרישה | בדיקה | אבן דרך |
 | --- | --- | --- | --- |
 | F1 | דיירת רושמת endpoints עם סוד חתימה שנוצר אצלנו ומוצג פעם אחת; רק `https`, ו־`http` במצב פיתוח | בדיקות API: יצירה, רשימה עם cursor, השבתה | M1 |
-| F2 | דיירת מנה endpoint לסוג אירוע מדויק או לכל הסוגים (`*`) | בדיקת API | M1 |
+| F2 | דיירת רושמת endpoint כמנוי לסוג אירוע מדויק או לכל הסוגים (`*`) | בדיקת API | M1 |
 | F3 | קליטת אירוע עם `Idempotency-Key`: אותו מפתח ואותו גוף מחזירים את האירוע המקורי; גוף אחר מחזיר 422 | בדיקת אינטגרציה מול PostgreSQL | M2 |
 | F4 | כל אירוע נמסר לפחות פעם אחת לכל endpoint פעיל ומתאים, כבקשת POST עם ארבע כותרות קבועות | בדיקה מקצה לקצה מול ה־sink | M5 |
 | F5 | החתימה היא HMAC-SHA256 על חותמת הזמן והגוף; מקבל דוחה חתימה ישנה מחמש דקות | וקטורי בדיקה משותפים ל־Go ול־Python | M5 |
@@ -129,7 +129,7 @@ flowchart LR
   T[Tenant] -->|POST /v1/events| API
   API -->|tx: event + outbox| PG[(PostgreSQL)]
   API -->|rate limit| R[(Redis)]
-  Relay -->|poll outbox SKIP LOCKED| PG
+  Relay -->|poll outbox FOR UPDATE, leader only| PG
   Relay -->|publish key=tenant| K[[Redpanda topic hookline.events]]
   K --> Disp[Dispatcher]
   Disp -->|subscriptions cache| R
@@ -150,7 +150,7 @@ flowchart LR
 | dispatcher | `cmd/dispatcher` | צרכן ב־consumer group; מפזר כל אירוע לשורת מסירה לכל מנוי מתאים | M4 |
 | worker | `cmd/worker` | תופס מסירות שהגיע זמנן, שולח חתום, רושם ניסיון, מתזמן ניסיון חוזר | M5, M6 |
 | sink | `sink/` | המקבל המדומה מפרק 8: מאמת חתימות, מסנן כפילויות, סופר, ומתקלקל לפי פקודה | M3 |
-| hookline-admin | `cmd/hookline-admin` | כלי המפעילה: מיגרציות ויצירת דיירת | M1, M2 |
+| hookline-admin | `cmd/hookline-admin` | כלי המפעילה: מיגרציות, יצירת דיירת ויצירת ה־topic | M1, M2, M4 |
 
 והתשתית, כולה מקומית. הגרסאות המדויקות, נכון לאוקטובר 2026, נמצאות בנספח ג ובקובץ ה־compose של הפרויקט.
 
@@ -169,7 +169,7 @@ flowchart LR
 
 1. הדיירת שולחת `POST /v1/events` עם מפתח אידמפוטנטיות. ה־API בודק את המפתח, ובטרנזקציה אחת כותב את שורת
    האירוע ואת שורת ה־outbox שלו. רק אחרי ה־`COMMIT` הוא מחזיר 202.
-2. ה־relay הוא המופע היחיד שמחזיק advisory lock (נעילה ב־PostgreSQL על מספר שהיישום בוחר). הוא קורא שורות outbox שלא פורסמו, ומפרסם
+2. ה־relay הוא המופע היחיד שמחזיק advisory lock: נעילה של המסד על מספר שהיישום בוחר. הוא קורא שורות outbox שלא פורסמו, ומפרסם
    אותן ל־topic בשם `hookline.events` עם מפתח לפי דיירת. אחר כך הוא מסמן אותן כמפורסמות.
 3. ה־dispatcher צורך את ה־topic, מוצא את המנויים שמתאימים לסוג האירוע, ומכניס שורת מסירה לכל אחד. אילוץ ייחודיות
    על הזוג אירוע ו־endpoint הופך עיבוד חוזר של אותה הודעה לחסר נזק. רק אחר כך הוא מאשר את ה־offset.
@@ -184,13 +184,14 @@ flowchart LR
 ## 37.4 מודל נתונים
 
 שבע טבלאות ב־PostgreSQL, כולן במיגרציות בתיקייה `migrations/`. אבן הדרך השנייה יוצרת את כולן
-בבת אחת, גם את אלה שישמשו רק באבן הדרך החמישית, כדי שאף אבן דרך מאוחרת לא תצטרך לשכתב טבלה.
+בבת אחת, גם את אלה שישמשו רק באבן הדרך החמישית, כדי שאף אבן דרך מאוחרת לא תצטרך לשכתב טבלה. טבלה שמינית
+וקטנה, של בחירת המנהיג, מגיעה באבן הדרך השישית, והיא מופיעה בסוף הסעיף.
 
 | טבלה | עמודות מרכזיות | הכלל שהמסד אוכף |
 | --- | --- | --- |
 | `tenants` | מזהה, שם, גיבוב מפתח ה־API, קצב ופרץ | גיבוב ייחודי באורך 32 בתים |
 | `endpoints` | מזהה, דיירת, כתובת, סוד, פעיל, זמן יצירה | הזוג דיירת ומזהה ייחודי, כדי שמנויים יפנו אליו |
-| `subscriptions` | מזהה, דיירת, endpoint, סוג אירוע | מפתח זר מורכב לאותה דיירת; זוג endpoint וסוג ייחודי |
+| `subscriptions` | מזהה, דיירת, endpoint, סוג אירוע | מפתח זר מורכב לאותה דיירת; השלישייה דיירת, endpoint וסוג ייחודית |
 | `events` | מזהה (uuid), דיירת, סוג, גוף (jsonb), מפתח אידמפוטנטיות, גיבוב הגוף | הזוג דיירת ומפתח ייחודי |
 | `outbox` | מזהה רץ, אירוע, זמן יצירה, זמן פרסום | אינדקס חלקי על שורות שלא פורסמו |
 | `deliveries` | מזהה, דיירת, אירוע, endpoint, מצב, ניסיונות, מועד הניסיון הבא, חכירה | הזוג אירוע ו־endpoint ייחודי; ארבעה מצבים בלבד |
@@ -229,8 +230,15 @@ CREATE INDEX outbox_unpublished_idx ON outbox (id) WHERE published_at IS NULL;
 
 </div>
 
-אבן הדרך החמישית מוסיפה לטבלה `deliveries` עמודה אחת, `attempt_base`, במיגרציה `00005`. היא מאפשרת להפעיל שוב
-מסירה מתה בלי לאפס את מונה הניסיונות (פרק 38, סעיף 38.5). זה השינוי היחיד בסכמה אחרי אבן הדרך השנייה.
+אחרי אבן הדרך השנייה הסכמה משתנה רק שלוש פעמים, וכל שינוי הוא הוספה במיגרציה משלו:
+
+| מיגרציה | אבן דרך | מה היא מוסיפה, ולמה |
+| --- | --- | --- |
+| `00005` | M5 | העמודה `attempt_base` בטבלת המסירות: הפעלה חוזרת של מסירה מתה בלי לאפס את מונה הניסיונות (סעיף 38.5) |
+| `00006` | M6 | הטבלה `leader_terms`: הקדנציה של ה־relay המוביל, שמשמשת כ־fencing token (סעיף 38.6) |
+| `00007` | M8 | העמודה `trace_context` בטבלת האירועים: המעקב של הקליטה ממשיך בתהליכים הבאים (סעיף 38.8) |
+
+ה־starter מגיע עם כל שבע המיגרציות, ולכן המסד שלך יגיע לגרסה 7 כבר באבן הדרך השנייה.
 
 שלוש החלטות קטנות במודל שכדאי לדעת לנמק:
 
@@ -354,14 +362,16 @@ FAIL	example.com/hookline/internal/admin	0.944s
 --- FAIL: TestHealthNeedsNoKey (0.00s)
 panic: TODO: see chapter 38 [recovered, repanicked]
 FAIL	example.com/hookline/internal/api	0.870s
+...
 ok  	example.com/hookline/internal/config	2.675s
 ok  	example.com/hookline/internal/db	3.612s
 ok  	example.com/hookline/internal/domain	2.991s
+...
 ```
 
 </div>
 
-החבילות שעוברות כבר הן התשתית שקיבלת שלמה. החבילות שנכשלות הן המפה של העבודה: כל אבן דרך בפרק 38 אומרת אילו
+הפלט כאן מקוצר, והזמנים אצלך יהיו אחרים. החבילות שעוברות כבר הן התשתית שקיבלת שלמה. החבילות שנכשלות הן המפה של העבודה: כל אבן דרך בפרק 38 אומרת אילו
 מהן היא מוריקה, ובאיזו פקודה בודקים.
 
 ### 37.8.2 כללי העבודה
@@ -442,7 +452,8 @@ ok  	example.com/hookline/internal/domain	2.991s
 4. **איך מבטיחים שדיירת אחת לא רואה משאבים של אחרת?** שלוש שכבות. הדיירת נקבעת רק מהמפתח שבכותרת, ואף פרמטר
    בבקשה לא בוחר אותה. כל שאילתה מסננת לפי מזהה הדיירת, ומשאב של אחרת מחזיר את אותו 404 כמו מזהה לא קיים. ובמסד,
    מפתח זר מורכב מונע ממנוי להפנות ל־endpoint של דיירת אחרת. הבדיקות שולחות את המזהים של דיירת א' עם המפתח של
-   דיירת ב' לכל נתיב, ומצפות ל־404.
+   דיירת ב' לכל נתיב, ומצפות ל־404. המחיר קטן אבל קיים: כל אינדקס מתחיל במזהה הדיירת, והמפתח הזר המורכב צריך
+   אילוץ ייחודיות שנראה מיותר. בתמורה, באג אחד בקוד לא מספיק כדי לחשוף נתונים של דיירת אחרת.
 
 5. **למה גיבוב מהיר למפתחות API ולא argon2?** גיבוב איטי נועד להאט ניחוש של סיסמאות שבני אדם בוחרים, שיש להן
    מעט אנטרופיה. מפתח של 32 בתים אקראיים הוא 256 ביטים; אין מה לנחש. גיבוב מהיר מאפשר חיפוש לפי אינדקס בכל
@@ -470,7 +481,8 @@ build     go build ./... && go vet ./...
 tests     make test-unit            (red at first; green package by package)
 headers   Hookline-Event-Id  Hookline-Delivery-Id  Hookline-Attempt  Hookline-Signature
 signature t=<unix>,v1=<hex HMAC-SHA256(secret, "<t>.<raw body>")>   tolerance 5 min
-tables    tenants endpoints subscriptions events outbox deliveries attempts
+tables    tenants endpoints subscriptions events outbox deliveries attempts   (+ leader_terms, M6)
+later     00005 attempt_base (M5)   00006 leader_terms (M6)   00007 events.trace_context (M8)
 unique    events(tenant_id, idempotency_key)   deliveries(event_id, endpoint_id)
 statuses  pending -> in_flight -> delivered | dead     replay: dead -> pending
 binaries  cmd/api  cmd/relay  cmd/dispatcher  cmd/worker  cmd/hookline-admin   sink/ (Python)

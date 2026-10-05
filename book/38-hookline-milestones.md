@@ -326,6 +326,7 @@ ok  	example.com/hookline/internal/admin	3.010s
 | --- | --- | --- |
 | `deploy/compose.yaml` | שלם | להריץ; PostgreSQL 18 בפרויקט `hookline`, בפורט 5438 |
 | `migrations/00001_tenants.sql` עד `00004_deliveries_attempts.sql` | שלמים | לקרוא כל אחד, ולהריץ עלייה וירידה |
+| `migrations/00005` עד `00007` | שלמים | של אבני דרך מאוחרות (פרק 37, סעיף 37.4); רצות כבר עכשיו, ונקראות בסעיפים שלהן |
 | `internal/db/db.go`, ‏`internal/testdb/testdb.go` | שלמים | מפרק 11, עם שם המודול של הפרויקט |
 | `internal/store/postgres/postgres.go` | גופים ריקים | כל המתודות |
 | `internal/api/store_test.go` | שלם | לקרוא: הוא בוחר את המאגר לפי `DATABASE_URL` |
@@ -353,14 +354,15 @@ go run ./cmd/hookline-admin migrate up
 <div dir="ltr" align="left">
 
 ```text
-schema version: 4
+schema version: 7
 schema version: 0
-schema version: 4
+schema version: 7
 ```
 
 </div>
 
-עכשיו קראי את ארבע המיגרציות, ומלאי לעצמך טבלה: אילוץ, והבאג שהוא מונע. שלושה שכדאי במיוחד להבין:
+הגרסה היא 7 ולא 4, כי ה־starter כולל גם את שלוש המיגרציות של אבני הדרך המאוחרות. עכשיו קראי את ארבע הראשונות,
+ומלאי לעצמך טבלה: אילוץ, והבאג שהוא מונע. ארבעה שכדאי במיוחד להבין:
 
 - **הייחודיות של הזוג `(tenant_id, id)` בטבלת ה־endpoints.** היא נראית מיותרת, כי המזהה כבר מפתח ראשי. הוא קיים כדי שהמנויים יוכלו
   להפנות לזוג, וכך המסד דוחה מנוי של דיירת אחת ל־endpoint של אחרת.
@@ -664,7 +666,7 @@ func (c *Cache) Endpoints(ctx context.Context, tenantID, eventType string) ([]st
 <div dir="ltr" align="left">
 
 ```bash
-DATABASE_URL= REDIS_ADDR= go test -race -run 'TestConformance/ActiveSubscriptions' ./internal/store/memory/
+DATABASE_URL= REDIS_ADDR= go test -race -run 'TestActiveSubscriptions' ./internal/store/memory/
 DATABASE_URL= REDIS_ADDR= go test -race ./internal/subcache/
 ```
 
@@ -729,7 +731,7 @@ curl -s localhost:8091/stats
 | הקונסולה של Redpanda | 8098 |
 | ה־sink | 8091 |
 
- ‏Redpanda נכנס כבר עכשיו כדי שה־compose לא ישתנה באבן הדרך הבאה. שתי החלטות בקובץ:
+‏Redpanda נכנס כבר עכשיו כדי שה־compose לא ישתנה באבן הדרך הבאה. שתי החלטות בקובץ:
 
 - **ה־sink מקבל סוד אחד לכל ה־hooks** (`RECEIVER_DEFAULT_SECRET`). בבדיקות, כל endpoint מקבל את הסוד הזה, כדי
   שה־sink יוכל לאמת. מקבל אמיתי מחזיק סוד לכל endpoint.
@@ -760,14 +762,14 @@ ok  	example.com/hookline/internal/store/postgres	4.074s
 ok  	example.com/hookline/internal/store/storetest	3.183s
 ok  	example.com/hookline/internal/subcache	3.270s
 ...
-62 passed in 1.63s
+___ passed in ___s
 ```
 
 </div>
 
 ### 38.3.7 קריטריון סיום
 
-- בדיקות המטמון עוברות מול Redis, כולל ההתפרצות: ארבעים קריאות מקבילות טוענות מהמקור פעם אחת.
+- בדיקות המטמון עוברות, וגם אלה שצריכות Redis רצות ולא מדלגות. בדיקת ההתפרצות: ארבעים קריאות מקבילות טוענות מהמקור פעם אחת.
 - ‏`TestChangesInvalidateTheSubscriptionCache` עוברת: שלושה שינויים, שלוש מחיקות, ואף מחיקה על קריאה או על כתיבה שנכשלה.
 - ‏`make sink-test` נקי, כולל הבדיקה הסטטית של הטיפוסים.
 - ‏`make up` מעלה את כל השירותים במצב בריא, ו־`curl localhost:8091/stats` מחזיר מונים באפס.
@@ -779,7 +781,7 @@ ok  	example.com/hookline/internal/subcache	3.270s
 - **מחיקה לפני השמירה.** קורא שמגיע בין המחיקה ל־`COMMIT` מחזיר את הערך הישן למטמון, ושום דבר לא מוחק אותו שוב.
 - **להחזיר שגיאה כשהמחיקה נכשלת.** הלקוח ינסה שוב שינוי שכבר נשמר, ויקבל 409. השינוי נשמר; המחיקה רק מקצרת את ההמתנה.
 - **שני workers ל־sink.** כל תהליך סופר בנפרד, והמונים ב־`/stats` יחצו לשניים. ה־Dockerfile מריץ worker אחד.
-- **להשכיח את `-count=1`.** כמו באבן הדרך השנייה: Go לא יודע ש־Redis השתנה, ומחזיר תוצאה שמורה.
+- **לשכוח את `-count=1`.** כמו באבן הדרך השנייה: Go לא יודע ש־Redis השתנה, ומחזיר תוצאה שמורה.
 
 ### 38.3.9 הרחבה
 
@@ -827,7 +829,7 @@ ok  	example.com/hookline/internal/subcache	3.270s
 
 ```go
 		rows, err := tx.Query(ctx, `
-			SELECT o.id, e.id, e.tenant_id, e.type
+			SELECT o.id, e.id, e.tenant_id, e.type, COALESCE(e.trace_context, '')
 			FROM outbox o JOIN events e ON e.id = o.event_id
 			WHERE o.published_at IS NULL
 			ORDER BY o.id
@@ -837,7 +839,8 @@ ok  	example.com/hookline/internal/subcache	3.270s
 
 </div>
 
-‏`FOR UPDATE OF o` נועל רק את שורות ה־outbox, ולא את האירועים. שאר `RunOnce` הוא הקוד של פרק 13 כמעט כמו שהוא:
+העמודה החמישית, `trace_context`, מגיעה רק באבן הדרך השמינית (סעיף 38.8); עד אז היא תמיד ריקה. ‏`FOR UPDATE OF o`
+נועל רק את שורות ה־outbox, ולא את האירועים. שאר `RunOnce` הוא הקוד של פרק 13 כמעט כמו שהוא:
 פרסום, הנקודה `AfterPublish` שבה הבדיקות „הורגות” את ה־relay, ואז סימון באותה טרנזקציה. הלולאה `Run` מוסיפה
 דבר אחד: כשהפרסום נכשל, כי Redpanda למטה, היא מחכה זמן שמכפיל את עצמו, והקליטה ממשיכה לעבוד. האירועים מחכים
 ב־outbox. זו בדיוק השורה האחרונה בטבלת הכשלים בפרק 37, סעיף 37.6.
@@ -1073,7 +1076,7 @@ go test -race -count=1 -run 'TestClaim|TestRetry|TestPermanent|TestExpiredLease|
 
 </div>
 
-- **היומן נשאר רציף.** המספר בטבלת הניסיונות ממשיך לעלות, וכך גם הכותרת `Hookline-Attempt`. המקבלת רואה שזה ניסיון חוזר.
+- **היומן נשאר רציף.** המספר בטבלת הניסיונות ממשיך לעלות, וכך גם הכותרת `Hookline-Attempt`. המקבל רואה שזה ניסיון חוזר.
 - **התנאי `status = 'dead'` בתוך הפקודה.** שתי לחיצות במקביל מזיזות את המסירה פעם אחת. השנייה מקבלת 409, והבדיקה
   `TestConcurrentReplaysMoveTheDeliveryOnce` שולחת שמונה כאלה במקביל.
 - **רק הפעלה של מסירה אחת.** הפעלה המונית אחרי תקלה ארוכה, עם קצב ובקרה, היא ההרחבה שמסמך התכנון בפרק 29 מתאר.
@@ -1145,7 +1148,7 @@ docker compose -p hookline -f deploy/compose.yaml exec postgres psql -U hookline
 
 ```text
 $ curl -s localhost:8091/stats
-{"received":5,"unique":5,"duplicates":0,"rejected":0,"failed":0,"hooks":{"smoke":{"received":5,"unique":5,"duplicates":0,"rejected":0,"failed":0}}}
+{"received":5,"unique":5,"duplicates":0,"rejected":0,"failed":0,"hooks":{"demo":{"received":5,"unique":5,"duplicates":0,"rejected":0,"failed":0}}}
 ```
 
 </div>
@@ -1189,7 +1192,7 @@ ok  	example.com/hookline/internal/subcache	3.270s
 ### 38.5.7 קריטריון סיום
 
 - ‏`TestPipelineEndToEnd` עוברת: כל אירוע מגיע חתום לכל מקבל מתאים, מסירה מתה מופעלת שוב ונמסרת.
-- ‏`TestSignMatchesSharedVectors` בגו ובדיקות החתימה ב־Python עוברות על אותו קובץ.
+- ‏`TestSignMatchesSharedVectors` ב־Go ובדיקות החתימה ב־Python עוברות על אותו קובץ.
 - בדיקת החכירה עוברת: ‏worker שנתקע מאבד את המסירה, והתוצאה המאוחרת שלו נדחית.
 - ‏`TestPoolDrainsOnShutdown` עוברת: ביטול באמצע בקשה מחכה לה ורושם את התוצאה.
 - כל המודול נקי ב־`make lint`, וכל הבדיקות ירוקות עם `-race` מול ה־compose.
@@ -1369,7 +1372,7 @@ go test -race -count=1 ./internal/leader/ ./internal/outbox/
 ארבעה דברים:
 
 - מעלה את הסביבה ואת ארבעת הבינאריים;
-- יוצר שני endpoints, אחד לכל מקבל, ומנה את שניהם לכל האירועים;
+- יוצר שני endpoints, אחד לכל מקבל, ורושם את שניהם כמנויים לכל האירועים;
 - מעביר את המקבל השני למצב `timeout_mode`, שבו כל בקשה נתקעת עד שה־worker מוותר;
 - שולח 300 אירועים, ומדפיס את פיגור המסירה של המקבל הבריא, מהקליטה ועד המסירה.
 
@@ -1875,8 +1878,9 @@ make check-telemetry
 | Tempo | האם המעקב עובר דרך כל הקפיצות? |
 | Prometheus | האם כל הסדרות של הטבלה קיימות, וגם כללי ה־SLO? |
 | Loki | האם יש שורות לוג עם מזהה המעקב? |
-| Grafana | האם שני הלוחות נטענו? | פתחי אחר כך את Grafana
-בכתובת `http://localhost:3000`, בתיקייה Hookline.
+| Grafana | האם שני הלוחות נטענו? |
+
+אחר כך פתחי את Grafana בכתובת `http://localhost:3000`, בתיקייה Hookline.
 
 **יום 79: הגרסה השבורה והתחקיר.** הריצי את התקרית המבוימת:
 
@@ -1893,7 +1897,7 @@ make stage-incident
 תידלק, מחזיר את הגרסה הקודמת, ומדפיס ציר זמן ומספרים: כמה מסירות, כמה הגיעו מאוחר מ־30 שניות, ומה הפיגור המרבי.
 
 עם הפלט הזה, כתבי את התחקיר בקובץ `docs/postmortem-<date>.md`, לפי התבנית `docs/postmortem-TEMPLATE.md`. בקובץ
-שבמימוש המלא יש סעיף מסומן „Author's run”, עם הריצה של כותב הפרויקט, ומקומות ריקים לריצה שלך. המספרים שלך יהיו אחרים,
+שבמימוש המלא יש סעיף מסומן „Author's run”, עם ההרצה שבה נכתב הספר, ומקומות ריקים לריצה שלך. המספרים שלך יהיו אחרים,
 ורק הם נכנסים לתחקיר שלך.
 
 ### 38.8.5 הבדיקות שצריכות להוריק
@@ -1967,7 +1971,7 @@ deliveries=___ delivered=___ dead=___ late_over_30s=___ max_lag_s=___ attempts=_
   והמסלול נשבר לשניים.
 - **‏SLI שרואה רק הצלחות.** כשאף מסירה לא מגיעה, אין לו נתונים, ושום SLO לא נדלק. צריך גם אות על כשלים.
 - **‏label עם מזהה של endpoint או דיירת.** כל ערך הוא סדרה חדשה, ו־Prometheus נחנק.
-- **לגבול של SLI שאינו גבול של דלי.** אי אפשר לחשב „בתוך 200 מילישניות” מהיסטוגרמה שהגבולות שלה 0.1 ו־0.25.
+- **לקבוע ל־SLI גבול שאינו גבול של דלי.** אי אפשר לחשב „בתוך 200 מילישניות” מהיסטוגרמה שהגבולות שלה 0.1 ו־0.25.
 - **להעתיק לתחקיר את מספרי הדוגמה.** התחקיר מתעד את מה שקרה אצלך, עם השעות והמספרים שלך.
 
 ### 38.8.9 הרחבה
@@ -2278,7 +2282,8 @@ make supply-chain
 <div dir="ltr" align="left">
 
 ```bash
-cp -r hookline/.github/. .github/ && actionlint
+cp -r ~/senior-course/hookline/.github/. ~/senior-course/.github/
+cd ~/senior-course && actionlint && cd hookline
 ```
 
 </div>
@@ -2695,7 +2700,7 @@ sink      curl -s localhost:8091/stats    curl -s -X POST localhost:8091/control
 retry     408 429 5xx timeout refused -> retry      other 4xx 3xx -> dead      replay: dead -> pending
 m7        make images | make chart-check | KEEP=1 make kind-smoke | make tf-check | make kind-down
 kube      export KUBECONFIG=/tmp/hookline-kind.kubeconfig; kubectl -n hookline get pods
-ci        cp -r hookline/.github/. .github/ && actionlint
+ci        cp -r ~/senior-course/hookline/.github/. ~/senior-course/.github/ && (cd ~/senior-course && actionlint)
 m8        make obs-up | make promtool | make check-telemetry | make stage-incident | make obs-down
 grafana   http://localhost:3000 (folder Hookline)   prometheus :9090   tempo :3200   loki :3100
 m9        make load-ingest | make load-two-tenants | make images && make supply-chain   (RATE= NOISY_RATE= QUIET_RATE=)
@@ -2712,7 +2717,7 @@ skip      -skip drops later milestones' tests: Invalidat ActiveSubscriptions (M3
 ## תרגיל
 
 **מטרה:** לבנות את Hookline אבן דרך אחר אבן דרך, מה־starter ועד הדגמה, כשכל אבן דרך נגמרת בבדיקות ירוקות ובקומיט.
-**זמן:** עשר אבני דרך לאורך הספר, לפי הסדר: ימים 22 ו־23, ימים 29 ו־30, ימים 33 ו־34, ימים 39 ו־40, ימים 43 ו־44, ימים 54 ו־55, ימים 68 עד 70, ימים 77 עד 79, ימים 85 ו־86, ימים 98 ו־99; כ־55 עד 90 דקות בנייה בכל יום.
+**זמן:** עשר אבני דרך לאורך הספר, לפי הסדר: ימים 22 ו־23, ימים 29 ו־30, ימים 33 ו־34, ימים 39 ו־40, ימים 43 ו־44, ימים 54 ו־55, ימים 68 עד 70, ימים 77 עד 79, ימים 85 ו־86, ימים 98 ו־99; כ־55 עד 95 דקות בנייה בכל יום.
 **ידע מקדים:** פרק 37, וכל סעיף כאן מפרט את הפרקים שאבן הדרך שלו נשענת עליהם.
 
 ההוראות של הפרויקט ורשימת אבני הדרך נמצאות ב־

@@ -31,7 +31,7 @@ sink      curl -s localhost:8091/stats    curl -s -X POST localhost:8091/control
 retry     408 429 5xx timeout refused -> retry      other 4xx 3xx -> dead      replay: dead -> pending
 m7        make images | make chart-check | KEEP=1 make kind-smoke | make tf-check | make kind-down
 kube      export KUBECONFIG=/tmp/hookline-kind.kubeconfig; kubectl -n hookline get pods
-ci        cp -r hookline/.github/. .github/ && actionlint
+ci        cp -r ~/senior-course/hookline/.github/. ~/senior-course/.github/ && (cd ~/senior-course && actionlint)
 m8        make obs-up | make promtool | make check-telemetry | make stage-incident | make obs-down
 grafana   http://localhost:3000 (folder Hookline)   prometheus :9090   tempo :3200   loki :3100
 m9        make load-ingest | make load-two-tenants | make images && make supply-chain   (RATE= NOISY_RATE= QUIET_RATE=)

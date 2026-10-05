@@ -23,7 +23,8 @@ build     go build ./... && go vet ./...
 tests     make test-unit            (red at first; green package by package)
 headers   Hookline-Event-Id  Hookline-Delivery-Id  Hookline-Attempt  Hookline-Signature
 signature t=<unix>,v1=<hex HMAC-SHA256(secret, "<t>.<raw body>")>   tolerance 5 min
-tables    tenants endpoints subscriptions events outbox deliveries attempts
+tables    tenants endpoints subscriptions events outbox deliveries attempts   (+ leader_terms, M6)
+later     00005 attempt_base (M5)   00006 leader_terms (M6)   00007 events.trace_context (M8)
 unique    events(tenant_id, idempotency_key)   deliveries(event_id, endpoint_id)
 statuses  pending -> in_flight -> delivered | dead     replay: dead -> pending
 binaries  cmd/api  cmd/relay  cmd/dispatcher  cmd/worker  cmd/hookline-admin   sink/ (Python)

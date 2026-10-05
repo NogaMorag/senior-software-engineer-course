@@ -5,6 +5,12 @@ file are **targets to be measured by the reader**, never results; the reference 
 measure them (k6 thresholds, Prometheus histograms, sink counters), and `docs/EVALUATION.md` in the project has
 placeholders, not numbers.
 
+Revised 2026-10-05 (Stage 3 review) to match the implementation's documented, intentional deviations (chapters
+37–39): metrics are pushed over OTLP to the collector (no `/metrics` endpoints); the alerting latency SLI uses the
+250 ms histogram bucket; three later migrations (00005–00007); the relay reads the outbox `FOR UPDATE` as the single
+leader with a fencing term; the dispatcher's consumer session is 10 s; one image for all Go binaries; integration
+tests run against the compose stack, not testcontainers.
+
 ## 1. User story
 "I run a SaaS product. My customers want to be notified when things happen in their accounts (an invoice is paid, a
 shipment moves). I want to send each event once from my code and know that every subscribed customer endpoint will
@@ -30,15 +36,15 @@ endpoint that gets webhooks), the **operator** (runs Hookline, watches dashboard
 ## 3. Non-functional requirements (targets, each with its check)
 | ID | Target | How it is checked |
 | --- | --- | --- |
-| N1 | Ingest SLO: 99% of `POST /v1/events` return 2xx in under 200 ms at the `loadtest/ingest.js` profile on the reader's laptop | k6 thresholds; `http_server_request_duration_seconds` |
-| N2 | Delivery SLO: 99% of deliveries to healthy endpoints arrive within 30 s of ingest | `hookline_delivery_lag_seconds` histogram; burn-rate alerts |
+| N1 | Ingest SLO: 99% of `POST /v1/events` return 2xx in under 200 ms at the `loadtest/ingest.js` profile on the reader's laptop | k6 thresholds (`make load-ingest`). The alerting SLO on `http_server_request_duration_seconds` is 99% within 250 ms, because otelhttp's nearest bucket boundary is 0.25 s and a histogram answers only at a boundary (`deploy/observability/rules/slo-objectives.yml`) |
+| N2 | Delivery SLO: 99% of deliveries to healthy endpoints arrive within 30 s of ingest | `hookline_delivery_lag_seconds` histogram (30 is a bucket boundary); burn-rate alerts; the lag column of `scripts/verify-delivery.sh`, which also sees deliveries that never arrived |
 | N3 | Isolation: a receiver that times out on every request does not raise delivery lag for healthy receivers above N2 | Chaos test: one sink in `timeout` mode, others healthy |
 | N4 | No loss on crash: killing the relay, a dispatcher or a worker at any moment loses no delivery | Chaos test: kill pods during load, compare sink unique counts to the expected set |
 | N5 | Fairness: one tenant above its rate limit receives 429 with `Retry-After`; other tenants are unaffected | Integration test + k6 two-tenant scenario |
 | N6 | Overload: when the in-flight request limit is reached, ingest sheds with 503 and `Retry-After` instead of queueing without bound | Load test above capacity |
 | N7 | Security: API keys stored hashed; signing secrets never logged; endpoint URLs resolving to private, loopback or link-local addresses are rejected (outside dev mode) | Unit tests on the SSRF guard; log scan test |
-| N8 | Operability: every request and delivery carries a trace; RED dashboards for API and workers; runbooks for every alert | Manual check in Grafana (M8 completion criterion) |
-| N9 | Cost: runs on one laptop (kind, single-node Redpanda, one PostgreSQL) | Recorded resource usage in `docs/EVALUATION.md` |
+| N8 | Operability: every request and delivery carries a trace; RED dashboards for API and workers; runbooks for every alert | `make check-telemetry` (Tempo, Prometheus, Loki, Grafana) and `make promtool` (rule tests, a runbook file per `runbook_url`); a look in Grafana (M8 completion criterion) |
+| N9 | Cost: runs on one laptop (kind, single-node Redpanda, one PostgreSQL) | Recorded resource usage in `docs/EVALUATION.md` (`scripts/chaos.sh` samples `docker stats` mid-run) |
 
 ## 4. Architecture
 ```mermaid
@@ -46,7 +52,7 @@ flowchart LR
   T[Tenant] -->|POST /v1/events| API
   API -->|tx: event + outbox| PG[(PostgreSQL)]
   API -->|rate limit| R[(Redis)]
-  Relay -->|poll outbox SKIP LOCKED| PG
+  Relay -->|poll outbox FOR UPDATE, leader only| PG
   Relay -->|publish key=tenant| K[[Redpanda topic hookline.events]]
   K --> Disp[Dispatcher]
   Disp -->|subscriptions cache| R
@@ -59,17 +65,25 @@ flowchart LR
 Components (one Go module, four binaries, one Python service):
 - **api** (`cmd/api`): HTTP API, authentication, per-tenant rate limit, load shedding, idempotent ingest
   (event row and outbox row in one transaction).
-- **relay** (`cmd/relay`): one active instance (PostgreSQL session advisory lock); publishes outbox rows to Redpanda in
-  order and marks them published. Crash between publish and mark means a duplicate publish, never a loss.
+- **relay** (`cmd/relay`): one active instance (PostgreSQL session advisory lock, `internal/leader`); reads unpublished
+  outbox rows `FOR UPDATE OF o`, publishes them to Redpanda in order and marks them published. The leader's term
+  (table `leader_terms`, migration 00006) is a fencing token: the mark only succeeds while the term is current, so a
+  relay that lost leadership without noticing cannot mark rows. Crash between publish and mark means a duplicate
+  publish, never a loss.
 - **dispatcher** (`cmd/dispatcher`): consumer group on `hookline.events`; fans each event out into one `deliveries` row
   per matching subscription (unique `(event_id, endpoint_id)` makes reprocessing harmless); commits offsets after the
-  insert.
+  insert. The consumer session is 10 s with a 1 s heartbeat (`internal/bus`), not franz-go's 45 s default: the M10
+  chaos run showed SIGKILLed dispatchers stalling fan-out by over a minute with the default.
 - **worker** (`cmd/worker`): claims due deliveries with `FOR UPDATE SKIP LOCKED` and a lease, sends them through a
   per-endpoint circuit breaker and bulkhead, records the attempt, schedules the retry (`next_attempt_at`) or marks
   `delivered` or `dead`.
 - **sink** (`sink/`, Python FastAPI): the receiver simulator from chapter 8. Verifies signatures, dedupes, counts, and
   misbehaves on command (`POST /control`: failure rate, latency, status code, timeout mode).
 - Infrastructure: PostgreSQL 18, Redpanda, Redis 8, the OpenTelemetry Collector, Prometheus, Grafana, Loki, Tempo.
+- Telemetry: every binary pushes traces, metrics and logs over OTLP to the collector, which forwards metrics to
+  Prometheus; there is no `/metrics` scrape endpoint. The trace context of an ingest request is stored in
+  `events.trace_context` (migration 00007) so the relay, dispatcher and worker continue the same trace. The relay,
+  dispatcher and worker each serve a small `/healthz` listener for the chart's probes.
 
 ## 5. Data model (PostgreSQL, goose migrations in `migrations/`)
 | Table | Key columns | Notes |
@@ -77,10 +91,13 @@ Components (one Go module, four binaries, one Python service):
 | `tenants` | `id`, `name`, `api_key_hash` (unique), `rate_per_sec`, `burst` | key shown once at creation (`hookline-admin`) |
 | `endpoints` | `id`, `tenant_id`, `url`, `secret`, `enabled`, `created_at` | secret encrypted at rest is an extension, not M-scope |
 | `subscriptions` | `id`, `tenant_id`, `endpoint_id`, `event_type`, `created_at` | unique `(tenant_id, endpoint_id, event_type)` and a composite FK to `endpoints (tenant_id, id)`: with `(endpoint_id, event_type)` alone, tenant B probing A's endpoint got 409 instead of 404 (the unique check runs before the FK), leaking existence (found in M2, 2026-10-05) |
-| `events` | `id` (uuid), `tenant_id`, `type`, `payload` (jsonb), `idempotency_key`, `body_hash`, `created_at` | unique `(tenant_id, idempotency_key)` |
-| `outbox` | `id` (bigserial), `event_id`, `created_at`, `published_at` | partial index on unpublished rows |
-| `deliveries` | `id`, `event_id`, `endpoint_id`, `status` (`pending`, `in_flight`, `delivered`, `dead`), `attempts`, `next_attempt_at`, `lease_until`, `last_error`, `delivered_at`, `tenant_id` | unique `(event_id, endpoint_id)`; partial indexes on due rows and on dead rows per tenant |
-| `attempts` | `id`, `delivery_id`, `n`, `started_at`, `duration_ms`, `status_code`, `error` | append-only |
+| `events` | `id` (uuid), `tenant_id`, `type`, `payload` (jsonb), `idempotency_key`, `body_hash`, `created_at`, `trace_context` (M8, 00007) | unique `(tenant_id, idempotency_key)` |
+| `outbox` | `id` (bigint identity), `event_id`, `created_at`, `published_at` | partial index on unpublished rows |
+| `deliveries` | `id`, `event_id`, `endpoint_id`, `status` (`pending`, `in_flight`, `delivered`, `dead`), `attempts`, `next_attempt_at`, `lease_until`, `last_error`, `delivered_at`, `created_at`, `tenant_id`, `attempt_base` (M5, 00005) | unique `(event_id, endpoint_id)`; partial indexes on due rows, on leased rows and on dead rows per tenant; `attempt_base <= attempts` (a replay keeps the attempt numbering and starts a new round) |
+| `attempts` | `id`, `delivery_id`, `n`, `started_at`, `duration_ms`, `status_code`, `error` | append-only; unique `(delivery_id, n)` |
+| `leader_terms` | `lock_key`, `term` | M6, 00006: the relay leader's term, used as a fencing token |
+
+Migrations 00001–00004 create the first seven tables at M2; 00005 (M5), 00006 (M6) and 00007 (M8) are additive.
 
 ## 6. Decisions (with the simpler alternative and what would change the decision)
 | Decision | Simpler alternative | Why not the alternative here | What would change my mind |
@@ -109,7 +126,8 @@ Components (one Go module, four binaries, one Python service):
 | Redpanda down | Events wait in the outbox | Relay retries with backoff; ingest keeps working; outbox age alert | Test with broker stopped |
 
 ## 8. How success is measured
-- Functional: `go test ./...` (unit + integration with testcontainers) and the Python sink tests are green in CI.
+- Functional: `go test ./...` (unit + integration against the compose stack's PostgreSQL, Redis and Redpanda; no
+  testcontainers, so CI and the laptop run one environment) and the Python sink tests are green in CI.
 - Guarantees: `scripts/verify-delivery.sh` compares the expected `(event, endpoint)` set with the sink's unique
   receipts after a chaos run; the result must be "0 missing" (duplicates are allowed and counted).
 - SLOs: k6 thresholds pass for N1; the delivery lag histogram meets N2 over the run; both recorded with the date and
@@ -121,14 +139,14 @@ Components (one Go module, four binaries, one Python service):
 | --- | --- | --- | --- | --- | --- |
 | M1 | API skeleton | ch 6, 9 | `internal/platform`, `internal/api`, `internal/domain`, `api/openapi.yaml`, memory store | API tests green for endpoints, subscriptions, events (memory) | 22–23 |
 | M2 | PostgreSQL and idempotent ingest | ch 10, 11 | `migrations/`, `internal/store`, `internal/api/ingest.go` | Ingest idempotency tests green against PostgreSQL | 29–30 |
-| M3 | Cache and the receiver simulator | ch 8, 12 | `internal/cache`, `sink/`, `deploy/compose.yaml` | Cache tests incl. stampede; sink tests; compose up | 33–34 |
-| M4 | Outbox and Redpanda | ch 13 | `internal/outbox`, `internal/dispatch`, `cmd/relay`, `cmd/dispatcher` | Crash-point tests; event reaches `deliveries` | 39–40 |
-| M5 | Delivery, signing, retries | ch 14 | `internal/delivery` (signer, backoff, worker), replay API | End-to-end: events reach the sink signed; dead + replay work | 43–44 |
-| M6 | Resilience and load | ch 15–18 | `internal/delivery/breaker.go`, `bulkhead.go`, `internal/ratelimit`, `internal/leader`, shedding middleware | Breaker, limiter, leader tests; N3 lab passes locally | 54–55 |
-| M7 | Containers, Kubernetes, CI | ch 19–23 | `Dockerfile`, `sink/Dockerfile`, `deploy/helm/hookline`, `deploy/terraform`, `.github/workflows` | `helm install` on kind; actionlint clean; Terraform apply on kind | 68–70 |
-| M8 | Observability and SLOs | ch 24–25 | `internal/telemetry`, dashboards, `deploy/observability/rules`, `docs/runbooks`, `docs/postmortem-*.md` | Traces across Kafka visible; promtool rule tests green; postmortem written | 77–79 |
-| M9 | Testing and security | ch 26–28 | `internal/security`, integration tests, `loadtest/`, `docs/threat-model.md` | SSRF/BOLA/auth tests; k6 thresholds; govulncheck clean; SBOM | 85–86 |
-| M10 | Evaluation and demo | ch 39 | `scripts/chaos.sh`, `scripts/verify-delivery.sh`, `docs/EVALUATION.md`, `docs/DEMO.md` | 0 missing deliveries after chaos; SLO results recorded by the reader | 98–99 |
+| M3 | Cache and the receiver simulator | ch 8, 12 | `internal/cache`, `internal/subcache`, `sink/`, `deploy/compose.yaml` | Cache tests incl. stampede; sink tests; compose up | 33–34 |
+| M4 | Outbox and Redpanda | ch 13 | `internal/bus`, `internal/outbox`, `internal/dispatch`, `cmd/relay`, `cmd/dispatcher` | Crash-point tests; event reaches `deliveries` | 39–40 |
+| M5 | Delivery, signing, retries | ch 14 | `internal/backoff`, `internal/delivery` (signer, send, queue, worker), replay API, migration 00005 | End-to-end: events reach the sink signed; dead + replay work | 43–44 |
+| M6 | Resilience and load | ch 15–18 | `internal/breaker`, `internal/bulkhead`, `internal/delivery/guards.go`, `internal/ratelimit`, `internal/shed`, `internal/leader`, migration 00006 | Breaker, limiter, leader tests; N3 lab passes locally | 54–55 |
+| M7 | Containers, Kubernetes, CI | ch 19–23 | `Dockerfile` (one image for all five Go binaries), `sink/Dockerfile`, `deploy/kind`, `deploy/helm/hookline`, `deploy/terraform`, `.github/workflows` | `helm install` on kind; actionlint clean; Terraform apply on kind | 68–70 |
+| M8 | Observability and SLOs | ch 24–25 | `internal/telemetry`, `internal/metrics`, migration 00007, dashboards, `deploy/observability/rules`, `docs/runbooks`, `docs/postmortem-*.md` | Traces across Kafka visible; promtool rule tests green; postmortem written | 77–79 |
+| M9 | Testing and security | ch 26–28 | `internal/ssrf`, `internal/redact`, `contract/`, `loadtest/`, `scripts/supply-chain.sh`, `docs/threat-model.md` | SSRF/BOLA/auth tests; k6 thresholds; govulncheck clean; SBOM | 85–86 |
+| M10 | Evaluation and demo | ch 39 | `scripts/chaos.sh`, `scripts/verify-delivery.sh`, `scripts/stage-lag.sh`, `loadtest/overload.js`, `docs/EVALUATION.md`, `docs/DEMO.md` | 0 missing deliveries after chaos; SLO results recorded by the reader | 98–99 |
 
 ## 10. Starter
 `hookline-starter/` is generated by `tools/make_project_starter.py`: same tree, tests kept as the specification,

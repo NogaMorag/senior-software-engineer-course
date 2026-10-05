@@ -303,14 +303,16 @@ the same change.
 - **You can explain:** two cases for gRPC and two against it; why size limits belong before parsing.
 
 ### Day 22 — Hookline specification and M1 start
-- **Objective:** understand the whole capstone, then start its API from your chapter 6 service.
+- **Objective:** understand the whole capstone, set up the starter, and start M1 from the contract and the in-memory
+  store.
 - **Read:** ch 37, sections 37.1–37.8; ch 38, section 38.1.
 - **Time:** 120 min (read 55 / build 55 / note 10).
-- **Exercise:** Hookline M1, module `api`: set up the starter as section 37.8 describes; bring in the chapter 6
-  server skeleton (config, middleware, shutdown); write the OpenAPI contract for tenants, endpoints and
-  subscriptions, with the problem-details error schema from chapter 9.
-- **Done when:** the `api` module builds and serves a health route; the OpenAPI file lints and covers create, get
-  and list for the three resources.
+- **Exercise:** Hookline M1, module `api`: set up the starter as section 37.8 describes (build, vet, unit tests that
+  still fail); read the `api/openapi.yaml` contract and lint it with redocly; read the store interfaces and the
+  contract in each method's documentation; implement the first three in-memory store methods (`New`, `CreateTenant`,
+  `TenantByKeyHash`).
+- **Done when:** the starter builds and its unit tests fail only in milestone packages; the contract passes redocly;
+  `TestConformance/TenantByKeyHash` and `TestHealthNeedsNoKey` pass.
 - **You can explain:** Hookline's delivery guarantee in one sentence; the path of one event from ingest to the
   receiver.
 
@@ -318,11 +320,13 @@ the same change.
 - **Objective:** a working, tested API skeleton that matches its contract.
 - **Read:** ch 38, section 38.1.
 - **Time:** 110 min (read 15 / build 85 / note 10).
-- **Exercise:** Hookline M1, module `api`: tenants, endpoints and subscriptions in in-memory stores behind
-  interfaces; handlers for create, get and list; every error as problem details; handler tests that check
-  responses against the contract.
-- **Done when:** the M1 acceptance list in section 38.1 passes; an unknown tenant, an invalid endpoint URL and a
-  malformed body each return the documented problem-details error.
+- **Exercise:** Hookline M1, module `api`, following the seven steps of the table in section 38.1.4: tenant creation
+  in the admin tool storing only the key's hash; decoding and pagination from chapter 9 and the authentication
+  middleware; endpoints, subscriptions and event ingest in the in-memory store and the handlers; run the server with
+  `make run-dev` and send the same event three times.
+- **Done when:** the command in section 38.1.5 passes with `-race`, including `TestTenantIsolation` and
+  `TestSpecCoversEveryRoute`; a repeated event returns the same id and another body under the same key returns 422;
+  M1 is committed.
 - **You can explain:** why the stores sit behind interfaces now although they are in memory; which M1 choices M2
   will replace.
 
@@ -387,25 +391,27 @@ the same change.
 - **Objective:** move Hookline's state from memory to PostgreSQL.
 - **Read:** ch 38, section 38.2.
 - **Time:** 115 min (read 20 / build 85 / note 10).
-- **Exercise:** Hookline M2, module `api`: goose migrations for tenants, endpoints, subscriptions and events from
-  the data model in ch 37; PostgreSQL in the project compose file; pgx repositories that replace the in-memory
-  stores behind the same interfaces.
-- **Done when:** migrations apply from empty and roll back; the M1 handler tests pass unchanged against the pgx
-  repositories.
+- **Exercise:** Hookline M2, module `api`: start the database from the compose file and run the migrations up, down
+  to 0 and up again; read the first four migrations and write your own table of constraint and the bug it prevents;
+  the pgx store for tenants, endpoints and subscriptions, translating database errors to domain errors, with keyset
+  pagination.
+- **Done when:** migrations apply from empty, roll back to 0 and apply again; the conformance tests for tenants,
+  endpoints and subscriptions pass against PostgreSQL; the M1 API tests pass unchanged against the database.
 - **You can explain:** why the interfaces from M1 made this change small; which constraints live in the database
   and why.
 
-### Day 30 — M2: idempotent event ingest and cursor pagination
-- **Objective:** ingest that is safe to retry, and lists that page correctly.
+### Day 30 — M2: idempotent event ingest against PostgreSQL
+- **Objective:** ingest that is safe to retry, even when concurrent requests arrive with the same key.
 - **Read:** ch 38, section 38.2.
 - **Time:** 115 min (read 15 / build 90 / note 10).
-- **Exercise:** Hookline M2, module `api`: the event ingest route with an `Idempotency-Key` header, a unique
-  constraint on tenant and key, and the stored response written in the same transaction as the event; cursor
-  pagination on the list routes.
-- **Done when:** the M2 acceptance list in section 38.2 passes; a test sends the same key concurrently and finds
-  exactly one event row and identical responses.
-- **You can explain:** why the unique constraint, not application code, decides the duplicate; why the key and the
-  event share one transaction.
+- **Exercise:** Hookline M2, module `api`: `IngestEvent` in one transaction (insert with `ON CONFLICT DO NOTHING`,
+  and only when no row comes back, read the existing one); the outbox row written in the same transaction as the
+  event; the ingest, concurrency and index tests; create a real tenant with the admin tool and run the server against
+  the database.
+- **Done when:** the command in section 38.2.5 passes against the database with no test of it skipped; the
+  concurrency test finds exactly one event row and one outbox row, and identical responses; M2 is committed.
+- **You can explain:** why the unique constraint, not application code, decides the duplicate; why the event and
+  its outbox row share one transaction.
 
 ---
 
@@ -436,24 +442,26 @@ the same change.
 - **Objective:** cache the subscription lookup that every event needs.
 - **Read:** ch 38, section 38.3.
 - **Time:** 110 min (read 15 / build 85 / note 10).
-- **Exercise:** Hookline M3, module `api`: Redis in the project compose; a subscription cache for "which
-  subscriptions match this tenant and event type", cache-aside with TTL, invalidated when a subscription changes,
-  misses collapsed with singleflight.
-- **Done when:** tests show a hit after the first lookup, invalidation on subscription change, and one database call
-  for concurrent misses; with Redis stopped, lookups fall back to PostgreSQL.
-- **You can explain:** why a stale subscription cache is a correctness bug here, not only a performance one; what
-  happens when Redis is down.
+- **Exercise:** Hookline M3, module `api` and the cache the `dispatcher` will ask: copy the cache package from the
+  chapter 12 exercise with the project's module name; the subscription cache, one entry per tenant holding all its
+  active subscriptions, filtered by event type; `ActiveSubscriptions` in both stores; invalidation from the API after
+  every committed change (new subscription, deleted subscription, disabled endpoint).
+- **Done when:** the cache tests pass, also against Redis, and the stampede test shows one source call for concurrent misses;
+  `TestChangesInvalidateTheSubscriptionCache` passes; with Redis unavailable, lookups fall back to PostgreSQL.
+- **You can explain:** why one entry per tenant and not per event type; why the cache entry is deleted after the
+  commit and not before.
 
 ### Day 34 — M3: the receiver simulator `sink` in compose
 - **Objective:** a misbehaving receiver ready for every later milestone.
 - **Read:** ch 38, section 38.3.
 - **Time:** 105 min (read 15 / build 80 / note 10).
-- **Exercise:** Hookline M3, module `sink`: bring the chapter 8 receiver into the project as `sink`; add it to
-  compose with its failure rate and latency configurable from the environment; expose its counts of received and
-  deduplicated events; a smoke script that posts a signed sample event to it.
-- **Done when:** the M3 acceptance list in section 38.3 passes; the whole compose stack (api, PostgreSQL, Redis,
-  sink) starts with one command and the smoke script sees the event counted.
-- **You can explain:** why the receiver misbehaves on purpose; what the sink's counts will later prove.
+- **Exercise:** Hookline M3, module `sink`: copy the receiver from the chapter 8 exercise into `sink/` together with
+  the signature-vectors file; read the sink's Dockerfile and the compose file; start the whole stack with one command
+  (PostgreSQL, Redis, Redpanda, its console and the sink).
+- **Done when:** the command in section 38.3.5 passes and `make sink-test` is clean; all five services are healthy
+  and the sink returns zero counts; M3 is committed.
+- **You can explain:** why the receiver misbehaves on purpose and how it is controlled; what the sink's counts will
+  later prove.
 
 ### Day 35 — Review and consolidation: M1–M3 (lighter day)
 - **Objective:** close the debt from Part C so far before the event pipeline.
@@ -503,22 +511,25 @@ the same change.
 - **Objective:** every ingested event reaches the log, even across crashes.
 - **Read:** ch 38, section 38.4.
 - **Time:** 115 min (read 15 / build 90 / note 10).
-- **Exercise:** Hookline M4, modules `api` and `relay`: a migration for the outbox table; ingest writes the outbox
-  row in the same transaction as the event and its idempotency record; the `relay` publishes pending rows to the
-  events topic keyed by tenant and marks them; Redpanda added to compose.
-- **Done when:** an ingested event appears on the topic; killing the relay and restarting it publishes the
-  remaining rows; no event exists without an outbox row.
+- **Exercise:** Hookline M4, module `relay`: read the bus package from chapter 13 and the command that creates the
+  topic; the relay reads unpublished outbox rows with their event and publishes them keyed by tenant; it marks them in
+  the same transaction, only after the broker acknowledged; when publishing fails no row is marked and the loop waits
+  with backoff and retries.
+- **Done when:** the outbox tests pass, including the crash point between publish and mark; a failed publish marks
+  no row.
 - **You can explain:** why ingest never talks to Redpanda directly; what ordering the tenant key gives.
 
 ### Day 40 — M4: dispatcher fans events into deliveries
 - **Objective:** one event becomes one delivery per subscribed endpoint.
 - **Read:** ch 38, section 38.4.
 - **Time:** 110 min (read 15 / build 85 / note 10).
-- **Exercise:** Hookline M4, module `dispatcher`: consume the events topic in a group; look up matching
-  subscriptions through the M3 cache; insert one delivery row per subscription, idempotently on event and
-  subscription; commit offsets after the rows commit.
-- **Done when:** the M4 acceptance list in section 38.4 passes; replaying the same events creates no extra delivery
-  rows; a test with three subscriptions yields three deliveries.
+- **Exercise:** Hookline M4, module `dispatcher`: consume the topic in a consumer group and commit the offset only
+  after the insert; look up the targets through the M3 subscription cache; insert all of an event's delivery rows in
+  one statement, idempotently on event and endpoint; retry in place when the database is down, and log and skip a
+  record that cannot be decoded; run the real relay and dispatcher and check the Redpanda console and psql.
+- **Done when:** the command in section 38.4.5 passes, including `TestRelayToDispatcherThroughRedpanda`; an event
+  published twice yields one delivery per matching endpoint; a disabled endpoint, or one subscribed to another type,
+  gets no delivery row; M4 is committed.
 - **You can explain:** why delivery rows are created idempotently; what happens if the dispatcher crashes after the
   insert but before the offset commit.
 
@@ -547,26 +558,28 @@ the same change.
 - **You can explain:** why dead letters need a replay path; what a worker must do with a claimed job when told to
   stop.
 
-### Day 43 — M5: delivery worker, signature, timeouts, attempt log
+### Day 43 — M5: signing, sending and the delivery queue
 - **Objective:** deliver signed webhooks and record every attempt.
 - **Read:** ch 38, section 38.5.
 - **Time:** 115 min (read 15 / build 90 / note 10).
-- **Exercise:** Hookline M5, module `worker`: claim due deliveries with `SKIP LOCKED`; POST the payload to the
-  endpoint with an HMAC-SHA256 signature header and a timestamp; a strict request timeout; write one attempt-log
-  row per try with status, latency and error.
-- **Done when:** the sink verifies the signature and counts the delivery; a sink set to slow responses produces a
-  timeout attempt row.
-- **You can explain:** why the signature covers a timestamp; why the attempt log is append-only.
+- **Exercise:** Hookline M5, module `worker`: the signer, checked against the same vectors the sink checks; building
+  the body, sending it, and classifying each answer as transient or final; the backoff from the chapter 14 exercise
+  with its property test; the queue on the `deliveries` table (claim with `SKIP LOCKED` and a lease, record the
+  attempt, retry or mark dead).
+- **Done when:** `TestSignMatchesSharedVectors` and `TestPolicyProperties` pass; the queue tests pass, including an
+  expired lease whose old worker's late result is refused.
+- **You can explain:** why the signature covers a timestamp; why a 4xx other than 408 and 429 is final.
 
-### Day 44 — M5: retries with backoff and jitter, dead state, replay API
+### Day 44 — M5: replay, the worker pool and the end-to-end test
 - **Objective:** at-least-once delivery that gives up honestly and can be replayed.
 - **Read:** ch 38, section 38.5.
 - **Time:** 115 min (read 15 / build 90 / note 10).
-- **Exercise:** Hookline M5, modules `worker` and `api`: on failure, set `next_attempt_at` from exponential backoff
-  with full jitter (the chapter 14 function); after the maximum attempts, mark the delivery dead; a replay route in
-  `api` that makes dead deliveries due again.
-- **Done when:** the M5 acceptance list in section 38.5 passes; with the sink failing most requests, deliveries
-  retry, some succeed, the rest go dead, and replay after fixing the sink delivers them.
+- **Exercise:** Hookline M5, modules `worker` and `api`: replay of a dead delivery with the `attempt_base` column,
+  without resetting the attempt numbering; the worker pool (a disabled endpoint, `Retry-After`, graceful shutdown);
+  the three delivery routes in the contract and the handlers; the end-to-end test against the sink, and a run of the
+  four binaries with five events.
+- **Done when:** the commands in section 38.5.5 pass, including `TestPipelineEndToEnd`; a dead delivery is replayed
+  and delivered on the next attempt; the sink counts the five events with no rejected signature; M5 is committed.
 - **You can explain:** why retry state lives in the delivery row and not in memory; what a receiver sees on a
   replay and why it must dedupe.
 
@@ -674,28 +687,32 @@ the same change.
 - **You can explain:** why a session advisory lock is released when the process dies; when a saga is the right tool
   and when a transaction is.
 
-### Day 54 — M6: per-endpoint circuit breaker and bulkhead
-- **Objective:** one bad endpoint must not slow everyone else.
-- **Read:** ch 38, section 38.6.
-- **Time:** 115 min (read 15 / build 90 / note 10).
-- **Exercise:** Hookline M6, module `worker`: a circuit breaker per endpoint (an open breaker defers the delivery to
-  a later `next_attempt_at` without calling); a bulkhead limiting concurrent deliveries per endpoint.
-- **Done when:** with one sink endpoint failing and a second healthy, the healthy endpoint's deliveries keep flowing
-  and the failing one's breaker opens, as shown in the attempt log of your run.
-- **You can explain:** why the breaker is per endpoint and not global; why an open breaker reschedules instead of
-  dropping.
-
-### Day 55 — M6: tenant rate limits, load shedding, single active relay
-- **Objective:** protect ingest and keep the relay single.
+### Day 54 — M6: per-endpoint guards, rate limits and load shedding
+- **Objective:** one bad endpoint must not slow everyone else, and one noisy tenant must not slow ingest.
 - **Read:** ch 38, section 38.6.
 - **Time:** 120 min (read 15 / build 95 / note 10).
-- **Exercise:** Hookline M6, modules `api` and `relay`: a per-tenant Redis token bucket on ingest returning 429 with
-  `Retry-After`; load shedding on ingest with a concurrency limit; the relay takes a PostgreSQL advisory lock so only
-  one instance publishes.
-- **Done when:** the M6 acceptance list in section 38.6 passes; a noisy tenant is limited while a quiet one is not;
-  with two relays running, only one publishes, and killing it lets the other take over.
-- **You can explain:** where each M6 mechanism sits on the event's path; why the relay needs exactly one active
-  instance.
+- **Exercise:** Hookline M6, modules `worker` and `api`: copy the breaker and bulkhead from the chapter 15 exercise;
+  a breaker and a bulkhead per endpoint in each worker, where a postponed delivery goes back to the queue without
+  spending an attempt; a per-tenant Redis rate limit using the tenant's own rate and burst, failing open; load
+  shedding before authentication, on `/v1` routes only.
+- **Done when:** the breaker and bulkhead tests pass, including `TestBulkheadKeepsASlowEndpointFromStarvingOthers`;
+  a tenant over its limit gets 429 with `Retry-After` while another tenant gets 202 at the same moment; an overloaded
+  API answers 503 and `/healthz` keeps answering.
+- **You can explain:** why the breaker is per endpoint and in each worker's memory; why shedding sits before
+  authentication and the limiter after it.
+
+### Day 55 — M6: single active relay and the isolation lab
+- **Objective:** one relay that fences its own marks, and your own numbers for requirement N3.
+- **Read:** ch 38, section 38.6.
+- **Time:** 115 min (read 15 / build 90 / note 10).
+- **Exercise:** Hookline M6, modules `relay` and `worker`: copy leader election from the chapter 18 exercise; the
+  relay publishes only while it holds the advisory lock, and its mark checks the leader term; the isolation lab, with
+  and without the guards.
+- **Done when:** the command in section 38.6.5 passes; a relay with a stale term marks nothing, and a second relay
+  takes over when the first is killed; both lab runs are recorded in `docs/EVALUATION.md` with date and machine; M6 is
+  committed.
+- **You can explain:** where each M6 mechanism sits on the event's path; what the difference between the two lab
+  runs says about N3.
 
 ---
 
@@ -844,36 +861,41 @@ the same change.
 - **You can explain:** why permissions are written in the file and start from read-only; what an environment
   protects; major-version tags versus SHA pinning.
 
-### Day 68 — M7: distroless images for every Hookline service
+### Day 68 — M7: one image for every Go binary, and the sink image
 - **Objective:** Hookline built as small, non-root images.
 - **Read:** ch 38, section 38.7.
-- **Time:** 110 min (read 15 / build 85 / note 10).
-- **Exercise:** Hookline M7, module `deploy` with `api`, `relay`, `dispatcher`, `worker` and `sink`: multi-stage
-  distroless non-root images for the Go services, the uv image for `sink`; compose switched to the built images.
-- **Done when:** the whole compose stack runs from the built images and the M1–M6 acceptance lists still pass; your
-  measured image sizes are in the note.
-- **You can explain:** why each service gets its own image; how configuration reaches each one.
+- **Time:** 110 min (read 25 / build 75 / note 10).
+- **Exercise:** Hookline M7, module `deploy`; the files are complete in the starter, and the work is to read and run
+  them: the Dockerfile (a multi-stage build of all five binaries into one distroless image); the sink's Dockerfile,
+  built with uv as in chapter 19; build both images and check the user each one runs as.
+- **Done when:** both images build and run as non-root; the Go image has no shell; your measured image sizes are in
+  the note.
+- **You can explain:** why one image for all the binaries rather than one per service; how a health check works in an
+  image without curl.
 
 ### Day 69 — M7: Helm chart and deploy to kind
 - **Objective:** Hookline running on Kubernetes.
 - **Read:** ch 38, section 38.7.
-- **Time:** 120 min (read 15 / build 95 / note 10).
-- **Exercise:** Hookline M7, module `deploy`: a Helm chart with Deployments, Services, probes, resources and
-  configuration for every service; dependencies (PostgreSQL, Redis, Redpanda) as section 38.7 specifies; migrations
-  run as a Job before the services start; install on kind.
-- **Done when:** all pods become ready on kind and an event ingested through a port-forward is counted by the sink.
-- **You can explain:** why migrations run as a separate Job; how the relay's single-active lock behaves with two
-  replicas.
+- **Time:** 115 min (read 25 / build 80 / note 10).
+- **Exercise:** Hookline M7, module `deploy`; the chart and the infrastructure are complete, and the work is to read
+  and run them: the cluster infrastructure and why it stays outside the chart; the chart (the secret outside the
+  values, migrations in a hook before every install and upgrade); the chart's static checks; the kind smoke test,
+  keeping the cluster for tomorrow.
+- **Done when:** `make chart-check` passes; `make kind-smoke` ends in PASS, with one event delivered, signed, to the
+  in-cluster sink.
+- **You can explain:** why migrations run in a hook before any Deployment changes; why the hook cannot use the
+  chart's ConfigMap.
 
 ### Day 70 — M7: Terraform and GitHub Actions for Hookline
 - **Objective:** reproducible provisioning and CI for the whole project.
 - **Read:** ch 38, section 38.7.
 - **Time:** 115 min (read 15 / build 90 / note 10).
-- **Exercise:** Hookline M7, module `deploy`: Terraform that creates the namespace and the Hookline release on kind
-  through the helm provider; GitHub Actions workflows for tests (with service containers), image builds and a kind
-  deploy smoke test.
-- **Done when:** the M7 acceptance list in section 38.7 passes; one Terraform apply on a fresh kind cluster brings
-  Hookline up; actionlint passes on all workflows.
+- **Exercise:** Hookline M7, module `deploy`: Terraform that creates a namespace and a Secret and installs the same
+  chart through the helm provider; plan, apply, a change to the worker count, and destroy; the workflow at the root of
+  your repository (six jobs, with integration running on the compose file rather than service containers).
+- **Done when:** the commands in section 38.7.5 pass (chart checks, smoke test, Terraform, actionlint); apply
+  installs, a plan after the change shows one change, and destroy cleans up; the workflow runs in your GitHub
+  repository; M7 is committed and the kind cluster deleted.
 - **You can explain:** what CI proves on every change and what it cannot; how you would roll back a bad Hookline
   release.
 
@@ -949,34 +971,40 @@ the same change.
   contributing factors and action items, with no blame.
 - **You can explain:** the incident roles; what makes a postmortem action item useful.
 
-### Day 77 — M8: traces across API, Kafka and worker; metrics
+### Day 77 — M8: one trace from ingest to the receiver
 - **Objective:** see one event's whole journey in one trace.
 - **Read:** ch 38, section 38.8.
-- **Time:** 120 min (read 15 / build 95 / note 10).
-- **Exercise:** Hookline M8, modules `api`, `relay`, `dispatcher` and `worker`: OpenTelemetry in each; trace context
-  stored with the outbox row and carried in the Kafka header so one trace runs from ingest to the delivery attempt;
-  Prometheus metrics for ingest, delivery attempts by outcome, delivery latency and due-deliveries backlog.
-- **Done when:** one trace shows ingest, relay publish, dispatch and delivery attempt; the metrics are scraped.
-- **You can explain:** why the trace context is stored in the outbox row; which metric shows a growing backlog.
+- **Time:** 115 min (read 20 / build 85 / note 10).
+- **Exercise:** Hookline M8, modules `api`, `relay`, `dispatcher` and `worker`: store the ingest request's
+  `traceparent` in the event row; carry the context across every hop (the relay from the row, the dispatcher from the
+  record headers, the worker from the event); a span per delivery attempt that continues the ingest trace.
+- **Done when:** the API and telemetry trace tests pass; `TestDeliveryContinuesTheIngestTrace` passes.
+- **You can explain:** why the trace context is stored in the event row instead of travelling in memory; why the
+  worker's span is a child of ingest rather than of the dispatcher.
 
-### Day 78 — M8: dashboards, SLOs and burn-rate alerts
+### Day 78 — M8: metrics, SLOs, alerts and dashboards
 - **Objective:** know Hookline's health at a glance and be alerted on user impact.
 - **Read:** ch 38, section 38.8.
-- **Time:** 110 min (read 15 / build 85 / note 10).
-- **Exercise:** Hookline M8, module `deploy`: provisioned Grafana dashboards (ingest RED, delivery outcomes and
-  latency, backlog, breaker states); SLOs for ingest availability and delivery latency from section 37.7, with
-  recording rules, burn-rate alerts and promtool tests.
-- **Done when:** dashboards load from files and move under traffic; promtool tests for all Hookline alert rules pass.
-- **You can explain:** how you chose the SLIs; what a delivery SLO means when the receiver itself is down.
+- **Time:** 115 min (read 20 / build 85 / note 10).
+- **Exercise:** Hookline M8, modules `worker` and `deploy`: Hookline's delivery metrics, pushed through the collector
+  to Prometheus (no scrape endpoint); read the delivery-lag SLO rules and the alerts on failing attempts and a stalled
+  outbox; the promtool rule tests and the check that every alert has a runbook; the stack with telemetry and the
+  end-to-end check against Tempo, Prometheus, Loki and Grafana.
+- **Done when:** `make promtool` is green; `make check-telemetry` ends with all checks passed; both dashboards load in
+  Grafana.
+- **You can explain:** why 30 s is a bucket boundary of the lag histogram; what the delivery SLO cannot see and which
+  alert covers it.
 
 ### Day 79 — M8: a deliberately broken release and its postmortem
 - **Objective:** detect, mitigate and learn from an incident you caused on purpose.
 - **Read:** ch 38, section 38.8.
 - **Time:** 110 min (read 15 / build 75 / note 20).
-- **Exercise:** Hookline M8: ship the broken release described in section 38.8 to kind while traffic runs; detect it
-  from the dashboards and alerts; follow your runbook; roll back; write the postmortem.
-- **Done when:** the M8 acceptance list in section 38.8 passes; the postmortem's timeline uses timestamps from your
-  own dashboards and alerts.
+- **Exercise:** Hookline M8, on the local stack with telemetry: the staged incident (a worker whose attempt timeout
+  is a millisecond instead of a second, under traffic); the alert fires, the previous version comes back, and the
+  script prints a timeline and numbers; read the alert's runbook and update it from what you saw; write the postmortem
+  from the template with the numbers of your run.
+- **Done when:** the commands in section 38.8.5 pass; the postmortem's timeline uses the times and numbers of your own
+  run; M8 is committed.
 - **You can explain:** how long detection took and why; which signal would have caught it sooner.
 
 ### Day 80 — Testing strategy, testcontainers, contract and property tests
@@ -1040,33 +1068,34 @@ the same change.
   with their date; the STRIDE table is filled.
 - **You can explain:** why validating the URL string alone is not enough against SSRF; why API keys are hashed.
 
-### Day 85 — M9: integration, contract, property and load tests
-- **Objective:** Hookline's test suite at senior level.
+### Day 85 — M9: SSRF guard, secret redaction and the threat model
+- **Objective:** Hookline secured at the points an interviewer will probe.
 - **Read:** ch 38, section 38.9.
-- **Time:** 120 min (read 15 / build 95 / note 10).
-- **Exercise:** Hookline M9, modules `api`, `dispatcher` and `worker`: testcontainers integration tests for
-  repositories and the ingest-to-delivery path; a contract test of the webhook payload shared with `sink`; property
-  tests for backoff and signing; a k6 load test on ingest with thresholds.
-- **Done when:** the integration and contract tests pass; property tests pass; the k6 run's summary from your
-  machine is saved.
-- **You can explain:** what the payload contract test protects receivers from; which Hookline behaviour you trust
-  only because of an integration test.
+- **Time:** 120 min (read 20 / build 85 / note 15).
+- **Exercise:** Hookline M9, modules `api` and `worker`: the URL check when an endpoint is created, with a generic
+  answer to the tenant and the reason in the log; the worker's client with the guarded dialer (a check at connect
+  time, no proxy, no redirects); the log scans proving no key or secret reaches any output; read the threat model,
+  fill in its header, and add one threat of your own with its test.
+- **Done when:** an endpoint whose name resolves to a private address is refused at creation, and a connection to
+  such an address is blocked at send time too; both log scans are green; the threat model includes your row.
+- **You can explain:** why the SSRF check runs at registration and again at connect time; Hookline's top three
+  threats.
 
 ---
 
 ## Week 18 (days 86–90)
 
-### Day 86 — M9: API keys, SSRF guard, govulncheck and SBOM, STRIDE
-- **Objective:** Hookline secured at the points an interviewer will probe.
+### Day 86 — M9: contract, property and load tests, and the supply chain
+- **Objective:** Hookline's test suite at senior level, and a security gate on its dependencies.
 - **Read:** ch 38, section 38.9.
-- **Time:** 120 min (read 15 / build 85 / note 20).
-- **Exercise:** Hookline M9, modules `api`, `worker` and `deploy`: hashed tenant API keys; the SSRF guard on endpoint
-  URLs at registration and in the worker's dialer; govulncheck and SBOM generation in CI; the STRIDE threat model for
-  Hookline.
-- **Done when:** the M9 acceptance list in section 38.9 passes; registering an endpoint that points at a private
-  address is refused, and so is a delivery to a hostname that resolves to one; the threat model names a mitigation
-  or an accepted risk for every row.
-- **You can explain:** why the SSRF check runs at registration and again at delivery; Hookline's top three threats.
+- **Time:** 120 min (read 15 / build 95 / note 10).
+- **Exercise:** Hookline M9, modules `api`, `sink` and `deploy`: the webhook body schema and the contract tests on
+  both sides; the two property tests (ingest and schema agree; a pagination cursor returns to the same item); the two
+  k6 scenarios (ingest, two tenants); govulncheck, an SBOM and a scan per image, and the new workflow steps.
+- **Done when:** the commands in section 38.9.5 pass; both k6 scenarios' numbers are in `docs/EVALUATION.md` with
+  date and machine; govulncheck is clean and every image has an SBOM and a scan; M9 is committed.
+- **You can explain:** what the body contract test protects receivers from; why the scan gate fails only on a finding
+  that has a fix.
 
 ### Day 87 — Checkpoint 5: operations, quality and security (lighter day)
 - **Objective:** prove Parts F and G: Hookline is observable, tested and secured.
@@ -1193,23 +1222,25 @@ the same change.
 - **Objective:** prove Hookline's SLOs and delivery guarantee with your own measurements.
 - **Read:** ch 38, section 38.10; ch 39, sections 39.1–39.4.
 - **Time:** 120 min (read 25 / build 85 / note 10).
-- **Exercise:** Hookline M10, all modules on kind: run the k6 load test and read the SLOs from your dashboards; chaos
-  runs that kill workers and the relay under load and set the sink to fail; the delivery-guarantee proof that every
-  accepted event reached the sink at least once, from the sink's counts against the database; estimate the running
-  cost as section 39.4 describes.
-- **Done when:** the evaluation note holds your measured SLO results, each chaos run's outcome and the sink-count
-  reconciliation, with any gap stated plainly.
-- **You can explain:** what your sink counts prove and what they do not; which SLO was hardest to hold and why.
+- **Exercise:** Hookline M10, on the local stack: the N1 load run, then the delivery check on a quiet run; the chaos
+  experiment (SIGKILL of relay, dispatcher and worker under load, and a second sink that misbehaves); read the lag
+  and break it into stages when it is high; the N6 overload run; sample the resources and estimate the cost as section
+  39.4 describes.
+- **Done when:** the chaos run ends in PASS with 0 missing; the N1–N6 and N9 tables of the evaluation file hold your
+  numbers with date and machine; any gap is stated plainly.
+- **You can explain:** what the delivery check proves and what it does not; why "0 missing" is not enough without
+  reading the lag.
 
 ### Day 99 — M10: demo script and publishing
 - **Objective:** Hookline ready to show and to defend.
 - **Read:** ch 38, section 38.10; ch 39, sections 39.5–39.7.
 - **Time:** 120 min (read 25 / build 85 / note 10).
-- **Exercise:** Hookline M10: write and rehearse the demo script; finish the README with architecture, how to run it
-  and your evaluation results; audit for secrets and anything that is not yours; tag a release and publish the
-  repository with CI green; answer the twenty project questions aloud.
-- **Done when:** the M10 acceptance list in section 38.10 passes; a public repository link exists; the demo runs
-  start to finish within the length the script sets.
+- **Exercise:** Hookline M10: complete `docs/EVALUATION.md` (one row per target N1–N9, or why there is no number);
+  adapt the demo script to yourself and rehearse it twice against a clock; publish (a clean copy, the secrets check
+  before the first commit, a private repository with green CI, and only then public, with a release tag); answer the
+  twenty project questions aloud.
+- **Done when:** the completion criteria in section 38.10.7 hold; a public repository link exists with green CI; the
+  demo runs start to finish within ten minutes.
 - **You can explain:** Hookline in three minutes: problem, design, evidence, limits.
 
 ### Day 100 — Checkpoint 6: the capstone, checklists and retrospective (lighter day)
