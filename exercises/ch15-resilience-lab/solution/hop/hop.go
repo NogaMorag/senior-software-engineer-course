@@ -7,7 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
+	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -17,10 +20,40 @@ import (
 	"example.com/ch15-resilience-lab/retry"
 )
 
-// StatusError is a response that counts as a failure: 5xx or 429.
-type StatusError struct{ Code int }
+// StatusError is a response that counts as a failure: 5xx or 429. RetryAfter is the
+// wait the server asked for in a 429 or 503 (zero when it did not ask).
+type StatusError struct {
+	Code       int
+	RetryAfter time.Duration
+}
 
 func (e *StatusError) Error() string { return fmt.Sprintf("downstream answered %d", e.Code) }
+
+// ServerDelay makes the retry loop wait at least RetryAfter (retry.ServerDelay).
+func (e *StatusError) ServerDelay() time.Duration { return e.RetryAfter }
+
+// ParseRetryAfter reads a Retry-After value (RFC 9110, section 10.2.3): either
+// delay-seconds (one or more digits) or an HTTP-date, which becomes the time left
+// until that date as seen from now. A date in the past means no wait. ok is false
+// for an empty or malformed value.
+func ParseRetryAfter(v string, now time.Time) (d time.Duration, ok bool) {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return 0, false
+	}
+	// ParseUint takes digits only (no sign); on overflow it returns the maximum value.
+	if secs, err := strconv.ParseUint(v, 10, 64); err == nil || errors.Is(err, strconv.ErrRange) {
+		if secs > math.MaxInt64/uint64(time.Second) {
+			return math.MaxInt64, true // centuries: no deadline will allow it anyway
+		}
+		return time.Duration(secs) * time.Second, true
+	}
+	t, err := http.ParseTime(v) // IMF-fixdate, and the two obsolete forms recipients must accept
+	if err != nil {
+		return 0, false
+	}
+	return max(t.Sub(now), 0), true
+}
 
 // Retryable is the retry policy's filter: retry failures of the downstream, never our own
 // refusals (an open breaker or a full bulkhead would only refuse again) or our own deadline.
@@ -103,9 +136,22 @@ func (c *Caller) send(ctx context.Context) error {
 	defer resp.Body.Close()
 	_, _ = io.Copy(io.Discard, resp.Body) // drain so the connection is reused
 	if resp.StatusCode >= 500 || resp.StatusCode == http.StatusTooManyRequests {
-		return &StatusError{Code: resp.StatusCode}
+		se := &StatusError{Code: resp.StatusCode}
+		if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusServiceUnavailable {
+			se.RetryAfter, _ = ParseRetryAfter(resp.Header.Get("Retry-After"), c.now())
+		}
+		return se
 	}
 	return nil
+}
+
+// now is the retry policy's clock, so an HTTP-date is measured against the same time
+// the retry loop compares with the deadline.
+func (c *Caller) now() time.Time {
+	if c.Retry.Now != nil {
+		return c.Retry.Now()
+	}
+	return time.Now()
 }
 
 func isStatus(err error, code int) bool {

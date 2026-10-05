@@ -603,9 +603,10 @@ the same change.
 ### Day 46 — Partial failure, timeouts and time budgets, retries (lighter day)
 - **Objective:** the failure model of distributed calls.
 - **Read:** ch 15, sections 15.1–15.4.
-- **Time:** 85 min (read 40 / build 35 / note 10).
+- **Time:** 100 min (read 45 / build 45 / note 10).
 - **Exercise:** `ch15-resilience-lab`, part 1: run the flaky upstream; add deadline propagation from the client's
-  incoming request to its upstream call; run the lab script for the retry-storm scenario and record its call counts.
+  incoming request to its upstream call; make retries honor `Retry-After` on 429 and 503 within the deadline; run
+  the lab script for the retry-storm scenario and record its call counts.
 - **Done when:** the lab script output for the retry storm is saved from your run, and a test shows a call cut off
   when the remaining budget runs out.
 - **You can explain:** why each hop needs a smaller timeout than its caller; how naive retries multiply load.

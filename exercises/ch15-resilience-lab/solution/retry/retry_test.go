@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"math/rand/v2"
+	"slices"
 	"testing"
 	"time"
 
@@ -131,5 +132,65 @@ func TestDoRespectsCancellation(t *testing.T) {
 	})
 	if n != 1 {
 		t.Fatalf("attempts = %d after the caller canceled, want 1", n)
+	}
+}
+
+// slowDown is a failure that asks for a wait, like a 429 or 503 with Retry-After.
+type slowDown struct{ after time.Duration }
+
+func (e slowDown) Error() string              { return "slow down" }
+func (e slowDown) ServerDelay() time.Duration { return e.after }
+
+func TestDoHonorsRetryAfter(t *testing.T) {
+	tests := []struct {
+		name         string
+		after        time.Duration // what the server asks for on every failure
+		deadline     time.Duration // from the fake now; 0 means no deadline
+		budget       *retry.Budget
+		wantAttempts int
+		wantSlept    []time.Duration
+		wantErr      error
+	}{
+		{"longer than the backoff: wait what the server asked", 2 * time.Second, 0, nil,
+			2, []time.Duration{2 * time.Second}, nil},
+		{"shorter than the backoff: the backoff wins", time.Millisecond, 0, nil,
+			2, []time.Duration{100*time.Millisecond - 1}, nil},
+		{"fits before the deadline", 2 * time.Second, 3 * time.Second, nil,
+			2, []time.Duration{2 * time.Second}, nil},
+		{"past the deadline: give up without sleeping", 10 * time.Second, 3 * time.Second, nil,
+			1, nil, retry.ErrRetryAfterTooLong},
+		{"budget empty: the budget still decides", 2 * time.Second, 0, retry.NewBudget(0.1, 0),
+			1, nil, retry.ErrBudgetExhausted},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			now := time.Now()
+			ctx := context.Background()
+			if tt.deadline > 0 {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithDeadline(ctx, now.Add(tt.deadline))
+				defer cancel()
+			}
+			var slept []time.Duration
+			p := retry.Policy{
+				MaxAttempts: 2, Base: 100 * time.Millisecond, Cap: time.Second, Rand: top, Budget: tt.budget,
+				Now:   func() time.Time { return now },
+				Sleep: func(_ context.Context, d time.Duration) error { slept = append(slept, d); now = now.Add(d); return nil },
+			}
+			calls := 0
+			n, err := retry.Do(ctx, p, func(context.Context) error {
+				calls++
+				if calls == 1 {
+					return slowDown{tt.after}
+				}
+				return nil
+			})
+			if n != tt.wantAttempts || !slices.Equal(slept, tt.wantSlept) {
+				t.Errorf("attempts = %d, sleeps = %v; want %d attempts, sleeps %v", n, slept, tt.wantAttempts, tt.wantSlept)
+			}
+			if !errors.Is(err, tt.wantErr) || (tt.wantErr == nil && err != nil) {
+				t.Errorf("err = %v, want %v", err, tt.wantErr)
+			}
+		})
 	}
 }

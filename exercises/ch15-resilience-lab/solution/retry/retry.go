@@ -14,6 +14,23 @@ import (
 // ErrBudgetExhausted wraps the last error when the budget refused a retry.
 var ErrBudgetExhausted = errors.New("retry: budget exhausted")
 
+// ErrRetryAfterTooLong wraps the last error when the server asked for a wait that ends
+// after ctx's deadline: there is no point sleeping, the retry could never be sent in time.
+var ErrRetryAfterTooLong = errors.New("retry: server asked to wait past the deadline")
+
+// ServerDelay is implemented by an error that carries the wait a server asked for,
+// such as an HTTP Retry-After. Do waits at least that long before the next attempt.
+type ServerDelay interface{ ServerDelay() time.Duration }
+
+// serverDelay returns the wait err asks for, or 0.
+func serverDelay(err error) time.Duration {
+	var sd ServerDelay
+	if errors.As(err, &sd) {
+		return sd.ServerDelay()
+	}
+	return 0
+}
+
 // Backoff returns the full-jitter delay before retry number n (n = 1 is the first retry):
 // a uniform random duration in [0, min(cap, base*2^(n-1))). rnd(k) returns a value in [0, k).
 func Backoff(n int, base, cap time.Duration, rnd func(int64) int64) time.Duration {
@@ -82,8 +99,9 @@ type Policy struct {
 }
 
 // Do calls fn until it succeeds, the error is not retryable, attempts run out, the next
-// wait would cross ctx's deadline, or the budget refuses. It returns the number of
-// attempts made and the last error.
+// wait would cross ctx's deadline, or the budget refuses. The wait is the backoff, or
+// longer when the error carries a ServerDelay. It returns the number of attempts made
+// and the last error.
 func Do(ctx context.Context, p Policy, fn func(context.Context) error) (int, error) {
 	p = p.withDefaults()
 	if p.Budget != nil {
@@ -97,8 +115,13 @@ func Do(ctx context.Context, p Policy, fn func(context.Context) error) (int, err
 		if attempt >= p.MaxAttempts || !p.Retryable(err) || ctx.Err() != nil {
 			return attempt, err
 		}
-		wait := Backoff(attempt, p.Base, p.Cap, p.Rand)
+		asked := serverDelay(err)
+		wait := max(Backoff(attempt, p.Base, p.Cap, p.Rand), asked)
 		if dl, ok := ctx.Deadline(); ok && p.Now().Add(wait).After(dl) {
+			if p.Now().Add(asked).After(dl) { // the server's wait alone does not fit
+				return attempt, fmt.Errorf("%w (asked %v, %v left): %w",
+					ErrRetryAfterTooLong, asked, dl.Sub(p.Now()), err)
+			}
 			return attempt, err // sleeping would spend the budget the caller has left
 		}
 		if p.Budget != nil && !p.Budget.Withdraw() {

@@ -13,6 +13,23 @@ import (
 // ErrBudgetExhausted wraps the last error when the budget refused a retry.
 var ErrBudgetExhausted = errors.New("retry: budget exhausted")
 
+// ErrRetryAfterTooLong wraps the last error when the server asked for a wait that ends
+// after ctx's deadline: there is no point sleeping, the retry could never be sent in time.
+var ErrRetryAfterTooLong = errors.New("retry: server asked to wait past the deadline")
+
+// ServerDelay is implemented by an error that carries the wait a server asked for,
+// such as an HTTP Retry-After. Do waits at least that long before the next attempt.
+type ServerDelay interface{ ServerDelay() time.Duration }
+
+// serverDelay returns the wait err asks for, or 0.
+func serverDelay(err error) time.Duration {
+	var sd ServerDelay
+	if errors.As(err, &sd) {
+		return sd.ServerDelay()
+	}
+	return 0
+}
+
 // Backoff returns the full-jitter delay before retry number n (n = 1 is the first retry):
 // a uniform random duration in [0, min(cap, base*2^(n-1))). rnd(k) returns a value in [0, k).
 func Backoff(n int, base, cap time.Duration, rnd func(int64) int64) time.Duration {
@@ -69,8 +86,9 @@ type Policy struct {
 }
 
 // Do calls fn until it succeeds, the error is not retryable, attempts run out, the next
-// wait would cross ctx's deadline, or the budget refuses. It returns the number of
-// attempts made and the last error.
+// wait would cross ctx's deadline, or the budget refuses. The wait is the backoff, or
+// longer when the error carries a ServerDelay. It returns the number of attempts made
+// and the last error.
 func Do(ctx context.Context, p Policy, fn func(context.Context) error) (int, error) {
 	// TODO(day 46):
 	//  p = p.withDefaults(); if there is a budget, Deposit once (this is one call).
@@ -78,8 +96,11 @@ func Do(ctx context.Context, p Policy, fn func(context.Context) error) (int, err
 	//   - err := fn(ctx); success returns (attempt, nil).
 	//   - Stop and return (attempt, err) when attempts are used up, the error is not
 	//     retryable, or ctx is already done.
-	//   - wait := Backoff(attempt, ...). If ctx has a deadline and p.Now().Add(wait) is after
-	//     it, stop: sleeping would only burn the time the caller has left.
+	//   - asked := serverDelay(err); wait := max(Backoff(attempt, ...), asked).
+	//     If ctx has a deadline and p.Now().Add(wait) is after it, stop: sleeping would only
+	//     burn the time the caller has left. When asked alone crosses the deadline, wrap:
+	//     fmt.Errorf("%w (asked %v, %v left): %w", ErrRetryAfterTooLong, asked, dl.Sub(p.Now()), err);
+	//     otherwise return (attempt, err).
 	//   - With a budget, Withdraw; on refusal return fmt.Errorf("%w: %w", ErrBudgetExhausted, err).
 	//   - p.Sleep(ctx, wait); if it fails, return (attempt, err).
 	panic("TODO(day 46): retry.Do")

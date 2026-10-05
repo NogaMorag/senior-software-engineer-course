@@ -284,7 +284,8 @@ func Backoff(n int, base, cap time.Duration, rnd func(int64) int64) time.Duratio
 
 ### 15.3.3 הלולאה, בתוך גבול הזמן
 
-הפונקציה `Do` באותו קובץ מנסה עד שאחד מחמישה תנאים עוצר אותה. הנה הגוף שלה:
+הפונקציה `Do` באותו קובץ מנסה עד שאחד מחמישה תנאים עוצר אותה. הנה הגוף שלה. בשורות עם `asked` נעסוק
+בסעיף 15.3.5:
 
 <div dir="ltr" align="left">
 
@@ -297,8 +298,13 @@ func Backoff(n int, base, cap time.Duration, rnd func(int64) int64) time.Duratio
 		if attempt >= p.MaxAttempts || !p.Retryable(err) || ctx.Err() != nil {
 			return attempt, err
 		}
-		wait := Backoff(attempt, p.Base, p.Cap, p.Rand)
+		asked := serverDelay(err)
+		wait := max(Backoff(attempt, p.Base, p.Cap, p.Rand), asked)
 		if dl, ok := ctx.Deadline(); ok && p.Now().Add(wait).After(dl) {
+			if p.Now().Add(asked).After(dl) { // the server's wait alone does not fit
+				return attempt, fmt.Errorf("%w (asked %v, %v left): %w",
+					ErrRetryAfterTooLong, asked, dl.Sub(p.Now()), err)
+			}
 			return attempt, err // sleeping would spend the budget the caller has left
 		}
 		if p.Budget != nil && !p.Budget.Withdraw() {
@@ -317,7 +323,7 @@ func Backoff(n int, base, cap time.Duration, rnd func(int64) int64) time.Duratio
 | הצלחה | אין מה לנסות שוב |
 | נגמרו הניסיונות | גבול קשיח, גם לכשל זמני |
 | השגיאה לא זמנית | ניסיון נוסף ייכשל באותה צורה |
-| ההמתנה הבאה חוצה את גבול הזמן | הלקוחה לא תחכה; עדיף להחזיר את השגיאה עכשיו |
+| ההמתנה הבאה חוצה את גבול הזמן | הלקוחה לא תחכה; עדיף להחזיר את השגיאה עכשיו (גם כשהשרת ביקש, ראי 15.3.5) |
 | התקציב סירב | ראי 15.3.4 |
 
 השעון, ההגרלה וההמתנה כולם מוזרקים. הבדיקה `TestDoStopsBeforeTheDeadline` בודקת שהלולאה עוצרת לפני גבול
@@ -363,6 +369,100 @@ func (b *Budget) Withdraw() bool {
 
 > **שימי לב:** התקציב משותף לכל הקוראות לאותה תלות בתהליך, לא לבקשה אחת. תקציב חדש לכל בקשה הוא שוב גבול
 > ניסיונות לבקשה, והוא לא עוצר כלום.
+
+### 15.3.5 כשהשרת אומר מתי לחזור: `Retry-After`
+
+לפעמים השרת יודע יותר מהנוסחה. תשובת 429 או 503 יכולה לשאת את הכותרת `Retry-After`, שאומרת ללקוחה כמה
+זמן לחכות. התקן שמגדיר אותה הוא RFC 9110, בסעיף 10.2.3, ולפיו יש לערך שתי צורות:
+
+| צורה | דוגמה מהתקן | משמעות |
+| --- | --- | --- |
+| מספר שניות | `120` | לחכות שתי דקות |
+| תאריך | `Fri, 31 Dec 1999 23:59:59 GMT` | לחכות עד הרגע הזה |
+
+תאריך הופך להמתנה לפי השעון של הלקוחה, ותאריך שכבר עבר פירושו שאין צורך לחכות. התקן מחייב לקוח שקורא תאריך
+להבין גם שתי צורות ישנות שלו, ו־`http.ParseTime` מהספרייה הסטנדרטית מכירה את שלושתן. הפונקציה
+`ParseRetryAfter` בקובץ `hop/hop.go` מפרקת את הערך:
+
+<div dir="ltr" align="left">
+
+```go
+func ParseRetryAfter(v string, now time.Time) (d time.Duration, ok bool) {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return 0, false
+	}
+	// ParseUint takes digits only (no sign); on overflow it returns the maximum value.
+	if secs, err := strconv.ParseUint(v, 10, 64); err == nil || errors.Is(err, strconv.ErrRange) {
+		if secs > math.MaxInt64/uint64(time.Second) {
+			return math.MaxInt64, true // centuries: no deadline will allow it anyway
+		}
+		return time.Duration(secs) * time.Second, true
+	}
+	t, err := http.ParseTime(v) // IMF-fixdate, and the two obsolete forms recipients must accept
+	if err != nil {
+		return 0, false
+	}
+	return max(t.Sub(now), 0), true
+}
+```
+
+</div>
+
+הפונקציה `strconv.ParseUint` לא מקבלת סימן, ולכן ערך כמו `-5` נדחה, כמו שהתקן דורש: רק ספרות. מספר ענק לא
+גולש. הוא נהיה ההמתנה הארוכה ביותר שאפשר לייצג, ושום גבול זמן לא יאפשר אותה.
+
+ההמתנה נשמרת בשגיאה עצמה, ורק כשהקוד הוא 429 או 503. מהפונקציה `send` באותו קובץ:
+
+<div dir="ltr" align="left">
+
+```go
+	if resp.StatusCode >= 500 || resp.StatusCode == http.StatusTooManyRequests {
+		se := &StatusError{Code: resp.StatusCode}
+		if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusServiceUnavailable {
+			se.RetryAfter, _ = ParseRetryAfter(resp.Header.Get("Retry-After"), c.now())
+		}
+		return se
+	}
+```
+
+</div>
+
+החבילה `retry` לא יודעת כלום על HTTP. היא מכירה רק ממשק קטן, והשגיאה `StatusError` מממשת אותו. מהקובץ
+`retry/retry.go`:
+
+<div dir="ltr" align="left">
+
+```go
+// ServerDelay is implemented by an error that carries the wait a server asked for,
+// such as an HTTP Retry-After. Do waits at least that long before the next attempt.
+type ServerDelay interface{ ServerDelay() time.Duration }
+
+// serverDelay returns the wait err asks for, or 0.
+func serverDelay(err error) time.Duration {
+	var sd ServerDelay
+	if errors.As(err, &sd) {
+		return sd.ServerDelay()
+	}
+	return 0
+}
+```
+
+</div>
+
+בלולאה של 15.3.3 זה מתורגם לשלושה כללים:
+
+- ההמתנה היא הגדולה מבין שתיים: הנוסחה, ומה שהשרת ביקש. השרת קובע מינימום, לא מקסימום.
+- אם הבקשה של השרת לבדה חוצה את גבול הזמן, הלולאה מוותרת מיד, עם השגיאה `ErrRetryAfterTooLong`. לישון עד
+  הגבול רק כדי להיכשל בו זה בזבוז, והשגיאה אומרת למה לא היה ניסיון נוסף.
+- תקציב הניסיונות עדיין קובע. בקשה מהשרת לא נותנת זכות לניסיון חוזר; היא רק אומרת מתי, אם בכלל.
+
+השעון שמתרגם תאריך להמתנה הוא אותו `Now` שבמדיניות, ולכן תאריך נמדד מול אותו זמן שהלולאה משווה לגבול. בזכות
+זה הבדיקות `TestParseRetryAfter` ו־`TestCallHonorsRetryAfter` לא ישנות אף פעם. את הצד של השרת, שעונה 429 עם
+הכותרת הזאת, תבני בפרק 16, סעיף 16.3.5.
+
+> **שימי לב:** בלי גבול זמן על ה־context, שום דבר לא מגביל את ההמתנה שהשרת מבקש. זו עוד סיבה לכך שלכל
+> קריאה יש גבול (15.2.1).
 
 ## 15.4 סערת ניסיונות חוזרים
 
@@ -837,6 +937,7 @@ bulkhead: 4 slots for slow   ___      ___      ___
 - **ניסיון חוזר:** רק לכשל זמני, לא לסירוב שלי, ולא מעבר לגבול הזמן.
 - **פיזור אקראי מלא:** הגרלה בין אפס לתקרה שמכפילה את עצמה.
 - **תקציב ניסיונות:** כל בקשה מפקידה עשירית, כל ניסיון חוזר מושך אחד, משותף לתלות.
+- **הכותרת `Retry-After`:** ב־429 וב־503 מחכים לפחות כמה שהשרת ביקש; אם זה חוצה את הגבול, מוותרים מיד.
 - **סערה:** ניסיונות בחזקת מספר השכבות; שכבה אחת בעלת הניסיונות.
 - **מפסק זרם:** סגור, פתוח, חצי־פתוח; דור מתעלם מתוצאות ישנות; ביטול לא נספר.
 - **מחיצה אטומה:** סמפור לכל תלות, סירוב מהיר או המתנה קצרה בתוך ה־context.
@@ -850,6 +951,7 @@ deadline.Middleware(max, h)    deadline.Downstream(ctx, reserve)    deadline.Inj
 header X-Timeout-Ms (gRPC: grpc-timeout)
 sleep = random(0, min(cap, base * 2^attempt))      # full jitter, Brooker 2015
 retry.NewBudget(0.1, 10): Deposit per call, Withdraw per retry
+Retry-After: 120 | Fri, 31 Dec 1999 23:59:59 GMT   (RFC 9110 10.2.3; wait = max(backoff, asked))
 storm: 3 layers x 3 attempts = 27 upstream calls per request
 breaker: closed -> open (N failures) -> half-open (timeout) -> closed (K ok) | open (1 fail)
 bulkhead: slots := make(chan struct{}, n); acquire = send, release = receive
@@ -864,15 +966,16 @@ my bulkhead run: fast ok without ___ with ___
 ## תרגיל
 
 **מטרה:** לבנות מעבדת עמידות: שרת שמשתבש בכוונה ולקוח שכל מנגנון בו נדלק בדגל; להשלים את העברת התקציב, את
-הניסיון החוזר עם תקציב ניסיונות, את מפסק הזרם ואת המחיצה; ולרשום את מספרי המעבדה עם כל מנגנון ובלעדיו.
-**זמן:** שני ימי לימוד, ימים 46 ו־47, כ־35 דקות בנייה ביום 46 וכ־65 ביום 47. **ידע מקדים:** הפרק, ופרקים 5 ו־6.
+הניסיון החוזר עם `Retry-After` ועם תקציב ניסיונות, את מפסק הזרם ואת המחיצה; ולרשום את מספרי המעבדה עם כל
+מנגנון ובלעדיו.
+**זמן:** שני ימי לימוד, ימים 46 ו־47, כ־45 דקות בנייה ביום 46 וכ־65 ביום 47. **ידע מקדים:** הפרק, ופרקים 5 ו־6.
 
 הצעדים, קוד ההתחלה, הרמזים והפתרון נמצאים
 ב־[`exercises/ch15-resilience-lab/README.md`](../exercises/ch15-resilience-lab/README.md).
 
 **קריטריון סיום:**
 
-- כל הבדיקות עוברות עם `-race`, כולל הבדיקה שמראה קריאה שנחתכת כשהתקציב נגמר.
+- כל הבדיקות עוברות עם `-race`, כולל הבדיקה שמראה קריאה שנחתכת כשהתקציב נגמר, ובדיקות `Retry-After`.
 - טבלת הסערה מההרצה שלך שמורה בפתק, כולל שורת התקציב.
 - בדיקות המצבים של מפסק הזרם עוברות בלי לישון.
 - מספרי המעבדה של המפסק, המחיצה וההידרדרות רשומים בפתק, עם ובלי כל מנגנון.

@@ -11,8 +11,8 @@ lang: he
 שרשרת, ניסיון חוזר עם המתנה גדלה ופיזור אקראי, תקציב ניסיונות, מפסק זרם ומחיצה אטומה. ואז להריץ את המעבדה עם
 כל מנגנון ובלעדיו, ולרשום את המספרים שלך.
 
-**זמן משוער:** שני ימי לימוד. יום 46: כ־35 דקות בנייה (העברת תקציב, ניסיון חוזר, הרצת הסערה). יום 47: כ־65
-דקות בנייה (תקציב ניסיונות, מחיצה, מפסק זרם, כל המעבדה).
+**זמן משוער:** שני ימי לימוד. יום 46: כ־45 דקות בנייה (העברת תקציב, ניסיון חוזר, הכותרת `Retry-After`, הרצת
+הסערה). יום 47: כ־65 דקות בנייה (תקציב ניסיונות, מחיצה, מפסק זרם, כל המעבדה).
 
 **ידע מקדים:** פרק 15. מפרק 5: ביטול עם context, ובדיקת מרוצים עם `-race`. מפרק 6: middleware ו־`httptest`. התרגיל לא מייבא
 קוד מתרגילים קודמים, ואין לו תלויות חיצוניות.
@@ -27,7 +27,7 @@ lang: he
 | `starter/bulkhead/bulkhead.go` | מחיצה אטומה כסמפור; `Acquire` ו־`Release` עם `TODO(day 47)` |
 | `starter/breaker/breaker.go` | מפסק זרם; הטיפוסים מוכנים, ארבע מתודות עם `TODO(day 47)` |
 | `starter/degrade/degrade.go` | ערך ישן עם גבול, ותכונה שאפשר לכבות; מוכן, לקריאה |
-| `starter/hop/hop.go` | קפיצה בשרשרת: הלקוח שמרכיב את כל המנגנונים, וה־handler; מוכן |
+| `starter/hop/hop.go` | קפיצה בשרשרת: הלקוח שמרכיב את כל המנגנונים, וה־handler; מוכן, חוץ מ־`ParseRetryAfter` עם `TODO(day 46)` |
 | `starter/cmd/upstream/main.go` | השרת המשתבש כתוכנית, עם דגלים |
 | `starter/cmd/client/main.go` | לקוח עם דגל לכל מנגנון |
 | `starter/cmd/lab/main.go` | חמשת התרחישים של הפרק, כל אחד עם המנגנון ובלעדיו |
@@ -72,18 +72,53 @@ go test -race ./deadline/
 
 </div>
 
-**4. מלאי את `Backoff` ואת `Do`**, בקובץ `retry/retry.go`. תקציב הניסיונות שייך ליום 47, ולכן מריצים רק את
-הבדיקות שלא נוגעות בו:
+**4. מלאי את `Backoff` ואת `Do`**, בקובץ `retry/retry.go`. ההערות בגוף `Do` כוללות גם את ההמתנה שהשרת מבקש
+(הפרק, סעיף 15.3.5). תקציב הניסיונות שייך ליום 47, ולכן מריצים רק את הבדיקות שלא נוגעות בו:
 
 <div dir="ltr" align="left">
 
 ```bash
-go test -race -run 'TestBackoff|TestDoStops|TestDoRespects|TestDo$/^(success|attempts|not)' ./retry/
+go test -race -run 'TestBackoff|TestDoStops|TestDoRespects|TestDo$/^(success|attempts|not)|TestDoHonorsRetryAfter/^(longer|shorter|fits|past)' ./retry/
 ```
 
 </div>
 
-**5. הבדיקה שמראה קריאה שנחתכת כשהתקציב נגמר**, ושתי בדיקות השרשרת שלא צריכות את יום 47:
+**5. מלאי את `ParseRetryAfter`** בקובץ `hop/hop.go`. השליחה כבר קוראת לה בכל 429 ו־503, ולכן גם בדיקות השרשרת
+של הצעד הבא צריכות אותה:
+
+<div dir="ltr" align="left">
+
+```bash
+go test -race -run 'TestParseRetryAfter|TestCallHonorsRetryAfter/^(429|503|500)' -v ./hop/
+```
+
+</div>
+
+<div dir="ltr" align="left">
+
+```text
+=== RUN   TestParseRetryAfter
+--- PASS: TestParseRetryAfter (0.00s)
+=== RUN   TestCallHonorsRetryAfter
+=== RUN   TestCallHonorsRetryAfter/429_with_seconds
+=== RUN   TestCallHonorsRetryAfter/503_with_an_HTTP-date
+=== RUN   TestCallHonorsRetryAfter/429_without_the_header:_plain_backoff
+=== RUN   TestCallHonorsRetryAfter/500_ignores_Retry-After
+=== RUN   TestCallHonorsRetryAfter/429_asking_past_the_deadline
+--- PASS: TestCallHonorsRetryAfter (0.01s)
+    --- PASS: TestCallHonorsRetryAfter/429_with_seconds (0.00s)
+    --- PASS: TestCallHonorsRetryAfter/503_with_an_HTTP-date (0.00s)
+    --- PASS: TestCallHonorsRetryAfter/429_without_the_header:_plain_backoff (0.00s)
+    --- PASS: TestCallHonorsRetryAfter/500_ignores_Retry-After (0.00s)
+    --- PASS: TestCallHonorsRetryAfter/429_asking_past_the_deadline (0.00s)
+PASS
+```
+
+</div>
+
+תת־הבדיקה של תקציב ריק, שגם בה השרת מבקש להמתין, מחכה ליום 47.
+
+**6. הבדיקה שמראה קריאה שנחתכת כשהתקציב נגמר**, ושתי בדיקות השרשרת שלא צריכות את יום 47:
 
 <div dir="ltr" align="left">
 
@@ -94,7 +129,7 @@ go test -race -run 'TestRetryStormAmplifies/^(three_attempts_at|one_attempt)' -v
 
 </div>
 
-**6. הריצי את הסערה ואת העברת התקציב**, והעתיקי את שתי הטבלאות לפתק:
+**7. הריצי את הסערה ואת העברת התקציב**, והעתיקי את שתי הטבלאות לפתק:
 
 <div dir="ltr" align="left">
 
@@ -105,7 +140,7 @@ go run ./cmd/lab -scenario deadline
 
 </div>
 
-**7. השרת והלקוח כתוכניות נפרדות.** בטרמינל אחד:
+**8. השרת והלקוח כתוכניות נפרדות.** בטרמינל אחד:
 
 <div dir="ltr" align="left">
 
@@ -133,7 +168,7 @@ curl -s localhost:8015/counts
 
 ## יום 47: תקציב ניסיונות, מחיצה ומפסק זרם
 
-**8. מלאי את `Deposit` ואת `Withdraw`** בקובץ `retry/retry.go`, והריצי את כל בדיקות החבילה:
+**9. מלאי את `Deposit` ואת `Withdraw`** בקובץ `retry/retry.go`, והריצי את כל בדיקות החבילה:
 
 <div dir="ltr" align="left">
 
@@ -143,7 +178,7 @@ go test -race ./retry/
 
 </div>
 
-**9. מלאי את `Acquire` ואת `Release`** בקובץ `bulkhead/bulkhead.go`:
+**10. מלאי את `Acquire` ואת `Release`** בקובץ `bulkhead/bulkhead.go`:
 
 <div dir="ltr" align="left">
 
@@ -153,7 +188,7 @@ go test -race ./bulkhead/
 
 </div>
 
-**10. מלאי את המפסק** בקובץ `breaker/breaker.go`, בסדר הזה:
+**11. מלאי את המפסק** בקובץ `breaker/breaker.go`, בסדר הזה:
 
 - המתודה `setState`, שמחליפה מצב ופותחת דור חדש;
 - המתודה `current`, שמעבירה מפתוח לחצי־פתוח;
@@ -170,7 +205,7 @@ go test -race -v ./breaker/
 
 </div>
 
-**11. כל הבדיקות, ושלושת הכלים.** הבדיקה של תרחישי המעבדה לוקחת כמה שניות:
+**12. כל הבדיקות, ושלושת הכלים.** הבדיקה של תרחישי המעבדה לוקחת כמה שניות:
 
 <div dir="ltr" align="left">
 
@@ -183,7 +218,7 @@ staticcheck ./...
 
 </div>
 
-**12. המעבדה כולה.** ההרצה לוקחת כמה עשרות שניות. העתיקי לפתק את כל הטבלאות:
+**13. המעבדה כולה.** ההרצה לוקחת כמה עשרות שניות. העתיקי לפתק את כל הטבלאות:
 
 <div dir="ltr" align="left">
 
@@ -193,7 +228,7 @@ go run ./cmd/lab | tee lab-$(date +%F).txt
 
 </div>
 
-**13. הלקוח עם כל המנגנונים**, מול השרת מצעד 7:
+**14. הלקוח עם כל המנגנונים**, מול השרת מצעד 8:
 
 <div dir="ltr" align="left">
 
@@ -203,7 +238,7 @@ go run ./cmd/client -n 200 -c 10 -attempts 3 -budget 0.1 -breaker -bulkhead 5
 
 </div>
 
-**14. שמרי את העבודה.**
+**15. שמרי את העבודה.**
 
 <div dir="ltr" align="left">
 
@@ -257,6 +292,8 @@ ok  	example.com/ch15-resilience-lab/retry	2.880s
 
 - [ ] כל הבדיקות עוברות עם `-race`, ושלושת הכלים שקטים.
 - [ ] הבדיקה `TestBudgetCutsOffTheCallWhenItRunsOut` עוברת, ואת יודעת להסביר למה הלקוחה קיבלה 504 או גבול זמן.
+- [ ] הבדיקה `TestCallHonorsRetryAfter` עוברת, ואת יודעת להסביר למה 429 שמבקש עשר שניות, מול גבול של חמש,
+  נכשל מיד ובלי לישון.
 - [ ] טבלת הסערה שמורה בפתק, כולל שורת התקציב מההרצה שלך.
 - [ ] טבלאות העברת התקציב, המפסק, המחיצה וההידרדרות שמורות בפתק, עם התאריך.
 - [ ] בדיקות המפסק עוברות בפחות משנייה, למרות שהן „מחכות” עשר שניות.
@@ -268,14 +305,14 @@ ok  	example.com/ch15-resilience-lab/retry	2.880s
   כתבת `:=` בתוך בלוק התנאי, ומשתנה השגיאה החדש הסתיר את הערך המוחזר בעל השם. השתמשי בשם אחר לשגיאה של
   `Allow`, כמו בקוד המקורי.
 - **הבדיקות של יום 46 נופלות עם `TODO(day 47): Budget.Deposit`.** הרצת בדיקה שמשתמשת בתקציב. הריצי את
-  הפקודות של צעדים 4 ו־5 כמו שהן, עם הסינון.
+  הפקודות של צעדים 4 עד 6 כמו שהן, עם הסינון.
 - **הבדיקה `TestDoStopsBeforeTheDeadline` מראה שתי שינות במקום אחת.** בדקת את גבול הזמן מול `time.Now` ולא מול
   `p.Now()`, ולכן השעון המזויף לא נלקח בחשבון. השתמשי בשעון שבמדיניות.
 - **הבדיקה `TestStaleResultIsIgnored` נכשלת: המפסק נפתח מתוצאה ישנה.** המתודה `record` לא משווה את הדור, או ש־`setState` לא
   מעלה אותו. כל מעבר מצב חייב להעלות את המונה.
 - **הבדיקות נתקעות ב־`TestFullFailsFast`.** המתודה `Acquire` מחכה בלי טיימר, או בלי `ctx.Done()`. ודאי שיש שלושה ענפים
   ב־`select` השני.
-- **שגיאה `address already in use` בצעד 7.** שרת קודם עוד רץ. עצרי אותו עם Ctrl+C, או בחרי פורט אחר עם הדגל
+- **שגיאה `address already in use` בצעד 8.** שרת קודם עוד רץ. עצרי אותו עם Ctrl+C, או בחרי פורט אחר עם הדגל
   `-addr`. את הכתובת החדשה מעבירים ללקוח עם `-url`.
 
 ## רמזים
@@ -283,6 +320,8 @@ ok  	example.com/ch15-resilience-lab/retry	2.880s
 - הכותרת מגיעה כמחרוזת. הפונקציה `strconv.ParseInt` מחזירה שגיאה גם על מחרוזת ריקה, וזה בדיוק המקרה של
   כותרת חסרה.
 - בפונקציה `Downstream` הזמן שנשאר הוא `time.Until(dl)`. את הגבול החדש בני מ־`dl` עצמו, לא מהשעה הנוכחית.
+- בכותרת `Retry-After` מותרות רק ספרות. הפונקציות `strconv.Atoi` ו־`strconv.ParseInt` מקבלות גם סימן, ולכן
+  ערך עם מינוס או פלוס יעבור בהן. הפונקציה `strconv.ParseUint` לא מקבלת סימן.
 - הזזה שמאלה של `time.Duration` היא כפל בחזקת שתיים. ערך שלילי אחרי הזזה פירושו גלישה.
 - במפסק, `current` רץ תמיד כשהנעילה תפוסה, ולכן הוא לא נועל בעצמו. המתודה `record` כן נועלת, כי קוראים לה מבחוץ.
 - ההמתנה במחיצה דומה ל־`checkOne` מפרק 5: בחירה בין הערוץ, טיימר וביטול ה־context.
@@ -290,8 +329,8 @@ ok  	example.com/ch15-resilience-lab/retry	2.880s
 ## הפתרון
 
 הפתרון המלא נמצא בתיקייה `solution/`. התקציב עובר כנקודת זמן מוחלטת בתוך התהליך וכמשך בכותרת בין תהליכים,
-ולכן זמן שעבר בכל מקום נספר בלי חישוב נוסף, וכל קפיצה שומרת רזרבה לעצמה. הניסיון החוזר בודק לפני כל המתנה
-שהיא לא חוצה את הגבול, ומושך מתקציב משותף לתלות, ולכן גם שלוש שכבות שמנסות שוב לא מכפילות את העומס. המפסק
+ולכן זמן שעבר בכל מקום נספר בלי חישוב נוסף, וכל קפיצה שומרת רזרבה לעצמה. הניסיון החוזר מחכה לפחות כמה שהשרת ביקש ב־`Retry-After`,
+בודק לפני כל המתנה שהיא לא חוצה את הגבול, ומושך מתקציב משותף לתלות, ולכן גם שלוש שכבות שמנסות שוב לא מכפילות את העומס. המפסק
 מתעלם מתוצאות של דור קודם, כך שקריאה איטית לא משנה מצב שכבר השתנה, והשעון המוזרק הופך כל מעבר מצב לבדיקה
 מיידית.
 
@@ -299,7 +338,7 @@ ok  	example.com/ch15-resilience-lab/retry	2.880s
 
 - כשל חלקי מדוד: בקשות נטושות לעומת עבודה שהסתיימה בשביל אף אחד.
 - העברת גבול זמן כולל בין שירותים, עם רזרבה בכל קפיצה.
-- המתנה גדלה מעריכית עם פיזור אקראי מלא, ולולאת ניסיונות שמכבדת את גבול הזמן.
+- המתנה גדלה מעריכית עם פיזור אקראי מלא, ולולאת ניסיונות שמכבדת את גבול הזמן ואת `Retry-After`.
 - תקציב ניסיונות משותף, וסערת ניסיונות חוזרים שנמדדת שכבה אחר שכבה.
 - מפסק זרם עם דורות ושעון מוזרק, ובדיקות מצב שלא ישנות.
 - מחיצה אטומה כסמפור, והידרדרות מכובדת עם ערך ישן ותכונה כבויה.
