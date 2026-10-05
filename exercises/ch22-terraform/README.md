@@ -209,18 +209,23 @@ terraform validate
 
 </div>
 
-**13. ודאי שאין state ב־Git, ושמרי.**
+**13. ודאי שאין state ב־Git, ושמרי.** קובץ ההחרגות שהעתקת בפרק 2, סעיף 2.9, כבר מחריג את התיקייה של
+Terraform ואת קובצי ה־state. פקודת ה־grep הראשונה מראה את השורות האלה, והשנייה מוסיפה רק את מה שחסר שם,
+קובץ המשתנים המקומי:
 
 <div dir="ltr" align="left">
 
 ```bash
 cd ~/senior-course
+grep -nE '^(\.terraform/|\*\.tfstate)' .gitignore
+grep -qx 'terraform.tfvars' .gitignore || echo 'terraform.tfvars' >> .gitignore
 git status --short ch22 | grep -E 'tfstate|\.terraform/' && echo "remove these before committing"
-printf '.terraform/\n*.tfstate\n*.tfstate.backup\nterraform.tfvars\n' >> .gitignore
 git add .gitignore ch22 && git commit -m "ch22: terraform against kind, module with the helm provider"
 ```
 
 </div>
+
+אם פקודת ה־grep הראשונה לא מדפיסה שלוש שורות, העתיקי שוב את קובץ ההחרגות לפי סעיף 2.9.
 
 ## פלט צפוי
 
@@ -326,7 +331,7 @@ smoke test passed
   `kind load` מצעד 1 ונסי שוב.
 - **שגיאה על נתיב ה־chart בחלק 2.** ה־chart לא הועתק לתוך `modules/shorty/chart`, או שהועתק לתיקייה בשם אחר.
   חזרי לצעד 7.
-- **`terraform.tfstate` מופיע ב־`git status`.** הוסיפי את השורות של צעד 13 ל־`.gitignore` לפני ה־commit.
+- **`terraform.tfstate` מופיע ב־`git status`.** קובץ ההחרגות לא הועתק בפרק 2. בדקי אותו כמו בצעד 13 לפני ה־commit.
 
 ## רמזים
 

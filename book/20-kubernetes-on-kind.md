@@ -102,8 +102,18 @@ nodes:
 
 </div>
 
-את ה־digest לא מעתיקים מבלוג. הוא מופיע בהוראות הפרסום של הגרסה, בעמוד הגרסה של kind ב־GitHub. מי
-שיש אצלה GitHub CLI (הפקודה `gh`, שאינה חלק מההתקנות של פרק 2) יכולה לקרוא אותן גם מהטרמינל:
+את ה־digest לא מעתיקים מבלוג. הוא מופיע בהוראות הפרסום של הגרסה, בעמוד הגרסה של kind ב־GitHub:
+
+<div dir="ltr" align="left">
+
+```text
+https://github.com/kubernetes-sigs/kind/releases/tag/v0.33.0
+```
+
+</div>
+
+הכלי GitHub CLI (הפקודה `gh`) אינו חלק מההתקנות של פרק 2, והוא רשות. מי שהוא מותקן ומחובר אצלה יכולה
+לקרוא את אותו טקסט מהטרמינל:
 
 <div dir="ltr" align="left">
 
@@ -714,7 +724,7 @@ kubectl -n ch20 get endpointslices -l kubernetes.io/service-name=shorty -o jsonp
 
 ```text
 cluster     kind create cluster --name ch20 --config kind-config.yaml ; kind delete cluster --name ch20
-node image  kindest/node:v1.37.0@sha256:a1ed56cf...   (from: gh api repos/kubernetes-sigs/kind/releases/tags/v0.33.0)
+node image  kindest/node:v1.37.0@sha256:a1ed56cf...   (from: github.com/kubernetes-sigs/kind/releases/tag/v0.33.0)
 load        docker build -t shorty:ch20 data/shorty ; kind load docker-image shorty:ch20 --name ch20
 apply       kubectl apply -f k8s/ ; kubectl -n ch20 rollout status deployment/shorty
 look        kubectl -n ch20 get deploy,rs,pods -l app=shorty ; kubectl -n ch20 describe pod POD

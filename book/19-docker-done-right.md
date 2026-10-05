@@ -382,8 +382,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 FROM python:3.14.8-slim
 ARG GIT_SHA=unknown
 LABEL org.opencontainers.image.revision="${GIT_SHA}"
-# The app never installs packages at runtime, so the base image's pip (and the
-# libraries it vendors, which scanners report) goes. See section 19.6.
+# The app never installs packages at runtime, so the base image's pip goes: its own
+# package metadata is what the scanners reported. See section 19.6.
 RUN rm -rf /usr/local/lib/python3.14/site-packages/pip* /usr/local/bin/pip* \
  && groupadd --system --gid 10001 app \
  && useradd --system --uid 10001 --gid app --no-create-home --shell /usr/sbin/nologin app
@@ -579,11 +579,10 @@ func healthcheck(url string, w io.Writer) int {
 3. **מה המחיר של כל אפשרות?** לעדכן את הבסיס, להסיר את החבילה, להחליף בסיס, או לתעד ולחכות.
 
 בהרצה שבה נכתב הספר (5 באוקטובר 2026), ה־image של shorty יצא נקי בשני הכלים: יש בו בינארי אחד ומעט קבצים של
-הבסיס. ב־receiver, Trivy דיווח על פגיעויות בשלוש ספריות Python שהאפליקציה לא משתמשת בהן. החיפוש הראה ששתיים
-מהן יושבות בתוך pip של תמונת הבסיס, שמביא איתו עותקים משלו של ספריות. השירות לא מתקין חבילות בזמן ריצה,
-ולכן ההחלטה הייתה להסיר את pip בשלב הריצה, ובסריקה הבאה נעלמו שלושת הממצאים. נשארו ממצאים בחבילות Debian של
-הבסיס, ורובם בלי תיקון זמין. אצלך המספרים יהיו אחרים, כי המאגרים מתעדכנים כל יום; את מה שמצאת ואת מה
-שהחלטת תרשמי בפתק.
+הבסיס. ב־receiver, Trivy דיווח על שלוש פגיעויות בחבילות Python שהאפליקציה לא משתמשת בהן. החיפוש הראה שכולן
+שייכות ל־pip שמגיע עם תמונת הבסיס. השירות לא מתקין חבילות בזמן ריצה, ולכן ההחלטה הייתה להסיר את pip בשלב
+הריצה, ובסריקה הבאה נעלמו שלושת הממצאים. נשארו ממצאים בחבילות Debian של הבסיס, ורובם בלי תיקון זמין.
+אצלך המספרים יהיו אחרים, כי המאגרים מתעדכנים כל יום; את מה שמצאת ואת מה שהחלטת תרשמי בפתק.
 
 > **שימי לב:** בצנרת CI מקובל להכשיל בנייה רק על ממצאים שיש להם תיקון, עם הדגל `--ignore-unfixed`
 > של Trivy, ולטפל בשאר בתהליך מסודר. שער שנכשל על כל ממצא בלי תיקון נכשל כל הזמן, והצוות לומד לעקוף

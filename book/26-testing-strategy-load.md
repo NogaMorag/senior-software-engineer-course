@@ -275,21 +275,15 @@ Ryuk: הוא מחזיק חיבור פתוח מהתהליך של הבדיקות, 
 התוויות של אותה הרצה. לכן בפלט של ההרצה הראשונה תראי שני images יורדים, `postgres:18.6`
 ו־`testcontainers/ryuk`.
 
-שלוש הערות סביבה:
+שתי הערות סביבה:
 
 - **‏WSL2 עם Docker Desktop.** כשהשילוב עם ההפצה דלוק (פרק 2, סעיף 2.4), הקובץ `/var/run/docker.sock` קיים
   בתוך Ubuntu, ו־testcontainers מוצא אותו לבד. אם `docker ps` עובד בטרמינל של WSL, גם הבדיקות יעבדו.
-- **‏Mac עם Docker Desktop.** לפי התיעוד של testcontainers-go, הספרייה מחפשת את Docker בסדר קבוע, וזה
-  הסדר:
-  1. קובץ ההגדרות `~/.testcontainers.properties`.
-  2. משתנה הסביבה `DOCKER_HOST`.
-  3. ה־context הנוכחי של Docker.
-  4. ורק אז `/var/run/docker.sock`.
-
-  כש־Docker Desktop לא יוצר את הקישור ב־`/var/run`, ה־context הנוכחי מצביע לשקע שלו בתיקיית הבית, וזה מספיק.
 - **לכבות את Ryuk.** המשתנה `TESTCONTAINERS_RYUK_DISABLED=true` מכבה אותו. יש סביבות שבהן אין ברירה, למשל
   Docker בלי root, שצריך לפעמים להריץ את Ryuk עם הרשאות מיוחדות במקום לכבות אותו. אבל על המחשב שלך, כיבוי
   פירושו קונטיינרים שנשארים אחרי כל עצירה ביד.
+
+> **ב־Mac:** גם בלי שקע ב־`/var/run`, הספרייה מוצאת את Docker Desktop לבד, בשקע שלו בתיקיית הבית (`~/.docker/run/docker.sock`).
 
 בסוף כל הרצה, הפקודה הזו צריכה להחזיר רשימה ריקה:
 

@@ -63,8 +63,16 @@ gh api repos/kubernetes-sigs/kind/releases/tags/v0.33.0 --jq .body | grep 'v1.37
 
 </div>
 
-הפקודה `gh` (GitHub CLI) אינה חלק מההתקנות של פרק 2. אם היא לא מותקנת ומחוברת אצלך, אותו טקסט נמצא
-בעמוד הגרסה של kind ב־GitHub, במאגר `kubernetes-sigs/kind`.
+הפקודה `gh` (GitHub CLI) אינה חלק מההתקנות של פרק 2, והיא רשות. אם היא לא מותקנת ומחוברת אצלך, אותו
+טקסט נמצא בעמוד הגרסה של kind ב־GitHub:
+
+<div dir="ltr" align="left">
+
+```text
+https://github.com/kubernetes-sigs/kind/releases/tag/v0.33.0
+```
+
+</div>
 
 **3. צרי את האשכול**, ובדקי שה־node מוכן ושהגרסה היא 1.37.0:
 

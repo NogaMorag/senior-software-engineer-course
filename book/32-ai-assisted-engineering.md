@@ -61,7 +61,7 @@ part: "חלק ח: אומנות הבכירות"
 | --- | --- | --- | --- |
 | Claude Code | „an agentic coding tool that reads your codebase, edits files, runs commands” | טרמינל, הרחבות לעורכים, אפליקציה, דפדפן | `CLAUDE.md`, ויכול לקרוא גם `AGENTS.md` |
 | Cursor | „a coding agent for building ambitious software”, עורך עם סוכן | העורך עצמו | כללים בתיקייה `.cursor/rules`, או `AGENTS.md` |
-| GitHub Copilot | הצעות תוך כדי הקלדה, שיחה, סקירת PR, וסוכן שעובד על ענף בסביבה של GitHub Actions | עורכים, GitHub | `.github/copilot-instructions.md`, או `AGENTS.md` |
+| GitHub Copilot | הצעות תוך כדי הקלדה, שיחה, סקירת PR, וסוכן שעובד על ענף בסביבה של GitHub Actions | עורכים, GitHub | `.github/copilot-instructions.md`, ו־`AGENTS.md` בחלק מהמשטחים (הסוכן, סקירת הקוד, שורת הפקודה) |
 
 המקורות הם אתרי התיעוד של שלושת הספקים, שנקראו ב־5 באוקטובר 2026:
 
@@ -72,6 +72,7 @@ https://code.claude.com/docs/en/overview
 https://cursor.com/docs  and  https://cursor.com/docs/context/rules
 https://docs.github.com/en/copilot/get-started/what-is-github-copilot
 https://docs.github.com/en/copilot/how-tos/configure-custom-instructions/add-repository-instructions
+https://docs.github.com/en/copilot/reference/custom-instructions-support
 ```
 
 </div>
@@ -79,7 +80,7 @@ https://docs.github.com/en/copilot/how-tos/configure-custom-instructions/add-rep
 שני דברים משותפים לשלושה, והם מה שחשוב לך:
 
 - **הם קוראים קובץ הנחיות מהמאגר.** זה המקום לכתוב את מה שכל סוכן צריך לדעת על הפרויקט: איך מריצים בדיקות, מה
-  אסור לגעת בו, אילו כלים חובה להריץ לפני שמסיימים. הקובץ `AGENTS.md` נתמך, לפי התיעוד, בשלושתם.
+  אסור לגעת בו, אילו כלים חובה להריץ לפני שמסיימים. הקובץ `AGENTS.md` נתמך, לפי התיעוד, בשלושתם (ב־Copilot רק בחלק מהמשטחים).
 - **הם מתחברים לכלים חיצוניים.** פרוטוקול בשם MCP מחבר סוכן למקורות כמו מערכת כרטיסים או
   מסמכים. כל חיבור כזה הוא גם הרשאה, וסעיף 32.2 חוזר לזה.
 

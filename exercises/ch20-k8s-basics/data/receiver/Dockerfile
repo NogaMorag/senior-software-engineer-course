@@ -25,8 +25,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 FROM python:3.14.8-slim
 ARG GIT_SHA=unknown
 LABEL org.opencontainers.image.revision="${GIT_SHA}"
-# The app never installs packages at runtime, so the base image's pip (and the
-# libraries it vendors, which scanners report) goes. See section 19.6.
+# The app never installs packages at runtime, so the base image's pip goes: its own
+# package metadata is what the scanners reported. See section 19.6.
 RUN rm -rf /usr/local/lib/python3.14/site-packages/pip* /usr/local/bin/pip* \
  && groupadd --system --gid 10001 app \
  && useradd --system --uid 10001 --gid app --no-create-home --shell /usr/sbin/nologin app

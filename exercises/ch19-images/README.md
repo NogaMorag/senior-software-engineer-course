@@ -197,7 +197,8 @@ less reports/receiver.trivy.txt
 
 </div>
 
-**11. החליטי על ממצא.** חפשי בדוח של Trivy את הקטע `Python (python-pkg)`. בדקי איפה הספריות האלה יושבות:
+**11. החליטי על ממצא.** חפשי בדוח של Trivy את הקטע `Python (python-pkg)`, ובדקי לאיזו חבילה שייך כל ממצא. כך
+רואים איפה pip של הבסיס יושב:
 
 <div dir="ltr" align="left">
 
@@ -207,7 +208,7 @@ docker run --rm --entrypoint python receiver:dev -c "import pip, sys; print(pip.
 
 </div>
 
-אם הן בתוך pip של הבסיס, מלאי את ה־`TODO` של יום 59 בקובץ `receiver/Dockerfile`, בני מחדש, וסרקי שוב. כתבי
+אם הממצאים שייכים ל־pip של הבסיס, מלאי את ה־`TODO` של יום 59 בקובץ `receiver/Dockerfile`, בני מחדש, וסרקי שוב. כתבי
 בפתק ממצא אחד שנשאר, ומה החלטת לגביו ולמה.
 
 **12. תגיות.** שמרי את העבודה, ואז תייגי בגרסה ובמזהה ה־commit:

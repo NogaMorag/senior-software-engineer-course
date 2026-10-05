@@ -22,7 +22,7 @@ chapter: 20
 
 ```text
 cluster     kind create cluster --name ch20 --config kind-config.yaml ; kind delete cluster --name ch20
-node image  kindest/node:v1.37.0@sha256:a1ed56cf...   (from: gh api repos/kubernetes-sigs/kind/releases/tags/v0.33.0)
+node image  kindest/node:v1.37.0@sha256:a1ed56cf...   (from: github.com/kubernetes-sigs/kind/releases/tag/v0.33.0)
 load        docker build -t shorty:ch20 data/shorty ; kind load docker-image shorty:ch20 --name ch20
 apply       kubectl apply -f k8s/ ; kubectl -n ch20 rollout status deployment/shorty
 look        kubectl -n ch20 get deploy,rs,pods -l app=shorty ; kubectl -n ch20 describe pod POD
