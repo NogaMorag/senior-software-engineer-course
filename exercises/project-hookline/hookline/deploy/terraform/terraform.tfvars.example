@@ -1,0 +1,4 @@
+# Copy to terraform.tfvars (git-ignored) and adjust.
+database_url    = "postgres://hookline:change-me@postgres.hookline.svc.cluster.local:5432/hookline"
+image_tag       = "dev"
+worker_replicas = 1

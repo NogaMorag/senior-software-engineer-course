@@ -1,0 +1,182 @@
+# Hookline's infrastructure on kind, as small as it can be: PostgreSQL, Redis, one Redpanda broker and the
+# sink, each a single replica with its data in an emptyDir (it disappears with the pod; this is a
+# practice cluster, not production). The Helm chart installs the Hookline binaries next to them.
+#   kubectl apply -f deploy/kind/infra.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: hookline
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: hookline
+spec:
+  selector: {app: postgres}
+  ports: [{name: postgres, port: 5432, targetPort: 5432}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: hookline
+  labels: {app: postgres}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: postgres}
+  template:
+    metadata:
+      labels: {app: postgres}
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: postgres
+          image: postgres:18.6
+          env:
+            - {name: POSTGRES_USER, value: hookline}
+            - {name: POSTGRES_PASSWORD, value: change-me} # a practice cluster's password, not a secret
+            - {name: POSTGRES_DB, value: hookline}
+          ports: [{containerPort: 5432}]
+          readinessProbe:
+            exec: {command: ["pg_isready", "-U", "hookline", "-d", "hookline"]}
+            periodSeconds: 2
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {memory: 512Mi}
+          volumeMounts: [{name: data, mountPath: /var/lib/postgresql}]
+      volumes: [{name: data, emptyDir: {}}]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: hookline
+spec:
+  selector: {app: redis}
+  ports: [{name: redis, port: 6379, targetPort: 6379}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: hookline
+  labels: {app: redis}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: redis}
+  template:
+    metadata:
+      labels: {app: redis}
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: redis
+          image: redis:8.10.2
+          args: ["--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru", "--save", "", "--appendonly", "no"]
+          ports: [{containerPort: 6379}]
+          readinessProbe:
+            exec: {command: ["redis-cli", "ping"]}
+            periodSeconds: 2
+          resources:
+            requests: {cpu: 50m, memory: 32Mi}
+            limits: {memory: 128Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redpanda
+  namespace: hookline
+spec:
+  selector: {app: redpanda}
+  ports: [{name: kafka, port: 9092, targetPort: 9092}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redpanda
+  namespace: hookline
+  labels: {app: redpanda}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: redpanda}
+  template:
+    metadata:
+      labels: {app: redpanda}
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: redpanda
+          image: docker.redpanda.com/redpandadata/redpanda:v26.2.3
+          args:
+            - redpanda
+            - start
+            - --kafka-addr=internal://0.0.0.0:9092
+            # Clients connect to the address the broker advertises: the Service name.
+            - --advertise-kafka-addr=internal://redpanda.hookline.svc.cluster.local:9092
+            - --mode=dev-container # no fsync, no memory reservation: never in production
+            - --smp=1
+            - --memory=512M
+            - --default-log-level=warn
+          ports: [{containerPort: 9092}]
+          readinessProbe:
+            exec: {command: ["rpk", "cluster", "health", "--exit-when-healthy"]}
+            periodSeconds: 5
+            timeoutSeconds: 10
+          resources:
+            requests: {cpu: 200m, memory: 640Mi}
+            limits: {memory: 1Gi}
+          volumeMounts: [{name: data, mountPath: /var/lib/redpanda/data}]
+      volumes: [{name: data, emptyDir: {}}]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sink
+  namespace: hookline
+spec:
+  selector: {app: sink}
+  ports: [{name: http, port: 8081, targetPort: 8081}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sink
+  namespace: hookline
+  labels: {app: sink}
+spec:
+  replicas: 1 # one: its receipts and counters live in the process
+  selector:
+    matchLabels: {app: sink}
+  template:
+    metadata:
+      labels: {app: sink}
+    spec:
+      # Without this, the kubelet injects SINK_PORT-style variables for every Service, among them
+      # RECEIVER_... for a Service named receiver; switched off for every pod here (chapter 20).
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: sink
+          image: hookline-sink:dev
+          imagePullPolicy: IfNotPresent
+          env:
+            - {name: RECEIVER_DEFAULT_SECRET, value: whsec_change-me} # practice value, not a secret
+          ports: [{name: http, containerPort: 8081}]
+          readinessProbe:
+            httpGet: {path: /stats, port: http}
+            periodSeconds: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {memory: 192Mi}

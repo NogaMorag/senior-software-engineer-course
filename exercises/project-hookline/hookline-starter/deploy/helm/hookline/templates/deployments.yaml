@@ -1,0 +1,74 @@
+{{- /*
+One Deployment per binary. They share the image, the ConfigMap and the Secret; they differ in command,
+replicas, resources, and (for the API) ports and probes. The relay, dispatcher and worker serve no HTTP
+yet, so they have no probes until milestone M8 gives them a metrics listener.
+*/ -}}
+{{- $components := dict
+      "api" (dict "values" .Values.api "grace" 30)
+      "relay" (dict "values" .Values.relay "grace" 30)
+      "dispatcher" (dict "values" .Values.dispatcher "grace" 30)
+      "worker" (dict "values" .Values.worker "grace" 60) }}
+{{- range $name := list "api" "relay" "dispatcher" "worker" }}
+{{- $c := get $components $name }}
+{{- $v := $c.values }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "hookline.fullname" $ }}-{{ $name }}
+  labels:
+    {{- include "hookline.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $name }}
+spec:
+  {{- if not (and (hasKey $v "autoscaling") $v.autoscaling.enabled) }}
+  replicas: {{ $v.replicas }}
+  {{- end }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      {{- include "hookline.selectorLabels" (dict "root" $ "component" $name) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "hookline.selectorLabels" (dict "root" $ "component" $name) | nindent 8 }}
+      annotations:
+        # A changed ConfigMap changes this hash, and so rolls the pods.
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") $ | sha256sum }}
+    spec:
+      # A worker drains on SIGTERM: every claimed delivery finishes, bounded by the lease.
+      terminationGracePeriodSeconds: {{ $c.grace }}
+      enableServiceLinks: false # no HOOKLINE_API_PORT-style variables injected by the kubelet
+      securityContext:
+        {{- include "hookline.podSecurity" $ | nindent 8 }}
+      containers:
+        - name: {{ $name }}
+          image: {{ include "hookline.image" $ | quote }}
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          command: ["/usr/local/bin/{{ $name }}"]
+          envFrom:
+            - configMapRef:
+                name: {{ include "hookline.fullname" $ }}
+          env:
+            {{- include "hookline.databaseEnv" $ | nindent 12 }}
+          {{- if eq $name "api" }}
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 5
+            failureThreshold: 2
+          livenessProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 10
+            failureThreshold: 3
+          {{- end }}
+          resources:
+            {{- toYaml $v.resources | nindent 12 }}
+          securityContext:
+            {{- include "hookline.containerSecurity" $ | nindent 12 }}
+{{- end }}

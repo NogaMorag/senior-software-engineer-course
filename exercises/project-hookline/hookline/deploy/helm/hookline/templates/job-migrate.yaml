@@ -1,0 +1,52 @@
+{{- if .Values.migrations.enabled }}
+# Runs before every install and upgrade, before any Deployment changes: the schema migrations, then the
+# topic. Both are idempotent, so a rerun is harmless. A hook does not see the chart's own ConfigMap
+# (it is not installed yet), so the Job carries its settings itself; the Secret must already exist.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "hookline.fullname" . }}-migrate
+  labels:
+    {{- include "hookline.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 3
+  activeDeadlineSeconds: 300
+  template:
+    metadata:
+      labels:
+        {{- include "hookline.selectorLabels" (dict "root" . "component" "migrate") | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      enableServiceLinks: false
+      securityContext:
+        {{- include "hookline.podSecurity" . | nindent 8 }}
+      initContainers:
+        - name: migrate
+          image: {{ include "hookline.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/usr/local/bin/hookline-admin", "migrate", "up"]
+          env:
+            {{- include "hookline.databaseEnv" . | nindent 12 }}
+          resources:
+            requests: {cpu: 20m, memory: 32Mi}
+            limits: {memory: 96Mi}
+          securityContext:
+            {{- include "hookline.containerSecurity" . | nindent 12 }}
+      containers:
+        - name: create-topic
+          image: {{ include "hookline.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/usr/local/bin/hookline-admin", "create-topic", "-partitions", "{{ .Values.migrations.topicPartitions }}"]
+          env:
+            - name: KAFKA_BROKERS
+              value: {{ .Values.kafkaBrokers | quote }}
+          resources:
+            requests: {cpu: 20m, memory: 32Mi}
+            limits: {memory: 96Mi}
+          securityContext:
+            {{- include "hookline.containerSecurity" . | nindent 12 }}
+{{- end }}

@@ -1464,7 +1464,249 @@ ok  	example.com/hookline/migrations	2.740s
 
 ## 38.7 M7: קונטיינרים, Kubernetes ו־CI
 
-יושלם עם אבן הדרך.
+### 38.7.1 המטרה
+
+להוציא את Hookline מהמחשב שלך אל אשכול. בסוף אבן הדרך יש לך ארבעה דברים:
+
+- שני images קטנים, שרצים כמשתמש שאינו root;
+- ‏chart של Helm שמתקין את ארבעת הבינאריים, עם מיגרציות לפני כל התקנה;
+- תצורת Terraform שמתקינה את אותו chart;
+- ‏workflow שבודק את הכול, כולל התקנה אמיתית על kind. בדיקת העשן היא אירוע אחד שנשלח ל־API באשכול ומגיע
+ל־sink באשכול, חתום.
+
+### 38.7.2 המושגים, והיכן נלמדו
+
+| מושג | איפה בספר | איפה בפרויקט |
+| --- | --- | --- |
+| ‏Dockerfile רב־שלבי ל־Go | פרק 19, סעיף 19.2 | `Dockerfile` |
+| ‏distroless ומשתמש מספרי | פרק 19, סעיף 19.3 | `USER 65532:65532`, ‏`api healthcheck` |
+| ‏image ל־Python עם uv | פרק 19, סעיף 19.4 | `sink/Dockerfile` |
+| ‏kind, ‏Deployments ו־Services | פרק 20, סעיפים 20.2 עד 20.5 | `deploy/kind/` |
+| ‏Secrets ו־probes | פרק 20, סעיפים 20.6 ו־20.7 | ‏`hookline-database`, ה־probes של ה־API |
+| ‏requests, ‏limits ו־HPA | פרק 21, סעיפים 21.1 ו־21.2 | `values.yaml`, ‏`hpa.yaml` |
+| ‏chart, ‏values ו־templates | פרק 21, סעיפים 21.6 ו־21.7 | `deploy/helm/hookline` |
+| ‏Terraform עם ה־provider של Helm | פרק 22, סעיפים 22.3, 22.4 ו־22.6 | `deploy/terraform` |
+| ‏workflow, ‏images ופריסה ל־kind ב־CI | פרק 23, סעיפים 23.2 עד 23.5 | `.github/workflows/hookline.yml` |
+| ‏actionlint | פרק 23, סעיף 23.8 | אותו קובץ |
+
+### 38.7.3 הקבצים
+
+כל הקבצים של אבן הדרך הזאת שלמים ב־starter: אין בהם קוד Go לכתוב. העבודה היא לקרוא כל קובץ, להבין כל שורה, להריץ,
+ולתקן את מה שלא עובד אצלך.
+
+| קובץ | תפקיד |
+| --- | --- |
+| `Dockerfile`, ‏`.dockerignore` | ‏image אחד עם חמשת הבינאריים |
+| `cmd/api/healthcheck.go` | ‏`api healthcheck`, כי ב־distroless אין curl |
+| `sink/Dockerfile`, ‏`sink/.dockerignore` | ה־sink כמו המקבל של פרק 19 |
+| `deploy/kind/kind-config.yaml` | אשכול של צומת אחד, image מוצמד לפי digest |
+| `deploy/kind/infra.yaml` | ‏PostgreSQL, ‏Redis, ‏Redpanda וה־sink, עותק אחד לכל אחד |
+| `deploy/helm/hookline/` | ה־chart: ‏Deployments, ‏Service, ‏ConfigMap, ‏HPA, וה־Job של המיגרציות |
+| `deploy/terraform/` | ‏namespace, ‏Secret ו־`helm_release`, עם מודול מקומי |
+| `.github/workflows/hookline.yml` | שישה jobs, מבדיקות היחידה ועד פרסום ל־GHCR |
+| `scripts/check-chart.sh`, ‏`scripts/kind-smoke.sh` | הבדיקות הסטטיות, ובדיקת העשן מקצה לקצה |
+
+### 38.7.4 הצעדים
+
+**יום 68: ה־images.** קראי את `Dockerfile`. זה ה־Dockerfile של פרק 19, סעיף 19.2, עם הבדל אחד: הוא בונה את כל
+חמשת הבינאריים לאותו image. כל Deployment ב־chart מריץ אחד מהם כפקודה. זה הקטע של הבנייה:
+
+<div dir="ltr" align="left">
+
+```dockerfile
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /out/ \
+      ./cmd/api ./cmd/relay ./cmd/dispatcher ./cmd/worker ./cmd/hookline-admin
+```
+
+</div>
+
+‏image אחד לכל הבינאריים הוא בחירה. החלופה, image לכל בינארי, נותנת images קטנים יותר ופריסה נפרדת לכל רכיב. כאן
+הבינאריים חולקים כמעט את כל הקוד, משתחררים יחד, וכך יש image אחד לסרוק, לתייג ולטעון ל־kind.
+
+<div dir="ltr" align="left">
+
+```bash
+make images
+docker image ls | grep -E '^hookline'
+docker run --rm --entrypoint id hookline-sink:dev
+```
+
+</div>
+
+הפקודה האחרונה צריכה להראות `uid=10001`. ‏image של Go רץ כ־65532, המשתמש `nonroot` של distroless.
+
+**יום 69: kind, ה־chart והמיגרציות.** קראי את `deploy/kind/infra.yaml`. התשתית לא נכנסה ל־chart בכוונה: באשכול
+אמיתי היא שירות מנוהל, וה־chart רק מקבל את הכתובות שלה. כאן היא קבצי YAML פשוטים, עותק אחד לכל רכיב, והנתונים
+ב־`emptyDir`, שנעלם עם ה־pod. זה אשכול תרגול.
+
+עכשיו ה־chart. שלוש החלטות שכדאי לזהות בו:
+
+- **הסוד לא ב־values.** כתובת המסד מגיעה מ־Secret שקיים לפני ההתקנה, כי ערכי ה־chart נשמרים בהיסטוריה של
+  ה־release. ה־chart מכיר רק את שם ה־Secret ואת המפתח.
+- **מיגרציות ב־hook.** ‏Job שרץ לפני כל התקנה ועדכון מריץ את המיגרציות ואז יוצר את ה־topic, לפני שאף Deployment
+  משתנה. שתי הפקודות אידמפוטנטיות, כך שהרצה חוזרת לא מזיקה.
+- **‏`enableServiceLinks: false` בכל pod.** אחרת ה־kubelet מוסיף משתני סביבה לכל Service, למשל `HOOKLINE_API_PORT`,
+  וזה המלכודת של פרק 20 עם המשתנה של הפורט של המקבל.
+
+זה הקטע של ה־hook, מהקובץ `deploy/helm/hookline/templates/job-migrate.yaml`:
+
+<div dir="ltr" align="left">
+
+```yaml
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+```
+
+</div>
+
+ה־hook לא רואה את ה־ConfigMap של ה־chart, כי בזמן `pre-install` הוא עוד לא קיים. לכן ה־Job מחזיק את ההגדרות שלו
+בעצמו. הריצי את הבדיקות הסטטיות, ואחר כך את בדיקת העשן:
+
+<div dir="ltr" align="left">
+
+```bash
+make chart-check
+KEEP=1 make kind-smoke
+```
+
+</div>
+
+‏`scripts/kind-smoke.sh` עובד עם קובץ kubeconfig משלו, ולא נוגע בשום הקשר אחר שלך. הוא יוצר את האשכול, בונה וטוען
+את שני ה־images, מחיל את התשתית, יוצר את ה־Secret ומתקין את ה־chart. אחר כך הוא יוצר דיירת דרך
+`kubectl exec`, ‏endpoint שמצביע על ה־sink באשכול, ושולח אירוע אחד. עם `KEEP=1` האשכול נשאר, למחר.
+
+**יום 70: Terraform ו־CI.** ‏Terraform מתקין את אותו chart, מהנתיב המקומי שלו ולא מעותק, למרחב שמות משלו. הוא
+יוצר את ה־namespace ואת ה־Secret, ומתקין את ה־release ליד התשתית שכבר רצה. זה המשאב העיקרי, מהקובץ
+`deploy/terraform/modules/hookline/main.tf`:
+
+<div dir="ltr" align="left">
+
+```hcl
+resource "helm_release" "hookline" {
+  name      = var.release_name
+  namespace = kubernetes_namespace_v1.this.metadata[0].name
+  chart     = "${path.module}/../../../helm/hookline"
+```
+
+</div>
+
+<div dir="ltr" align="left">
+
+```bash
+cd deploy/terraform
+cp terraform.tfvars.example terraform.tfvars
+terraform init
+terraform plan -out plan.out
+terraform apply plan.out
+terraform plan -var worker_replicas=2
+terraform destroy
+cd ../..
+make kind-down
+```
+
+</div>
+
+‏`terraform.tfvars` מוחזק מחוץ ל־Git, כי בו כתובת המסד. גם קובץ ה־state יכול להחזיק אותה, ולכן גם הוא מחוץ ל־Git.
+הקובץ `.terraform.lock.hcl` כן נכנס, עם ארבע פלטפורמות, כדי שה־CI ומחשבים אחרים יקבלו בדיוק אותם providers.
+
+לסיום, ה־workflow. הוא שייך לשורש המאגר שלך, ליד ה־action של פרק 23:
+
+<div dir="ltr" align="left">
+
+```bash
+cp -r ~/senior-course/hookline/.github/. ~/senior-course/.github/
+cd ~/senior-course && actionlint
+```
+
+</div>
+
+שישה jobs:
+
+| job | מה הוא עושה |
+| --- | --- |
+| `unit` | ה־action של פרק 23: ‏gofmt, ‏vet, ‏staticcheck ו־`go test -race` |
+| `integration` | ה־compose כולו, ואז אותו action עם `fail-on-skip`: כל בדיקת אינטגרציה חייבת לרוץ |
+| `sink` | ‏uv, ‏ruff, ‏mypy ו־pytest |
+| `deploy-config` | בדיקות ה־chart, ו־Terraform בלי אשכול |
+| `kind-smoke` | אשכול kind ב־CI, ואותו סקריפט עשן |
+| `images` | שני images ל־GHCR, רק מ־main ורק אחרי שהכול עבר |
+
+‏Redpanda צריך שורת פקודה, ושירות צמוד של GitHub Actions לא מקבל כזאת. לכן ה־job של האינטגרציה מריץ את
+קובץ ה־compose, ולא services (פרק 23, סעיף 23.3). הצד הטוב: ה־CI והמחשב שלך מריצים בדיוק אותה סביבה.
+
+> **שימי לב:** ה־workflow נבדק כאן ב־actionlint בלבד. הוא ירוץ באמת רק במאגר שלך ב־GitHub, וההרצה הראשונה שלו
+> היא חלק מאבן הדרך: אם job נכשל שם, קראי את הלוג שלו ותקני.
+
+### 38.7.5 הבדיקות שצריכות להוריק
+
+<div dir="ltr" align="left">
+
+```bash
+make chart-check
+make kind-smoke
+make tf-check
+cd ~/senior-course && actionlint
+```
+
+</div>
+
+### 38.7.6 הפלט הצפוי
+
+<div dir="ltr" align="left">
+
+```text
+$ make chart-check
+...
+PASS  "helm.sh/hook": pre-install,pre-upgrade
+...
+all chart checks passed
+$ make kind-smoke
+...
+== smoke: one event to the in-cluster sink
+event 01a10c1d-c2ea-7846-b280-8f3878a0be35
+sink: {"received":1,"unique":1,"duplicates":0,"rejected":0,"failed":0,"hooks":{"smoke":{"received":1,"unique":1,"duplicates":0,"rejected":0,"failed":0}}}
+deliveries: [('delivered', 1)]
+PASS: the event reached the in-cluster sink, signed
+$ terraform apply plan.out
+Apply complete! Resources: 3 added, 0 changed, 0 destroyed.
+$ terraform plan -var worker_replicas=2
+  # module.hookline.helm_release.hookline will be updated in-place
+$ terraform destroy
+Destroy complete! Resources: 3 destroyed.
+```
+
+</div>
+
+### 38.7.7 קריטריון סיום
+
+- שני ה־images נבנים ורצים כמשתמש שאינו root, וב־image של Go אין shell.
+- ‏`make chart-check` עובר: ‏kubeconform, ‏`helm lint --strict`, ורשימת הבדיקות על הפלט.
+- ‏`make kind-smoke` מסתיים ב־PASS: האירוע הגיע ל־sink באשכול, חתום.
+- ‏`terraform apply` מתקין, ‏`plan` אחרי שינוי מראה שינוי אחד, ו־`destroy` מנקה.
+- ‏actionlint נקי על ה־workflow, וה־workflow רץ במאגר שלך ב־GitHub.
+- קומיט של אבן הדרך, ו־`make kind-down`.
+
+### 38.7.8 טעויות נפוצות
+
+- **‏`localhost` בתוך האשכול.** כתובת כזאת מצביעה על ה־pod של ה־worker עצמו, ולא על ה־sink. באשכול מצביעים על
+  ה־Service: ‏`sink.hookline.svc.cluster.local`.
+- **‏Job של מיגרציות שמחכה ל־ConfigMap של ה־chart.** לפני ההתקנה הוא עוד לא קיים, וה־Job נתקע. ב־`kubectl describe`
+  רואים `CreateContainerConfigError`.
+- **‏image בלי תג, או עם `latest`.** עם התג הזה Kubernetes מנסה למשוך מה־registry, ולא מוצא את ה־image שטענת ל־kind.
+  תג מפורש, כמו `dev`, פותר את זה.
+- **‏`DATABASE_URL` ב־values.** הוא נשמר בהיסטוריה של ה־release, ונראה ב־`helm get values`. רק דרך Secret.
+- **הקשר kubectl לא נכון.** פקודה שרצה על האשכול הלא נכון יכולה למחוק דברים אחרים. הסקריפט משתמש בקובץ kubeconfig משלו.
+
+### 38.7.9 הרחבה
+
+- הוסיפי NetworkPolicy שמגבילה את ה־workers ל־DNS, למסד וליציאה החוצה. חשבי מה זה עושה להגנת ה־SSRF של אבן
+  הדרך התשיעית.
+- הריצי את Trivy או את Grype על שני ה־images (פרק 19, סעיף 19.6), ורשמי מה מצאו.
+- הוסיפי workflow של שחרור על תג, עם actions מוצמדים לפי SHA, כמו בקובץ `release.yml` של פרק 23.
 
 ## 38.8 M8: תצפיתיות ו־SLO
 
@@ -1488,6 +1730,8 @@ ok  	example.com/hookline/migrations	2.740s
 - הפעלה חוזרת לא מאפסת את מספר הניסיונות; העמודה `attempt_base` מסמנת איפה הסבב החדש מתחיל.
 - אבן הדרך השישית: מפסק ומחיצה לכל endpoint שדוחים מסירה בלי לבזבז ניסיון, הגבלת קצב לכל דיירת שנכשלת פתוח,
   השלת עומס לפני האימות, ו־relay יחיד פעיל שהקדנציה שלו מגדרת את הסימון.
+- אבן הדרך השביעית: ‏image אחד לחמשת הבינאריים ו־image ל־sink, ‏chart עם מיגרציות ב־hook ו־Secret מבחוץ, ‏Terraform
+  שמתקין את אותו chart, ו־workflow שמריץ את הכול, כולל kind.
 - הסיכום יושלם עם אבני הדרך הבאות.
 
 ## מונחים לזכור
@@ -1506,6 +1750,8 @@ ok  	example.com/hookline/migrations	2.740s
 | כשל פתוח | fail open | כשהמגביל עצמו לא זמין, הבקשה עוברת; ההחלטה ההפוכה הייתה מפילה את הקליטה |
 | קדנציה | term | מספר שעולה בכל בחירת מנהיג, ומשמש כ־fencing token |
 | פיגור מסירה | delivery lag | הזמן מקליטת האירוע ועד שהמקבל אישר אותו; היעד של N2 |
+| ‏hook של Helm | Helm hook | משאב שרץ בנקודה במחזור של release, למשל Job לפני כל התקנה |
+| בדיקת עשן | smoke test | בדיקה קצרה מקצה לקצה שמראה שהמערכת בכלל עובדת אחרי פריסה |
 
 הטבלה תושלם עם אבני הדרך הבאות.
 
@@ -1516,6 +1762,7 @@ ok  	example.com/hookline/migrations	2.740s
   אבן הדרך החמישית היא שמוכיחה את ההבטחה.
 - **לסמוך על Kafka לסינון כפילויות.** ה־offset של פרסום כפול שונה. הכפילות נעצרת באילוץ במסד, ובמקבל לפי מזהה האירוע.
 - **לנסות שוב כל כישלון.** תשובת 4xx סופית; ניסיון חוזר שלה רק מאריך את התור של כולם.
+- **סוד ב־values של chart.** הוא נשמר בהיסטוריה של ה־release; ה־chart מקבל שם של Secret, לא את הערך.
 - **הגנה שעולה יותר ממה שהיא חוסכת.** מחיצה שמחכה, או השלת עומס אחרי קריאה למסד, מחזירות את העומס מהדלת האחורית.
 - הרשימה תושלם עם אבני הדרך הבאות.
 
@@ -1548,6 +1795,11 @@ ok  	example.com/hookline/migrations	2.740s
    **המשך:** למה לא מפסק משותף ב־Redis? כי אז Redis נעשה תלות של כל שליחה, ותקלה בו משפיעה על כל המקבלים; הייתי
    עוברת אליו רק אם המדידה מראה שהרבה workers מכים endpoint מת לפני שהמפסקים המקומיים נפתחים.
 
+6. **איך את מריצה מיגרציות בפריסה ל־Kubernetes, ומה יכול להשתבש?** ‏Job של Helm ב־`pre-install` ו־`pre-upgrade`, כך
+   שהסכמה מוכנה לפני שאף pod חדש עולה, עם פקודה אידמפוטנטית. שני דברים לשים לב אליהם: ה־Job לא רואה משאבים
+   שה־chart עוד לא התקין, והמיגרציה חייבת להתאים גם לגרסה הישנה שעוד רצה, כי בעדכון מתגלגל שתיהן חיות יחד
+   (פרק 30). לכן מיגרציה שמוחקת עמודה נכנסת רק אחרי שאף גרסה לא קוראת אותה.
+
 ## פתק Obsidian
 
 הפתק המוכן נמצא גם כקובץ: `obsidian/38-hookline-milestones.md`. זה תוכנו:
@@ -1558,6 +1810,7 @@ ok  	example.com/hookline/migrations	2.740s
 - **‏M4:** פרסום, אישור, ואז סימון; ‏offset אחרי ההכנסה; ‏`ON CONFLICT DO NOTHING` על אירוע ו־endpoint.
 - **‏M5:** ‏`SKIP LOCKED` וחכירה; 408, 429 ו־5xx מנוסים שוב, שאר 4xx לא; ‏`attempt_base` בהפעלה חוזרת.
 - **‏M6:** מחיצה בלי המתנה ומפסק לכל endpoint; דחייה בלי ניסיון; מגבלה לכל דיירת, נכשלת פתוח; השלה לפני האימות.
+- **‏M7:** ‏image אחד עם כל הבינאריים; משתמש מספרי; מיגרציות ב־hook; ‏Secret מבחוץ; ‏compose גם ב־CI.
 - **שאלה פתוחה:** ___
 
 <div dir="ltr" align="left">
@@ -1572,6 +1825,9 @@ env       REDIS_ADDR=localhost:6438 KAFKA_BROKERS=localhost:19438 SINK_URL=http:
 run       make run | make relay | make dispatcher | make worker
 sink      curl -s localhost:8091/stats    curl -s -X POST localhost:8091/control -d '{"failure_rate":1}'
 retry     408 429 5xx timeout refused -> retry      other 4xx 3xx -> dead      replay: dead -> pending
+m7        make images | make chart-check | KEEP=1 make kind-smoke | make tf-check | make kind-down
+kube      export KUBECONFIG=/tmp/hookline-kind.kubeconfig; kubectl -n hookline get pods
+ci        cp -r hookline/.github/. .github/ && actionlint
 lab       make lab-n3      GUARDS=off make lab-n3      (record your p50/p99, date, machine)
 guards    HOOKLINE_ENDPOINT_CONCURRENCY=2 HOOKLINE_BREAKER_FAILURES=5 HOOKLINE_BREAKER_OPEN=30s HOOKLINE_MAX_IN_FLIGHT=256
 m5 tests  go test -race -count=1 -skip 'RateLimit|OverItsLimit|LimiterFailure|Shed|Breaker|Bulkhead' ./internal/backoff/ ./internal/delivery/ ./internal/api/ ./internal/store/... ./internal/e2e/
@@ -1594,6 +1850,7 @@ skip      -skip drops later milestones' tests: Invalidat ActiveSubscriptions (M3
 - כל אבן דרך: הפקודה של סעיף הבדיקות שלה ירוקה, וקומיט עם שם אבן הדרך.
 - אחרי אבן הדרך החמישית: ‏`TestPipelineEndToEnd` עוברת מול ה־compose, וארבעת הבינאריים מוסרים אירועים ל־sink.
 - אחרי אבן הדרך השישית: ניסוי N3 רץ בשתי הגרסאות, והמספרים שמדדת רשומים, עם תאריך ומחשב.
+- אחרי אבן הדרך השביעית: ‏`make kind-smoke` מסתיים ב־PASS, וה־workflow ירוק במאגר שלך ב־GitHub.
 - הרשימה המלאה תושלם עם אבני הדרך הבאות.
 
 ## העשרה אופציונלית

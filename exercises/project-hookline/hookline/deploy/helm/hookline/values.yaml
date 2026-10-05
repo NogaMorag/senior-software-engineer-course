@@ -1,0 +1,66 @@
+# Default values for the Hookline chart. Every key is checked by values.schema.json; override with
+# -f my-values.yaml or --set key=value. The infrastructure (PostgreSQL, Redis, Redpanda) is not part of
+# the chart: on kind it comes from deploy/kind/infra.yaml, in a real cluster from managed services.
+
+image:
+  repository: hookline
+  tag: ""                 # empty means .Chart.AppVersion
+  pullPolicy: IfNotPresent
+
+# DATABASE_URL comes from an existing Secret, never from values: values end up in the release history.
+database:
+  secretName: hookline-database
+  secretKey: url
+
+redisAddr: redis.hookline.svc.cluster.local:6379
+kafkaBrokers: redpanda.hookline.svc.cluster.local:9092
+logLevel: info            # debug, info, warn or error
+devMode: false            # true accepts http:// endpoint URLs, as the in-cluster sink needs
+
+# The pre-install/pre-upgrade hook Job: migrations, then the topic.
+migrations:
+  enabled: true
+  topicPartitions: 6
+
+api:
+  replicas: 2
+  maxInFlight: 256        # HOOKLINE_MAX_IN_FLIGHT; 0 turns shedding off
+  resources:
+    requests: {cpu: 50m, memory: 32Mi}
+    limits: {memory: 128Mi}
+  autoscaling:
+    enabled: false        # when true, the HPA owns the replica count
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+
+service:
+  port: 80
+
+relay:
+  replicas: 2             # one leads (advisory lock); the other takes over when it dies
+  resources:
+    requests: {cpu: 20m, memory: 32Mi}
+    limits: {memory: 96Mi}
+
+dispatcher:
+  replicas: 2             # at most topicPartitions do work; the rest wait for a rebalance
+  resources:
+    requests: {cpu: 20m, memory: 32Mi}
+    limits: {memory: 96Mi}
+
+worker:
+  replicas: 2
+  workers: 8              # goroutines per pod
+  endpointConcurrency: 2  # bulkhead per endpoint, per pod
+  maxAttempts: 10
+  attemptTimeout: 10s
+  lease: 30s
+  resources:
+    requests: {cpu: 50m, memory: 32Mi}
+    limits: {memory: 128Mi}
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 70

@@ -1,0 +1,13 @@
+# Only what the Go build needs goes into the build context.
+.git
+.github
+bin/
+**/*_test.go
+*.out
+Dockerfile*
+.dockerignore
+sink/
+deploy/
+docs/
+scripts/
+api/

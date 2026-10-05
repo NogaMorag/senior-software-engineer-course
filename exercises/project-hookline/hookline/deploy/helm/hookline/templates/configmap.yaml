@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "hookline.fullname" . }}
+  labels:
+    {{- include "hookline.labels" . | nindent 4 }}
+data:
+  HOOKLINE_LOG_LEVEL: {{ .Values.logLevel | quote }}
+  HOOKLINE_DEV_MODE: {{ .Values.devMode | quote }}
+  HOOKLINE_DEBUG_ADDR: "off" # pprof stays off in the cluster; port-forward a dev build when you need it
+  HOOKLINE_MAX_IN_FLIGHT: {{ .Values.api.maxInFlight | quote }}
+  HOOKLINE_WORKERS: {{ .Values.worker.workers | quote }}
+  HOOKLINE_ENDPOINT_CONCURRENCY: {{ .Values.worker.endpointConcurrency | quote }}
+  HOOKLINE_MAX_ATTEMPTS: {{ .Values.worker.maxAttempts | quote }}
+  HOOKLINE_ATTEMPT_TIMEOUT: {{ .Values.worker.attemptTimeout | quote }}
+  HOOKLINE_LEASE: {{ .Values.worker.lease | quote }}
+  REDIS_ADDR: {{ .Values.redisAddr | quote }}
+  KAFKA_BROKERS: {{ .Values.kafkaBrokers | quote }}

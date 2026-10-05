@@ -1,0 +1,56 @@
+# Composite action: the Go checks every Go chapter of the course runs in CI.
+# Called from a job after actions/checkout, with the module's directory.
+name: Go checks
+description: gofmt, go vet, staticcheck and go test -race for one Go module.
+
+inputs:
+  working-directory:
+    description: Directory that holds go.mod, relative to the repository root.
+    required: true
+  fail-on-skip:
+    description: Fail when any test was skipped (use it where a database is expected).
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Go from go.mod
+      uses: actions/setup-go@v7
+      with:
+        go-version-file: ${{ inputs.working-directory }}/go.mod
+        cache-dependency-path: ${{ inputs.working-directory }}/go.sum
+
+    - name: gofmt
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        unformatted="$(gofmt -l .)"
+        if [ -n "$unformatted" ]; then
+          echo "::error::gofmt would change these files:"
+          echo "$unformatted"
+          exit 1
+        fi
+
+    - name: go vet
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: go vet ./...
+
+    - name: staticcheck
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: go run honnef.co/go/tools/cmd/staticcheck@2026.2.1 ./...
+
+    - name: go test -race
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        FAIL_ON_SKIP: ${{ inputs.fail-on-skip }}
+      run: |
+        go test -race -count=1 -v ./... | tee "$RUNNER_TEMP/go-test.log"
+        if [ "$FAIL_ON_SKIP" = "true" ] && grep -q -- '--- SKIP' "$RUNNER_TEMP/go-test.log"; then
+          echo "::error::tests were skipped; is DATABASE_URL set for this job?"
+          grep -- '--- SKIP' "$RUNNER_TEMP/go-test.log"
+          exit 1
+        fi

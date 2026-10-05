@@ -1,0 +1,191 @@
+# CI for Hookline (milestone M7, chapter 23). This file belongs at the root of your repository, in
+# .github/workflows/, next to the go-checks action from chapter 23 (.github/actions/go-checks); the
+# project lives in hookline/. Copy both with:
+#   cp -r ~/senior-course/hookline/.github/. ~/senior-course/.github/
+name: hookline
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "hookline/**"
+      - ".github/actions/go-checks/**"
+      - ".github/workflows/hookline.yml"
+  pull_request:
+    paths:
+      - "hookline/**"
+      - ".github/actions/go-checks/**"
+      - ".github/workflows/hookline.yml"
+
+# Every job gets a read-only token unless it asks for more.
+permissions:
+  contents: read
+
+# One run per branch or PR; a new push to a PR cancels the run it replaces.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    shell: bash
+    working-directory: hookline
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/go-checks
+        with:
+          working-directory: hookline
+
+  integration:
+    # The real stack, from the same compose file you use: PostgreSQL, Redis, Redpanda and the sinks.
+    # Redpanda needs a command line, which a service container cannot take, so compose runs it all.
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      DATABASE_URL: postgres://hookline:change-me@localhost:5438/hookline # a throw-away CI database
+      REDIS_ADDR: localhost:6438
+      KAFKA_BROKERS: localhost:19438
+      SINK_URL: http://localhost:8091
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Start the stack
+        run: docker compose -p hookline -f deploy/compose.yaml up -d --wait --build
+      - uses: ./.github/actions/go-checks
+        with:
+          working-directory: hookline
+          fail-on-skip: "true" # every integration test must have run
+      - name: Show the stack's logs
+        if: failure()
+        run: docker compose -p hookline -f deploy/compose.yaml logs --tail=100
+      - name: Stop the stack
+        if: always()
+        run: docker compose -p hookline -f deploy/compose.yaml down -v
+
+  sink:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: hookline/sink
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10
+        with:
+          version: "0.12.23"
+          working-directory: hookline/sink
+          enable-cache: true
+          cache-dependency-glob: hookline/sink/uv.lock
+      - name: Lockfile matches pyproject.toml
+        run: uv lock --check
+      - name: Install exactly what uv.lock says
+        run: uv sync --frozen
+      - name: ruff check
+        run: uv run --no-sync ruff check .
+      - name: ruff format
+        run: uv run --no-sync ruff format --check .
+      - name: mypy
+        run: uv run --no-sync mypy src
+      - name: pytest
+        run: uv run --no-sync pytest -q
+
+  deploy-config:
+    # The chart, the kind manifests and the Terraform configuration, checked without a cluster.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: azure/setup-helm@v5
+        with:
+          version: v4.3.0
+      - name: Chart and manifests
+        run: scripts/check-chart.sh
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.16.5
+      - name: Terraform format and validate
+        working-directory: hookline/deploy/terraform
+        run: |
+          terraform fmt -check -recursive
+          terraform init -backend=false -input=false
+          terraform validate
+
+  kind-smoke:
+    needs: [unit, sink, deploy-config]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: azure/setup-helm@v5
+        with:
+          version: v4.3.0
+      - name: Create a kind cluster
+        uses: helm/kind-action@v1.15.0
+        with:
+          version: v0.33.0
+          node_image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
+          kubectl_version: v1.37.1
+          cluster_name: hookline
+      - name: Build, load, install, and send one event to the in-cluster sink
+        run: scripts/kind-smoke.sh # finds the cluster above, so it does not create or delete one
+
+  images:
+    # Publish only what passed everything, and only from main.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [integration, kind-smoke]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - name: hookline
+            context: hookline
+          - name: hookline-sink
+            context: hookline/sink
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@v4
+      - name: Image names and labels
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}
+          tags: |
+            type=ref,event=branch
+            type=sha
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: ${{ matrix.context }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: GIT_SHA=${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,scope=${{ matrix.name }},mode=max

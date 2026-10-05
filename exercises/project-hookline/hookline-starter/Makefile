@@ -9,7 +9,7 @@ KAFKA_BROKERS ?= localhost:19438
 SINK_URL      ?= http://localhost:8091
 export DATABASE_URL REDIS_ADDR KAFKA_BROKERS SINK_URL
 
-.PHONY: all build test test-unit lint up down db-up db-down migrate topic tenant run run-dev relay dispatcher worker sink-test lab-n3 clean
+.PHONY: all build test test-unit lint up down db-up db-down migrate topic tenant run run-dev relay dispatcher worker sink-test lab-n3 images chart-check kind-smoke kind-down tf-check clean
 
 all: lint test-unit build
 
@@ -73,6 +73,24 @@ worker:
 # GUARDS=off make lab-n3 runs the same without breakers and bulkheads.
 lab-n3:
 	scripts/lab-n3.sh
+
+# Milestone M7: the two images, the chart checks, the kind smoke test, Terraform without a cluster.
+images:
+	docker build -t hookline:dev .
+	docker build -t hookline-sink:dev sink
+
+chart-check:
+	scripts/check-chart.sh
+
+# KEEP=1 make kind-smoke leaves the cluster running (for Terraform, or to look around).
+kind-smoke:
+	scripts/kind-smoke.sh
+
+kind-down:
+	kind delete cluster --name hookline
+
+tf-check:
+	cd deploy/terraform && terraform fmt -check -recursive && terraform init -backend=false -input=false && terraform validate
 
 sink-test:
 	cd sink && uv sync --frozen && uv run ruff check . && uv run mypy src && uv run pytest -q

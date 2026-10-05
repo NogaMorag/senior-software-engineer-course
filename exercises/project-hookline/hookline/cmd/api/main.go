@@ -25,6 +25,14 @@ import (
 )
 
 func main() {
+	// "api healthcheck [url]" probes a running API and exits 0 or 1: the distroless image has no curl.
+	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
+		url := defaultHealthURL
+		if len(os.Args) > 2 {
+			url = os.Args[2]
+		}
+		os.Exit(healthcheck(url, os.Stderr))
+	}
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, "api:", err)
 		os.Exit(1)

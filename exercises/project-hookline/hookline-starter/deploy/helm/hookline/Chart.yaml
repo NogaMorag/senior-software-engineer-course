@@ -1,0 +1,6 @@
+apiVersion: v2
+name: hookline
+description: Hookline, the webhook delivery platform of the course's capstone (milestone M7).
+type: application
+version: 0.1.0        # the chart's own version; bump it on every chart change
+appVersion: "dev"     # the application version; the default image tag

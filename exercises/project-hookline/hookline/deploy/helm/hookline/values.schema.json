@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Values for the Hookline chart",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["image", "database", "redisAddr", "kafkaBrokers", "logLevel", "devMode", "migrations", "api", "service", "relay", "dispatcher", "worker"],
+  "properties": {
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "pullPolicy"],
+      "properties": {
+        "repository": {"type": "string", "minLength": 1},
+        "tag": {"type": "string"},
+        "pullPolicy": {"enum": ["Always", "IfNotPresent", "Never"]}
+      }
+    },
+    "database": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["secretName", "secretKey"],
+      "properties": {
+        "secretName": {"type": "string", "minLength": 1},
+        "secretKey": {"type": "string", "minLength": 1}
+      }
+    },
+    "redisAddr": {"type": "string", "pattern": "^$|^[^:]+:[0-9]+$"},
+    "kafkaBrokers": {"type": "string", "pattern": "^[^:,]+:[0-9]+(,[^:,]+:[0-9]+)*$"},
+    "logLevel": {"enum": ["debug", "info", "warn", "error"]},
+    "devMode": {"type": "boolean"},
+    "migrations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "topicPartitions"],
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "topicPartitions": {"type": "integer", "minimum": 1, "maximum": 64}
+      }
+    },
+    "api": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["replicas", "maxInFlight", "resources", "autoscaling"],
+      "properties": {
+        "replicas": {"$ref": "#/$defs/replicas"},
+        "maxInFlight": {"type": "integer", "minimum": 0},
+        "resources": {"$ref": "#/$defs/resources"},
+        "autoscaling": {"$ref": "#/$defs/autoscaling"}
+      }
+    },
+    "service": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["port"],
+      "properties": {"port": {"type": "integer", "minimum": 1, "maximum": 65535}}
+    },
+    "relay": {"$ref": "#/$defs/simple"},
+    "dispatcher": {"$ref": "#/$defs/simple"},
+    "worker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["replicas", "workers", "endpointConcurrency", "maxAttempts", "attemptTimeout", "lease", "resources", "autoscaling"],
+      "properties": {
+        "replicas": {"$ref": "#/$defs/replicas"},
+        "workers": {"type": "integer", "minimum": 1, "maximum": 1000},
+        "endpointConcurrency": {"type": "integer", "minimum": 1},
+        "maxAttempts": {"type": "integer", "minimum": 1},
+        "attemptTimeout": {"$ref": "#/$defs/duration"},
+        "lease": {"$ref": "#/$defs/duration"},
+        "resources": {"$ref": "#/$defs/resources"},
+        "autoscaling": {"$ref": "#/$defs/autoscaling"}
+      }
+    }
+  },
+  "$defs": {
+    "replicas": {"type": "integer", "minimum": 0, "maximum": 20},
+    "duration": {"type": "string", "pattern": "^[0-9]+(ms|s|m)$"},
+    "simple": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["replicas", "resources"],
+      "properties": {
+        "replicas": {"$ref": "#/$defs/replicas"},
+        "resources": {"$ref": "#/$defs/resources"}
+      }
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requests", "limits"],
+      "properties": {
+        "requests": {"$ref": "#/$defs/quantities", "required": ["cpu", "memory"]},
+        "limits": {"$ref": "#/$defs/quantities", "required": ["memory"]}
+      }
+    },
+    "quantities": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cpu": {"type": ["string", "number"]},
+        "memory": {"type": "string", "pattern": "^[0-9]+(Ki|Mi|Gi)$"}
+      }
+    },
+    "autoscaling": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "minReplicas", "maxReplicas", "targetCPUUtilizationPercentage"],
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "minReplicas": {"type": "integer", "minimum": 1},
+        "maxReplicas": {"type": "integer", "minimum": 1},
+        "targetCPUUtilizationPercentage": {"type": "integer", "minimum": 1, "maximum": 100}
+      }
+    }
+  }
+}

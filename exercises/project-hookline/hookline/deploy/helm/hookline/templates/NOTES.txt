@@ -1,0 +1,9 @@
+Hookline is installed as release {{ .Release.Name }} in namespace {{ .Release.Namespace }}:
+api x{{ .Values.api.replicas }}, relay x{{ .Values.relay.replicas }}, dispatcher x{{ .Values.dispatcher.replicas }}, worker x{{ .Values.worker.replicas }}.
+
+Create a tenant (the API key is printed once):
+  kubectl -n {{ .Release.Namespace }} exec deploy/{{ include "hookline.fullname" . }}-api -- /usr/local/bin/hookline-admin create-tenant -name acme
+
+Call the API from your machine:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "hookline.fullname" . }}-api 8080:{{ .Values.service.port }}
+  curl -s localhost:8080/healthz
