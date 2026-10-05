@@ -1,5 +1,5 @@
 {
-  "description": "Hookline signature test vectors, shared by the Python receiver (chapter 8) and the Go signer (chapter 14). Header: t=<unix seconds>,v1=<lowercase hex HMAC-SHA256(secret, \"<t>.\" + raw body bytes)>. Strings are UTF-8; secret and body are signed as their UTF-8 bytes.",
+  "description": "Hookline signature test vectors, shared by the Python receiver (chapter 8) and the Go signers (chapter 26 and Hookline M5). Header: t=<unix seconds>,v1=<lowercase hex HMAC-SHA256(secret, \"<t>.\" + raw body bytes)>. Strings are UTF-8; secret and body are signed as their UTF-8 bytes.",
   "tolerance_seconds": 300,
   "check_order": [
     "malformed",

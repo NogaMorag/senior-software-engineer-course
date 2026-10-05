@@ -1,0 +1,7 @@
+# Values for installing the chart on the chapter's kind cluster:
+#   helm install shorty solution/chart/shorty -n web --create-namespace -f data/values-kind.yaml
+config:
+  logLevel: debug
+  stress: true
+autoscaling:
+  enabled: true

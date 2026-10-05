@@ -89,3 +89,17 @@ golangci/golangci-lint-action@v9 · grafana/setup-k6-action@v1.
 ## Cost
 Everything is free and local. The optional AWS section of chapter 22 uses free-tier resources and tells the reader
 to set a budget alarm first; it is the only place a cloud account appears, and it is optional.
+
+## Pins added by chapter writers (verified by them on 2026-10-05)
+| Item | Pin | Chapter |
+| --- | --- | --- |
+| golang.org/x/sync | v0.23.0 | 5, 12 |
+| ghcr.io/yannh/kubeconform | v0.8.0 | 20–21 |
+| metrics-server | v0.9.0 (needs `--kubelet-insecure-tls` on kind) | 21 |
+| cloud-provider-kind | v0.12.0 (Ingress on kind; ingress-nginx retired March 2026) | 21 |
+| busybox | 1.37.0 | 21 |
+| hashicorp/aws provider | 6.67.0 (optional section, not applied) | 22 |
+| helm/kind-action | v1.15.0 | 23 |
+| softprops/action-gh-release | v3 (mentioned; `gh release create` used) | 23 |
+| koalaman/shellcheck | stable (0.11.0 on 2026-10-05) | 2, 23 |
+| Rust toolchain | 1.99.0 (rustfmt, clippy; channel manifest dated 2026-10-01), installed user-space with rustup `--profile minimal` | 33 (optional) |

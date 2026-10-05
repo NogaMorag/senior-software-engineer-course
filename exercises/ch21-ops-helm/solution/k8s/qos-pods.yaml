@@ -1,0 +1,44 @@
+# Three pods that differ only in resources, one per QoS class.
+#   kubectl get pods -n shorty -l demo=qos -o custom-columns=NAME:.metadata.name,QOS:.status.qosClass
+apiVersion: v1
+kind: Pod
+metadata:
+  name: qos-guaranteed
+  namespace: shorty
+  labels: {demo: qos}
+spec:
+  containers:
+    - name: shorty
+      image: shorty:ch21
+      envFrom: [{configMapRef: {name: shorty}}]
+      resources:            # requests equal limits, for CPU and memory
+        requests: {cpu: 100m, memory: 64Mi}
+        limits: {cpu: 100m, memory: 64Mi}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: qos-burstable
+  namespace: shorty
+  labels: {demo: qos}
+spec:
+  containers:
+    - name: shorty
+      image: shorty:ch21
+      envFrom: [{configMapRef: {name: shorty}}]
+      resources:            # a request, and a limit above it
+        requests: {cpu: 50m, memory: 32Mi}
+        limits: {memory: 64Mi}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: qos-besteffort
+  namespace: shorty
+  labels: {demo: qos}
+spec:
+  containers:
+    - name: shorty
+      image: shorty:ch21
+      envFrom: [{configMapRef: {name: shorty}}]
+      # no resources at all: first to be evicted when the node runs short

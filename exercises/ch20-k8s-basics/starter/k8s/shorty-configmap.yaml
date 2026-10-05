@@ -1,0 +1,5 @@
+# Non-secret configuration for shorty. Each key becomes an environment variable
+# (envFrom in the Deployment). Changing it does not restart pods by itself.
+# TODO(day 61): a ConfigMap named shorty-config in namespace ch20 with
+# SHORTY_BASE_URL=http://localhost:8080, SHORTY_LOG_LEVEL=info and
+# SHORTY_SHUTDOWN_TIMEOUT=10s.

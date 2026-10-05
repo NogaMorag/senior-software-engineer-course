@@ -1,0 +1,22 @@
+# shorty: two replicas behind the shorty Service.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shorty
+  namespace: ch20
+  labels:
+    app: shorty
+spec:
+  # TODO(day 60): replicas: 2, a selector on the label app: shorty, and a pod
+  # template with the same label. The template's pod spec:
+  #   - securityContext: runAsNonRoot true, seccompProfile RuntimeDefault
+  #   - one container "shorty", image shorty:ch20, imagePullPolicy IfNotPresent,
+  #     containerPort 8080 named http
+  #   - env SHORTY_BASE_URL=http://localhost:8080 (day 61 moves it to a ConfigMap)
+  #   - container securityContext: allowPrivilegeEscalation false,
+  #     readOnlyRootFilesystem true, capabilities drop ALL
+  #   - resources: requests cpu 50m, memory 32Mi; limits memory 64Mi
+  # TODO(day 61): replace env with envFrom the ConfigMap shorty-config, and add
+  # three probes on the port named http: startupProbe GET /healthz (every 1s,
+  # up to 30 failures), livenessProbe GET /healthz (every 10s, 3 failures),
+  # readinessProbe GET /readyz (every 2s, 2 failures).

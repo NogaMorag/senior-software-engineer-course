@@ -1,0 +1,6 @@
+apiVersion: v2
+name: shorty
+description: The shorty URL shortener from chapter 6, packaged in chapter 21.
+type: application
+version: 0.1.0        # the chart's own version; bump it on every chart change
+appVersion: "ch21"    # the application version; the default image tag

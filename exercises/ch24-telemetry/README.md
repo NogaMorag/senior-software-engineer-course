@@ -200,7 +200,7 @@ docker compose -p ch24 -f data/compose.yaml down -v
 
 ## פלט צפוי
 
-הסוף של `tests/check_stack.sh`, מההרצה של הכותב (המספרים והמזהים שלך יהיו אחרים):
+הסוף של `tests/check_stack.sh`, מההרצה שבה נכתב הספר (המספרים והמזהים שלך יהיו אחרים):
 
 <div dir="ltr" align="left">
 

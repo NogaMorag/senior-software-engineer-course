@@ -1,0 +1,3 @@
+# TODO 5: a ConfigMap named with the shorty.fullname helper and labelled with
+# shorty.labels. Keys: SHORTY_BASE_URL, SHORTY_LOG_LEVEL and SHORTY_STRESS from
+# .Values.config; SHORTY_STRESS is "on" or "off" (hint: the ternary function).

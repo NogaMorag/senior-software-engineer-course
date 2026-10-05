@@ -1,0 +1,3 @@
+# Copy to terraform.tfvars (git-ignored) to override defaults without flags.
+replicas  = 3
+log_level = "debug"

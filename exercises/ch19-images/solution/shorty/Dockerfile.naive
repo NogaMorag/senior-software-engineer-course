@@ -1,0 +1,7 @@
+# The naive single-stage build, kept only to measure against. Do not ship this:
+# it carries the whole toolchain and the source, and it runs as root.
+FROM golang:1.27.1
+WORKDIR /src
+COPY . .
+RUN go build -o /usr/local/bin/shorty ./cmd/shorty
+ENTRYPOINT ["shorty"]

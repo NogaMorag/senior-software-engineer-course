@@ -1,0 +1,54 @@
+# CI for the isolation lab (chapter 11): the same Go checks, with a real
+# PostgreSQL next to the job as a service container.
+name: ch11 isolation-lab
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ch11/**"
+      - ".github/actions/go-checks/**"
+      - ".github/workflows/ch11-isolation-lab.yml"
+  pull_request:
+    paths:
+      - "ch11/**"
+      - ".github/actions/go-checks/**"
+      - ".github/workflows/ch11-isolation-lab.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18.6
+        env:
+          POSTGRES_USER: course
+          POSTGRES_PASSWORD: change-me # a throw-away CI database, not a secret
+          POSTGRES_DB: lab
+        ports:
+          - 5432:5432
+        # The job's steps start only after this health check passes.
+        options: >-
+          --health-cmd "pg_isready -U course -d lab"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      # The job runs on the runner itself, so the service is on localhost.
+      DATABASE_URL: postgres://course:change-me@localhost:5432/lab
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/go-checks
+        with:
+          working-directory: ch11
+          fail-on-skip: "true"

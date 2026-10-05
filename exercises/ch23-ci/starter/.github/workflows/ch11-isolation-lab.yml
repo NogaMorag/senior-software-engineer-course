@@ -1,0 +1,39 @@
+# CI for the isolation lab (chapter 11): the same Go checks, with a real
+# PostgreSQL next to the job as a service container.
+name: ch11 isolation-lab
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ch11/**"
+      - ".github/actions/go-checks/**"
+      - ".github/workflows/ch11-isolation-lab.yml"
+  pull_request:
+    paths:
+      - "ch11/**"
+      - ".github/actions/go-checks/**"
+      - ".github/workflows/ch11-isolation-lab.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # TODO (day 66, section 23.3): a "postgres" service container
+    #   (image postgres:18.6, user course, password change-me, database lab,
+    #   port 5432, a pg_isready health check) and a job-level DATABASE_URL.
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/go-checks
+        with:
+          working-directory: ch11
+          # TODO (section 23.3): fail when a test is skipped.

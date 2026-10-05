@@ -1,0 +1,32 @@
+# A bare pod (no Deployment): runs once, sends one signed delivery to the
+# receiver through cluster DNS, and stops. Nothing recreates it.
+#   kubectl apply -f pods/sender.yaml && kubectl -n ch20 logs -f sender
+apiVersion: v1
+kind: Pod
+metadata:
+  name: sender
+  namespace: ch20
+spec:
+  restartPolicy: Never
+  securityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: sender
+      image: receiver:ch20 # the same image carries the receiver-send script
+      imagePullPolicy: IfNotPresent
+      command: ["receiver-send"]
+      # $(SECRET) is expanded by Kubernetes from the env below, not by a shell.
+      args: ["http://receiver.ch20.svc.cluster.local:8081/hooks/orders", "--secret", "$(SECRET)"]
+      env:
+        - name: SECRET
+          valueFrom:
+            secretKeyRef:
+              name: receiver-secret
+              key: signing-secret
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop: ["ALL"]

@@ -1,0 +1,5 @@
+# Everything in this chapter lives in one namespace, so one command removes it all.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ch20

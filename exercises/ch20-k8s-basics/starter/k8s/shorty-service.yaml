@@ -1,0 +1,4 @@
+# A stable name and virtual IP in front of the ready shorty pods.
+# Inside the cluster: http://shorty.ch20.svc.cluster.local (or http://shorty from ch20).
+# TODO(day 61): a ClusterIP Service named shorty in namespace ch20 that selects
+# app: shorty and maps port 80 (named http) to the container port named http.

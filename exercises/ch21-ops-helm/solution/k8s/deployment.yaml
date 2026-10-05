@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shorty
+  namespace: shorty
+  labels:
+    app: shorty
+spec:
+  replicas: 2
+  # Give up on a rollout that makes no progress for a minute (the default is 10).
+  progressDeadlineSeconds: 60
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1        # at most one extra pod during the update
+      maxUnavailable: 0  # never fewer ready pods than replicas
+  selector:
+    matchLabels:
+      app: shorty
+  template:
+    metadata:
+      labels:
+        app: shorty
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: shorty
+          image: shorty:ch21
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: shorty
+          resources:
+            requests:
+              cpu: 50m       # what the scheduler reserves, and what the HPA divides by
+              memory: 32Mi
+            limits:
+              cpu: 200m      # above this the container is throttled, not killed
+              memory: 64Mi   # above this the container is OOM-killed
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 5
+            failureThreshold: 2
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]

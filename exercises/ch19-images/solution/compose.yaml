@@ -1,0 +1,49 @@
+# Development stack for chapter 19: both images, health-checked, plus a
+# one-shot smoke client that starts only when both services are healthy.
+#   docker compose -p ch19 up --build --wait     (then: docker compose -p ch19 down -v)
+name: ch19
+
+services:
+  receiver:
+    build: ./receiver
+    image: receiver:dev
+    environment:
+      RECEIVER_DEFAULT_SECRET: change-me
+    ports:
+      - "127.0.0.1:8081:8081"
+    read_only: true
+    healthcheck:
+      # python slim has python; a urllib call is the curl of this image.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8081/stats', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  shorty:
+    build: ./shorty
+    image: shorty:dev
+    environment:
+      SHORTY_BASE_URL: http://localhost:8080
+      SHORTY_LOG_LEVEL: info
+    ports:
+      - "127.0.0.1:8080:8080"
+    read_only: true
+    healthcheck:
+      # distroless has no shell and no curl: the binary checks itself.
+      test: ["CMD", "/shorty", "healthcheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 2s
+
+  smoke:
+    image: receiver:dev
+    depends_on:
+      receiver:
+        condition: service_healthy
+      shorty:
+        condition: service_healthy
+    # "receiver" resolves through the compose network's DNS to the receiver container.
+    entrypoint: ["receiver-send", "http://receiver:8081/hooks/orders", "--secret", "change-me"]
+    restart: "no"

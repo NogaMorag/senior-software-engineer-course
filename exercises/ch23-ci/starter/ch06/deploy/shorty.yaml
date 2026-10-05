@@ -1,0 +1,64 @@
+# shorty on a throw-away kind cluster in CI: one replica of the image that the
+# workflow built and loaded into the cluster (imagePullPolicy: Never, so a
+# missing image fails fast instead of trying a registry).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shorty
+  labels:
+    app: shorty
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: shorty
+  template:
+    metadata:
+      labels:
+        app: shorty
+    spec:
+      securityContext:
+        runAsNonRoot: true
+      containers:
+        - name: shorty
+          image: shorty:ci
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: SHORTY_BASE_URL
+              value: http://localhost:18080
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 2
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: shorty
+spec:
+  selector:
+    app: shorty
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

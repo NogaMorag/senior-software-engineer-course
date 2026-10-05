@@ -1,0 +1,25 @@
+# Release of shorty on a version tag (v1.2.3). Day 67, sections 23.6 and 23.7.
+name: release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: read
+
+jobs:
+  # TODO: job "image": like the "image" job of ch06-shorty.yml, with semver
+  #   tags from docker/metadata-action, and every action pinned by full commit
+  #   SHA with the tag as a comment (section 23.7). Output the image digest.
+  # TODO: job "publish", after "image": environment "production", permissions
+  #   contents: write, and "gh release create" with --verify-tag and
+  #   --generate-notes. Then an optional announcement step that runs only when
+  #   the variable ANNOUNCE_RELEASES is "true" and the secret
+  #   RELEASE_WEBHOOK_URL is set.
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "TODO: the release workflow of sections 23.6 and 23.7"
+          exit 1

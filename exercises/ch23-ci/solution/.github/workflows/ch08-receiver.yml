@@ -1,0 +1,54 @@
+# CI for the webhook receiver (chapter 8): the uv project, its locked
+# dependencies, ruff, mypy and pytest.
+name: ch08 receiver
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ch08/**"
+      - ".github/workflows/ch08-receiver.yml"
+  pull_request:
+    paths:
+      - "ch08/**"
+      - ".github/workflows/ch08-receiver.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    shell: bash
+    working-directory: ch08
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10
+        with:
+          version: "0.12.23"
+          working-directory: ch08
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Lockfile matches pyproject.toml
+        run: uv lock --check
+      - name: Install exactly what uv.lock says
+        run: uv sync --frozen
+      - name: ruff check
+        run: uv run --no-sync ruff check .
+      - name: ruff format
+        run: uv run --no-sync ruff format --check .
+      - name: mypy
+        run: uv run --no-sync mypy src
+      - name: pytest
+        run: uv run --no-sync pytest -q

@@ -1,0 +1,42 @@
+# CI for the webhook receiver (chapter 8): the uv project, its locked
+# dependencies, ruff, mypy and pytest.
+name: ch08 receiver
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ch08/**"
+      - ".github/workflows/ch08-receiver.yml"
+  pull_request:
+    paths:
+      - "ch08/**"
+      - ".github/workflows/ch08-receiver.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    shell: bash
+    working-directory: ch08
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      # TODO (day 66, section 23.2): astral-sh/setup-uv@v10 (uv 0.12.23, cache
+      #   keyed on uv.lock), then uv lock --check, uv sync --frozen, ruff check,
+      #   ruff format --check, mypy src and pytest, each as its own step.
+      - name: TODO
+        run: |
+          echo "TODO: the Python steps of section 23.2"
+          exit 1

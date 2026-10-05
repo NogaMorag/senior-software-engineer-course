@@ -1,0 +1,33 @@
+# A workflow with six planted mistakes, for section 23.8. Copy it into
+# .github/workflows/ of a scratch repository and run actionlint on it.
+name: broken
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  package: write
+
+jobs:
+  test:
+    runs-on: ubuntu-lates
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: ch06/go.mod
+      - name: Greet the PR
+        run: echo "Testing ${{ github.event.pull_request.title }}"
+      - name: Test
+        env:
+          MODULE_DIR: ch06
+        run: cd $MODULE_DIR && go test ./...
+      - name: Report
+        run: echo "tested ${{ steps.test.outputs.count }} packages"
+
+  image:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "build the image"

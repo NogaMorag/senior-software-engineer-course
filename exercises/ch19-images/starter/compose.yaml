@@ -1,0 +1,36 @@
+# Development stack for chapter 19: both images, health-checked, plus a
+# one-shot smoke client that starts only when both services are healthy.
+#   docker compose -p ch19 up --build --wait     (then: docker compose -p ch19 down -v)
+name: ch19
+
+services:
+  receiver:
+    build: ./receiver
+    image: receiver:dev
+    environment:
+      RECEIVER_DEFAULT_SECRET: change-me
+    ports:
+      - "127.0.0.1:8081:8081"
+    read_only: true
+    # TODO(day 59): a healthcheck that runs python and opens
+    # http://127.0.0.1:8081/stats with urllib (interval 5s, timeout 3s,
+    # retries 5, start_period 5s).
+
+  shorty:
+    build: ./shorty
+    image: shorty:dev
+    environment:
+      SHORTY_BASE_URL: http://localhost:8080
+      SHORTY_LOG_LEVEL: info
+    ports:
+      - "127.0.0.1:8080:8080"
+    read_only: true
+    # TODO(day 59): a healthcheck that runs "/shorty healthcheck" (exec form;
+    # there is no shell in this image).
+
+  smoke:
+    image: receiver:dev
+    # TODO(day 59): depends_on receiver and shorty, each with
+    # condition: service_healthy.
+    entrypoint: ["receiver-send", "http://receiver:8081/hooks/orders", "--secret", "change-me"]
+    restart: "no"

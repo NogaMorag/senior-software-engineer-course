@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: receiver
+  namespace: ch20
+spec:
+  selector:
+    app: receiver
+  ports:
+    - name: http
+      port: 8081
+      targetPort: http

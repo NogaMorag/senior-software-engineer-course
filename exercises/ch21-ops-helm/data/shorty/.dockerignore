@@ -1,0 +1,8 @@
+# Only what the build needs goes into the build context. Anything listed here
+# can change without invalidating the COPY . . layer.
+.git
+bin/
+**/*_test.go
+*.out
+Dockerfile*
+.dockerignore

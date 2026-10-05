@@ -1,0 +1,3 @@
+# TODO 4: a networking.k8s.io/v1 Ingress named shorty in namespace shorty that
+# sends every path (prefix /) to the Service shorty, port name http.
+# cloud-provider-kind serves it; no ingress controller is installed.

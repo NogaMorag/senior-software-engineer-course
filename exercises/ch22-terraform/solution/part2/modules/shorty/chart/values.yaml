@@ -1,0 +1,32 @@
+# Default values for the shorty chart. Every key here is checked by
+# values.schema.json; override with -f my-values.yaml or --set key=value.
+
+replicaCount: 2
+
+image:
+  repository: shorty
+  tag: ""               # empty means .Chart.AppVersion
+  pullPolicy: IfNotPresent
+
+# Becomes the ConfigMap that the container reads as SHORTY_* variables.
+config:
+  baseURL: http://localhost:8080
+  logLevel: info        # debug, info, warn or error
+  stress: false         # the chapter 21 /stress routes; keep false outside the exercise
+
+service:
+  port: 80
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 32Mi
+  limits:
+    cpu: 200m
+    memory: 64Mi
+
+autoscaling:
+  enabled: false        # when true, the HPA owns the replica count
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 60

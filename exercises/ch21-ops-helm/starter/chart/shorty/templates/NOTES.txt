@@ -1,0 +1,5 @@
+shorty is installed as release {{ .Release.Name }} in namespace {{ .Release.Namespace }}.
+
+Call it from your machine:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "shorty.fullname" . }} 8080:{{ .Values.service.port }}
+  curl -s localhost:8080/healthz

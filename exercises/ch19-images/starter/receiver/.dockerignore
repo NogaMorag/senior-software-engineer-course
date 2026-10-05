@@ -1,0 +1,3 @@
+# TODO(day 58): keep out .git, .venv/, every __pycache__/, the tool caches
+# (.mypy_cache/, .ruff_cache/, .pytest_cache/), tests/, the Dockerfile and
+# this file.

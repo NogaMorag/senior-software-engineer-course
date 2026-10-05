@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "TODO 8: describe every key of values.yaml: types, enums, ranges, required keys, and additionalProperties false so a typo fails.",
+  "type": "object",
+  "properties": {
+    "replicaCount": {"type": "integer", "minimum": 1}
+  }
+}

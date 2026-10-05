@@ -1,0 +1,55 @@
+# CI for shorty (chapter 6): checks and tests, a smoke test on a throw-away
+# kind cluster, and an image pushed to GHCR only from main.
+name: ch06 shorty
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ch06/**"
+      - ".github/actions/go-checks/**"
+      - ".github/workflows/ch06-shorty.yml"
+  pull_request:
+    paths:
+      - "ch06/**"
+      - ".github/actions/go-checks/**"
+      - ".github/workflows/ch06-shorty.yml"
+
+# Every job gets a read-only token unless it asks for more.
+permissions:
+  contents: read
+
+# One run per branch or PR; a new push to a PR cancels the run it replaces.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    shell: bash
+    working-directory: ch06
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/go-checks
+        with:
+          working-directory: ch06
+
+  # TODO (day 67, section 23.5): job "kind-smoke", after "test".
+  #   Build the image with docker/build-push-action@v7 (load: true, tag shorty:ci,
+  #   GitHub Actions cache), create a cluster with helm/kind-action (kind v0.33.0,
+  #   the pinned node image), "kind load docker-image", apply deploy/shorty.yaml,
+  #   wait for the rollout, run ./deploy/smoke.sh, and on failure print pods,
+  #   describe, logs and events.
+
+  # TODO (day 66, section 23.4): job "image", after "test" and "kind-smoke".
+  #   Runs only for a push to main. Needs packages: write. Uses
+  #   docker/metadata-action@v6 (image ghcr.io/<owner>/shorty, tags from the
+  #   branch and the commit SHA), docker/login-action@v4 with GITHUB_TOKEN, and
+  #   docker/build-push-action@v7 with push: true.

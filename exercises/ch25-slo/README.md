@@ -140,7 +140,7 @@ Checking rules/slo-alerts.yml
 
 </div>
 
-ציר הזמן של `data/stage_incident.sh` מההרצה של הכותב; השעות שלך יהיו אחרות, והמרווחים דומים:
+ציר הזמן של `data/stage_incident.sh` מההרצה שבה נכתב הספר; השעות שלך יהיו אחרות, והמרווחים דומים:
 
 <div dir="ltr" align="left">
 

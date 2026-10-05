@@ -103,6 +103,15 @@ stay English and which are translated**, and the one rendering each translated c
 | TTL | זמן חיים (TTL) | |
 | negative caching | מטמון שלילי | |
 | router | נתב | |
+| expand and contract | הרחבה ואז כיווץ | |
+| backfill | מילוי לאחור | |
+| dual write | כתיבה כפולה | |
+| rolling deploy | פריסה מתגלגלת | |
+| strangler fig | strangler fig (תאנה חונקת) | English in headings |
+| tolerant reader | קורא סובלני | |
+| non-goal | לא־מטרה | |
+| region | אזור | |
+| fencing token | fencing token (אסימון גידור) | |
 | tenant | דיירת (plural דיירות) | Hookline's customer account; feminine throughout, with agreeing verbs and adjectives |
 | subscription | מנוי | endpoint stays English |
 | request ID | מזהה בקשה | |
@@ -127,7 +136,7 @@ stay English and which are translated**, and the one rendering each translated c
 | prompt | הנחיה | book 1; chapter 32 |
 | spec | מפרט | chapter 32: what an agent or a person is asked to build, with its edges |
 
-Appendices are named with Hebrew letters in prose: נספח א … נספח ו (never נספח C).
+Appendices are named with Hebrew letters in prose: נספח א … נספח ו (never נספח ג).
 
 ## 4. Words to avoid
 

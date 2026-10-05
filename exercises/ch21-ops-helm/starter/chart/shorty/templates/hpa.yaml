@@ -1,0 +1,5 @@
+{{- /*
+TODO 7: when .Values.autoscaling.enabled is true, an autoscaling/v2
+HorizontalPodAutoscaler for this chart's Deployment, with min, max and target
+CPU utilization from .Values.autoscaling. When false, render nothing.
+*/}}

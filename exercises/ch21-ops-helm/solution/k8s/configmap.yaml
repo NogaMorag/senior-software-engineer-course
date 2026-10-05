@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: shorty
+  namespace: shorty
+data:
+  SHORTY_BASE_URL: http://localhost:8080
+  SHORTY_LOG_LEVEL: info
+  # The /stress routes of the chapter 21 copy; never "on" in a real service.
+  SHORTY_STRESS: "on"

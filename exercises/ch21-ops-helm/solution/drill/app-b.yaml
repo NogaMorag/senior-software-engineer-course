@@ -1,0 +1,55 @@
+# Fixed. The planted fault and the evidence that finds it are in the comment marked FIX.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-b
+  namespace: drill
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app-b
+  template:
+    metadata:
+      labels:
+        app: app-b
+        tier: web
+    spec:
+      securityContext:
+        runAsNonRoot: true
+      containers:
+        - name: shorty
+          image: shorty:ch21
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: SHORTY_BASE_URL
+              value: http://app-b.drill
+            - name: SHORTY_SHUTDOWN_TIMEOUT
+              value: "30s"  # FIX 2: was "30"; shorty refuses a duration without a unit and exits (CrashLoopBackOff)
+          resources:
+            requests: {cpu: 20m, memory: 24Mi}
+            limits: {cpu: 100m, memory: 48Mi}
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 5
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-b
+  namespace: drill
+spec:
+  selector:
+    app: app-b
+    tier: web
+  ports:
+    - port: 80
+      targetPort: http

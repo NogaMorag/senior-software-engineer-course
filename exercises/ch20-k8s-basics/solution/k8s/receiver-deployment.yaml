@@ -1,0 +1,55 @@
+# The chapter 8 receiver, one replica. Its signing secret comes from the
+# receiver-secret Secret, which is created with kubectl, not stored in Git.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: receiver
+  namespace: ch20
+  labels:
+    app: receiver
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: receiver
+  template:
+    metadata:
+      labels:
+        app: receiver
+    spec:
+      # Without this, the kubelet injects RECEIVER_PORT=tcp://<ip>:8081 for the
+      # Service named receiver, and the app cannot parse its own port setting.
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: receiver
+          image: receiver:ch20
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8081
+          env:
+            - name: RECEIVER_DEFAULT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: receiver-secret
+                  key: signing-secret
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 96Mi
+            limits:
+              memory: 192Mi
+          readinessProbe:
+            httpGet:
+              path: /stats
+              port: http
+            periodSeconds: 5

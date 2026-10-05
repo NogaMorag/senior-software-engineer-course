@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shorty
+  namespace: shorty
+  labels:
+    app: shorty
+spec:
+  replicas: 2
+  # TODO 2: a progressDeadlineSeconds of 60, and a RollingUpdate strategy that
+  # adds at most one extra pod and never drops below the replica count.
+  selector:
+    matchLabels:
+      app: shorty
+  template:
+    metadata:
+      labels:
+        app: shorty
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: shorty
+          image: shorty:ch21
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: shorty
+          # TODO 1: resources. Requests: 50m CPU, 32Mi memory. Limits: 200m CPU,
+          # 64Mi memory. Without a CPU request the HPA cannot compute utilization.
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 5
+            failureThreshold: 2
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]

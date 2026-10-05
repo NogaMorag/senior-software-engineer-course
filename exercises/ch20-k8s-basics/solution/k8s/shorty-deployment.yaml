@@ -1,0 +1,65 @@
+# shorty: two replicas behind the shorty Service.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shorty
+  namespace: ch20
+  labels:
+    app: shorty
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: shorty # must match the template labels below, and never changes
+  template:
+    metadata:
+      labels:
+        app: shorty
+    spec:
+      securityContext:
+        runAsNonRoot: true # refuse to start if the image would run as root
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: shorty
+          image: shorty:ch20 # loaded with kind load docker-image; not :latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: shorty-config
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          # Small, so the cluster fits a laptop; chapter 21 explains requests and limits.
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              memory: 64Mi
+          # Until the startup probe succeeds, the other two probes do not run.
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 1
+            failureThreshold: 30
+          # Fails: the kubelet restarts the container. Keep it cheap and local.
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+          # Fails: the pod leaves the Service endpoints, and is not restarted.
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 2
+            failureThreshold: 2
