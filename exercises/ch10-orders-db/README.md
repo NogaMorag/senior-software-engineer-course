@@ -28,11 +28,11 @@ lang: he
 | `data/queries/q1-order-items.sql` עד `q5-customer-monthly.sql` | חמש השאילתות האיטיות, כל אחת עם `EXPLAIN (ANALYZE, BUFFERS)` |
 | `data/queries/joins.sql` | שתי שאילתות חיבור: Nested Loop מול Hash Join (לקריאה, לא לתיקון) |
 | `data/queries/pagination.sql` | אותו עמוד, פעם עם `OFFSET` ופעם עם keyset |
-| `data/queries/explain-write.sql` | ‏`EXPLAIN ANALYZE` על עדכון, בתוך טרנזקציה שמבוטלת |
+| `data/queries/explain-write.sql` | הפקודה `EXPLAIN ANALYZE` על עדכון, בתוך טרנזקציה שמבוטלת |
 | `starter/schema.sql` | הסכמה: ארבע טבלאות, מפתחות ראשיים, בלי אינדקסים נוספים |
 | `starter/indexes.sql` | כאן את כותבת את האינדקסים שלך, בלוק לכל שאילתה |
-| `starter/db.go` | `Config`, ‏`Connect`, ו־`QueryCounter` שסופר שאילתות (שלם) |
-| `starter/orders.go` | ה־repository: `RecentOrders` ו־`OrdersWithItemsNPlusOne` שלמים; `OrdersWithItems` ו־`OrdersPage` עם `TODO` |
+| `starter/db.go` | תצורה, פתיחת המאגר ומונה השאילתות `QueryCounter` (שלם) |
+| `starter/orders.go` | ה־repository: שתי פונקציות שלמות, ושתיים עם `TODO` לצעד 12 |
 | `starter/cmd/nplus1/main.go` | מודד את שתי הגרסאות על המאגר המלא (שלם) |
 | `tests/orders_test.go` | הבדיקות, מול המסד; עותק זהה ב־`starter/` וב־`solution/` |
 | `solution/` | הפתרון המלא, כולל `indexes.sql` |
@@ -125,7 +125,8 @@ SELECT customer_id, count(*) FROM orders GROUP BY 1 ORDER BY 2 DESC LIMIT 5;
 
 </div>
 
-העתיקי את התוכנית לפתק. סמני את הצומת שקורא את `order_items`, את `Rows Removed by Filter` ואת `Execution Time`.
+העתיקי את התוכנית לפתק. סמני בה שלושה דברים: הצומת שקורא את טבלת שורות ההזמנה, מספר השורות שסוננו, וזמן
+הביצוע (`Execution Time`).
 הריצי את הקובץ פעמיים או שלוש, ורשמי את הזמן של ההרצה האחרונה: הראשונה קוראת מהדיסק, הבאות מהזיכרון, וזה
 נראה בשורות ה־`Buffers`.
 
@@ -165,7 +166,7 @@ Index Scan פשוט (סעיף 10.4.3).
 
 | פונקציה | מה היא צריכה לעשות |
 | --- | --- |
-| `OrdersWithItems` | ‏`RecentOrders`, ואז שאילתה אחת עם `WHERE order_id = ANY($1)`; לכל הזמנה slice לא ריק של פריטים, גם בלי פריטים |
+| `OrdersWithItems` | ‏`RecentOrders`, ואז שאילתה אחת עם `WHERE order_id = ANY($1)`; לכל הזמנה slice של פריטים שאינו `nil`, גם בלי פריטים |
 | `OrdersPage` | שגיאה על `limit` לא חיובי; ‏`limit+1` שורות ממוינות `created_at DESC, id DESC`; עם cursor, תנאי `(created_at, id) < ($2, $3)`; ‏cursor חוזר רק אם יש שורה עודפת |
 
 **13. בדיקות.** הבדיקות יוצרות לעצמן סכמה פרטית עם 25 הזמנות, ולא נוגעות במאגר הגדול:
@@ -175,6 +176,9 @@ Index Scan פשוט (סעיף 10.4.3).
 ```bash
 export DATABASE_URL=postgres://course:change-me@localhost:5410/orders
 go test -race ./...
+gofmt -l .
+go vet ./...
+staticcheck ./...
 ```
 
 </div>
@@ -189,7 +193,7 @@ go run ./cmd/nplus1 -customer 1 -limit 200
 
 </div>
 
-**15. התחייבות וכיבוי.** הכיבוי עם `-v` מוחק את הנתונים; מחר הם לא נחוצים, ואפשר לטעון שוב בחצי דקה עד כמה
+**15. שמירה וכיבוי.** הכיבוי עם `-v` מוחק את הנתונים; מחר הם לא נחוצים, ואפשר לטעון שוב בחצי דקה עד כמה
 דקות:
 
 <div dir="ltr" align="left">
@@ -233,49 +237,49 @@ batched  orders=200 queries=2 median=___
 - [ ] הזרע נטען, הספירה תואמת, וזמן הזרע שלך רשום.
 - [ ] טבלת הזמנים מלאה בחמש שורות, עם תוכנית לפני ואחרי לכל שאילתה בפתק.
 - [ ] ב־`indexes.sql` יש בדיוק חמישה בלוקים; האינדקס המכסה מחליף את המרוכב ואינו נוסף לידו.
-- [ ] ‏Q5 מראה `Index Only Scan` ו־`Heap Fetches: 0`.
-- [ ] ‏`go test -race ./...` עובר עם `DATABASE_URL` מוגדר, בלי דילוגים.
-- [ ] ‏`gofmt -l .` ריק, ו־`go vet ./...` ו־`staticcheck ./...` נקיים.
+- [ ] השאילתה Q5 מראה `Index Only Scan` ו־`Heap Fetches: 0`.
+- [ ] הפקודה `go test -race ./...` עוברת עם `DATABASE_URL` מוגדר, בלי דילוגים.
+- [ ] שלושת כלי הבדיקה הסטטית מצעד 13 שקטים.
 - [ ] הפלט של `cmd/nplus1` רשום בפתק.
 
 ## טעויות נפוצות ותיקונים
 
 - **הקונטיינר רץ אבל psql אומר `role "postgres" does not exist`.** המשתמש בתרגיל הוא `course`, לא `postgres`.
   מוסיפים `-U course -d orders` לכל קריאה ל־psql.
-- **‏`\i /work/data/seed.sql` נכשל ב־`No such file or directory`.** הפקודה `docker compose` הורצה מתיקייה
-  אחרת, או שתיקיית `data` לא הועתקה לתוך `~/senior-course/ch10`. מריצים מתוך `~/senior-course/ch10`, ובודקים
-  שהקובץ `data/seed.sql` קיים שם.
+- **הזרע נכשל ב־`No such file or directory`.** התיקייה `/work` בקונטיינר היא התיקייה שמעל קובץ ה־compose.
+  אם תיקיית `data` לא הועתקה לתוך `~/senior-course/ch10`, או שהשרת הופעל מקובץ compose במקום אחר, הקובץ לא
+  שם. מעתיקים לפי צעד 1, מכבים ומפעילים שוב מתוך `~/senior-course/ch10`.
 - **הבדיקות נכשלות על `connection refused`.** השרת לא רץ, או שהכתובת מצביעה לפורט 5432 במקום 5410.
-  בודקים עם `docker compose -p ch10 -f data/compose.yaml ps` שהוא `healthy`, ומתקנים את `DATABASE_URL`.
-- **‏Q5 מראה `Index Only Scan` אבל `Heap Fetches` גבוה.** מפת הנראות לא עדכנית אחרי יצירת האינדקס והניסויים.
+  בודקים בפקודה השנייה של צעד 2 שהשרת `healthy`, ומתקנים את `DATABASE_URL`.
+- **השאילתה Q5 מראה `Index Only Scan` אבל `Heap Fetches` גבוה.** מפת הנראות לא עדכנית אחרי יצירת האינדקס והניסויים.
   מריצים `VACUUM (ANALYZE) orders;` ואז את Q5 שוב.
 - **בדיקת `OrdersPage` מוצאת הזמנה פעמיים או מפספסת את 11 או 12.** ה־cursor או ה־`ORDER BY` משתמשים
   ב־`created_at` לבד. לשתי ההזמנות האלה אותו זמן בדיוק; משווים את הזוג `(created_at, id)` וממיינים לפי שניהם.
-- **‏`TestOrdersWithItemsUsesTwoQueries` נכשלת ב־`results differ` כשהמספרים נכונים.** הפריטים חוזרים בסדר
-  אחר מבגרסה האיטית. ממיינים את השאילתה השנייה לפי `order_id, id`.
+- **הבדיקה `TestOrdersWithItemsUsesTwoQueries` נכשלת כשמספר השאילתות נכון.** ההודעה `results differ` אומרת
+  שהפריטים חוזרים בסדר אחר מאשר בגרסה האיטית. ממיינים את השאילתה השנייה לפי `order_id, id`.
 
 ## רמזים
 
-- ‏pgx מעביר `[]int64` כמערך `bigint[]`, כך ש־`= ANY($1)` עובד בלי המרה.
+- הספרייה מעבירה רשימה של `int64` כמערך של המסד, ולכן `= ANY($1)` עובד בלי המרה.
 - מפה ממזהה הזמנה למצביע לתוך ה־slice (`&orders[i]`) מאפשרת לצרף כל פריט להזמנה שלו במעבר אחד.
-- ‏`pgx.ForEachRow` סורק כל שורה לאותם משתנים וקורא לפונקציה שלך; זה חוסך struct זמני לשורה של פריט עם מזהה הזמנה.
+- הפונקציה `pgx.ForEachRow` סורקת כל שורה לאותם משתנים וקוראת לפונקציה שלך; זה חוסך struct זמני לשורה של פריט עם מזהה הזמנה.
 - ב־`OrdersPage` כתבי שתי מחרוזות SQL, עם cursor ובלי, במקום תנאי „אם הפרמטר ריק”. כך כל אחת מקבלת תוכנית
   פשוטה שמשתמשת באינדקס.
 - אם `EXPLAIN` של Q4 עדיין מראה סינון, בדקי שהתנאי באינדקס ובשאילתה זהה מילולית.
 
 ## הפתרון
 
-‏`solution/indexes.sql` ו־`solution/orders.go`. **למה זה עובד:** כל אינדקס בפתרון נגזר משאילתה אחת, והאינדקס
+הפתרון נמצא ב־`solution/indexes.sql` וב־`solution/orders.go`. **למה זה עובד:** כל אינדקס בפתרון נגזר משאילתה אחת, והאינדקס
 של Q3 נבנה מראש עם `id` בסוף, כך שבהחלפה למכסה הוא משרת שלוש שאילתות ואת העימוד בלי אינדקס נוסף.
-‏`OrdersWithItems` שולחת שתי שאילתות בלי קשר למספר ההזמנות, ומחזירה תוצאה זהה לגרסה האיטית, וזה מה שהבדיקה
-בודקת. ‏`OrdersPage` מבקשת שורה אחת יותר מהעמוד, ולכן יודעת אם יש עמוד הבא בלי ספירה, ותנאי השורות שלה
+הפונקציה `OrdersWithItems` שולחת שתי שאילתות בלי קשר למספר ההזמנות, ומחזירה תוצאה זהה לגרסה האיטית, וזה מה שהבדיקה
+בודקת. הפונקציה `OrdersPage` מבקשת שורה אחת יותר מהעמוד, ולכן יודעת אם יש עמוד הבא בלי ספירה, ותנאי השורות שלה
 באותו סדר כמו האינדקס, כך שכל עמוד מתחיל לקרוא מיד אחרי ה־cursor.
 
 ## מה התרגיל מדגים
 
 - תיקון ביצועים כתהליך: מדידה, השערה, אינדקס אחד, מדידה שוב, ורישום של המספרים שלך.
 - התאמה בין שאילתה לאינדקס: שוויון קודם, תת־קבוצה קבועה באינדקס חלקי, ועמודות מטען ב־`INCLUDE`.
-- ‏N+1 כבעיה של קוד ולא של שאילתה, ובדיקה שהופכת אותו למספר.
+- בעיית N+1 כתקלה בקוד ולא בשאילתה, ובדיקה שהופכת אותה למספר.
 - עימוד שעלותו לא תלויה בעומק, ובדיקות repository מול מסד אמיתי בסכמה פרטית.
 
 </div>

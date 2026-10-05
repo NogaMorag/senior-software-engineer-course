@@ -15,7 +15,7 @@ lang: he
 (הדופק וההשתלטות, הסאגה).
 
 **ידע מקדים:** פרק 18; פרק 11 (נעילות ומאגר החיבורים, סעיפים 11.4 ו־11.7); פרק 12 (Redis ו־go-redis, סעיף 12.1);
-goroutines, ‏channels, ‏context ו־`-race` (פרק 5, סעיפים 5.4 עד 5.8); ‏`log/slog` (פרק 6). התרגיל לא מייבא קוד
+goroutines, ‏channels, ‏context ו־`-race` (פרק 5, סעיפים 5.1 עד 5.8); ‏`log/slog` (פרק 6, סעיף 6.4). התרגיל לא מייבא קוד
 מפרקים קודמים. הספריות הן pgx ו־go-redis, בגרסאות שמקובעות ב־`go.mod` (נכון לאוקטובר 2026, ראי נספח ג).
 
 ## מה בתיקייה הזאת
@@ -63,9 +63,27 @@ docker compose -p ch18 -f data/compose.yaml exec db psql -U course -d lab
 
 </div>
 
-בראשון הריצי `SELECT pg_try_advisory_lock(42);` ובשני את אותה פקודה. הראשון מקבל `t`, השני `f`. בשני, נסי
-`SELECT pg_advisory_unlock(42);` וקראי את האזהרה. עכשיו צאי מהראשון (`\q`), והריצי שוב בשני: `t`. רשמי בפתק
-מה שחרר את הנעילה.
+הריצי בשני החלונות, אחד אחרי השני, את הנעילה:
+
+<div dir="ltr" align="left">
+
+```sql
+SELECT pg_try_advisory_lock(42);
+```
+
+</div>
+
+הראשון מקבל `t`, השני `f`. בשני, נסי לשחרר, וקראי את האזהרה:
+
+<div dir="ltr" align="left">
+
+```sql
+SELECT pg_advisory_unlock(42);
+```
+
+</div>
+
+עכשיו צאי מהראשון (`\q`), והריצי שוב בשני את פקודת הנעילה: `t`. רשמי בפתק מה שחרר את הנעילה.
 
 **3. Redis.** מלאי בקובץ `redislock/redislock.go`:
 
@@ -126,7 +144,8 @@ go test -race -v ./leader
 
 שימי לב לשורה `takeover completed ... after the kill` ולשורות הלוג `leader: elected` עם `backend_pid`.
 
-**8. השתלטות בין שני תהליכים.** בנו את התוכנית פעם אחת, ופתחי שלושה טרמינלים, בכל אחד אותו `DATABASE_URL`:
+**8. השתלטות בין שני תהליכים.** בני את התוכנית פעם אחת, ופתחי שלושה טרמינלים, בכל אחד אותו `DATABASE_URL`.
+בטרמינל הראשון:
 
 <div dir="ltr" align="left">
 
@@ -137,7 +156,17 @@ go build -o /tmp/elect ./cmd/elect
 
 </div>
 
-בטרמינל השני `/tmp/elect -name beta`, ובשלישי מצאי את התהליך המוביל והרגי אותו:
+בטרמינל השני:
+
+<div dir="ltr" align="left">
+
+```bash
+/tmp/elect -name beta
+```
+
+</div>
+
+ובשלישי מצאי את התהליך המוביל והרגי אותו:
 
 <div dir="ltr" align="left">
 

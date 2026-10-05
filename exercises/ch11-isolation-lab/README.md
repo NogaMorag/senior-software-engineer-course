@@ -9,7 +9,7 @@ lang: he
 
 **מטרה:** לראות בעיניים עדכון אבוד ו־write skew בבדיקות Go עם שני חיבורים, לתקן כל אחד בכלי המתאים, לבנות
 תור עבודות עם `SKIP LOCKED`, לגרום לקיפאון ולמנוע אותו, ולנהל את הסכמה במיגרציות goose. הקוד של
-`db/retry.go`, ‏`queue` ו־`db/db.go` עובר אחר כך לפרויקט הגמר, ולכן כדאי לכתוב אותו נקי.
+הניסיון החוזר, של התור ושל החיבור למסד עובר אחר כך לפרויקט הגמר, ולכן כדאי לכתוב אותו נקי.
 
 **זמן משוער:** שלושה ימי לימוד. יום 26: כ־60 דקות בנייה (האנומליות). יום 27: כ־45 דקות (נעילות, תור, קיפאון).
 יום 28: כ־65 דקות (goose, ה־pool והניסיון החוזר).
@@ -25,8 +25,8 @@ lang: he
 | `data/compose.yaml` | שרת PostgreSQL 18 בפרויקט `ch11`, בפורט 5411, מסד `lab` |
 | `starter/migrations/00001_accounts.sql` עד `00003_jobs.sql` | שלוש מיגרציות שלמות; את 00004 את כותבת ביום 28 |
 | `starter/migrations/migrations.go` | ‏`embed.FS` של קובצי ה־SQL |
-| `starter/db/db.go` | ‏`Config` עם גבולות pool, ‏`Connect`, ‏`Migrate`, ‏`MigrateDownTo`, ‏`Version` (שלם) |
-| `starter/db/retry.go` | ‏`IsRetryable`, ‏`backoff`, ‏`sleep` שלמים; ‏`RetrySerializable` עם `TODO` |
+| `starter/db/db.go` | ‏`Config` עם גבולות pool, ופונקציות החיבור, המיגרציות והגרסה (שלם) |
+| `starter/db/retry.go` | פונקציות העזר שלמות; ‏`RetrySerializable` עם `TODO` |
 | `starter/bank/bank.go` | חשבונות: הקריאה, הכתיבה, הנעילה וההעברה המסודרת עם `TODO`; השאר שלם |
 | `starter/oncall/oncall.go` | תורנויות: שלוש פונקציות עם `TODO` |
 | `starter/queue/queue.go` | תור: `Enqueue` שלם; ‏`Work` עם `TODO` |
@@ -56,10 +56,10 @@ export DATABASE_URL=postgres://course:change-me@localhost:5411/lab
 
 </div>
 
-הפקודה `goose --version` צריכה להדפיס את הגרסה. אם היא אומרת `command not found`, ‏`GOBIN` לא ב־`PATH` (פרק 2,
-סעיף 2.7).
+הפקודה `goose --version` צריכה להדפיס את הגרסה. אם היא אומרת `command not found`, תיקיית ה־GOBIN לא נמצאת
+בנתיב החיפוש (פרק 2, סעיף 2.7).
 
-**2. קראי לפני שאת כותבת.** פתחי את `bank/bank.go` ואת `tests/bank/bank_test.go` (העותק נמצא ב־`bank/`). שימי לב
+**2. קראי לפני שאת כותבת.** פתחי את `bank/bank.go` ואת קובץ הבדיקות שלידו, `bank/bank_test.go`. שימי לב
 ש־`Withdraw` הנאיבית כבר כתובה: היא הבאג. הבדיקה `TestLostUpdateUnderReadCommitted` מריצה שתי טרנזקציות שלב
 אחרי שלב, ומצפה ליתרה 70.
 
@@ -168,13 +168,32 @@ goose up
 הקובץ שנוצר הוא `migrations/00004_accounts_balance_nonnegative.sql`. שם האילוץ שלך יכול להיות כל שם; הבדיקה
 `TestBalanceCannotGoNegative` בודקת רק שהמסד מחזיר `23514`.
 
-**12. הניסיון החוזר.** מלאי את `RetrySerializable` ב־`db/retry.go` (הפונקציות `backoff` ו־`sleep` כבר שם, והשורה
-עם `_, _ =` נמחקת כשאת משתמשת בהן; ייבוא של `fmt` חסר בקובץ), ואת `GoOffCallSerializable` ב־`oncall/oncall.go` (הוסיפי את הייבוא של
-החבילה `example.com/ch11-isolation-lab/db`).
+**12. הניסיון החוזר.** מלאי שתי פונקציות:
 
-**13. ה־pool.** קראי את `Config` ב־`db/db.go` ואת `TestPoolWaitsAtMaxConns` ב־`db/db_test.go`. רשמי בפתק:
-‏`max_connections` של השרת (`SHOW max_connections`), וכמה עותקים של שירות עם `MaxConns = 10` היו נכנסים בו עם
-שוליים של עשרה חיבורים: ___.
+- הפונקציה `RetrySerializable` בקובץ `db/retry.go`. פונקציות ההמתנה כבר שם; את השורה שמתחילה ב־`_, _ =`
+  מוחקים כשמשתמשים בהן, ואת הייבוא של `fmt` מוסיפים.
+- הפונקציה `GoOffCallSerializable` בקובץ `oncall/oncall.go`. הוסיפי את הייבוא של החבילה הזאת:
+
+<div dir="ltr" align="left">
+
+```text
+example.com/ch11-isolation-lab/db
+```
+
+</div>
+
+**13. ה־pool.** קראי את `Config` בקובץ `db/db.go`, ואת הבדיקה `TestPoolWaitsAtMaxConns` שלידו. בדקי את הגבול
+של השרת:
+
+<div dir="ltr" align="left">
+
+```bash
+docker compose -p ch11 -f data/compose.yaml exec db psql -U course -d lab -c "SHOW max_connections"
+```
+
+</div>
+
+רשמי בפתק את הערך, וכמה עותקים של שירות עם `MaxConns = 10` היו נכנסים בו עם שוליים של עשרה חיבורים: ___.
 
 **14. כל הבדיקות, ואז התחייבות וכיבוי:**
 
@@ -208,9 +227,20 @@ ok  	example.com/ch11-isolation-lab/queue	…s
 
 </div>
 
-בדיקת הקיפאון לוקחת כשנייה, כי זה `deadlock_timeout`. עם `-v` תראי שתי שורות `PostgreSQL said`, אחת עם
-`deadlock detected (SQLSTATE 40P01)` ואחת עם `could not serialize access due to read/write dependencies among
-transactions (SQLSTATE 40001)`. הפלט של `goose up` על `lab` נראה כך. goose מתחיל כל שורה בתאריך ובשעה, וכאן הם הוחלפו בשלוש נקודות:
+בדיקת הקיפאון לוקחת כשנייה, כי זה הערך של `deadlock_timeout`. עם הדגל `-v` תראי שתי שורות שמתחילות
+ב־`PostgreSQL said`, ובהן ההודעות האלה:
+
+<div dir="ltr" align="left">
+
+```text
+deadlock detected (SQLSTATE 40P01)
+could not serialize access due to read/write dependencies among transactions (SQLSTATE 40001)
+```
+
+</div>
+
+הפלט של `goose up` על מסד `lab` ריק, אחרי שיצרת את 00004, נראה כך. הכלי מתחיל כל שורה בתאריך ובשעה, וכאן
+הם הוחלפו בשלוש נקודות:
 
 <div dir="ltr" align="left">
 
@@ -232,7 +262,8 @@ transactions (SQLSTATE 40001)`. הפלט של `goose up` על `lab` נראה כ�
 - [ ] דוח הקיפאון וערך `deadlock_timeout` בפתק.
 - [ ] המיגרציה 00004 עולה, יורדת ועולה שוב עם goose, ו־`TestMigrationsRoundTrip` עוברת.
 - [ ] ‏`RetrySerializable` לא מנסה שוב שגיאה רגילה, נעצרת אחרי `MaxAttempts`, ומכבדת context שבוטל.
-- [ ] ‏`go test -race ./...` ירוק בלי דילוגים; `gofmt`, ‏`go vet` ו־`staticcheck` נקיים.
+- [ ] כל הבדיקות עם `-race` ירוקות בלי דילוגים.
+- [ ] שלושת הכלים של צעד 14 (‏gofmt, ‏go vet ו־staticcheck) לא מדפיסים דבר.
 
 ## טעויות נפוצות ותיקונים
 
@@ -242,8 +273,8 @@ transactions (SQLSTATE 40001)`. הפלט של `goose up` על `lab` נראה כ�
   של הטרנזקציה השנייה מחכה לראשונה, שרצה באותה goroutine ולא תתקדם. ביום 26 הקריאה רגילה; עוצרים עם Ctrl+C ומתקנים.
 - **‏`TestForUpdateMakesTheSecondReaderWait` נכשלת ב־`no session started waiting for a lock`.** ‏`ReadBalanceForUpdate`
   לא נועלת, ולכן הקורא השני לא מחכה. מוסיפים `FOR UPDATE` בסוף השאילתה.
-- **‏`TestWorkersNeverShareAJob` מוצאת עבודה שטופלה פעמיים.** ה־`SELECT` ב־`Work` רץ מחוץ לטרנזקציה של העדכון,
-  או בלי `FOR UPDATE`. הבחירה, המטפל והסימון חייבים להיות באותה טרנזקציה.
+- **‏`TestWorkersNeverShareAJob` מוצאת עבודה שטופלה פעמיים.** הבחירה ב־`Work` רצה מחוץ לטרנזקציה של העדכון,
+  או בלי נעילה. הבחירה, המטפל והסימון חייבים להיות באותה טרנזקציה.
 - **‏`goose up` אומר `no migrations to run` אחרי שערכת את 00003.** goose כבר רשם את גרסה 3 כמוחלת ולא יריץ
   אותה שוב. מבטלים את העריכה וכותבים מיגרציה חדשה.
 - **אחרי בדיקה שקרסה נשארים מסדים בשם `ch11_test_...`.** ‏panic בבדיקה עוצר את התהליך לפני הניקוי. זה לא
@@ -251,17 +282,24 @@ transactions (SQLSTATE 40001)`. הפלט של `goose up` על `lab` נראה כ�
 
 ## רמזים
 
-- ‏`pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error { ... })` מאשר כשהפונקציה מחזירה `nil` ומבטל אחרת; ‏`Withdraw`
-  הנאיבית היא תבנית טובה ל־`WithdrawLocked`.
+- הפונקציה `pgx.BeginFunc` מאשרת כשהפונקציה שלך מחזירה `nil`, ומבטלת אחרת.
+- הפונקציה `Withdraw` הנאיבית היא תבנית טובה ל־`WithdrawLocked`.
 - ‏`min` ו־`max` מובנות ב־Go, ועובדות על `int64`.
 - ב־`Work`, משתנה `claimed` מחוץ לסגירה, שמקבל `true` רק אחרי הסימון, פותר את השאלה מה להחזיר.
-- ב־`RetrySerializable`: ‏`pgx.BeginTxFunc` מקבלת את `pgx.TxOptions{IsoLevel: pgx.Serializable}`; את הערך מ־`fn`
-  שומרים במשתנה מחוץ לסגירה. סדר הבדיקות בלולאה: הצלחה, שגיאה שאינה ניתנת לניסיון, הניסיון האחרון, ואז המתנה.
+- ב־`RetrySerializable`, הפונקציה `pgx.BeginTxFunc` מקבלת את רמת הבידוד באפשרויות הטרנזקציה.
+- את הערך שהפונקציה של הקוראת מחזירה שומרים במשתנה מחוץ לסגירה.
+- סדר הבדיקות בלולאה: הצלחה, שגיאה שאינה ניתנת לניסיון, הניסיון האחרון, ואז המתנה.
 - כשהשגיאה האחרונה נעטפת, השתמשי ב־`%w`, כדי ש־`IsRetryable` עדיין יזהה אותה.
 
 ## הפתרון
 
-‏`solution/`, בעיקר `db/retry.go`, ‏`bank/bank.go`, ‏`queue/queue.go` ו־`migrations/00004_accounts_balance_nonnegative.sql`.
+התיקייה `solution/`. הקבצים העיקריים:
+
+- ‏`db/retry.go`
+- ‏`bank/bank.go`
+- ‏`queue/queue.go`
+- ‏`migrations/00004_accounts_balance_nonnegative.sql`
+
 **למה זה עובד:** הבדיקות שולטות בסדר הפקודות של שתי הטרנזקציות, ולכן האנומליה היא תוצאה דטרמיניסטית של רמת
 הבידוד ולא מקרה של תזמון. התיקונים פועלים בתוך המסד (נעילת שורה, `UPDATE` עם תנאי, `SKIP LOCKED`, סדר נעילות),
 ולכן הם נכונים בלי קשר למספר העותקים של השירות. ‏`RetrySerializable` מקבלת את כל הטרנזקציה כפונקציה ומריצה אותה
@@ -272,7 +310,7 @@ transactions (SQLSTATE 40001)`. הפלט של `goose up` על `lab` נראה כ�
 - אנומליות מקביליות כבדיקות דטרמיניסטיות: שני חיבורים, סדר מפורש, והוכחת המתנה מתוך השרת.
 - ההתאמה בין בעיה לכלי: עדכון אטומי או `FOR UPDATE` לשורה אחת, Serializable וניסיון חוזר לכלל על כמה שורות,
   ‏`SKIP LOCKED` לתור, וסדר נעילות לקיפאון.
-- מיגרציות כקוד: מוטמעות בבינארי, מורצות מ־Go תחת נעילה מייעצת, ונבדקות בסבב מלא על מסד ריק.
+- מיגרציות כקוד: מוטמעות בבינארי, מורצות מ־Go תחת advisory lock, ונבדקות בסבב מלא על מסד ריק.
 - שלושה רכיבים שפרויקט הגמר לוקח כמו שהם: `RetrySerializable`, תבנית ה־`SKIP LOCKED`, והמיגרציות עם goose.
 
 </div>

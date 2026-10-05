@@ -59,8 +59,8 @@ go build ./... && go vet ./... && echo builds
 
 </div>
 
-הפקודה האחרונה צריכה להדפיס `builds`. הגרסאות של go-redis, pgx ו־`golang.org/x/sync` כבר מקובעות בקובץ
-`go.mod`, ו־`go build` מוריד אותן בפעם הראשונה.
+הפקודה האחרונה צריכה להדפיס `builds`. הגרסאות של שלוש הספריות (go-redis, pgx ו־singleflight) כבר מקובעות
+בקובץ המודול, והבנייה הראשונה מורידה אותן.
 
 **2. הפעילי את הקונטיינרים וקבעי את משתני הסביבה.** הדגל `--wait` מחכה לבדיקות הבריאות של שניהם.
 
@@ -78,13 +78,21 @@ docker compose -p ch12 -f data/compose.yaml exec cache redis-cli PING
 התשובה האחרונה היא `PONG`. משתני הסביבה חיים רק בטרמינל הזה; בטרמינל חדש הריצי את שתי שורות ה־`export`
 שוב.
 
-**3. נסי את מבני הנתונים בעצמך.** פתחי את `redis-cli` והקלידי את הפקודות מסעיף 12.1, כולל `SET NX PX`
-פעמיים ו־`CONFIG GET maxmemory*`. ודאי שהמדיניות היא `allkeys-lru`, כפי שקובץ ה־compose קבע.
+**3. נסי את מבני הנתונים בעצמך.** פתחי את הלקוח והקלידי את הפקודות מסעיף 12.1, כולל המפתח עם `NX` פעמיים.
+בסוף הקלידי את הפקודה שבבלוק השני, וודאי שהמדיניות היא `allkeys-lru`, כפי שקובץ ה־compose קבע.
 
 <div dir="ltr" align="left">
 
 ```bash
 docker compose -p ch12 -f data/compose.yaml exec cache redis-cli
+```
+
+</div>
+
+<div dir="ltr" align="left">
+
+```text
+CONFIG GET maxmemory*
 ```
 
 </div>
@@ -132,8 +140,8 @@ go test -race -run 'TestWriteInvalidates/by_hand' -v .
 
 הסינון חשוב היום: תת־הבדיקות `with_helper` קוראות לעוזר, שעדיין עוצר ב־panic של TODO.
 
-**8. ראי את המטמון מבפנים.** הבדיקות מוחקות את המפתחות שלהן, ולכן כתבי ערך דרך מוצר אחד ובדקי אותו. התוכנית
-`cmd/stampede` עוד לא עובדת, אז השתמשי ב־`redis-cli` ישירות, ואחר כך הסתכלי במוני השרת:
+**8. ראי את המטמון מבפנים.** הבדיקות מוחקות את המפתחות שלהן, ולכן כתבי בעצמך ערך אחד ובדקי את ה־TTL שלו.
+ההדגמה `cmd/stampede` עוד לא עובדת, אז השתמשי בלקוח ישירות, ואחר כך הסתכלי במוני השרת:
 
 <div dir="ltr" align="left">
 
@@ -288,21 +296,21 @@ ok  	example.com/ch12-cache-aside/internal/cache	3.603s
 
 - **כל הבדיקות מדלגות עם `set DATABASE_URL and REDIS_ADDR`.** הטרמינל חדש ומשתני הסביבה חסרים. הריצי את
   שתי שורות ה־`export` מצעד 2, ובדקי עם `echo $REDIS_ADDR`.
-- **`TestMissThenHit/by_hand` נכשלת עם 2 קריאות למסד במקום 1.** הערך לא נשמר: בדקי שה־`SET` קורה אחרי
-  טעינה מוצלחת, ושהמפתח נבנה עם `ProductKey` בדיוק כמו ב־`GET`.
-- **`TestWriteInvalidates` נכשלת עם `key exists = 1`.** המחיקה קרתה לפני העדכון, ואז קריאה מילאה את הישן,
+- **‏`TestMissThenHit/by_hand` נכשלת עם 2 קריאות למסד במקום 1.** הערך לא נשמר. בדקי שהכתיבה למטמון קורה
+  אחרי טעינה מוצלחת, ושמפתח הכתיבה נבנה עם `ProductKey`, בדיוק כמו מפתח הקריאה.
+- **‏`TestWriteInvalidates` נכשלת עם `key exists = 1`.** המחיקה קרתה לפני העדכון, ואז קריאה מילאה את הישן,
   או שהמחיקה חסרה. מחקי רק אחרי ש־`c.store.UpdatePrice` החזירה `nil`.
-- **`TestStampede/with_helper` נכשלת עם 2 קריאות.** המילוי למטמון קורה אחרי `group.Do` ולא בתוכה, ולכן
+- **‏`TestStampede/with_helper` נכשלת עם 2 קריאות.** המילוי למטמון קורה אחרי `group.Do` ולא בתוכה, ולכן
   קוראת מאוחרת פותחת טיסה שנייה. העבירי את ה־`Set` לתוך הפונקציה.
-- **`TestNotFoundIsNotCached` נכשלת עם `a missing product was cached`.** השגיאה של המאגר לא עצרה את המילוי.
+- **‏`TestNotFoundIsNotCached` נכשלת עם `a missing product was cached`.** השגיאה של המאגר לא עצרה את המילוי.
   החזירי מיד כשהטעינה נכשלה, בלי `SET`.
-- **panic עם `TODO(day 32)` כבר ביום 31.** הרצת את כל הבדיקות בלי סינון, ותת־בדיקה `with_helper` הגיעה
+- **הודעת panic עם `TODO(day 32)` כבר ביום 31.** הרצת את כל הבדיקות בלי סינון, ותת־בדיקה `with_helper` הגיעה
   ל־`Cache.Get`. השתמשי בסינון `by_hand` מצעדים 6 ו־7.
 
 ## רמזים
 
-- הפקודה `c.rdb.Get(ctx, key).Bytes()` מחזירה ערך ושגיאה; `errors.Is(err, redis.Nil)` הוא פספוס, וכל שגיאה
-  אחרת היא Redis לא תקין.
+- הקריאה ל־`Get` של go-redis, ואחריה `Bytes()`, מחזירה ערך ושגיאה.
+- שגיאה שמזוהה כ־`redis.Nil` היא פספוס; כל שגיאה אחרת אומרת שהשרת לא תקין.
 - התוצאה של `group.Do` היא שלושה ערכים: `any`, שגיאה, ודגל שאומר אם התוצאה שותפה. את הדגל אפשר להתעלם ממנו.
 - המונה `c.misses` גדל לפני הקריאה ל־`Do`. המונה `c.loads` גדל בתוכה, לפני הטעינה.
 - בשביל `Allow`: `fixedWindow.Run(ctx, rdb, []string{key}, window.Milliseconds()).Int64()`.

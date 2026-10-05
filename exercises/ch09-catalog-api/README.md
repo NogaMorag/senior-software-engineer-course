@@ -71,15 +71,24 @@ docker run --rm -v "$PWD/api:/spec:ro" -w /spec redocly/cli:2.57.0 lint --format
 
 **3. הוסיפי את הסכמה `Problem`** במקום ההערה `TODO(day 19)` בקובץ החוזה. הדרישות:
 
-- אובייקט עם החברים `type` (מחרוזת בפורמט `uri`), `title`, `status` (מספר שלם מ־400 עד 599), `detail`
-  ו־`instance`; שלושת הראשונים חובה, בשורה `required: [type, title, status]`.
+- אובייקט עם חמשת החברים שבטבלה, ותיאור קצר לכל אחד.
+- שלושת הראשונים חובה, בשורה `required: [type, title, status]`.
 - חבר הרחבה `errors`: מערך של אובייקטים עם `detail` ו־`pointer`, שניהם חובה.
-- תיאור קצר לכל חבר. סעיף 9.3 מראה את תחילת הסכמה.
+
+| חבר | טיפוס |
+| --- | --- |
+| `type` | מחרוזת בפורמט `uri` |
+| `title` | מחרוזת |
+| `status` | מספר שלם מ־400 עד 599 |
+| `detail` | מחרוזת |
+| `instance` | מחרוזת |
+
+סעיף 9.3 מראה את הסכמה בטבלה דומה.
 
 הריצי שוב את הבדיקה מצעד 2, בלי `--format=stylish`, עד שהיא מסתיימת ב־`Your API description is valid`.
 
-**4. מלאי את `problem.Write`.** ברירת מחדל ל־`instance`, הכותרות, הסטטוס, ואז הקידוד. הקובץ במצב התחלה
-בלי הייבוא `encoding/json`; הוסיפי אותו (העורך עושה את זה לבד אם `gopls` פעיל).
+**4. מלאי את `problem.Write`.** ברירת מחדל ל־`instance`, הכותרות, הסטטוס, ואז הקידוד. בקובץ ההתחלה
+חסר הייבוא `encoding/json`; הוסיפי אותו (העורך עושה את זה לבד אם `gopls` פעיל).
 
 <div dir="ltr" align="left">
 
@@ -89,9 +98,15 @@ go test ./internal/problem/
 
 </div>
 
-**5. מלאי את `createItem` ואת `getItem`** בקובץ `internal/httpapi/server.go`, לפי ההערות שבהם. שימי לב
-למיפוי: מק"ט כפול הוא `problem.Conflict`, פריט חסר הוא `problem.NotFound`, וכל שגיאה אחרת עוברת
-ל־`s.internal`. ואז הבדיקות של היום:
+**5. מלאי את `createItem` ואת `getItem`** בקובץ `internal/httpapi/server.go`, לפי ההערות שבהם. שימי לב למיפוי:
+
+| שגיאה מהחנות | מה מחזירים |
+| --- | --- |
+| מק"ט כפול | `problem.Conflict` |
+| פריט חסר | `problem.NotFound` |
+| כל שגיאה אחרת | `s.internal` |
+
+ואז הבדיקות של היום:
 
 <div dir="ltr" align="left">
 
@@ -149,7 +164,14 @@ go test ./internal/catalog/ -v -run 'TestList|TestCursor|TestOffset'
 
 **10. מלאי את `Store.Begin` ואת `Store.Middleware`** בקובץ `internal/idem/idem.go`. ב־`Begin` ההחלטה
 כולה, כולל השמירה של מפתח חדש, קורית תחת נעילה אחת. ב־`Middleware` חמשת השלבים מתוארים בהערה, והעזרים
-`parseKey`, `fingerprint`, `writeStored`, `copyHeader` ו־`recorder` כבר כתובים. הריצי עם גלאי המרוצים:
+שלהם כבר כתובים בקובץ:
+
+- הפונקציה `parseKey`, שבודקת את הכותרת.
+- הפונקציה `fingerprint`, שמחשבת את טביעת האצבע.
+- הפונקציות `writeStored` ו־`copyHeader`, שמשחזרות תשובה שמורה.
+- הטיפוס `recorder`, שמקליט את התשובה לפני שהיא נשלחת.
+
+הריצי עם גלאי המרוצים:
 
 <div dir="ltr" align="left">
 
@@ -183,7 +205,7 @@ curl -s -i localhost:8080/v1/products/itm_00000001
 
 </div>
 
-הבקשה האחרונה הולכת לנתיב שהוצא משימוש: שימי לב לשלוש הכותרות `Deprecation`, `Sunset` ו־`Link`.
+הבקשה האחרונה הולכת לנתיב שהוצא משימוש: שימי לב לשלוש כותרות ההוצאה משימוש מסעיף 9.6.
 שמרי (`git commit`).
 
 ## יום 21: gRPC, גבולות ופענוח קפדני
@@ -237,7 +259,8 @@ git status --short gen
 
 פלט ריק בפקודה האחרונה פירושו שהקבצים שחוללו עכשיו זהים בדיוק לאלה שנשמרו ביום 19.
 
-**15. מלאי את `GetItem`** בקובץ `internal/grpcapi/server.go` (החזירי את הייבוא של `errors` ושל `strings`):
+**15. מלאי את `GetItem`** בקובץ `internal/grpcapi/server.go`. החזירי את הייבוא של `errors` ושל `strings`,
+ואז הריצי:
 
 <div dir="ltr" align="left">
 
@@ -247,7 +270,8 @@ go test ./internal/grpcapi/ -v
 
 </div>
 
-**16. מלאי את `limitBody`, את `decodeJSON` ואת `validate`**, לפי ההערות. ב־`decodeJSON` הסדר הוא: סוג
+**16. מלאי את שלוש הפונקציות של הגבולות**, לפי ההערות שבהן: `limitBody` בקובץ
+`middleware.go`, ואת `decodeJSON` ו־`validate` בקובץ `decode.go`. ב־`decodeJSON` הסדר הוא: סוג
 תוכן, פענוח עם `DisallowUnknownFields`, בדיקה שאין נתונים אחרי האובייקט, ואז מיפוי השגיאות. כשכל
 הבדיקות ירוקות, הריצי את הסוללה המלאה:
 
@@ -334,7 +358,8 @@ proto/catalog/v1/catalog.proto:33:10:Field "3" on message "Item" changed name fr
 - [ ] מפתח חוזר משחזר את התשובה, גוף אחר מקבל 422, בקשה מקבילה מקבלת 409, ו־5xx משחרר את המפתח.
 - [ ] גוף מעל 16 KiB מקבל 413, שדה לא מוכר מקבל 400 עם מצביע, ושני אובייקטים רצופים נדחים.
 - [ ] חילול מחדש עם buf לא משנה את הקוד השמור, ו־`buf breaking` עוצר שינוי שם של שדה.
-- [ ] כל 31 הבדיקות עוברות עם `-race`, ו־`gofmt`, `go vet` ו־`staticcheck` שקטים.
+- [ ] כל 31 הבדיקות עוברות עם `-race`.
+- [ ] שלושת כלי הבדיקה הסטטית של צעד 16 שקטים.
 
 ## טעויות נפוצות ותיקונים
 
@@ -342,7 +367,7 @@ proto/catalog/v1/catalog.proto:33:10:Field "3" on message "Item" changed name fr
   מריצים את המסנן של היום מהצעדים, ואת השאר כשמגיע תורן.
 - **לכתוב כותרת אחרי `WriteHeader` בתוך `problem.Write`.** הבדיקה מדווחת על `Content-Type` שגוי, כי
   כותרות שנקבעות אחרי שורת הסטטוס נעלמות. קובעים את כל הכותרות קודם.
-- **`List` מחזירה שוב את הפריט של הסמן.** הבדיקה כותבת `listed twice`. בפונקציית ההשוואה, פריט ששווה
+- **הפונקציה `List` מחזירה שוב את הפריט של הסמן.** הבדיקה כותבת `listed twice`. בפונקציית ההשוואה, פריט ששווה
   לסמן צריך להיחשב „לפני”, כך שהחיפוש הבינארי ייעצר אחריו.
 - **לפצל את `Begin` לבדיקה ולשמירה.** בדיקת הבקשות המקבילות עוברת לפעמים ונכשלת לפעמים, ו־`-race` עשוי
   לצעוק. ההחלטה כולה, כולל `s.entries[key] = ...`, יושבת בתוך אותה נעילה.

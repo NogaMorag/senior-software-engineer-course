@@ -14,20 +14,27 @@ relay שמפרסם ואז מסמן, צרכן שמסנן כפילויות, ובד
 **זמן משוער:** שלושה ימי לימוד. יום 36: כ־35 דקות (Redpanda ו־`rpk`, בלי קוד). יום 37: כ־60 דקות (לולאת
 הצרכן ושמירת offsets). יום 38: כ־70 דקות (outbox, relay, סינון ובדיקת הקריסה).
 
-**ידע מקדים:** פרק 13. מפרקים קודמים: Docker ו־compose (פרק 2), context וביטול (פרק 5), pgx וקובץ compose
-של PostgreSQL (פרק 10), וטרנזקציות ונעילת שורות (פרק 11, סעיפים 11.1 ו־11.4). התרגיל לא מייבא קוד מתרגיל
-קודם: החבילות שלו עומדות בפני עצמן.
+**ידע מקדים:** פרק 13, והפרקים הקודמים האלה:
+
+- פרק 2: Docker ו־compose.
+- פרק 5: context וביטול.
+- פרק 6, סעיף 6.5: כיבוי מסודר.
+- פרק 9, סעיף 9.5: מפתחות אידמפוטנטיות.
+- פרק 10: גישה ל־PostgreSQL עם pgx, וקובץ compose של מסד.
+- פרק 11, סעיפים 11.1 ו־11.4: טרנזקציות ונעילת שורות.
+
+התרגיל לא מייבא קוד מתרגיל קודם: החבילות שלו עומדות בפני עצמן.
 
 ## מה בתיקייה הזאת
 
 | קובץ | תפקיד |
 | --- | --- |
-| `data/compose.yaml` | Redpanda, ה־console ו־PostgreSQL, עם שם הפרויקט `ch13` |
+| `data/compose.yaml` | Redpanda, ממשק הדפדפן ו־PostgreSQL |
 | `starter/db/schema.sql`, `starter/db/db.go` | הטבלאות: הזמנות, outbox, סינון ומשלוחים; מוכן |
 | `starter/bus/bus.go` | בניית producer וצרכן בקבוצה, והמפרסם ל־Kafka; מוכן, לקריאה ביום 37 |
 | `starter/consumer/consumer.go` | הלולאה `Run` (ב־`TODO` של יום 37: השמירה) והפונקציה `Process` (ב־`TODO` של יום 38) |
 | `starter/orders/orders.go` | הפונקציה `Place`; ב־`TODO` של יום 38 |
-| `starter/outbox/outbox.go` | `Enqueue` מוכנה; ב־`RunOnce` יש `TODO` של יום 38: לפרסם ואז לסמן |
+| `starter/outbox/outbox.go` | הפונקציה `Enqueue` מוכנה; ב־`RunOnce` חסר החלק של יום 38: לפרסם ואז לסמן |
 | `starter/cmd/produce`, `starter/cmd/consume` | תוכניות הדגמה לימים 36 ו־37; מוכנות |
 | `starter/testenv/testenv.go` | עזר לבדיקות: סכמה פרטית ב־PostgreSQL ו־topic פרטי לכל בדיקה |
 | `tests/bus/bus_test.go` | מפתח ומחיצה, מסירה חוזרת של מה שלא נשמר, rebalance שיתופי (צריך Redpanda) |
@@ -109,7 +116,7 @@ rpk topic describe demo -p
 
 ## יום 37: producer, קבוצה ושמירה אחרי עיבוד
 
-**7. קראי את `bus/bus.go`** ואת ההערות על כל אפשרות. אחר כך הריצי את ה־producer של Go מול אותו topic:
+**7. קראי את `bus/bus.go`** ואת ההערות על כל אפשרות. אחר כך הריצי את התוכנית שכותבת מ־Go, מול אותו topic:
 
 <div dir="ltr" align="left">
 
@@ -122,7 +129,7 @@ go run ./cmd/produce -topic demo -n 6 -keys alice,bob,carol
 
 שימי לב שכל מפתח נחת באותה מחיצה שבה `rpk` שם אותו אתמול: שני הלקוחות מגבבים באותה דרך.
 
-**8. השלימי את השמירה ב־`Run`**, בקובץ `consumer/consumer.go`, לפי ה־`TODO`. רק הרשומות שב־`done`
+**8. השלימי את השמירה ב־`Run`**, בקובץ `consumer/consumer.go`, לפי ההערה שבקוד. רק הרשומות שב־`done`
 נשמרות, ואחריהן מגיעה הקריאה ל־`AllowRebalance`. הריצי את בדיקות היום:
 
 <div dir="ltr" align="left">
@@ -157,8 +164,10 @@ go run ./cmd/consume -topic work -group work-group -name A -sleep 1s
 
 </div>
 
-אחרי כמה הודעות, הפעילי בשני מסוף את החבר B עם `-name B` ואותה קבוצה. ב־A תראי שורת `revoked` עם חלק
-מהמחיצות בלבד, וב־B שורת `assigned` עם אותן מחיצות. זה rebalance שיתופי.
+אחרי כמה הודעות, הפעילי במסוף השני את החבר B, עם `-name B` ואותה קבוצה. זה rebalance שיתופי, ותראי בו:
+
+- אצל A: שורת `revoked` עם חלק מהמחיצות בלבד.
+- אצל B: שורת `assigned` עם אותן מחיצות.
 
 **10. הריגה באמצע.** חפשי את התהליך של A והרגי אותו בלי שיספיק לשמור:
 
@@ -286,37 +295,56 @@ ok  	example.com/ch13-outbox/outbox	3.338s
 ## רשימת בדיקה
 
 - [ ] הודעות עם אותו מפתח באותה מחיצה ובסדר, בהרצה שלך עם `rpk`, ורשמת איזה מפתח נחת איפה.
-- [ ] `rpk group describe` מראה offsets שמורים ופיגור לכל מחיצה.
+- [ ] הפקודה `rpk group describe` מראה offsets שמורים ופיגור לכל מחיצה.
 - [ ] ראית rebalance שבו A ויתר רק על חלק מהמחיצות.
 - [ ] אחרי `kill -9`, החבר הבא עיבד שוב את מה שלא נשמר, ושום הודעה לא חסרה.
 - [ ] בדיקת הקריסה עוברת: כל הודעה פעמיים ב־topic, משלוח אחד לכל הזמנה.
-- [ ] `go test -race ./...` עובר מול ה־stack, ושלושת הכלים לא מדפיסים דבר.
-- [ ] ה־stack כבוי עם `down -v`, והעבודה שמורה ב־Git.
+- [ ] כל הבדיקות עוברות מול ה־stack, וכלי הבדיקה מצעד 15 לא מדפיסים דבר.
+- [ ] ה־stack כבוי עם `down -v`, והעבודה שמורה במאגר שלך.
 
 ## טעויות נפוצות ותיקונים
 
 - **כל הבדיקות מדלגות עם `set DATABASE_URL` או `set KAFKA_BROKERS`.** המשתנים לא מוגדרים במסוף הזה.
-  הגדירי את שניהם כמו בצעדים 7 ו־14, ובדקי שה־stack למעלה עם `docker compose -p ch13 -f data/compose.yaml ps`.
-- **`TestUncommittedRecordsAreRedelivered` נכשלת עם `second member started at [m-0 m-1 ...]`.** הלולאה לא
+  הגדירי את שניהם כמו בצעדים 7 ו־14, ובדקי שה־stack למעלה כמו בצעד 2.
+- **הבדיקה `TestUncommittedRecordsAreRedelivered` נכשלת עם `second member started at [m-0 m-1 ...]`.** הלולאה לא
   שומרת offsets בכלל, ולכן החבר השני מתחיל מההתחלה. השלימי את `CommitRecords` בצעד 8.
 - **אותה בדיקה נכשלת עם `second member started at [m-5 ...]`.** השמירה כוללת גם את הרשומה שנכשלה, ולכן
   היא אבדה. הרשומות נכנסות ל־`done` רק אחרי שה־handler הצליח.
-- **`TestCrashBetweenPublishAndMarkDuplicatesButAppliesOnce` נכשלת עם `pending = 0`.** הסימון רץ לפני
+- **הבדיקה `TestCrashBetweenPublishAndMarkDuplicatesButAppliesOnce` נכשלת עם `after the crash pending = 0`.** הסימון רץ לפני
   `AfterPublish`, או בטרנזקציה נפרדת. הסדר הוא פרסום, `AfterPublish`, סימון, הכול בתוך אותה פונקציה.
-- **`TestFailedEffectLeavesNoDedupeRow` נכשלת עם `dedupe rows = 1`.** שורת הסינון נכתבה מחוץ לטרנזקציה של
+- **הבדיקה `TestFailedEffectLeavesNoDedupeRow` נכשלת עם `dedupe rows = 1`.** שורת הסינון נכתבה מחוץ לטרנזקציה של
   האפקט, למשל עם `db.Exec` במקום `tx.Exec`. כל הכתיבות בתוך `Process` עוברות דרך `tx`.
-- **`rpk` מתלונן על `the input device is not a TTY`.** הגדרת את הפונקציה בלי `-T`, והזרמת קלט עם `printf`.
+- **הכלי `rpk` מתלונן על `the input device is not a TTY`.** הגדרת את הפונקציה בלי `-T`, והזרמת קלט עם `printf`.
   הגדירי אותה שוב בדיוק כמו בצעד 3.
 
 ## רמזים
 
-- ב־`Run`: בני `cctx` עם `context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)`, קראי
-  ל־`cl.CommitRecords(cctx, done...)`, ואז `cancel()`. כשאין רשומות ב־`done`, אין מה לשמור.
-- ב־`Place`: בתוך `pgx.BeginFunc` משתמשים ב־`tx.QueryRow` ולא ב־`db`. פונקציה שמחזירה שגיאה גורמת
-  ל־`BeginFunc` לגלגל אחורה.
-- ב־`RunOnce`: אספי את `m.Seq` של כל ההודעות ל־slice, וסמני את כולן בשאילתה אחת עם `id = ANY($1)`.
-- ב־`Process`: `tag.RowsAffected() == 0` אחרי `INSERT ... ON CONFLICT DO NOTHING` פירושו שהמזהה כבר שם.
-  במקרה הזה החזירי `nil` מתוך הטרנזקציה, ו־`applied` נשאר `false`.
+- בלולאה `Run` השמירה נראית כך, וכשאין רשומות ב־`done` אין מה לשמור:
+
+<div dir="ltr" align="left">
+
+```go
+cctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+err := cl.CommitRecords(cctx, done...)
+cancel()
+```
+
+</div>
+
+- בפונקציה `Place` כותבים רק דרך `tx`. החיבור הכללי `db` לא משתתף בטרנזקציה, ופונקציה שמחזירה שגיאה
+  גורמת ל־`BeginFunc` לגלגל אחורה.
+- בפונקציה `RunOnce` אספי את `m.Seq` של כל ההודעות לרשימה אחת, וסמני את כולן בשאילתה אחת:
+  `id = ANY($1)`.
+- בפונקציה `Process`, אפס שורות שנוספו לטבלת הסינון פירושו שהמזהה כבר שם. במקרה הזה החזירי `nil` מתוך
+  הטרנזקציה, והדגל `applied` לא משתנה. זו הבדיקה:
+
+<div dir="ltr" align="left">
+
+```go
+if tag.RowsAffected() == 0 {
+```
+
+</div>
 
 ## הפתרון
 
@@ -328,9 +356,9 @@ ok  	example.com/ch13-outbox/outbox	3.338s
 ## מה התרגיל מדגים
 
 - מפתח שקובע מחיצה, וסדר שמובטח רק בתוכה.
-- producer עם `acks=all` ואידמפוטנטיות, וכתיבה סינכרונית עם `ProduceSync`.
+- כתיבה אידמפוטנטית עם `acks=all`, שמחכה לאישור עם `ProduceSync`.
 - צרכן בקבוצה בלי שמירה אוטומטית, ששומר רק מה שהסתיים, ומשחרר rebalance רק אחרי השמירה.
-- rebalance שיתופי שמעביר רק חלק מהמחיצות, נבדק מול broker אמיתי.
+- חלוקה מחדש שיתופית, שמעבירה רק חלק מהמחיצות, נבדק מול broker אמיתי.
 - תבנית ה־outbox: שתי שורות בטרנזקציה אחת, ו־relay שמפרסם ואז מסמן.
 - תפר לבדיקה שמדמה קריסה בנקודה מדויקת, ובדיקה שמוכיחה כפילות בלי אובדן.
 - טבלת סינון באותה טרנזקציה של האפקט: „בדיוק פעם אחת” כחוזה.

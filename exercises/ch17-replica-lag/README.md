@@ -15,7 +15,7 @@ lang: he
 (הסימולטור והגיבוב העקבי).
 
 **ידע מקדים:** פרק 17; פרק 10 (PostgreSQL בקונטיינר, psql ו־pgx, סעיפים 10.1 ו־10.7); פרק 11, סעיף 11.1 (WAL);
-goroutines, ‏context ו־`-race` (פרק 5, סעיפים 5.4 עד 5.8). התרגיל לא מייבא קוד מפרקים קודמים. הספרייה היחידה
+goroutines, ‏context ו־`-race` (פרק 5, סעיפים 5.1, 5.4 ו־5.8). התרגיל לא מייבא קוד מפרקים קודמים. הספרייה היחידה
 היא pgx, בגרסה שמקובעת ב־`go.mod` (נכון לאוקטובר 2026, ראי נספח ג).
 
 ## מה בתיקייה הזאת
@@ -60,11 +60,12 @@ export REPLICA_URL=postgres://course:change-me@localhost:5427/lab
 ההקמה הראשונה לוקחת כמה שניות יותר מהרגיל: המשני מחכה שהראשי יהיה בריא, ואז מעתיק אותו.
 
 **2. ודאי שהשכפול חי.** הריצי את שלוש הבדיקות של סעיף 17.2.4: הקובץ `postgresql.auto.conf` וקובץ הסימון
-`standby.signal` במשני, ‏`pg_stat_replication` בראשי, ו־`pg_is_in_recovery()` במשני. אחר כך נסי לכתוב במשני:
+`standby.signal` במשני, ו־`pg_stat_replication` בראשי. אחר כך שאלי את המשני אם הוא במצב שחזור, ונסי לכתוב בו:
 
 <div dir="ltr" align="left">
 
 ```bash
+docker compose -p ch17 -f data/compose.yaml exec replica psql -U course -d lab -c "SELECT pg_is_in_recovery()"
 docker compose -p ch17 -f data/compose.yaml exec replica psql -U course -d lab -c "CREATE TABLE nope (id int)"
 ```
 
@@ -98,6 +99,18 @@ go test -race -v -run 'Summarize|Probe|ApplyDelay|Senders|Load' ./replica
 go run ./cmd/probe -n 50
 go run ./cmd/probe -n 50 -load 4
 go run ./cmd/probe -n 10 -delay 2s
+```
+
+</div>
+
+התוכנית מחזירה את ההשהיה לאפס בסוף, גם אחרי Ctrl+C. אם התהליך נהרג באמצע, או שבדיקה נעצרה ב־timeout של
+`go test`, ההשהיה נשארת במשני. כך מאפסים אותה ביד:
+
+<div dir="ltr" align="left">
+
+```bash
+docker compose -p ch17 -f data/compose.yaml exec replica psql -U course -d lab \
+  -c "ALTER SYSTEM RESET recovery_min_apply_delay" -c "SELECT pg_reload_conf()"
 ```
 
 </div>
@@ -222,8 +235,7 @@ skew_test.go:…: keys moved: ring 21.0%, modulo 80.1%
   כי הכרך של הראשי נוצר לפני שהתסריט היה שם, והתסריט רץ רק על תיקייה חדשה. ‏`down -v` ואז `up` מחדש.
 - **‏`pg_basebackup: error: replication slot "replica1" does not exist`.** אותה סיבה, מהצד של ה־slot. אותו תיקון.
 - **‏`TestProbeSeesItsWriteOnTheReplica` נכשלת ב־`context deadline exceeded` אחרי כמה בדיקות.** השהיה נשארה
-  במשני מהרצה קודמת שנקטעה (`-delay` עם Ctrl+C באמצע, או בדיקה שקרסה). בדקי והחזירי לאפס:
-  `ALTER SYSTEM RESET recovery_min_apply_delay` ואז `SELECT pg_reload_conf()` במשני, דרך psql.
+  במשני מהרצה קודמת שנקטעה (תהליך שנהרג באמצע, או בדיקה שנעצרה ב־timeout). הריצי את פקודת האיפוס שבסוף צעד 4.
 - **‏`ReadNote` מחזירה תמיד `primary`.** ההשוואה נעשית כמחרוזות ב־Go, או שה־LSN נלקח לפני ה־`INSERT`. ההשוואה
   שייכת לשרת, ב־`CaughtUp`, והאסימון נלקח אחרי שהכתיבה חזרה.
 - **כל הבדיקות של `replica` מסומנות `SKIP`.** אחד משני המשתנים, `DATABASE_URL` או `REPLICA_URL`, לא מוגדר בחלון
@@ -253,7 +265,7 @@ skew_test.go:…: keys moved: ring 21.0%, modulo 80.1%
 
 - שכפול זורם אמיתי של PostgreSQL 18 בשני קונטיינרים, עם `pg_basebackup`, ‏slot ו־`standby.signal`.
 - פיגור שכפול שנמדד מהצד של הלקוח, ונעשה גלוי בעומס או בהשהיה מכוונת.
-- שתי מימושים של הבטחת סשן: חלון זמן עם שעון מוזרק, ואסימון LSN עם נפילה לראשי.
+- שני מימושים של הבטחת סשן: חלון זמן עם שעון מוזרק, ואסימון LSN עם נפילה לראשי.
 - מחיצה חמה שנוצרת מהתפלגות Zipf, ולמה מפתח מורכב מפזר אותה במחיר הסדר.
 - גיבוב עקבי שמזיז חמישית מהמפתחות כשמוסיפים שרת חמישי, מול ארבע חמישיות במודולו.
 

@@ -928,9 +928,10 @@ the same change.
 - **Objective:** alert on what users feel, at the right speed.
 - **Read:** ch 25, sections 25.1–25.3.
 - **Time:** 110 min (read 45 / build 55 / note 10).
-- **Exercise:** `ch25-slo`, part 1: recording rules for shorty's availability SLI; multi-window burn-rate alert
-  rules; unit tests for the rules with promtool.
-- **Done when:** promtool rule tests pass, including a case where a fast burn fires and a short blip does not.
+- **Exercise:** `ch25-slo`, part 1: recording rules for shorty's availability and latency SLIs; multi-window
+  burn-rate alert rules; unit tests for the rules with promtool; the rules loaded into the chapter 24 stack.
+- **Done when:** promtool rule tests pass, including a case where a fast burn fires and a short blip does not;
+  Prometheus in the stack has loaded the 16 rules.
 - **You can explain:** what an error budget is for; why multi-window burn-rate alerts beat a fixed error threshold.
 
 ---
@@ -943,7 +944,8 @@ the same change.
 - **Time:** 85 min (read 40 / build 35 / note 10).
 - **Exercise:** `ch25-slo`, part 2: a runbook for the burn-rate alert; run the staged incident of the chapter and
   write its postmortem from the template.
-- **Done when:** the runbook says what to check first and how to mitigate; the postmortem has a timeline, impact,
+- **Done when:** the runbook says what to check first and how to mitigate; the staged incident fired the alert and
+  it resolved after the rollback; the postmortem has a timeline, impact,
   contributing factors and action items, with no blame.
 - **You can explain:** the incident roles; what makes a postmortem action item useful.
 
@@ -981,10 +983,11 @@ the same change.
 - **Objective:** the right test at the right level.
 - **Read:** ch 26, sections 26.1–26.4.
 - **Time:** 110 min (read 35 / build 65 / note 10).
-- **Exercise:** `ch26-testing`, part 1: integration tests for the chapter 10 repository with testcontainers-go; a
-  JSON-schema contract test; property tests for the backoff function with rapid.
-- **Done when:** the integration tests start their own PostgreSQL and pass; the property tests check the backoff
-  bounds over generated inputs.
+- **Exercise:** `ch26-testing`, part 1: integration tests for the chapter 10 repository with testcontainers-go and a
+  test data builder; a JSON Schema contract for the webhook body, checked from Go and from Python; property tests
+  for the backoff function and the signature with rapid.
+- **Done when:** the integration tests start their own PostgreSQL, pass and leave no containers behind; the schema
+  rejects every invalid example on both sides; the property tests pass with 2000 inputs per property.
 - **You can explain:** what a contract test protects that an integration test does not; what a property test finds
   that table tests miss.
 
@@ -996,8 +999,9 @@ the same change.
 - **Objective:** find edge cases with fuzzing and measure under load.
 - **Read:** ch 26, sections 26.5–26.7.
 - **Time:** 110 min (read 35 / build 65 / note 10).
-- **Exercise:** `ch26-testing`, part 2: a fuzz target for an input parser; a k6 script with thresholds against
-  shorty; run it and read the results as the chapter teaches.
+- **Exercise:** `ch26-testing`, part 2: a fuzz target for the signature-header parser, and a fix for the crash it
+  finds; a constant-arrival-rate k6 script with thresholds against shorty; run it at three rates and read the
+  results as the chapter teaches.
 - **Done when:** the fuzz target runs for its time box and any crasher is fixed and kept as a test; the k6 summary
   from your run is saved with your reading of it.
 - **You can explain:** why percentiles matter more than averages; what a k6 threshold turns a load test into.
