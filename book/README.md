@@ -36,17 +36,17 @@ title: "תוכן העניינים הראשי"
 
 | פרק | קובץ | מצב |
 | --- | --- | --- |
-| פרק 3: צעדים ראשונים ב־Go | [`03-go-first-steps.md`](03-go-first-steps.md) | ⏳ |
-| פרק 4: טיפוסים, ממשקים ושגיאות | [`04-go-types-interfaces-errors.md`](04-go-types-interfaces-errors.md) | ⏳ |
-| פרק 5: מקביליות ב־Go | [`05-go-concurrency.md`](05-go-concurrency.md) | ⏳ |
-| פרק 6: שירות HTTP לייצור | [`06-go-http-service.md`](06-go-http-service.md) | ⏳ |
+| פרק 3: צעדים ראשונים ב־Go | [`03-go-first-steps.md`](03-go-first-steps.md) | ✅ |
+| פרק 4: טיפוסים, ממשקים ושגיאות | [`04-go-types-interfaces-errors.md`](04-go-types-interfaces-errors.md) | ✅ |
+| פרק 5: מקביליות ב־Go | [`05-go-concurrency.md`](05-go-concurrency.md) | ✅ |
+| פרק 6: שירות HTTP לייצור | [`06-go-http-service.md`](06-go-http-service.md) | ✅ |
 
 ## חלק ב: Python בכירה
 
 | פרק | קובץ | מצב |
 | --- | --- | --- |
-| פרק 7: Python עם טיפוסים, אריזה ובדיקות | [`07-python-typed-packaged.md`](07-python-typed-packaged.md) | ⏳ |
-| פרק 8: Python אסינכרונית ו־FastAPI | [`08-python-async-fastapi.md`](08-python-async-fastapi.md) | ⏳ |
+| פרק 7: Python עם טיפוסים, אריזה ובדיקות | [`07-python-typed-packaged.md`](07-python-typed-packaged.md) | ✅ |
+| פרק 8: Python אסינכרונית ו־FastAPI | [`08-python-async-fastapi.md`](08-python-async-fastapi.md) | ✅ |
 
 ## חלק ג: יסודות backend
 

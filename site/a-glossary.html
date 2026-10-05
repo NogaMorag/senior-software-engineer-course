@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>נספח א: מילון מונחים</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="top"><a href="index.html">תוכן העניינים</a> · <a href="TERMINOLOGY.html">← Terminology policy (book 2)</a></nav>
+<main class="book">
+
+<h1 id="_1">נספח א: מילון מונחים</h1>
+<p>138 מונחים, נאספים אוטומטית מטבלאות „מונחים לזכור” של כל הפרקים (הכלי: <code>tools/make_glossary.py</code>).
+הסדר לפי המונח באנגלית. העמודה האחרונה מפנה לפרק שבו המונח הוגדר לראשונה, ובסוגריים לפרקים שחזרו עליו.</p>
+<table>
+<thead>
+<tr>
+<th>באנגלית</th>
+<th>בעברית</th>
+<th>במשפט אחד</th>
+<th>פרק</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>access log</td>
+<td>לוג גישה</td>
+<td>שורה אחת לכל בקשה: מתודה, תבנית, סטטוס, משך</td>
+<td>6</td>
+</tr>
+<tr>
+<td>advisory lock</td>
+<td>נעילה מייעצת</td>
+<td>נעילה על מספר שהיישום בוחר, בלי קשר לשורה; goose משתמש בה</td>
+<td>11</td>
+</tr>
+<tr>
+<td>aliasing</td>
+<td>כינוי</td>
+<td>שני שמות לאותו זיכרון, כך ששינוי באחד נראה בשני</td>
+<td>3</td>
+</tr>
+<tr>
+<td>allocation</td>
+<td>הקצאה</td>
+<td>זיכרון שנלקח מהערימה ויעבור לאוסף הזבל</td>
+<td>6</td>
+</tr>
+<tr>
+<td>atomic counter</td>
+<td>מונה אטומי</td>
+<td>הגדלה שקורית בפקודה אחת בשרת, בלי עדכונים שאובדים</td>
+<td>12</td>
+</tr>
+<tr>
+<td>back-pressure</td>
+<td>לחץ חוזר</td>
+<td>שלב מהיר מואט כי השלב הבא לא מקבל עוד</td>
+<td>5</td>
+</tr>
+<tr>
+<td>backing array</td>
+<td>מערך בסיס</td>
+<td>הזיכרון שעליו slices מצביעים, ושיכול להיות משותף</td>
+<td>3</td>
+</tr>
+<tr>
+<td>backward compatibility</td>
+<td>תאימות לאחור</td>
+<td>לקוח ישן ממשיך לעבוד מול שרת חדש</td>
+<td>9</td>
+</tr>
+<tr>
+<td>benchmark</td>
+<td>בנצ'מרק</td>
+<td>פונקציה שמודדת זמן והקצאות לפעולה אחת</td>
+<td>6 (7)</td>
+</tr>
+<tr>
+<td>cache</td>
+<td>מטמון</td>
+<td>עותק מהיר של נתונים שמקורם במקום אחר, שמותר לו להתיישן לזמן מוגדר</td>
+<td>12</td>
+</tr>
+<tr>
+<td>cache stampede</td>
+<td>התפרצות מטמון</td>
+<td>הרבה פספוסים בו־זמנית על אותו מפתח, שכולם פוגעים במקור</td>
+<td>12</td>
+</tr>
+<tr>
+<td>cache-aside</td>
+<td>cache-aside</td>
+<td>האפליקציה קוראת מהמטמון, טוענת בפספוס ומוחקת בכתיבה</td>
+<td>12</td>
+</tr>
+<tr>
+<td>cancellation</td>
+<td>ביטול</td>
+<td>בקשה לעצור משימה, שמגיעה אליה כחריגה ב־<code>await</code></td>
+<td>8</td>
+</tr>
+<tr>
+<td>channel</td>
+<td>channel</td>
+<td>צינור עם טיפוס להעברת ערכים בין goroutines</td>
+<td>5</td>
+</tr>
+<tr>
+<td>Checksum (SHA-256)</td>
+<td>טביעת קובץ</td>
+<td>מחרוזת שמחושבת מתוכן הקובץ; זהות שלה מוכיחה שההורדה שלמה</td>
+<td>2</td>
+</tr>
+<tr>
+<td>composite index</td>
+<td>אינדקס מרוכב</td>
+<td>אינדקס על כמה עמודות, ממוין לפי הראשונה ואז השנייה</td>
+<td>10</td>
+</tr>
+<tr>
+<td>concurrency</td>
+<td>מקביליות</td>
+<td>מבנה שבו כמה משימות מתקדמות בתקופות חופפות</td>
+<td>5</td>
+</tr>
+<tr>
+<td>connection pool</td>
+<td>מאגר חיבורים</td>
+<td>קבוצה מוגבלת של חיבורים פתוחים שבקשות שואלות ומחזירות</td>
+<td>10 (11)</td>
+</tr>
+<tr>
+<td>constant-time comparison</td>
+<td>השוואה בזמן קבוע</td>
+<td>השוואה שזמנה לא תלוי במקום ההבדל הראשון</td>
+<td>8</td>
+</tr>
+<tr>
+<td>constraint</td>
+<td>אילוץ</td>
+<td>הממשק שמגביל פרמטר טיפוס בפונקציה גנרית</td>
+<td>4</td>
+</tr>
+<tr>
+<td>context</td>
+<td>context</td>
+<td>ממשק שנושא ביטול, גבול זמן כולל וערכי בקשה</td>
+<td>5</td>
+</tr>
+<tr>
+<td>cooperative cancellation</td>
+<td>ביטול שיתופי</td>
+<td>ביטול שמגיע רק לקוד שבודק אותו</td>
+<td>5</td>
+</tr>
+<tr>
+<td>coroutine</td>
+<td>coroutine</td>
+<td>מה ש־<code>async def</code> מחזירה; לא רצה עד שמחכים לה</td>
+<td>8</td>
+</tr>
+<tr>
+<td>covering index</td>
+<td>אינדקס מכסה</td>
+<td>אינדקס שמכיל את כל העמודות שהשאילתה צריכה, למשל עם <code>INCLUDE</code></td>
+<td>10</td>
+</tr>
+<tr>
+<td>cursor</td>
+<td>cursor</td>
+<td>סמן אטום עם מפתח המיון של הפריט האחרון שנראה</td>
+<td>9</td>
+</tr>
+<tr>
+<td>data race</td>
+<td>מרוץ נתונים</td>
+<td>שתי גישות לא מסונכרנות לאותו זיכרון, ולפחות אחת כתיבה</td>
+<td>5</td>
+</tr>
+<tr>
+<td>deadline</td>
+<td>גבול זמן כולל</td>
+<td>הרגע שבו כל העבודה חייבת להסתיים</td>
+<td>5</td>
+</tr>
+<tr>
+<td>deadlock</td>
+<td>קיפאון</td>
+<td>מעגל של טרנזקציות שכל אחת מחכה לנעילה של אחרת; קוד <code>40P01</code></td>
+<td>11</td>
+</tr>
+<tr>
+<td>deduplication</td>
+<td>הסרת כפילויות</td>
+<td>זיהוי של אותו משלוח שהגיע שוב, ורישום אחד בלבד</td>
+<td>8</td>
+</tr>
+<tr>
+<td>dependency</td>
+<td>תלות</td>
+<td>פונקציה ש־FastAPI מריצה ומעבירה את התוצאה לנקודת הקצה</td>
+<td>8</td>
+</tr>
+<tr>
+<td>dependency group</td>
+<td>קבוצת תלויות</td>
+<td>תלויות פיתוח שלא נשלחות עם החבילה</td>
+<td>7</td>
+</tr>
+<tr>
+<td>deprecation</td>
+<td>הוצאה משימוש</td>
+<td>הודעה שנתיב ייעלם, עם תאריך ותחליף</td>
+<td>9</td>
+</tr>
+<tr>
+<td>discriminated union</td>
+<td>איחוד מובחן</td>
+<td>איחוד שבו שדה אחד קובע איזה מודל חל</td>
+<td>7</td>
+</tr>
+<tr>
+<td>embedding</td>
+<td>הטמעה</td>
+<td>שדה בלי שם, שהשדות והמתודות שלו מקודמים לטיפוס החיצוני</td>
+<td>4</td>
+</tr>
+<tr>
+<td>entry point</td>
+<td>נקודת כניסה</td>
+<td>פקודה שהמתקין יוצר ושקוראת לפונקציה בחבילה</td>
+<td>7</td>
+</tr>
+<tr>
+<td>environment variable</td>
+<td>משתנה סביבה</td>
+<td>הדרך שבה שירות מקבל את התצורה שלו</td>
+<td>6</td>
+</tr>
+<tr>
+<td>error type</td>
+<td>טיפוס שגיאה</td>
+<td>struct שמממש <code>error</code> ונושא נתונים, ששולפים עם <code>errors.As</code></td>
+<td>4</td>
+</tr>
+<tr>
+<td>escape analysis</td>
+<td>ניתוח בריחה</td>
+<td>החלטת המהדר אם ערך נשאר על המחסנית או עובר לערימה</td>
+<td>3</td>
+</tr>
+<tr>
+<td>event loop</td>
+<td>לולאת האירועים</td>
+<td>תהליכון אחד שמריץ משימות בתורות, ומחליף ביניהן רק ב־<code>await</code></td>
+<td>8</td>
+</tr>
+<tr>
+<td>eviction</td>
+<td>פינוי</td>
+<td>זריקת מפתחות כשהזיכרון מגיע לתקרה, לפי מדיניות</td>
+<td>12</td>
+</tr>
+<tr>
+<td>exception group</td>
+<td>קבוצת חריגות</td>
+<td>כמה חריגות שמגיעות יחד, ונתפסות עם <code>except*</code></td>
+<td>8</td>
+</tr>
+<tr>
+<td>Exit code</td>
+<td>קוד יציאה</td>
+<td>המספר שתוכנית מחזירה בסיומה; 0 פירושו הצלחה</td>
+<td>2</td>
+</tr>
+<tr>
+<td>fan-out, fan-in</td>
+<td>fan-out ו־fan-in</td>
+<td>פיזור עבודה על כמה goroutines, ואיסוף התוצאות לנקודה אחת</td>
+<td>5</td>
+</tr>
+<tr>
+<td>fingerprint</td>
+<td>טביעת אצבע</td>
+<td>גיבוב של הבקשה, שקובע אם שתי בקשות הן אותה בקשה</td>
+<td>9</td>
+</tr>
+<tr>
+<td>foreign key</td>
+<td>מפתח זר</td>
+<td>עמודה שמפנה למפתח של טבלה אחרת; לא מאונדקסת אוטומטית</td>
+<td>10</td>
+</tr>
+<tr>
+<td>Gap matrix</td>
+<td>מטריצת פערים</td>
+<td>טבלה של מיומנויות שהשוק מבקש מול מה שיש לך, ומה סוגר כל פער</td>
+<td>1</td>
+</tr>
+<tr>
+<td>garbage collector (GC)</td>
+<td>אוסף זבל</td>
+<td>משחרר בזמן ריצה זיכרון שאין אליו הפניות</td>
+<td>3</td>
+</tr>
+<tr>
+<td>generated code</td>
+<td>קוד מחולל</td>
+<td>קוד שכלי כתב מקובץ הגדרה, ולא עורכים ביד</td>
+<td>9</td>
+</tr>
+<tr>
+<td>GIL</td>
+<td>נעילת המפרש הגלובלית</td>
+<td>הנעילה שמאפשרת רק לתהליכון אחד להריץ קוד Python בכל רגע</td>
+<td>8</td>
+</tr>
+<tr>
+<td>goroutine</td>
+<td>goroutine</td>
+<td>פונקציה שרצה במקביל בניהול ה־runtime, ומתחילה במילה <code>go</code></td>
+<td>5</td>
+</tr>
+<tr>
+<td>goroutine leak</td>
+<td>דליפת goroutines</td>
+<td>goroutine שלא תסתיים לעולם ומחזיקה זיכרון</td>
+<td>5</td>
+</tr>
+<tr>
+<td>grace period</td>
+<td>זמן חסד</td>
+<td>הזמן שבקשות שבדרך מקבלות לסיים בכיבוי</td>
+<td>6</td>
+</tr>
+<tr>
+<td>graceful shutdown</td>
+<td>כיבוי מסודר</td>
+<td>הפסקת קבלה, סיום מה שבדרך, ואז יציאה</td>
+<td>6</td>
+</tr>
+<tr>
+<td>handler</td>
+<td>handler</td>
+<td>מה שעונה לבקשה: כל מי שמממש <code>ServeHTTP</code></td>
+<td>6</td>
+</tr>
+<tr>
+<td>hit ratio</td>
+<td>יחס פגיעות</td>
+<td>פגיעות חלקי כל הבדיקות; המספר שמצדיק מטמון</td>
+<td>12</td>
+</tr>
+<tr>
+<td>hit, miss</td>
+<td>פגיעה ופספוס</td>
+<td>הערך נמצא במטמון, או שצריך לטעון אותו מהמקור</td>
+<td>12</td>
+</tr>
+<tr>
+<td>Home assignment</td>
+<td>מטלת בית</td>
+<td>תרגיל של ערב או שניים, שמוגש עם קוד, בדיקות ו־README</td>
+<td>1</td>
+</tr>
+<tr>
+<td>idempotency</td>
+<td>אידמפוטנטיות</td>
+<td>חזרה על פעולה משאירה את אותו מצב כמו פעם אחת</td>
+<td>9</td>
+</tr>
+<tr>
+<td>idempotency key</td>
+<td>מפתח אידמפוטנטיות</td>
+<td>ערך שהלקוח שולח כדי שניסיון חוזר לא יבצע פעמיים</td>
+<td>9</td>
+</tr>
+<tr>
+<td>Image digest</td>
+<td>טביעת אימג'</td>
+<td>מזהה של אימג' לפי התוכן שלו; בניגוד לתגית, הוא לא זז</td>
+<td>2</td>
+</tr>
+<tr>
+<td>index-only scan</td>
+<td>סריקת אינדקס בלבד</td>
+<td>תשובה מהאינדקס בלי לקרוא את הטבלה</td>
+<td>10</td>
+</tr>
+<tr>
+<td>input validation</td>
+<td>אימות קלט</td>
+<td>בדיקה שהקלט בגודל, בפורמט ובטווח המותרים</td>
+<td>9</td>
+</tr>
+<tr>
+<td>interface</td>
+<td>ממשק</td>
+<td>רשימת מתודות; כל טיפוס שיש לו אותן מממש אותו בלי הצהרה</td>
+<td>4</td>
+</tr>
+<tr>
+<td>invalidation</td>
+<td>אי־תוקף</td>
+<td>מחיקת ערך שמור כי המקור השתנה</td>
+<td>12</td>
+</tr>
+<tr>
+<td>isolation level</td>
+<td>רמת בידוד</td>
+<td>אילו השפעות של טרנזקציות מקבילות טרנזקציה רשאית לראות</td>
+<td>11</td>
+</tr>
+<tr>
+<td>jitter</td>
+<td>פיזור אקראי</td>
+<td>תוספת אקראית קטנה ל־TTL, כדי שמפתחות לא יפוגו יחד</td>
+<td>12</td>
+</tr>
+<tr>
+<td>Judgment</td>
+<td>שיקול דעת</td>
+<td>בחירה בין חלופות עם מחיר ידוע, כשאין תשובה נכונה אחת</td>
+<td>1</td>
+</tr>
+<tr>
+<td>keyset pagination</td>
+<td>עימוד keyset</td>
+<td>„המשך אחרי המפתח האחרון שראיתי”, במקום לדלג על N שורות</td>
+<td>10</td>
+</tr>
+<tr>
+<td>Lane</td>
+<td>מסלול</td>
+<td>סוג משרה: backend מוצרי, platform, SRE ותפעול, או תשתיות נתונים</td>
+<td>1</td>
+</tr>
+<tr>
+<td>lifespan</td>
+<td>מחזור חיים</td>
+<td>הקוד שרץ בעליית השירות ובכיבוי שלו</td>
+<td>8</td>
+</tr>
+<tr>
+<td>lock</td>
+<td>נעילה</td>
+<td>מבטיחה שרק goroutine אחת ניגשת לנתון בכל רגע</td>
+<td>5</td>
+</tr>
+<tr>
+<td>lock file</td>
+<td>קובץ נעילה</td>
+<td>כל התלויות בגרסה ובתמצית מדויקות, כדי שכולם יתקינו אותו דבר</td>
+<td>7</td>
+</tr>
+<tr>
+<td>lost update</td>
+<td>עדכון אבוד</td>
+<td>שתי טרנזקציות קוראות ערך, שתיהן כותבות, ואחת הכתיבות נדרסת</td>
+<td>11</td>
+</tr>
+<tr>
+<td>method</td>
+<td>מתודה</td>
+<td>פונקציה עם receiver, מוגדרת על טיפוס בעל שם</td>
+<td>4</td>
+</tr>
+<tr>
+<td>method set</td>
+<td>קבוצת מתודות</td>
+<td>המתודות שטיפוס מסוים מממש; קובעת אילו ממשקים הוא מספק</td>
+<td>4</td>
+</tr>
+<tr>
+<td>middleware</td>
+<td>middleware</td>
+<td>שכבה שעוטפת handler ופועלת לפניו ואחריו</td>
+<td>6</td>
+</tr>
+<tr>
+<td>migration</td>
+<td>מיגרציה</td>
+<td>שינוי סכמה כקובץ ממוספר, שרץ פעם אחת ונרשם במסד</td>
+<td>11</td>
+</tr>
+<tr>
+<td>module</td>
+<td>מודול</td>
+<td>יחידת גרסה והפצה, מוגדרת בקובץ <code>go.mod</code></td>
+<td>3</td>
+</tr>
+<tr>
+<td>MVCC</td>
+<td>בקרת מקביליות מרובת גרסאות</td>
+<td>עדכון כותב גרסה חדשה של השורה, כך שקוראים וכותבים לא חוסמים זה את זה</td>
+<td>11</td>
+</tr>
+<tr>
+<td>N+1 queries</td>
+<td>בעיית N+1</td>
+<td>שאילתה לרשימה ועוד שאילתה לכל פריט בה</td>
+<td>10</td>
+</tr>
+<tr>
+<td>negative caching</td>
+<td>מטמון שלילי</td>
+<td>שמירת „לא נמצא” עם TTL קצר, נגד בקשות לדברים שלא קיימים</td>
+<td>12</td>
+</tr>
+<tr>
+<td>offset</td>
+<td>היסט</td>
+<td>עימוד לפי מקום ברשימה; נשבר כשהרשימה משתנה</td>
+<td>9</td>
+</tr>
+<tr>
+<td>On-call</td>
+<td>תורנות</td>
+<td>זמינות לטיפול בתקלות בייצור, בסבב עם הצוות</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Ownership</td>
+<td>בעלות</td>
+<td>אחריות על מה שבנית גם אחרי ההשקה, כולל ניטור ותקריות</td>
+<td>1</td>
+</tr>
+<tr>
+<td>package</td>
+<td>חבילה</td>
+<td>תיקייה של קבצים עם אותו שם חבילה; יחידת הקומפילציה והנראות</td>
+<td>3</td>
+</tr>
+<tr>
+<td>pagination</td>
+<td>עימוד</td>
+<td>חלוקה של רשימה ארוכה לעמודים</td>
+<td>9</td>
+</tr>
+<tr>
+<td>parallelism</td>
+<td>ביצוע מקבילי</td>
+<td>ריצה בו־זמנית ממש, על כמה ליבות</td>
+<td>5</td>
+</tr>
+<tr>
+<td>partial index</td>
+<td>אינדקס חלקי</td>
+<td>אינדקס רק על השורות שעונות על תנאי <code>WHERE</code></td>
+<td>10</td>
+</tr>
+<tr>
+<td>PATH</td>
+<td>משתנה הסביבה PATH</td>
+<td>רשימת התיקיות שבהן המעטפת מחפשת פקודה, לפי הסדר</td>
+<td>2</td>
+</tr>
+<tr>
+<td>planner</td>
+<td>מתכנן</td>
+<td>החלק של PostgreSQL שבוחר איך להריץ שאילתה, לפי עלות מוערכת</td>
+<td>10</td>
+</tr>
+<tr>
+<td>problem details</td>
+<td>פרטי בעיה</td>
+<td>צורת השגיאה של RFC 9457</td>
+<td>9</td>
+</tr>
+<tr>
+<td>profile</td>
+<td>פרופיל</td>
+<td>דגימות של היכן תהליך מבזבז זמן או זיכרון</td>
+<td>6</td>
+</tr>
+<tr>
+<td>profiling</td>
+<td>מדידת פרופיל</td>
+<td>מדידה של היכן תוכנית מבלה את זמנה</td>
+<td>7</td>
+</tr>
+<tr>
+<td>query plan</td>
+<td>תוכנית ביצוע</td>
+<td>עץ הצמתים שהמתכנן בחר; <code>EXPLAIN</code> מציג אותו</td>
+<td>10</td>
+</tr>
+<tr>
+<td>race condition</td>
+<td>מרוץ</td>
+<td>תוצאה שתלויה בסדר האירועים, גם בלי מרוץ נתונים</td>
+<td>5</td>
+</tr>
+<tr>
+<td>race detector</td>
+<td>גלאי המרוצים</td>
+<td>הדגל <code>-race</code>, שמוצא מרוצי נתונים שקרו בריצה</td>
+<td>5</td>
+</tr>
+<tr>
+<td>request ID</td>
+<td>מזהה בקשה</td>
+<td>ערך שמלווה בקשה אחת בכל שורות הלוג ובין שירותים</td>
+<td>6</td>
+</tr>
+<tr>
+<td>resource</td>
+<td>משאב</td>
+<td>דבר שיש לו כתובת ב־API, כמו פריט או אוסף פריטים</td>
+<td>9</td>
+</tr>
+<tr>
+<td>retry</td>
+<td>ניסיון חוזר</td>
+<td>הרצה מחדש של כל הטרנזקציה אחרי כשל זמני</td>
+<td>11</td>
+</tr>
+<tr>
+<td>router (mux)</td>
+<td>נתב</td>
+<td>בוחר handler לפי המתודה והנתיב</td>
+<td>6</td>
+</tr>
+<tr>
+<td>row lock</td>
+<td>נעילת שורה</td>
+<td>נעילה ש־<code>FOR UPDATE</code> לוקח, עד סוף הטרנזקציה</td>
+<td>11</td>
+</tr>
+<tr>
+<td>rune</td>
+<td>rune</td>
+<td>נקודת קוד אחת של Unicode</td>
+<td>3</td>
+</tr>
+<tr>
+<td>Scope</td>
+<td>היקף</td>
+<td>גודל הבעיות שבאחריותך: משימה, רכיב, שירות, או ממשק בין צוותים</td>
+<td>1</td>
+</tr>
+<tr>
+<td>selectivity</td>
+<td>סלקטיביות</td>
+<td>איזה חלק מהשורות עובר תנאי; קובעת אם אינדקס משתלם</td>
+<td>10</td>
+</tr>
+<tr>
+<td>Senior</td>
+<td>בכירה</td>
+<td>רמה שנמדדת בהיקף, בבעלות ובשיקול דעת, לא רק בשנים</td>
+<td>1</td>
+</tr>
+<tr>
+<td>sentinel error</td>
+<td>שגיאת sentinel</td>
+<td>ערך שגיאה קבוע של חבילה, שמזהים עם <code>errors.Is</code></td>
+<td>4</td>
+</tr>
+<tr>
+<td>sequential scan</td>
+<td>סריקה מלאה</td>
+<td>קריאה של כל דפי הטבלה לפי הסדר</td>
+<td>10</td>
+</tr>
+<tr>
+<td>serialization failure</td>
+<td>כשל סריאליזציה</td>
+<td>ביטול טרנזקציה בקוד <code>40001</code> כדי לשמור על בידוד; מנסים שוב</td>
+<td>11</td>
+</tr>
+<tr>
+<td>Shell</td>
+<td>מעטפת</td>
+<td>התוכנית שקוראת פקודות ומריצה אותן; ב־Ubuntu זו bash</td>
+<td>2</td>
+</tr>
+<tr>
+<td>singleflight</td>
+<td>singleflight</td>
+<td>מאחד קריאות מקבילות לאותו מפתח לקריאה אחת בתוך תהליך</td>
+<td>12</td>
+</tr>
+<tr>
+<td>slice header</td>
+<td>כותרת slice</td>
+<td>מצביע, אורך וקיבולת; זה מה שמועתק</td>
+<td>3</td>
+</tr>
+<tr>
+<td>Smoke test</td>
+<td>בדיקת עשן</td>
+<td>בדיקה קטנה שמוכיחה שהשרשרת כולה עובדת</td>
+<td>2</td>
+</tr>
+<tr>
+<td>snapshot</td>
+<td>תמונת מצב</td>
+<td>רשימת הטרנזקציות שאושרו מבחינת פקודה או טרנזקציה, שקובעת איזו גרסת שורה היא רואה</td>
+<td>11</td>
+</tr>
+<tr>
+<td>src layout</td>
+<td>מבנה src</td>
+<td>הקוד בתוך <code>src/</code>, כך שאפשר לייבא אותו רק דרך ההתקנה</td>
+<td>7</td>
+</tr>
+<tr>
+<td>SSH key pair</td>
+<td>מפתח SSH</td>
+<td>מפתח פרטי שנשאר במחשב, ומפתח ציבורי שנותנים לשרת</td>
+<td>2</td>
+</tr>
+<tr>
+<td>static analysis</td>
+<td>ניתוח סטטי</td>
+<td>בדיקת קוד בלי להריץ אותו</td>
+<td>3</td>
+</tr>
+<tr>
+<td>structural typing</td>
+<td>טיפוסיות מבנית</td>
+<td>התאמה לפי צורה ולא לפי ירושה</td>
+<td>7</td>
+</tr>
+<tr>
+<td>structured concurrency</td>
+<td>מקביליות מובנית</td>
+<td>משימות שלא חיות יותר מהבלוק שיצר אותן</td>
+<td>8</td>
+</tr>
+<tr>
+<td>structured log</td>
+<td>לוג מובנה</td>
+<td>רשומה של זוגות מפתח וערך, ולא משפט חופשי</td>
+<td>6</td>
+</tr>
+<tr>
+<td>System design</td>
+<td>תכנון מערכות</td>
+<td>ראיון שבו מתכננים מערכת שלמה בקול, עם החלופות והמחירים</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Table-driven test</td>
+<td>בדיקה טבלאית</td>
+<td>טבלה של קלטים ופלטים צפויים, ולולאה שמריצה כל שורה כתת־בדיקה</td>
+<td>2 (3)</td>
+</tr>
+<tr>
+<td>task</td>
+<td>משימה</td>
+<td>coroutine שנמסרה ללולאה ומתוזמנת</td>
+<td>8</td>
+</tr>
+<tr>
+<td>time to live (TTL)</td>
+<td>זמן חיים</td>
+<td>הזמן שאחריו Redis מוחק מפתח בעצמו</td>
+<td>12</td>
+</tr>
+<tr>
+<td>timeout</td>
+<td>זמן קצוב</td>
+<td>כמה זמן מחכים לפעולה אחת לפני שמוותרים</td>
+<td>5 (8)</td>
+</tr>
+<tr>
+<td>tolerant reader</td>
+<td>קורא סובלני</td>
+<td>לקוח שמתעלם משדות שהוא לא מכיר</td>
+<td>9</td>
+</tr>
+<tr>
+<td>transaction</td>
+<td>טרנזקציה</td>
+<td>קבוצת פקודות שמאושרת או מתבטלת כיחידה אחת</td>
+<td>11</td>
+</tr>
+<tr>
+<td>type hints</td>
+<td>רמזי טיפוס</td>
+<td>הערות טיפוס שבודק סטטי קורא ושהמפרש לא אוכף</td>
+<td>7</td>
+</tr>
+<tr>
+<td>type set</td>
+<td>קבוצת טיפוסים</td>
+<td>אילוץ כמו <code>~int64</code>, שמונה טיפוסים מותרים</td>
+<td>4</td>
+</tr>
+<tr>
+<td>validation</td>
+<td>בדיקת תקינות</td>
+<td>בדיקה בזמן ריצה שקלט מתאים למודל</td>
+<td>7</td>
+</tr>
+<tr>
+<td>Virtual environment</td>
+<td>סביבה וירטואלית</td>
+<td>התיקייה <code>.venv</code> עם Python והחבילות של פרויקט אחד</td>
+<td>2</td>
+</tr>
+<tr>
+<td>visibility map</td>
+<td>מפת נראות</td>
+<td>סימון של דפים שכל השורות בהם גלויות לכולם; נחוץ ל־Index Only Scan</td>
+<td>10</td>
+</tr>
+<tr>
+<td>webhook receiver</td>
+<td>מקבל webhooks</td>
+<td>שירות שמקבל אירועים חתומים בבקשות HTTP</td>
+<td>8</td>
+</tr>
+<tr>
+<td>Word boundary</td>
+<td>גבול מילה</td>
+<td>התנאי שמילת מפתח לא נוגעת באותיות שלפניה ואחריה</td>
+<td>1</td>
+</tr>
+<tr>
+<td>worker pool</td>
+<td>worker pool</td>
+<td>מספר קבוע של goroutines שקוראות עבודה מאותו channel</td>
+<td>5</td>
+</tr>
+<tr>
+<td>wrapping</td>
+<td>עטיפה</td>
+<td>הוספת הקשר לשגיאה עם <code>%w</code> בלי לאבד את המקורית</td>
+<td>4</td>
+</tr>
+<tr>
+<td>write skew</td>
+<td>הטיית כתיבה, write skew</td>
+<td>שתי טרנזקציות בודקות כלל על אותן שורות וכותבות לשורות שונות, והכלל נשבר</td>
+<td>11</td>
+</tr>
+<tr>
+<td>WSL2</td>
+<td>תת־מערכת Linux ל־Windows</td>
+<td>ליבת Linux אמיתית במכונה וירטואלית קלה, עם הפצה כמו Ubuntu מעליה</td>
+<td>2</td>
+</tr>
+<tr>
+<td>zero value</td>
+<td>ערך אפס</td>
+<td>הערך שכל משתנה מקבל בלי אתחול: 0, מחרוזת ריקה או <code>nil</code></td>
+<td>3</td>
+</tr>
+</tbody>
+</table>
+</main>
+<nav class="bottom"><a href="index.html">תוכן העניינים</a> · <a href="TERMINOLOGY.html">← Terminology policy (book 2)</a></nav>
+<script type="module">
+  // Render ```mermaid blocks in the browser (needs internet once; cached afterwards).
+  const blocks = document.querySelectorAll("pre > code.language-mermaid");
+  if (blocks.length) {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs")).default;
+    for (const code of blocks) {
+      const div = document.createElement("div");
+      div.className = "mermaid";
+      div.textContent = code.textContent;
+      code.parentElement.replaceWith(div);
+    }
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run();
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,44 @@
+[project]
+name = "eventcheck"
+version = "0.1.0"
+description = "Validate a JSONL file of webhook events and report every bad line."
+requires-python = ">=3.14"
+dependencies = [
+    "pydantic==2.13.5",
+]
+
+[project.scripts]
+eventcheck = "eventcheck.cli:main"
+
+[dependency-groups]
+dev = [
+    "mypy==2.4.0",
+    "pytest==9.1.1",
+    "ruff==0.16.10",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.23,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP", "SIM", "RUF", "PT", "N"]
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+plugins = ["pydantic.mypy"]
+enable_error_code = ["explicit-override", "ignore-without-code", "redundant-expr", "truthy-bool"]
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+
+[tool.pytest]
+testpaths = ["tests"]
+addopts = ["--strict-markers", "--strict-config", "-ra"]
+markers = ["slow: generates a large input file; deselect with -m 'not slow'"]

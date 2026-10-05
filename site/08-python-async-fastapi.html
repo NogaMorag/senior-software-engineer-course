@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>פרק 8: Python אסינכרונית ו־FastAPI</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="top"><a href="index.html">תוכן העניינים</a> · <a href="07-python-typed-packaged.html">← פרק 7: Python עם טיפוסים, אריזה ובדיקות</a> · <a href="09-api-design-grpc.html">פרק 9: עיצוב API ו־gRPC →</a></nav>
+<main class="book">
+<div class="toc"><span class="toctitle">תוכן הפרק</span><ul>
+<li><a href="#_1">מה נלמד בפרק</a></li>
+<li><a href="#_2">ידע מקדים</a></li>
+<li><a href="#81-asyncio">8.1 asyncio: לולאת האירועים</a></li>
+<li><a href="#82-taskgroup">8.2 משימות, TaskGroup וביטול</a><ul>
+<li><a href="#821">8.2.1 מקביליות מובנית</a></li>
+<li><a href="#822">8.2.2 איך ביטול עובד</a></li>
+</ul>
+</li>
+<li><a href="#83-semaphore">8.3 זמנים קצובים ו־Semaphore</a><ul>
+<li><a href="#831-asynciotimeout">8.3.1 asyncio.timeout</a></li>
+<li><a href="#832-semaphore">8.3.2 Semaphore: הגבלת מקביליות</a></li>
+</ul>
+</li>
+<li><a href="#84-fastapi">8.4 FastAPI: נתיבים, מודלים ותלויות</a><ul>
+<li><a href="#841">8.4.1 מודלים בכניסה וביציאה</a></li>
+<li><a href="#842">8.4.2 תלויות</a></li>
+</ul>
+</li>
+<li><a href="#85-lifespan">8.5 lifespan ומשאבים</a></li>
+<li><a href="#86-httpx">8.6 בדיקות אסינכרוניות עם httpx</a><ul>
+<li><a href="#861">8.6.1 זמן ואקראיות מזויפים</a></li>
+</ul>
+</li>
+<li><a href="#87-gil-workers">8.7 ביצועים: GIL, עבודה חוסמת ו־workers</a><ul>
+<li><a href="#871">8.7.1 מה חוסם את הלולאה</a></li>
+<li><a href="#872-gil">8.7.2 תהליכונים, GIL ותהליכים</a></li>
+<li><a href="#873">8.7.3 כמה תהליכי שרת, ומחיר המצב בזיכרון</a></li>
+<li><a href="#874-python">8.7.4 מתי Python היא הכלי הלא נכון</a></li>
+</ul>
+</li>
+<li><a href="#88-webhooks">8.8 תוכנית: מקבל webhooks</a><ul>
+<li><a href="#881">8.8.1 החתימה</a></li>
+<li><a href="#882">8.8.2 כפילויות, ספירה ושליטה</a></li>
+</ul>
+</li>
+<li><a href="#_3">סיכום</a></li>
+<li><a href="#_4">מונחים לזכור</a></li>
+<li><a href="#_5">טעויות נפוצות</a></li>
+<li><a href="#_6">שאלות ראיון</a></li>
+<li><a href="#obsidian">פתק Obsidian</a></li>
+<li><a href="#_7">תרגיל</a></li>
+<li><a href="#_8">העשרה אופציונלית</a></li>
+</ul>
+</div>
+
+<h1 id="8-python-fastapi">פרק 8: Python אסינכרונית ו־FastAPI</h1>
+<p>רוב שירותי ה־Python החדשים שתפגשי הם אסינכרוניים, ורוב הבאגים בהם הם באגים של מקביליות: לולאה
+שנחסמה, משימה שנשכחה, ביטול שנבלע, זמן קצוב שלא הוגדר. בפרק הזה תלמדי את asyncio כמו שצריך, ואז
+תבני עליו שירות FastAPI: מקבל webhooks שבודק חתימה, מסיר כפילויות, סופר, ומתנהג רע לפי
+פקודה. השירות הזה יהיה ה־<code>sink</code> של פרויקט הגמר.</p>
+<h2 id="_1">מה נלמד בפרק</h2>
+<ul>
+<li>לולאת האירועים של asyncio: מה רץ מתי, ומה חוסם אותה.</li>
+<li>משימות, <code>TaskGroup</code> ומקביליות מובנית, ואיך ביטול באמת עובד.</li>
+<li>זמנים קצובים עם <code>asyncio.timeout</code>, והגבלת מקביליות עם <code>Semaphore</code>.</li>
+<li>שירות FastAPI: נתיבים, מודלים, כותרות ותלויות.</li>
+<li>מחזור החיים של השירות (lifespan): משאבים, משימות רקע וכיבוי מסודר.</li>
+<li>בדיקות אסינכרוניות עם httpx, בלי רשת, בלי שעון אמיתי ובלי אקראיות אמיתית.</li>
+<li>ביצועים: GIL, עבודה חוסמת, תהליכים מרובים, ומתי Python היא הכלי הלא נכון.</li>
+</ul>
+<h2 id="_2">ידע מקדים</h2>
+<ul>
+<li>פרק 7: פרויקט uv, בודקים סטטיים, pydantic ובדיקות. התרגיל בנוי באותה תבנית.</li>
+<li>פרק 5, סעיפים 5.1 עד 5.4: מקביליות וביטול ב־Go, שאליהם נשווה.</li>
+<li>פרק 6, סעיפים 6.5 ו־6.6: כיבוי מסודר ובדיקות עם <code>httptest</code>, שיש להם מקבילות ישירות כאן.</li>
+<li>התרגיל של הפרק יוצר את קובץ דוגמאות החתימה שהצד של Go ישתמש בו בפרק 14.</li>
+</ul>
+<h2 id="81-asyncio">8.1 asyncio: לולאת האירועים</h2>
+<p>לולאת האירועים (event loop) היא תהליכון אחד שמריץ הרבה משימות בתורות. משימה רצה עד שהיא מגיעה
+ל־<code>await</code> על משהו שעוד לא מוכן (תשובה מהרשת, שינה, נעילה), ואז מחזירה את השליטה ללולאה. הלולאה
+בוחרת משימה אחרת שמוכנה, ממשיכה אותה, וחוזר חלילה. אין החלפה כפויה: משימה שלא מגיעה ל־<code>await</code> לא
+משחררת את הלולאה לעולם.</p>
+<p>מכאן שלושה מונחים שכדאי להחזיק נפרדים:</p>
+<table>
+<thead>
+<tr>
+<th>מונח</th>
+<th>מה הוא</th>
+<th>מה קורה כשיוצרים אותו</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>coroutine</td>
+<td>מה ש־<code>async def</code> מחזירה כשקוראים לה</td>
+<td>כלום. היא לא רצה עד שמישהו מחכה לה</td>
+</tr>
+<tr>
+<td>task</td>
+<td>coroutine שנמסרה ללולאה</td>
+<td>הלולאה מתזמנת אותה, גם אם אף אחד לא מחכה</td>
+</tr>
+<tr>
+<td>awaitable</td>
+<td>כל מה שאפשר לחכות לו</td>
+<td>תלוי: coroutine, משימה, או Future</td>
+</tr>
+</tbody>
+</table>
+<p>הטעות הקלאסית היא לקרוא ל־<code>fetch()</code> בלי <code>await</code> ולחשוב שהקריאה התבצעה. היא לא: נוצר אובייקט, ובסוף
+הריצה מופיעה אזהרה שהוא מעולם לא חיכו לו („never awaited”).</p>
+<p>הכלל החשוב בפרק: <strong>כל קוד בין שני <code>await</code> רץ בלי הפרעה</strong>. זה גם מגבלה וגם מתנה. המגבלה: לולאה
+חישובית ארוכה, או קריאה חוסמת כמו <code>time.sleep</code> או ספרייה סינכרונית של רשת, עוצרת את כל השירות.
+המתנה: אין מרוץ נתונים בין משימות על אותה לולאה כל עוד אין <code>await</code> באמצע, ולכן מבנה הנתונים בזיכרון
+של התרגיל לא צריך נעילה.</p>
+<blockquote>
+<p><strong>שימי לב:</strong> מגרסה 3.14 אפשר להציץ בתהליך חי ולראות אילו משימות קיימות ועל מה כל אחת מחכה, עם
+<code>python -m asyncio ps</code> ומספר התהליך. זה הכלי הראשון כששירות „תקוע” ואין שום שגיאה בלוג.</p>
+</blockquote>
+<h2 id="82-taskgroup">8.2 משימות, TaskGroup וביטול</h2>
+<p>את התרגיל של יום 17 תריצי מתוך הקובץ <code>warmup.py</code>. הוא מריץ כמה קריאות איטיות מזויפות, ומדפיס ציר
+זמן. זו הקריאה המזויפת:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-python">async def fake_call(call: Call, limit: asyncio.Semaphore, timeout_s: float, t: Tracker) -&gt; None:
+    async with limit:
+        t.in_flight += 1
+        t.max_in_flight = max(t.max_in_flight, t.in_flight)
+        t.note(f&quot;start {call.name} (in flight: {t.in_flight})&quot;)
+        try:
+            async with asyncio.timeout(timeout_s):
+                await asyncio.sleep(call.delay_s)
+            if call.fail:
+                raise RuntimeError(f&quot;{call.name} failed&quot;)
+            t.results[call.name] = &quot;ok&quot;
+            t.note(f&quot;done  {call.name}&quot;)
+        except TimeoutError:
+            t.results[call.name] = &quot;timeout&quot;  # handled here: the siblings keep running
+            t.note(f&quot;timeout {call.name}&quot;)
+        except RuntimeError:
+            t.results[call.name] = &quot;failed&quot;
+            t.note(f&quot;failed {call.name}&quot;)
+            raise  # the TaskGroup sees it and cancels the siblings
+        except asyncio.CancelledError:
+            t.results[call.name] = &quot;cancelled&quot;
+            t.note(f&quot;cancelled {call.name}&quot;)
+            raise  # never swallow cancellation
+        finally:
+            t.in_flight -= 1
+</code></pre>
+
+
+</div>
+
+<p>והפונקציה שמריצה את כולן במקביל:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-python">async def run_calls(calls: list[Call], *, limit: int, timeout_s: float) -&gt; Tracker:
+    tracker = Tracker()
+    semaphore = asyncio.Semaphore(limit)
+    try:
+        async with asyncio.TaskGroup() as group:
+            for call in calls:
+                group.create_task(fake_call(call, semaphore, timeout_s, tracker), name=call.name)
+    except* RuntimeError as failures:
+        for error in failures.exceptions:
+            tracker.note(f&quot;group raised: {error}&quot;)
+    return tracker
+</code></pre>
+
+
+</div>
+
+<h3 id="821">8.2.1 מקביליות מובנית</h3>
+<p>הבלוק הזה הוא מקביליות מובנית (structured concurrency): שום משימה לא יוצאת מהבלוק
+בחיים. היציאה ממנו מחכה לכל המשימות, וכשאחת נכשלת, השאר מבוטלות. זה אותו רעיון כמו
+<code>errgroup</code> של Go מפרק 5, אבל אכוף על ידי השפה. הנה מה שקרה בהרצה השנייה של התרגיל, שבה קריאה אחת
+נכשלת אחרי 0.2 שניות:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">== one failure cancels the siblings (max in flight: 3)
+  0.00s  start a (in flight: 1)
+  0.00s  start boom (in flight: 2)
+  0.00s  start b (in flight: 3)
+  0.20s  failed boom
+  0.20s  start c (in flight: 3)
+  0.20s  cancelled c
+  0.20s  cancelled b
+  0.20s  cancelled a
+  0.20s  group raised: boom failed
+results: {'a': 'cancelled', 'b': 'cancelled', 'boom': 'failed', 'c': 'cancelled'}
+</code></pre>
+
+
+</div>
+
+<p>שימי לב לשורה של <code>c</code>: היא חיכתה למקום פנוי ב־<code>Semaphore</code>, קיבלה אותו כש־<code>boom</code> נכשלה, והתחילה
+לרגע לפני שהביטול הגיע אליה. הכישלון מגיע החוצה כקבוצת חריגות (<code>ExceptionGroup</code>), כי כמה משימות
+יכולות להיכשל יחד, ונתפס בתחביר <code>except*</code>.</p>
+<table>
+<thead>
+<tr>
+<th>כלי</th>
+<th>מה קורה כשמשימה אחת נכשלת</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>asyncio.TaskGroup</code></td>
+<td>השאר מבוטלות, היציאה מחכה לכולן, והחריגות מגיעות כקבוצה</td>
+</tr>
+<tr>
+<td><code>asyncio.gather(...)</code></td>
+<td>החריגה הראשונה מגיעה למחכה, והשאר <strong>ממשיכות לרוץ</strong> בלי בעלים</td>
+</tr>
+<tr>
+<td><code>asyncio.create_task</code> בלי לשמור הפניה</td>
+<td>המשימה עלולה להיאסף כזבל באמצע, והחריגה שלה הולכת לאיבוד</td>
+</tr>
+</tbody>
+</table>
+<p>לכן בקוד חדש, <code>TaskGroup</code> הוא ברירת המחדל. <code>gather</code> נשאר מתאים כשרוצים את כל התוצאות גם אם חלק
+נכשלו, עם <code>return_exceptions=True</code>.</p>
+<h3 id="822">8.2.2 איך ביטול עובד</h3>
+<p>ביטול ב־asyncio הוא חריגה. הקריאה <code>task.cancel()</code> לא עוצרת את המשימה מיד: היא מבקשת, ובפעם הבאה
+שהמשימה עומדת על <code>await</code>, נזרקת בתוכה <code>CancelledError</code>. משלושה דברים נובעים כללים:</p>
+<ul>
+<li><strong>החריגה יורשת מ־<code>BaseException</code>.</strong> תפיסה של <code>Exception</code> לא בולעת אותה בטעות, וטוב שכך.</li>
+<li><strong>מי שתופס חייב לזרוק שוב.</strong> הענף של הביטול ב־<code>fake_call</code> רושם ואז זורק. בליעה שוברת את הקבוצה ואת <code>asyncio.timeout</code>.</li>
+<li><strong>ניקוי שייך ל־<code>finally</code>.</strong> הוא רץ גם בביטול, ולכן <code>in_flight</code> יורד תמיד.</li>
+</ul>
+<blockquote>
+<p><strong>איך Rust עושה את זה:</strong>
+- ב־tokio, ביטול הוא שחרור של ה־future: הוא לא ממשיך יותר, ורק הניקוי של <code>Drop</code> רץ.
+- ב־Python, ביטול הוא חריגה שנזרקת בנקודת ה־<code>await</code>, ולכן הקוד רואה אותו ויכול לנקות או לטעות.
+- הקבוצה <code>TaskGroup</code> מקבילה ל־<code>JoinSet</code>.
+- מנהל ההקשר <code>asyncio.timeout</code> מקביל ל־<code>tokio::time::timeout</code>.</p>
+</blockquote>
+<h2 id="83-semaphore">8.3 זמנים קצובים ו־Semaphore</h2>
+<h3 id="831-asynciotimeout">8.3.1 asyncio.timeout</h3>
+<p>כל קריאה שיוצאת מהתהליך צריכה זמן קצוב (timeout). מנהל ההקשר <code>asyncio.timeout</code> מבטל את מה שבתוכו
+כשהזמן נגמר, וממיר את הביטול ל־<code>TimeoutError</code> ביציאה מהבלוק. בהרצה הראשונה של התרגיל, הקריאה <code>slow</code>
+אמורה לישון חמש שניות, עם זמן קצוב של שנייה ומגבלה של שתי קריאות בו־זמנית:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">== timeout handled per call (max in flight: 2)
+  0.00s  start a (in flight: 1)
+  0.00s  start b (in flight: 2)
+  0.30s  done  a
+  0.30s  done  b
+  0.30s  start c (in flight: 1)
+  0.30s  start slow (in flight: 2)
+  0.60s  done  c
+  0.60s  start d (in flight: 2)
+  0.90s  done  d
+  1.30s  timeout slow
+results: {'a': 'ok', 'b': 'ok', 'c': 'ok', 'd': 'ok', 'slow': 'timeout'}
+</code></pre>
+
+
+</div>
+
+<p>שני דברים לראות כאן. הזמן הקצוב טופל <strong>בתוך</strong> הקריאה, ולכן הוא לא הפיל את הקבוצה; האחיות סיימו
+כרגיל. והוא נמדד מהרגע שהקריאה קיבלה מקום, לא מתחילת הריצה. אם רוצים גבול לכל העבודה יחד, עוטפים גם
+את הקבוצה כולה בזמן קצוב: זה הגבול הכולל (deadline) מהספר הקודם, באותו מבנה.</p>
+<p>הצורה הישנה <code>asyncio.wait_for(coro, timeout)</code> עדיין קיימת, ומתאימה לקריאה בודדת. מנהל ההקשר עדיף כי
+הוא עוטף כמה פעולות יחד ונראה כמו כל בלוק אחר.</p>
+<h3 id="832-semaphore">8.3.2 Semaphore: הגבלת מקביליות</h3>
+<p><code>asyncio.Semaphore(2)</code> מאפשר רק לשתי משימות להיות בתוך <code>async with limit</code> בבת אחת. בציר הזמן,
+<code>max in flight</code> לא עבר את 2, ו־<code>c</code> התחילה רק כשמקום התפנה. בשירות אמיתי הוא שומר על התלות שלך: חמישים
+בקשות במקביל לשירות שמחזיק עשר הן דרך מהירה לקבל שגיאות 503. זה דפוס ה־worker pool מפרק 5, בלי
+ערוצים, ובמחיר של שורה אחת. הזמן הקצוב והמגבלה מורכבים יחד: הזמן הקצוב בתוך המגבלה, כדי שהמתנה בתור
+לא תיספר כזמן של הקריאה.</p>
+<h2 id="84-fastapi">8.4 FastAPI: נתיבים, מודלים ותלויות</h2>
+<p>הספרייה FastAPI בנויה על שתי ספריות: Starlette לשכבת הרשת, ו־pydantic למודלים. פונקציה עם מעטר נתיב
+היא נקודת קצה, והחתימה שלה היא החוזה: FastAPI קוראת אותה, ומפיקה ממנה את פירוק הבקשה, את בדיקת
+התקינות ואת מסמך ה־OpenAPI. מתוך <code>app.py</code> של התרגיל, נקודת הקצה שמקבלת webhooks:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-python">    @app.post(&quot;/hooks/{name}&quot;, response_model=Accepted)
+    async def receive(
+        name: str,
+        request: Request,
+        state: StateDep,
+        signature: Annotated[str | None, Header(alias=&quot;Hookline-Signature&quot;)] = None,
+        event_id: Annotated[str | None, Header(alias=&quot;Hookline-Event-Id&quot;, max_length=200)] = None,
+        delivery_id: Annotated[str | None, Header(alias=&quot;Hookline-Delivery-Id&quot;)] = None,
+        attempt: Annotated[int | None, Header(alias=&quot;Hookline-Attempt&quot;, ge=1)] = None,
+    ) -&gt; Accepted | JSONResponse:
+</code></pre>
+
+
+</div>
+
+<table>
+<thead>
+<tr>
+<th>פרמטר</th>
+<th>מאיפה FastAPI לוקחת אותו</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name: str</code></td>
+<td>מהנתיב, כי <code>{name}</code> מופיע בו</td>
+</tr>
+<tr>
+<td><code>request: Request</code></td>
+<td>הבקשה עצמה, כדי לקרוא את הגוף הגולמי</td>
+</tr>
+<tr>
+<td><code>state: StateDep</code></td>
+<td>תלות (dependency), ראי בהמשך</td>
+</tr>
+<tr>
+<td><code>Header(alias=...)</code></td>
+<td>מכותרת, עם אילוצים של pydantic; ערך לא תקין מחזיר 422 בלי שורת קוד שלך</td>
+</tr>
+</tbody>
+</table>
+<h3 id="841">8.4.1 מודלים בכניסה וביציאה</h3>
+<p>גוף של בקשה שמוגדר כמודל נבדק אוטומטית. מתוך <code>state.py</code>, ההגדרות של השליטה בהתנהגות:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-python">FailureRate = Annotated[float, Field(ge=0.0, le=1.0)]
+LatencyMs = Annotated[int, Field(ge=0, le=60_000)]
+FailureStatus = Annotated[int, Field(ge=400, le=599)]
+
+
+class Control(BaseModel):
+    &quot;&quot;&quot;How the receiver misbehaves. Defaults: a perfectly healthy receiver.&quot;&quot;&quot;
+
+    model_config = ConfigDict(extra=&quot;forbid&quot;)
+    failure_rate: FailureRate = 0.0
+    latency_ms: LatencyMs = 0
+    failure_status: FailureStatus = 503
+    timeout_mode: bool = False
+</code></pre>
+
+
+</div>
+
+<p>האילוצים מוגדרים פעם אחת ככינויי טיפוס, ומשמשים גם את <code>Control</code> וגם את <code>ControlPatch</code>, שבו כל שדה
+אופציונלי. כך גוף של <code>POST /control</code> משנה רק את מה שנשלח, ושיעור כישלון 1.5 נדחה ב־422 לפני שהקוד שלך
+רץ. טיפוס ההחזרה של פונקציה (<code>-&gt; StatsOut</code>) הוא מודל הפלט: FastAPI מסננת ובודקת לפיו, ושדה פנימי
+לא דולף החוצה בטעות.</p>
+<h3 id="842">8.4.2 תלויות</h3>
+<p>תלות היא פונקציה ש־FastAPI מריצה לפני נקודת הקצה ומעבירה את התוצאה כפרמטר. בתרגיל היא מוציאה את
+מצב השירות מהאפליקציה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-python">def get_state(request: Request) -&gt; AppState:
+    state: AppState = request.app.state.receiver
+    return state
+
+
+StateDep = Annotated[AppState, Depends(get_state)]
+</code></pre>
+
+
+</div>
+
+<p>הכינוי <code>StateDep</code> חוסך לחזור על <code>Depends</code> בכל נקודת קצה, והבודק רואה טיפוס אמיתי. תלויות הן גם
+המקום הטבעי לאימות (authentication), לחיבור למסד נתונים מתוך מאגר, ולכל מה שבדיקה רוצה להחליף. FastAPI
+מאפשרת להחליף תלות בבדיקה (<code>app.dependency_overrides</code>), אבל בתרגיל לא צריך: הזמן, האקראיות והשינה
+מוזרקים כבר ביצירת האפליקציה, בסעיף הבא.</p>
+<blockquote>
+<p><strong>טעות נפוצה:</strong> לכתוב <code>async def</code> לנקודת קצה שקוראת לספרייה חוסמת. FastAPI מריצה פונקציה רגילה
+(<code>def</code>) במאגר תהליכונים, ופונקציה אסינכרונית ישירות על הלולאה. קריאה חוסמת בתוך <code>async def</code> עוצרת
+את כל השרת; בתוך <code>def</code> היא תופסת תהליכון אחד בלבד.</p>
+</blockquote>
+<h2 id="85-lifespan">8.5 lifespan ומשאבים</h2>
+<p>למשאבים של שירות יש מחזור חיים: חיבורים, מאגרים, משימות רקע. הם נפתחים כשהשירות עולה, ונסגרים
+כשהוא יורד. הספרייה מקבלת מנהל הקשר אסינכרוני אחד, ה־lifespan. מה שלפני ה־<code>yield</code> שלו רץ בעלייה, ומה
+שאחריו רץ בכיבוי. מתוך <code>app.py</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-python">    @contextlib.asynccontextmanager
+    async def lifespan(app: FastAPI) -&gt; AsyncIterator[None]:
+        state = AppState(settings, clock, rng or random.Random(), sleep)
+        app.state.receiver = state
+        if not settings.secrets and not settings.default_secret:
+            log.warning(&quot;no secrets configured: every hook will answer 404&quot;)
+        reporter = None
+        if settings.stats_interval_s:
+            reporter = asyncio.create_task(report_stats(state, settings.stats_interval_s))
+        try:
+            yield
+        finally:
+            if reporter is not None:
+                reporter.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await reporter
+            log.info(&quot;shutting down, final stats %s&quot;, state.store.total.as_dict())
+</code></pre>
+
+
+</div>
+
+<p>שלוש החלטות בקטע הזה:</p>
+<ul>
+<li><strong>המצב נוצר בעלייה, לא ברמת המודול.</strong> משתנה גלובלי היה משותף לכל הבדיקות; כאן כל אפליקציה, וכל בדיקה, מקבלת מצב משלה.</li>
+<li><strong>למשימת הרקע יש בעלים.</strong> היא נשמרת במשתנה, מבוטלת בכיבוי, ומחכים לה. בלי זה היא הייתה נעלמת באמצע כתיבה.</li>
+<li><strong>הכיבוי כותב את הסטטיסטיקה האחרונה.</strong> הסדר הזה הוא הכיבוי המסודר של פרק 6.</li>
+</ul>
+<p>כל זה יושב בתוך פונקציית יצירה, <code>create_app</code>, שמקבלת את ההגדרות ואת התלויות בזמן ובאקראיות:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-python">def create_app(
+    settings: Settings | None = None,
+    *,
+    clock: Clock = time.time,
+    rng: RandomSource | None = None,
+    sleep: Sleep = asyncio.sleep,
+) -&gt; FastAPI:
+</code></pre>
+
+
+</div>
+
+<p>בייצור כל ברירות המחדל אמיתיות. בבדיקות מעבירים שעון מזויף, מקור אקראיות עם תסריט, ושינה שרק רושמת.
+הטיפוס <code>RandomSource</code> הוא ממשק מבני עם מתודה אחת. המחלקה <code>random.Random</code> מתאימה לו בלי לדעת עליו,
+בדיוק כמו בפרק 7.</p>
+<h2 id="86-httpx">8.6 בדיקות אסינכרוניות עם httpx</h2>
+<p>בפרק 6 בדקת שרת Go עם <code>httptest</code>, בלי רשת. המקבילה כאן היא <code>httpx.ASGITransport</code>: לקוח httpx שמדבר
+ישירות עם האפליקציה, באותו תהליך. יש מלכודת אחת: התעבורה הזו <strong>לא מריצה את ה־lifespan</strong>, ולכן מצב
+השירות לא קיים. ה־fixture ב־<code>tests/conftest.py</code> נכנסת אליו בעצמה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-python">@pytest.fixture
+async def client(app: FastAPI) -&gt; AsyncIterator[httpx.AsyncClient]:
+    &quot;&quot;&quot;ASGITransport does not run the lifespan, so the fixture enters it explicitly.&quot;&quot;&quot;
+    async with app.router.lifespan_context(app):
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url=&quot;http://test&quot;) as client:
+            yield client
+</code></pre>
+
+
+</div>
+
+<p>כדי ש־pytest יריץ בדיקה אסינכרונית צריך תוסף. התרגיל משתמש בתוסף של anyio, שמגיע ממילא עם httpx,
+במקום להוסיף תלות: הקובץ מסמן את כל הבדיקות בסימון של anyio. ה־fixture הקטנה
+<code>anyio_backend</code> קובעת על איזו לולאה לרוץ.</p>
+<h3 id="861">8.6.1 זמן ואקראיות מזויפים</h3>
+<p>בדיקה שתלויה בשעון או במזל היא בדיקה שתיכשל ביום שלישי בלילה. מתוך <code>tests/helpers.py</code>, שני הזיופים:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-python">@dataclass
+class FakeRandom:
+    &quot;&quot;&quot;Returns the scripted values in order, then 0.99 (no failure at any rate below 0.99).&quot;&quot;&quot;
+
+    values: list[float] = field(default_factory=list)
+
+    def random(self) -&gt; float:
+        return self.values.pop(0) if self.values else 0.99
+
+
+@dataclass
+class FakeSleep:
+    &quot;&quot;&quot;Records every requested delay and returns at once: latency tests take no time.&quot;&quot;&quot;
+
+    calls: list[float] = field(default_factory=list)
+
+    async def __call__(self, delay: float) -&gt; None:
+        self.calls.append(delay)
+</code></pre>
+
+
+</div>
+
+<p>עם התסריט, הבדיקה של שיעור הכישלון אומרת בדיוק מה יקרה: הגרלה ראשונה מתחת ל־0.5 נכשלת, השנייה
+מעליו עוברת. מתוך <code>tests/test_app.py</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-python">    rng.values = [0.2, 0.7]  # first draw is below 0.5 (fail), second above (succeed)
+    first = await client.post(&quot;/hooks/orders&quot;, content=BODY, headers=signed(BODY))
+    second = await client.post(&quot;/hooks/orders&quot;, content=BODY, headers=signed(BODY))
+    assert (first.status_code, second.status_code) == (500, 200)
+    assert second.json()[&quot;duplicate&quot;] is False  # the failed attempt was not recorded
+</code></pre>
+
+
+</div>
+
+<p>גם הזמן מזויף: בדיקה אחת חותמת עם חותמת זמן ישנה ב־301 שניות, ומקבלת דחייה בלי לחכות חמש דקות.
+בדיקה אחת בכוונה משתמשת בשינה האמיתית: היא שמה את השירות במצב „לא עונה”, ועוטפת את הבקשה
+ב־<code>asyncio.timeout(0.2)</code>. הבקשה נקטעת, והביטול עובר דרך התעבורה לתוך נקודת הקצה. כך נבדק שהצד השולח
+באמת יראה זמן קצוב.</p>
+<h2 id="87-gil-workers">8.7 ביצועים: GIL, עבודה חוסמת ו־workers</h2>
+<h3 id="871">8.7.1 מה חוסם את הלולאה</h3>
+<p>ההרצה השלישית של <code>warmup.py</code> מריצה עבודה חוסמת של חצי שנייה ליד „דופק” שמתקתק כל 0.05 שניות. פעם
+אחת ישירות בתוך coroutine, ופעם דרך <code>asyncio.to_thread</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-python">async def inline_block() -&gt; None:
+    blocking_job(0.5)  # the mistake on purpose; ruff ASYNC251 only sees a direct time.sleep
+
+
+async def in_thread() -&gt; None:
+    await asyncio.to_thread(blocking_job, 0.5)
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">== a 0.5 s blocking call, heartbeat every 0.05 s
+ticks while blocking the loop: 0
+ticks while in a thread:       9
+</code></pre>
+
+
+</div>
+
+<p>אפס תקתוקים: במשך חצי שנייה, שום דבר אחר לא רץ. בשרת, זה חצי שנייה שבה אף בקשה לא נענית. הכלל של
+ruff שמזהה שינה חוסמת בתוך פונקציה אסינכרונית לא תפס את זה, כי הקריאה החוסמת עטופה בפונקציה רגילה.
+בודקים סטטיים עוזרים, אבל לא מחליפים הבנה של מה כל ספרייה עושה.</p>
+<h3 id="872-gil">8.7.2 תהליכונים, GIL ותהליכים</h3>
+<p><code>asyncio.to_thread</code> (או <code>loop.run_in_executor</code>) מעבירה עבודה לתהליכון. זה עובד יפה לקריאה חוסמת של
+קלט ופלט, כי בזמן ההמתנה התהליכון משחרר את נעילת המפרש הגלובלית (GIL). לעבודה <strong>חישובית</strong> זה לא
+עוזר: בגרסה הרגילה של Python רק תהליכון אחד מריץ קוד Python בכל רגע, ולכן ארבעה תהליכונים חישוביים
+לא מהירים מאחד. הלולאה תמשיך להגיב, כי המפרש מחליף תהליכונים כל כמה אלפיות, אבל התפוקה לא תגדל.</p>
+<table>
+<thead>
+<tr>
+<th>סוג העבודה</th>
+<th>הכלי</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>קלט ופלט אסינכרוני (httpx, מסד נתונים אסינכרוני)</td>
+<td><code>await</code> ישיר, על הלולאה</td>
+</tr>
+<tr>
+<td>ספרייה חוסמת של קלט ופלט</td>
+<td><code>asyncio.to_thread</code></td>
+</tr>
+<tr>
+<td>חישוב כבד</td>
+<td><code>ProcessPoolExecutor</code> דרך <code>run_in_executor</code>, או שירות נפרד</td>
+</tr>
+<tr>
+<td>הרבה בקשות על כמה ליבות</td>
+<td>כמה תהליכי שרת (workers)</td>
+</tr>
+</tbody>
+</table>
+<p>מגרסה 3.14 קיימת גם גרסה רשמית בלי GIL, נכון לאוקטובר 2026, שנקראת free-threaded. היא מותקנת כגרסה נפרדת, ולא כל ספרייה עם הרחבות ב־C תומכת בה. היא שווה ניסוי, לא הנחה.</p>
+<h3 id="873">8.7.3 כמה תהליכי שרת, ומחיר המצב בזיכרון</h3>
+<p>השרת uvicorn יודע להריץ כמה תהליכים שמקשיבים לאותו פורט. כך משתמשים בכמה ליבות בלי GIL משותף:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">RECEIVER_DEFAULT_SECRET=change-me uv run uvicorn --factory receiver.app:create_app --port 8081 --workers 2
+</code></pre>
+
+
+</div>
+
+<p>אבל לכל תהליך יש זיכרון משלו. כשהרצתי את זה, שלחתי שש בקשות, ושאלתי את <code>/stats</code> ארבע פעמים, קיבלתי
+שתי תשובות שונות לסירוגין: תהליך אחד ראה חמש בקשות, והשני אחת. המקבל של התרגיל שומר מצב בזיכרון,
+ולכן הוא חייב לרוץ כתהליך אחד, ובפרויקט הגמר תריצי כמה עותקים שלו כשירותים נפרדים. בשירות אמיתי,
+מצב שצריך לשרוד ולהיות משותף עובר ל־PostgreSQL או ל־Redis (פרקים 10 עד 12).</p>
+<h3 id="874-python">8.7.4 מתי Python היא הכלי הלא נכון</h3>
+<p>Python אסינכרונית טובה לשירותים שרוב הזמן מחכים: קריאות HTTP, מסד נתונים, תורים. היא פחות מתאימה
+כשהשירות עצמו מחשב הרבה בכל בקשה, כשזמן התגובה בזנב (p99) צריך להיות יציב מאוד, או כשהשירות חייב
+מקביליות אמיתית בתוך תהליך אחד. שם Go, שרצה על כל הליבות, או Rust, הן בחירה טבעית
+יותר. בראיון, התשובה הטובה מתחילה במדידה: איפה הזמן הולך, ומה צוואר הבקבוק בפועל.</p>
+<blockquote>
+<p><strong>איך Rust עושה את זה:</strong>
+- הפונקציה <code>spawn_blocking</code> מקבילה ל־<code>asyncio.to_thread</code>, מאותה סיבה בדיוק.
+- ההבדל: משימות של tokio רצות על כמה ליבות, ולכן חישוב בתוך משימה „רק” מאט את הליבה שלו.
+- ב־Python עם GIL, אותו חישוב עוצר את כל הלולאה, וזה הופך את הכלל מהמלצה לחובה.</p>
+</blockquote>
+<h2 id="88-webhooks">8.8 תוכנית: מקבל webhooks</h2>
+<p>כל הפרק מתכנס לשירות אחד, <code>receiver</code>. הוא מקבל <code>POST /hooks/{name}</code>, בודק את החתימה, מסיר כפילויות
+לפי מזהה האירוע, סופר, ומתנהג רע לפי פקודה. בפרויקט הגמר הוא יהיה ה־<code>sink</code>: היעד שהעובדים של Hookline
+שולחים אליו, ושמספרים לפיו כמה משלוחים הגיעו.</p>
+<h3 id="881">8.8.1 החתימה</h3>
+<p>הכותרת <code>Hookline-Signature</code> נראית כך: <code>t=&lt;unix seconds&gt;,v1=&lt;hex&gt;</code>. הערך אחרי <code>v1</code> הוא HMAC-SHA256
+עם הסוד של נקודת הקצה. הקלט ל־HMAC הוא חותמת הזמן, נקודה, והגוף הגולמי. מתוך <code>signature.py</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-python">def digest(secret: bytes, timestamp: int, body: bytes) -&gt; bytes:
+    &quot;&quot;&quot;The raw 32-byte HMAC over the exact bytes &quot;&lt;t&gt;.&quot; followed by the body.&quot;&quot;&quot;
+    return hmac.new(secret, f&quot;{timestamp}.&quot;.encode() + body, hashlib.sha256).digest()
+</code></pre>
+
+
+</div>
+
+<p>ובדיקת החתימה, אחרי הפירוק של הכותרת:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-python">    if abs(now - timestamp) &gt; tolerance_s:
+        raise SignatureError(
+            &quot;timestamp_out_of_tolerance&quot;, f&quot;t={timestamp} is off by more than {tolerance_s}s&quot;
+        )
+    expected = digest(secret, timestamp, body)
+    # Check every candidate, without stopping early, so timing says nothing about which matched.
+    matched = False
+    for candidate in candidates:
+        matched |= hmac.compare_digest(expected, candidate)
+    if not matched:
+        raise SignatureError(&quot;signature_mismatch&quot;, &quot;no v1 signature matches&quot;)
+    return timestamp
+</code></pre>
+
+
+</div>
+
+<table>
+<thead>
+<tr>
+<th>החלטה</th>
+<th>למה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>חתימה על הגוף <strong>הגולמי</strong></td>
+<td>פירוק ובנייה מחדש של JSON משנים רווחים וסדר מפתחות, והחתימה נשברת</td>
+</tr>
+<tr>
+<td>חותמת זמן בתוך הקלט החתום</td>
+<td>תוקפת לא יכולה לשנות אותה בלי לשבור את החתימה</td>
+</tr>
+<tr>
+<td>סבולת של חמש דקות</td>
+<td>בקשה שנלכדה ונשלחה שוב מאוחר יותר נדחית</td>
+</tr>
+<tr>
+<td>השוואה בזמן קבוע</td>
+<td>השוואה רגילה עוצרת בתו הראשון השונה, וזמן התגובה מסגיר כמה תווים נכונים</td>
+</tr>
+<tr>
+<td>כמה ערכי <code>v1</code></td>
+<td>בזמן החלפת סוד, השולחת חותמת בשני הסודות, והמקבל מקבל כל אחד מהם</td>
+</tr>
+</tbody>
+</table>
+<p>הסדר של הבדיקות קבוע: קודם צורה, אחר כך זמן, ורק בסוף HMAC. הבדיקה היקרה רצה רק על בקשה שעברה את
+הבדיקות הזולות. כל כישלון מחזיר 401 עם הסיבה, ונספר כ־<code>rejected</code>.</p>
+<p>בתיקיית הנתונים של התרגיל יש קובץ של דוגמאות בדיקה (test vectors): קלט ותוצאה מצופה לכל
+מקרה. הן נוצרו מקוד הפתרון ונבדקו מול <code>openssl dgst -hmac</code>. בפרק 14, החותם שתכתבי
+ב־Go ייבדק מול אותו קובץ, וכך שני הצדדים מסכימים על החוזה ולא רק כל אחד עם עצמו.</p>
+<h3 id="882">8.8.2 כפילויות, ספירה ושליטה</h3>
+<p>Hookline מבטיחה מסירה „לפחות פעם אחת” (at-least-once), ולכן המקבל <strong>יראה</strong> כפילויות: ניסיון חוזר
+אחרי זמן קצוב, למשל, כשהתשובה הראשונה דווקא הגיעה. המקבל מזהה אירוע לפי הזוג של שם נקודת הקצה ומזהה
+האירוע (<code>Hookline-Event-Id</code>). אותו אירוע לשתי נקודות קצה הוא שני משלוחים שונים, ואותו אירוע פעמיים
+לאותה נקודה הוא כפילות:</p>
+<table>
+<thead>
+<tr>
+<th>מונה</th>
+<th>מה הוא סופר</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>received</code></td>
+<td>בקשות חתומות שהתקבלו, כולל כפילויות</td>
+</tr>
+<tr>
+<td><code>unique</code></td>
+<td>זוגות שונים של נקודת קצה ומזהה אירוע</td>
+</tr>
+<tr>
+<td><code>duplicates</code></td>
+<td>בקשות שהזוג שלהן כבר נראה</td>
+</tr>
+<tr>
+<td><code>rejected</code></td>
+<td>חתימה שגויה או חסרה, או מזהה אירוע חסר</td>
+</tr>
+<tr>
+<td><code>failed</code></td>
+<td>כישלונות שהוזרקו דרך <code>/control</code>; הם <strong>לא</strong> נרשמים כקבלה</td>
+</tr>
+</tbody>
+</table>
+<p>המונה האחרון חשוב לפרויקט הגמר. אם כישלון מוזרק היה נרשם כקבלה, משלוח שבסוף נכשל סופית היה נראה
+כאילו הגיע, והבדיקה „אפס משלוחים חסרים” הייתה משקרת. הסדר בנקודת הקצה הוא לכן: חתימה, אחר כך התנהגות
+רעה מבוקשת (מצב „לא עונה”, השהיה, הגרלת כישלון), ורק בסוף רישום.</p>
+<p>השליטה, <code>POST /control</code>, מקבלת חלק מהשדות: שיעור כישלון, השהיה באלפיות שנייה, קוד הסטטוס של
+הכישלון, ומצב „לא עונה” שמחזיק את הבקשה שעה. <code>GET /receipts</code> מחזיר את רשימת הקבלות, ו־<code>POST /reset</code>
+מאפס הכול בין ריצות.</p>
+<h2 id="_3">סיכום</h2>
+<ul>
+<li>הלולאה מריצה קוד עד ה־<code>await</code> הבא; קריאה חוסמת או חישוב ארוך עוצרים את כל השירות.</li>
+<li>הקבוצה <code>TaskGroup</code> היא מקביליות מובנית: כישלון אחד מבטל את האחיות, והחריגות מגיעות כקבוצה.</li>
+<li>ביטול הוא חריגה שנזרקת ב־<code>await</code>: לא בולעים אותה, ומנקים ב־<code>finally</code>.</li>
+<li>זמן קצוב עם <code>asyncio.timeout</code>, ומגבלת מקביליות עם <code>Semaphore</code>; הזמן הקצוב בתוך המגבלה.</li>
+<li>ב־FastAPI, החתימה של הפונקציה היא החוזה: נתיב, כותרות, מודלים ותלויות, עם 422 אוטומטי.</li>
+<li>משאבים ומשימות רקע שייכים ל־lifespan, עם בעלים ועם כיבוי מסודר.</li>
+<li>בבדיקות: <code>ASGITransport</code>, כניסה ידנית ל־lifespan, ושעון, אקראיות ושינה מוזרקים.</li>
+<li>תהליכונים לקלט ופלט חוסם, תהליכים לחישוב, ומצב בזיכרון מחייב תהליך שרת אחד.</li>
+<li>המקבל בודק חתימה על הגוף הגולמי בזמן קבוע, מסיר כפילויות לפי נקודת קצה ומזהה, ולא סופר כישלון מוזרק.</li>
+</ul>
+<h2 id="_4">מונחים לזכור</h2>
+<table>
+<thead>
+<tr>
+<th>מונח בעברית</th>
+<th>באנגלית</th>
+<th>במשפט אחד</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>לולאת האירועים</td>
+<td>event loop</td>
+<td>תהליכון אחד שמריץ משימות בתורות, ומחליף ביניהן רק ב־<code>await</code></td>
+</tr>
+<tr>
+<td>coroutine</td>
+<td>coroutine</td>
+<td>מה ש־<code>async def</code> מחזירה; לא רצה עד שמחכים לה</td>
+</tr>
+<tr>
+<td>משימה</td>
+<td>task</td>
+<td>coroutine שנמסרה ללולאה ומתוזמנת</td>
+</tr>
+<tr>
+<td>מקביליות מובנית</td>
+<td>structured concurrency</td>
+<td>משימות שלא חיות יותר מהבלוק שיצר אותן</td>
+</tr>
+<tr>
+<td>קבוצת חריגות</td>
+<td>exception group</td>
+<td>כמה חריגות שמגיעות יחד, ונתפסות עם <code>except*</code></td>
+</tr>
+<tr>
+<td>ביטול</td>
+<td>cancellation</td>
+<td>בקשה לעצור משימה, שמגיעה אליה כחריגה ב־<code>await</code></td>
+</tr>
+<tr>
+<td>זמן קצוב</td>
+<td>timeout</td>
+<td>כמה זמן מחכים לפעולה לפני שמבטלים אותה</td>
+</tr>
+<tr>
+<td>נעילת המפרש הגלובלית</td>
+<td>GIL</td>
+<td>הנעילה שמאפשרת רק לתהליכון אחד להריץ קוד Python בכל רגע</td>
+</tr>
+<tr>
+<td>מחזור חיים</td>
+<td>lifespan</td>
+<td>הקוד שרץ בעליית השירות ובכיבוי שלו</td>
+</tr>
+<tr>
+<td>תלות</td>
+<td>dependency</td>
+<td>פונקציה ש־FastAPI מריצה ומעבירה את התוצאה לנקודת הקצה</td>
+</tr>
+<tr>
+<td>מקבל webhooks</td>
+<td>webhook receiver</td>
+<td>שירות שמקבל אירועים חתומים בבקשות HTTP</td>
+</tr>
+<tr>
+<td>השוואה בזמן קבוע</td>
+<td>constant-time comparison</td>
+<td>השוואה שזמנה לא תלוי במקום ההבדל הראשון</td>
+</tr>
+<tr>
+<td>הסרת כפילויות</td>
+<td>deduplication</td>
+<td>זיהוי של אותו משלוח שהגיע שוב, ורישום אחד בלבד</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_5">טעויות נפוצות</h2>
+<ul>
+<li><strong>לקרוא ל־coroutine בלי <code>await</code>.</strong> שום דבר לא קורה, ומופיעה אזהרה בסוף.</li>
+<li><strong>ליצור משימה בלי לשמור הפניה ובלי בעלים.</strong> היא עלולה להיעלם באמצע, והחריגה שלה הולכת לאיבוד.</li>
+<li><strong>לבלוע <code>CancelledError</code>.</strong> הקבוצה והזמן הקצוב מפסיקים לעבוד. תופסים רק כדי לרשום, וזורקים שוב.</li>
+<li><strong>ספרייה חוסמת בתוך <code>async def</code>.</strong> כל השרת נעצר; משתמשים ב־<code>asyncio.to_thread</code> או בפונקציה רגילה.</li>
+<li><strong>לבדוק חתימה על JSON שפורק ונבנה מחדש.</strong> החתימה נשברת; בודקים על הבתים הגולמיים.</li>
+<li><strong>להשוות חתימות עם <code>==</code>.</strong> השוואה רגילה מדליפה מידע בזמן התגובה; משתמשים ב־<code>hmac.compare_digest</code>.</li>
+<li><strong>להריץ שירות עם מצב בזיכרון בכמה תהליכי שרת.</strong> כל תהליך רואה חלק מהבקשות.</li>
+</ul>
+<h2 id="_6">שאלות ראיון</h2>
+<ol>
+<li>
+<p><strong>מה חוסם את לולאת האירועים, ואיך מזהים את זה?</strong> כל קוד שלא מגיע ל־<code>await</code>: חישוב ארוך, שינה
+   חוסמת, ספרייה סינכרונית של רשת או קבצים. הסימפטום הוא זמני תגובה שקופצים לכל הבקשות יחד, לא רק
+   לאיטית. מזהים עם מצב הדיבאג של asyncio, שמדווח על צעדים ארוכים, עם <code>python -m asyncio ps</code> על תהליך
+   חי, או עם „דופק” כמו בתרגיל. מתקנים עם תהליכון לקלט ופלט ועם תהליך לחישוב.</p>
+</li>
+<li>
+<p><strong>מה ההבדל בין <code>TaskGroup</code> ל־<code>gather</code> כשמשימה נכשלת?</strong> עם <code>TaskGroup</code> האחיות מבוטלות, היציאה מחכה
+   לכולן, והחריגות מגיעות כקבוצה: אין משימות יתומות. עם <code>gather</code>, החריגה הראשונה מגיעה למחכה והשאר
+   ממשיכות לרוץ בלי שאיש מחכה להן. <code>gather</code> עם <code>return_exceptions=True</code> מתאים כשרוצים את כל התוצאות
+   למרות כישלונות.</p>
+</li>
+</ol>
+<p><strong>המשך:</strong> ואם אחת המשימות לא אמורה להפיל את האחרות? מטפלים בכישלון שלה בתוכה, כמו הזמן הקצוב ב־<code>fake_call</code>,
+   ומחזירים תוצאה; רק מה שאמור לעצור את הכול נזרק החוצה.</p>
+<ol start="3">
+<li>
+<p><strong>למה בודקים חתימה על הגוף הגולמי, ולמה בזמן קבוע?</strong> כי החתימה היא על בתים, ופירוק ובנייה מחדש של
+   JSON לא משמרים אותם; גם רווח אחד שובר אותה. זמן קבוע, כי השוואה שעוצרת בהבדל הראשון מאפשרת לנחש
+   חתימה תו אחר תו לפי זמני התגובה. חותמת הזמן החתומה, עם סבולת, מונעת שליחה חוזרת של בקשה שנלכדה.</p>
+</li>
+<li>
+<p><strong>למה מקבל webhooks חייב להסיר כפילויות?</strong> כי מסירה דרך HTTP לצד שלישי היא לכל היותר „לפחות פעם
+   אחת”: תשובה שהלכה לאיבוד אחרי שהבקשה עובדה מובילה לניסיון חוזר. המקבל מזהה לפי מזהה האירוע (וכאן גם
+   לפי נקודת הקצה), ומחזיר הצלחה גם לכפילות, כדי שהשולחת תפסיק לנסות. השאלה הבאה בדרך כלל: כמה זמן
+   שומרים מזהים, והתשובה תלויה בחלון הניסיונות של השולחת.</p>
+</li>
+<li>
+<p><strong>השירות שלך ב־Python איטי תחת עומס. מה האפשרויות?</strong> קודם מודדים: האם הלולאה חסומה, האם זה חישוב,
+   או המתנה לתלות. אחר כך לפי המקרה: להוציא קריאות חוסמות לתהליכון, להעביר חישוב לתהליך או לשירות נפרד,
+   להגביל מקביליות מול תלות איטית, ולהריץ כמה תהליכי שרת (אחרי שמוציאים מצב מהזיכרון). אם החישוב הוא
+   לב השירות וזמן התגובה בזנב קריטי, לשקול שפה אחרת לרכיב הזה.</p>
+</li>
+</ol>
+<h2 id="obsidian">פתק Obsidian</h2>
+<p>הפתק המוכן נמצא גם כקובץ: <code>obsidian/08-python-async-fastapi.md</code>. זה תוכנו:</p>
+<ul>
+<li><strong>הלולאה:</strong> תהליכון אחד; מחליפים משימה רק ב־<code>await</code>; בין שני <code>await</code> אין הפרעה.</li>
+<li><strong>מה חוסם:</strong> חישוב ארוך, שינה חוסמת, ספרייה סינכרונית. הפתרון הוא תהליכון לקלט ופלט ותהליך לחישוב.</li>
+<li><strong>הקבוצה <code>TaskGroup</code>:</strong> כישלון מבטל את האחיות, היציאה מחכה לכולן, החריגות כקבוצה.</li>
+<li><strong>ביטול:</strong> חריגה שנזרקת ב־<code>await</code>; לא בולעים; מנקים ב־<code>finally</code>.</li>
+<li><strong>זמן קצוב ומגבלה:</strong> <code>asyncio.timeout</code> בתוך <code>Semaphore</code>, כדי שהתור לא ייספר כזמן הקריאה.</li>
+<li><strong>ב־FastAPI:</strong> חתימת הפונקציה היא החוזה; תלויות דרך <code>Annotated</code>; 422 אוטומטי.</li>
+<li><strong>ה־lifespan:</strong> משאבים ומשימות רקע עם בעלים, וכיבוי מסודר.</li>
+<li><strong>בדיקות:</strong> <code>ASGITransport</code> לא מריץ lifespan; שעון, אקראיות ושינה מוזרקים.</li>
+<li><strong>חתימה:</strong> הגוף הגולמי, חותמת זמן חתומה, סבולת של חמש דקות, השוואה בזמן קבוע.</li>
+<li><strong>כפילויות:</strong> לפי נקודת קצה ומזהה אירוע; כישלון מוזרק לא נרשם כקבלה.</li>
+<li><strong>שאלה פתוחה:</strong> ___</li>
+</ul>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">async with asyncio.TaskGroup() as tg: tg.create_task(coro(), name=&quot;x&quot;)
+except* RuntimeError as eg: eg.exceptions
+async with asyncio.timeout(1.0): ...          # raises TimeoutError on exit
+sem = asyncio.Semaphore(2); async with sem: ...
+await asyncio.to_thread(blocking_fn, arg)     # blocking I/O off the loop
+python -m asyncio ps PID                      # 3.14: live task listing
+
+Hookline-Signature: t=&lt;unix&gt;,v1=&lt;hex HMAC-SHA256(secret, &quot;&lt;t&gt;.&quot; + raw body)&gt;
+check order: malformed -&gt; timestamp_out_of_tolerance (300 s) -&gt; signature_mismatch
+hmac.compare_digest(expected_digest, candidate_digest)
+
+async with app.router.lifespan_context(app):
+    httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url=&quot;http://test&quot;)
+
+uv run receiver            uv run receiver-send URL --secret change-me
+GET /stats  GET /receipts  POST /control {&quot;failure_rate&quot;: 0.5}  POST /reset
+</code></pre>
+
+
+</div>
+
+<h2 id="_7">תרגיל</h2>
+<p><strong>מטרה:</strong> לבנות את <code>receiver</code>, מקבל webhooks שבודק חתימה, מסיר כפילויות לפי מזהה אירוע, סופר
+קבלות, ומתנהג רע לפי פקודה (שיעור כישלון, השהיה, קוד סטטוס ומצב „לא עונה”). הבדיקות אסינכרוניות
+ודטרמיניסטיות. לפניו, תרגיל חימום עם <code>TaskGroup</code>, זמן קצוב ו־<code>Semaphore</code>.
+<strong>זמן:</strong> שני ימי לימוד, ימים 17 ו־18, כ־40 דקות בנייה ביום הראשון וכ־70 ביום השני.
+<strong>ידע מקדים:</strong> הפרק הזה, ופרק 7 (התרגיל בנוי באותה תבנית).</p>
+<p>הצעדים, קוד ההתחלה, הרמזים והפתרון נמצאים ב־
+<a href="../exercises/ch08-receiver/README.md"><code>exercises/ch08-receiver/README.md</code></a>.</p>
+<p><strong>קריטריון סיום:</strong></p>
+<ul>
+<li>תרגיל החימום מראה מגבלה של שתי קריאות, זמן קצוב שלא פוגע באחיות, וכישלון שמבטל אותן.</li>
+<li>הבדיקות מראות שחתימה שגויה נדחית, שכפילות נרשמת פעם אחת, ושההגדרה של שיעור כישלון מייצרת שגיאות.</li>
+<li>כל דוגמאות החתימה מהקובץ המשותף עוברות.</li>
+<li>השירות רץ מקומית דרך uv, ומגיב לבקשה חתומה שנשלחת מכלי השליחה.</li>
+</ul>
+<h2 id="_8">העשרה אופציונלית</h2>
+<ul>
+<li>בתיעוד של asyncio, הפרקים על משימות ועל ביטול כתובים היטב וקצרים יחסית.</li>
+<li>המסמך PEP 779 מסביר מה „תמיכה רשמית” בגרסה בלי GIL אומרת, ומה עוד חסר.</li>
+<li>הוסיפי למקבל שליטה נפרדת לכל נקודת קצה, כך שנקודה אחת תהיה במצב „לא עונה” והאחרות בריאות.</li>
+<li>כתבי בדיקת תכונה שמוודאת שכל חתימה שנוצרה עוברת בדיקה, ושכל שינוי של בית אחד בגוף נדחה.</li>
+</ul>
+</main>
+<nav class="bottom"><a href="index.html">תוכן העניינים</a> · <a href="07-python-typed-packaged.html">← פרק 7: Python עם טיפוסים, אריזה ובדיקות</a> · <a href="09-api-design-grpc.html">פרק 9: עיצוב API ו־gRPC →</a></nav>
+<script type="module">
+  // Render ```mermaid blocks in the browser (needs internet once; cached afterwards).
+  const blocks = document.querySelectorAll("pre > code.language-mermaid");
+  if (blocks.length) {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs")).default;
+    for (const code of blocks) {
+      const div = document.createElement("div");
+      div.className = "mermaid";
+      div.textContent = code.textContent;
+      code.parentElement.replaceWith(div);
+    }
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run();
+  }
+</script>
+</body>
+</html>

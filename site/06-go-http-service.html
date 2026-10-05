@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>פרק 6: שירות HTTP לייצור</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="top"><a href="index.html">תוכן העניינים</a> · <a href="05-go-concurrency.html">← פרק 5: מקביליות ב־Go</a> · <a href="07-python-typed-packaged.html">פרק 7: Python עם טיפוסים, אריזה ובדיקות →</a></nav>
+<main class="book">
+<div class="toc"><span class="toctitle">תוכן הפרק</span><ul>
+<li><a href="#_1">מה נלמד בפרק</a></li>
+<li><a href="#_2">ידע מקדים</a></li>
+<li><a href="#61-nethttp-go">6.1 net/http והנתב של Go</a></li>
+<li><a href="#62-handlers-middleware-json">6.2 handlers, middleware ו־JSON</a></li>
+<li><a href="#63">6.3 תצורה ממשתני סביבה</a></li>
+<li><a href="#64-slog">6.4 slog: לוגים מובנים</a></li>
+<li><a href="#65">6.5 כיבוי מסודר</a></li>
+<li><a href="#66-httptest">6.6 בדיקות עם httptest</a></li>
+<li><a href="#67-makefile">6.7 מבנה פרויקט ו־Makefile</a></li>
+<li><a href="#68-pprof">6.8 pprof: פרופיל ראשון</a></li>
+<li><a href="#69">6.9 בנצ'מרקים</a></li>
+<li><a href="#610-1">6.10 נקודת ביקורת 1</a></li>
+<li><a href="#_3">סיכום</a></li>
+<li><a href="#_4">מונחים לזכור</a></li>
+<li><a href="#_5">טעויות נפוצות</a></li>
+<li><a href="#_6">שאלות ראיון</a></li>
+<li><a href="#obsidian">פתק Obsidian</a></li>
+<li><a href="#_7">תרגיל</a></li>
+<li><a href="#_8">העשרה אופציונלית</a></li>
+</ul>
+</div>
+
+<h1 id="6-http">פרק 6: שירות HTTP לייצור</h1>
+<p>שירות שעובד על המחשב שלך רחוק מאוד משירות שאפשר להפעיל בייצור. הפער הוא לא באלגוריתם: הוא בתצורה שנבדקת
+בעלייה, בלוגים שאפשר לחפש בהם, בכיבוי שלא קוטע בקשות, בבדיקות שרצות בלי רשת, ובדרך להסתכל לתוך תהליך שרץ.
+ראיון בכיר בודק בדיוק את הפער הזה.</p>
+<p>בפרק תבני את <code>shorty</code>, שירות קיצור כתובות, רק עם הספרייה הסטנדרטית של Go ועם <code>errgroup</code> מפרק 5. החבילה
+<code>internal/platform</code> שלו, עם השרת, ה־middleware והתצורה, היא השלד שפרויקט הגמר, Hookline, יתחיל ממנו באבן
+הדרך M1. בסוף הפרק, נקודת ביקורת 1: הוכחה שאת כותבת, בודקת ומפעילה שירות Go.</p>
+<h2 id="_1">מה נלמד בפרק</h2>
+<ul>
+<li>הנתב של Go: תבניות עם מתודה ועם wildcards, ומה הוא עונה כשאין התאמה.</li>
+<li>כתיבת handlers ו־middleware: מזהה בקשה, לוג גישה, התאוששות מ־panic, ו־JSON עם גבול גודל.</li>
+<li>תצורה ממשתני סביבה שנבדקת כולה בעלייה, עם כל השגיאות בבת אחת.</li>
+<li>לוגים מובנים עם <code>log/slog</code>, שכל שורה של בקשה נושאת את אותו מזהה.</li>
+<li>כיבוי מסודר: מה הוא מחכה לו ומה הוא נוטש.</li>
+<li>בדיקות בתוך התהליך עם <code>httptest</code>, מבנה פרויקט ו־Makefile.</li>
+<li>פרופיל CPU ראשון עם pprof, ובנצ'מרק אחד שאת מודדת בעצמך.</li>
+</ul>
+<h2 id="_2">ידע מקדים</h2>
+<ul>
+<li>פרק 3: מודולים וחבילות (סעיף 3.3), בדיקות טבלאיות (סעיף 3.8), ו־<code>gofmt</code> ו־staticcheck (סעיף 3.10).</li>
+<li>פרק 4: ממשקים קטנים (סעיף 4.3), שגיאות ועטיפה (סעיפים 4.4 ו־4.5), panic (סעיף 4.6) ו־generics
+  (סעיף 4.7).</li>
+<li>פרק 5: goroutines, context, <code>sync</code> ו־<code>errgroup</code> (סעיפים 5.1 עד 5.6), ודליפות (סעיף 5.9).</li>
+<li>פרק 2: הכלים של סעיף 2.3, ובהם <code>make</code> ו־<code>curl</code>, ו־Git מסעיף 2.5.</li>
+</ul>
+<h2 id="61-nethttp-go">6.1 <code>net/http</code> והנתב של Go</h2>
+<p>בלב <code>net/http</code> יש ממשק אחד, <code>http.Handler</code>, עם מתודה אחת: <code>ServeHTTP</code>, שמקבלת את הכותב של התשובה ואת
+הבקשה.</p>
+<p>כל דבר שעונה לבקשות הוא <code>Handler</code>: ה־handler שלך, הנתב, וכל middleware. הטיפוס <code>http.HandlerFunc</code> הופך
+פונקציה רגילה עם החתימה הזאת ל־<code>Handler</code>. השרת מריץ כל בקשה ב־goroutine משלה, ולכן <strong>כל handler חייב
+להיות בטוח לשימוש מקבילי</strong>: מה שהוא משתף עם בקשות אחרות, כמו המאגר של <code>shorty</code>, מוגן בנעילה (סעיף 5.5).</p>
+<p>הנתב, <code>http.ServeMux</code>, הוא <code>Handler</code> שבוחר handler לפי הבקשה. מאז Go 1.22 התבניות שלו כוללות מתודה
+ו־wildcards, וכך <code>shorty</code> רושם את הנתיבים שלו (הקובץ <code>internal/links/handlers.go</code>):</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func (h *Handler) Register(mux *http.ServeMux) {
+    mux.HandleFunc(&quot;POST /v1/links&quot;, h.create)
+    mux.HandleFunc(&quot;GET /v1/links/{code}&quot;, h.stats)
+    mux.HandleFunc(&quot;GET /{code}&quot;, h.resolve)
+}
+</code></pre>
+
+
+</div>
+
+<table>
+<thead>
+<tr>
+<th>תבנית</th>
+<th>מה היא מתאימה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>POST /v1/links</code></td>
+<td>רק <code>POST</code> לנתיב המדויק</td>
+</tr>
+<tr>
+<td><code>GET /{code}</code></td>
+<td><code>GET</code> (וגם <code>HEAD</code>) לכל נתיב של מקטע אחד; הערך ב־<code>r.PathValue("code")</code></td>
+</tr>
+<tr>
+<td><code>/files/{path...}</code></td>
+<td>כל מה שאחרי <code>/files/</code>, כולל לוכסנים</td>
+</tr>
+<tr>
+<td><code>/{$}</code></td>
+<td>רק השורש <code>/</code>, בניגוד ל־<code>/</code> שמתאים לכל נתיב</td>
+</tr>
+</tbody>
+</table>
+<p>כשכמה תבניות מתאימות, הספציפית ביותר מנצחת: <code>GET /healthz</code> גובר על <code>GET /{code}</code>. ולכן <code>shorty</code> שומר שמות
+כמו <code>healthz</code> ולא מרשה להם להיות קוד מקוצר. שתי תבניות שאף אחת מהן אינה ספציפית יותר מהשנייה נחשבות
+התנגשות, והרישום שלהן זורק panic כבר בעלייה.</p>
+<p>כשאין התאמה, הנתב עונה בעצמו: 404 כשהנתיב לא קיים, ו־405 עם כותרת <code>Allow</code> כשהנתיב קיים אבל המתודה לא.
+בקשה <code>GET /v1/links</code> מקבלת <code>405</code> עם <code>Allow: POST</code>. אחרי ההתאמה, הנתב שומר את התבנית שנבחרה בשדה
+<code>r.Pattern</code>, ולוג הגישה של סעיף 6.4 רושם אותה.</p>
+<blockquote>
+<p><strong>איך Rust עושה את זה:</strong> ב־axum, ה־<code>Router</code> ממפה נתיב ומתודה ל־handler, ו־extractors מפרקים את הבקשה
+לפי הטיפוסים בחתימה של הפונקציה. ב־Go החתימה תמיד אותה חתימה, ואת מוציאה בעצמך את <code>PathValue</code> ומפענחת את
+הגוף. ומה שב־axum הוא שכבה של tower, ב־Go הוא פשוט פונקציה שעוטפת <code>Handler</code> (סעיף 6.2).</p>
+</blockquote>
+<h2 id="62-handlers-middleware-json">6.2 handlers, middleware ו־JSON</h2>
+<p>ה־middleware (שכבה שעוטפת handler ומוסיפה התנהגות לפני הבקשה ואחריה) ב־Go היא פונקציה מ־<code>Handler</code>
+ל־<code>Handler</code>. הנה הטיפוס, ופונקציה שמרכיבה כמה שכבות (הקובץ <code>internal/platform/middleware.go</code>):</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// Middleware wraps a handler with behaviour that runs before and after it.
+type Middleware func(http.Handler) http.Handler
+
+// Chain wraps h with mws; the first middleware is the outermost, so it sees
+// the request first and the response last.
+func Chain(h http.Handler, mws ...Middleware) http.Handler {
+    for i := len(mws) - 1; i &gt;= 0; i-- {
+        h = mws[i](h)
+    }
+    return h
+}
+</code></pre>
+
+
+</div>
+
+<p>ב־<code>shorty</code> יש שלוש שכבות, לפי הסדר הזה (הקובץ <code>internal/app/app.go</code>): מזהה בקשה בחוץ, כדי שכל שורת לוג
+אחריו תישא אותו; לוג גישה באמצע; והתאוששות מ־panic בפנים, כדי שלוג הגישה עוד יראה את ה־500 שהיא מייצרת.</p>
+<p>השכבה הראשונה, מזהה הבקשה (request ID), שומרת מזהה תקין שהגיע מבחוץ, כדי שבקשה אחת תהיה ניתנת למעקב גם
+דרך כמה שירותים, או יוצרת חדש:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func RequestID(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        id := r.Header.Get(RequestIDHeader)
+        if !validRequestID(id) {
+            id = newRequestID()
+        }
+        w.Header().Set(RequestIDHeader, id)
+        next.ServeHTTP(w, r.WithContext(WithRequestID(r.Context(), id)))
+    })
+}
+</code></pre>
+
+
+</div>
+
+<p>הבדיקה <code>validRequestID</code> מקבלת רק אותיות, ספרות ושלושה סימנים, עד 64 תווים, כי מזהה מבחוץ נכתב ללוג, ומזהה
+עם ירידת שורה הוא דרך לזייף שורות. המזהה עובר הלאה ב־context, עם מפתח מטיפוס פרטי.</p>
+<p>השכבה הפנימית, ההתאוששות, תופסת panic של handler. בלעדיה <code>net/http</code> אמנם לא קורס, אבל הוא סוגר את החיבור,
+והלקוח מקבל ניתוק במקום תשובה (הקובץ <code>internal/platform/middleware.go</code>):</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+    sw := wrap(w)
+    defer func() {
+        v := recover()
+        if v == nil {
+            return
+        }
+        if err, ok := v.(error); ok &amp;&amp; errors.Is(err, http.ErrAbortHandler) {
+            panic(v) // the documented way to abort a response; let net/http handle it
+        }
+        log.ErrorContext(r.Context(), &quot;panic in handler&quot;,
+            slog.Any(&quot;panic&quot;, v),
+            slog.String(&quot;stack&quot;, string(debug.Stack())),
+        )
+        if sw.status == 0 { // nothing sent yet, so a clean 500 is still possible
+            WriteError(sw, http.StatusInternalServerError, &quot;internal error&quot;)
+        }
+    }()
+    next.ServeHTTP(sw, r)
+})
+</code></pre>
+
+
+</div>
+
+<p>המחסנית נכתבת ללוג, והלקוח מקבל <code>internal error</code> בלבד. <code>http.ErrAbortHandler</code> הוא panic שמשמש במכוון
+לביטול תשובה, ולכן הוא ממשיך הלאה. ו־<code>wrap</code> עוטף את <code>ResponseWriter</code> בטיפוס שזוכר את הסטטוס, כדי לדעת אם
+עוד אפשר לשלוח 500 נקי; לוג הגישה משתמש באותו טיפוס.</p>
+<p><strong>JSON נכנס.</strong> קלט מהרשת לא אמין: גוף ענק, שדות לא צפויים, שני אובייקטים ברצף. <code>DecodeJSON</code> היא פונקציה
+גנרית (סעיף 4.7) שמטפלת בכולם (הקובץ <code>internal/platform/httpjson.go</code>):</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func DecodeJSON[T any](w http.ResponseWriter, r *http.Request, maxBytes int64) (T, error) {
+    var v T
+    r.Body = http.MaxBytesReader(w, r.Body, maxBytes)
+    dec := json.NewDecoder(r.Body)
+    dec.DisallowUnknownFields()
+
+    if err := dec.Decode(&amp;v); err != nil {
+        var tooBig *http.MaxBytesError
+        switch {
+        case errors.As(err, &amp;tooBig):
+            return v, &amp;HTTPError{http.StatusRequestEntityTooLarge, fmt.Sprintf(&quot;body is larger than %d bytes&quot;, tooBig.Limit)}
+        case errors.Is(err, io.EOF):
+            return v, &amp;HTTPError{http.StatusBadRequest, &quot;body is empty&quot;}
+        default:
+            return v, &amp;HTTPError{http.StatusBadRequest, &quot;invalid JSON: &quot; + err.Error()}
+        }
+    }
+    if err := dec.Decode(&amp;struct{}{}); !errors.Is(err, io.EOF) {
+        return v, &amp;HTTPError{http.StatusBadRequest, &quot;body must contain a single JSON value&quot;}
+    }
+    return v, nil
+}
+</code></pre>
+
+
+</div>
+
+<table>
+<thead>
+<tr>
+<th>שורה</th>
+<th>מה היא מונעת</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>http.MaxBytesReader</code></td>
+<td>גוף גדול מהמגבלה: הקריאה נעצרת, והשגיאה היא <code>*http.MaxBytesError</code></td>
+</tr>
+<tr>
+<td><code>DisallowUnknownFields</code></td>
+<td>שדה עם שגיאת כתיב שנבלע בשקט, כמו <code>"ulr"</code></td>
+</tr>
+<tr>
+<td>ה־<code>Decode</code> השני</td>
+<td>גוף עם שני ערכי JSON, שהראשון בהם היה מתקבל</td>
+</tr>
+<tr>
+<td><code>*HTTPError</code></td>
+<td>שגיאה שיודעת מה הסטטוס ומה ההודעה ללקוח</td>
+</tr>
+</tbody>
+</table>
+<p>הפונקציה <code>RespondError</code> משלימה את התמונה: <code>*HTTPError</code> נשלחת כמו שהיא, וכל שגיאה אחרת נרשמת בלוג ונשלחת
+כ־500 עם הודעה כללית. הודעה כמו כתובת פנימית של בסיס נתונים לא יוצאת החוצה, ויש לזה בדיקה.</p>
+<h2 id="63">6.3 תצורה ממשתני סביבה</h2>
+<p>שירות מקבל את התצורה שלו ממשתני סביבה: כך עובדים קונטיינרים ו־Kubernetes, שתפגשי בחלק ה, וכך אותו קובץ
+הרצה רץ בכל סביבה. ל־<code>shorty</code> יש שישה:</p>
+<table>
+<thead>
+<tr>
+<th>משתנה</th>
+<th>ברירת מחדל</th>
+<th>בדיקה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SHORTY_BASE_URL</code></td>
+<td>אין: חובה</td>
+<td>כתובת מוחלטת של <code>http</code> או <code>https</code></td>
+</tr>
+<tr>
+<td><code>SHORTY_ADDR</code></td>
+<td><code>:8080</code></td>
+<td>שונה מכתובת ה־debug</td>
+</tr>
+<tr>
+<td><code>SHORTY_DEBUG_ADDR</code></td>
+<td><code>127.0.0.1:6060</code></td>
+<td>הערך <code>off</code> מכבה אותו</td>
+</tr>
+<tr>
+<td><code>SHORTY_LOG_LEVEL</code></td>
+<td><code>info</code></td>
+<td>אחת מ־<code>debug</code>, <code>info</code>, <code>warn</code>, <code>error</code></td>
+</tr>
+<tr>
+<td><code>SHORTY_SHUTDOWN_TIMEOUT</code></td>
+<td><code>10s</code></td>
+<td>משך זמן חיובי</td>
+</tr>
+<tr>
+<td><code>SHORTY_MAX_BODY_BYTES</code></td>
+<td><code>4096</code></td>
+<td>בין 1 ל־1048576</td>
+</tr>
+</tbody>
+</table>
+<p>שני עקרונות. <strong>התצורה נבדקת כולה בעלייה, והשירות מסרב לעלות אם משהו שגוי:</strong> ערך שגוי שמתגלה בבקשה הראשונה
+אחרי פריסה הוא תקרית, ובעלייה הוא הודעת שגיאה. ו־<strong>כל השגיאות בבת אחת</strong>, אחרת כל תיקון דורש הפעלה מחדש
+כדי לגלות את הטעות הבאה.</p>
+<p>את שני העקרונות מממש טיפוס קטן ב־<code>internal/platform/env.go</code>. הוא קורא ערכים עם טיפוס, וצובר בעיות במקום
+לעצור בראשונה. הקוד הספציפי ל־<code>shorty</code> הוא <code>LoadConfig</code> (הקובץ <code>internal/app/config.go</code>):</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func LoadConfig(lookup func(string) (string, bool)) (Config, error) {
+    env := platform.NewEnv(lookup)
+    cfg := Config{
+        Addr:            env.String(&quot;SHORTY_ADDR&quot;, &quot;:8080&quot;),
+        DebugAddr:       env.String(&quot;SHORTY_DEBUG_ADDR&quot;, &quot;127.0.0.1:6060&quot;),
+        BaseURL:         strings.TrimSuffix(env.Required(&quot;SHORTY_BASE_URL&quot;), &quot;/&quot;),
+        LogLevel:        env.Level(&quot;SHORTY_LOG_LEVEL&quot;, slog.LevelInfo),
+        ShutdownTimeout: env.Duration(&quot;SHORTY_SHUTDOWN_TIMEOUT&quot;, 10*time.Second),
+        MaxBodyBytes:    env.Int64(&quot;SHORTY_MAX_BODY_BYTES&quot;, 4096),
+    }
+</code></pre>
+
+
+</div>
+
+<p>אחרי הקריאות באות בדיקות שמערבות כמה ערכים, כמו „כתובת ה־debug שונה מהכתובת הראשית”, וכל כשל נרשם עם
+<code>env.Fail</code>. בסוף, <code>env.Err()</code> מחזירה את כל הבעיות כשגיאה אחת, ו־<code>main</code> יוצאת עם קוד 1:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">shorty: invalid configuration:
+SHORTY_SHUTDOWN_TIMEOUT: &quot;ten&quot; is not a duration (example: 10s)
+SHORTY_BASE_URL: &quot;localhost&quot; is not an absolute http or https URL
+</code></pre>
+
+
+</div>
+
+<p>הפרמטר <code>lookup</code> הוא <code>os.LookupEnv</code> ב־<code>main</code>, ופונקציה שקוראת מ־map בבדיקות: כך בודקים תצורה בלי לגעת
+בסביבה של התהליך. וערך ריק נחשב כאילו לא הוגדר, כי שורה כמו <code>SHORTY_ADDR=</code> היא כמעט תמיד טעות.</p>
+<h2 id="64-slog">6.4 <code>slog</code>: לוגים מובנים</h2>
+<p>לוג מובנה (structured log) הוא רשומה של זוגות מפתח וערך, ולא משפט חופשי. את השורה
+<code>request method=GET status=302</code> אפשר לסנן, לקבץ ולספור במערכת לוגים; את המשפט „GET returned a redirect”
+אפשר רק לקרוא. החבילה <code>log/slog</code> בספרייה הסטנדרטית כותבת רשומות כאלה, ובייצור כותבים אותן כ־JSON, שורה
+לכל רשומה.</p>
+<p>ב־<code>shorty</code>, כל רשומה של בקשה נושאת את מזהה הבקשה, גם בלי שה־handler יעביר אותו בעצמו. הטריק הוא
+<code>slog.Handler</code> שעוטף את ה־handler של JSON, ומוסיף לכל רשומה את המזהה שב־context (הקובץ
+<code>internal/platform/logging.go</code>):</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func (h contextHandler) Handle(ctx context.Context, r slog.Record) error {
+    if id := RequestIDFrom(ctx); id != &quot;&quot; {
+        r = r.Clone() // records share state; never modify one you were handed
+        r.AddAttrs(slog.String(&quot;request_id&quot;, id))
+    }
+    return h.Handler.Handle(ctx, r)
+}
+</code></pre>
+
+
+</div>
+
+<p>המחיר: צריך לרשום עם הגרסאות שמקבלות context, <code>InfoContext</code> ו־<code>ErrorContext</code> ודומיהן. שורה שנכתבה עם
+<code>Info</code> רגיל תצא בלי מזהה, ויש בדיקה שתופסת את זה. כך נראות שתי שורות של בקשה אחת מתוך ריצה אמיתית
+(המספרים אצלך יהיו אחרים):</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">{&quot;time&quot;:&quot;...&quot;,&quot;level&quot;:&quot;INFO&quot;,&quot;msg&quot;:&quot;link created&quot;,&quot;code&quot;:&quot;gohome&quot;,&quot;request_id&quot;:&quot;dec082966060b74f&quot;}
+{&quot;time&quot;:&quot;...&quot;,&quot;level&quot;:&quot;INFO&quot;,&quot;msg&quot;:&quot;request&quot;,&quot;method&quot;:&quot;POST&quot;,&quot;path&quot;:&quot;/v1/links&quot;,&quot;pattern&quot;:&quot;POST /v1/links&quot;,&quot;status&quot;:201,&quot;bytes&quot;:138,&quot;duration&quot;:640167,&quot;request_id&quot;:&quot;dec082966060b74f&quot;}
+</code></pre>
+
+
+</div>
+
+<p>השורה השנייה היא לוג הגישה (access log), שורה אחת לכל בקשה. השדה <code>pattern</code> חשוב יותר משנראה: הנתיב
+<code>/gohome</code> שונה בכל קוד, אבל התבנית <code>GET /{code}</code> היא ערך אחד. כשבחלק ו תבני מדדים, התבנית היא מה שנכנס
+כ־label, ולא הנתיב. ה־<code>duration</code> הוא בננו־שניות, כי כך <code>slog</code> מקודד משך זמן ב־JSON.</p>
+<blockquote>
+<p><strong>איך Rust עושה את זה:</strong> ב־Rust את משתמשת ב־<code>tracing</code>: <code>info!(code = %code, "link created")</code> כותב שדות
+מובנים, ו־span שנפתח לכל בקשה מוסיף את המזהה לכל אירוע שבתוכו. ב־Go אין spans בלוגים, ולכן המזהה עובר
+ב־context, וה־handler של <code>slog</code> מוציא אותו משם. העיקרון זהה: השדות של הבקשה מצטרפים לכל רשומה בלי שכל
+קריאה תזכור אותם.</p>
+</blockquote>
+<p>שלושה כללים לכל לוג בייצור:</p>
+<ul>
+<li><strong>רמות בהיגיון:</strong> <code>info</code> למה שסופרים, <code>warn</code> לחריג שהשירות התאושש ממנו, <code>error</code> למה שמישהו צריך לראות.
+  הרמה נקבעת בתצורה.</li>
+<li><strong>לעולם לא סודות:</strong> לא סיסמאות, לא מפתחות, לא כותרות אימות. לוגים נשמרים ומועתקים.</li>
+<li><strong>מפתחות קבועים:</strong> אותו שם בכל שורה ובכל שירות, אחרת החיפוש מתפצל.</li>
+</ul>
+<h2 id="65">6.5 כיבוי מסודר</h2>
+<p>כשמערכת ההפעלה, Docker או Kubernetes רוצים לעצור תהליך, הם שולחים לו <code>SIGTERM</code>, מחכים זמן מה, ואז שולחים
+<code>SIGKILL</code>, שאי אפשר לתפוס. בלי טיפול, Go יוצאת מיד ב־<code>SIGTERM</code>, וכל בקשה שבאמצע נקטעת. כיבוי מסודר
+(graceful shutdown) הוא: להפסיק לקבל בקשות חדשות, לתת לבקשות שבדרך זמן לסיים, ורק אז לצאת.</p>
+<p>הצעד הראשון הוא להפוך את האות ל־context שמתבטל, עם <code>signal.NotifyContext</code> (הקובץ <code>cmd/shorty/main.go</code>):</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// The first SIGINT or SIGTERM cancels ctx and starts the graceful shutdown.
+ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+defer stop()
+// Then restore the default behaviour, so a second Ctrl-C kills at once.
+context.AfterFunc(ctx, stop)
+</code></pre>
+
+
+</div>
+
+<p>השורה האחרונה היא פרט קטן שמשתמשים מעריכים: אחרי האות הראשון, <code>stop</code> מחזירה את התנהגות ברירת המחדל, ולכן
+Ctrl-C שני הורג את התהליך מיד, בלי לחכות לתום זמן החסד.</p>
+<p>הצעד השני הוא <code>Server.Shutdown</code>. הפונקציה <code>Serve</code> של <code>shorty</code> מריצה את השרת עד שה־context מתבטל, ואז מכבה
+אותו (הקובץ <code>internal/platform/server.go</code>):</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func Serve(ctx context.Context, srv *http.Server, ln net.Listener, grace time.Duration) error {
+    errc := make(chan error, 1) // buffered: the goroutine can always send and exit
+    go func() { errc &lt;- srv.Serve(ln) }()
+
+    select {
+    case err := &lt;-errc:
+        return fmt.Errorf(&quot;serve %s: %w&quot;, ln.Addr(), err) // failed before any shutdown
+    case &lt;-ctx.Done():
+    }
+
+    // ctx is already cancelled; the grace period needs a context of its own.
+    shutCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), grace)
+    defer cancel()
+    if err := srv.Shutdown(shutCtx); err != nil {
+        _ = srv.Close() // grace is over: cut the remaining connections
+        return fmt.Errorf(&quot;shutdown %s: %w&quot;, ln.Addr(), err)
+    }
+    if err := &lt;-errc; !errors.Is(err, http.ErrServerClosed) {
+        return fmt.Errorf(&quot;serve %s: %w&quot;, ln.Addr(), err)
+    }
+    return nil
+}
+</code></pre>
+
+
+</div>
+
+<p>כל מה שלמדת בפרק 5 נמצא כאן. ה־channel עם חוצץ של אחד מבטיח שה־goroutine של <code>srv.Serve</code> תמיד תוכל לשלוח
+ולצאת, גם אם אף אחד לא יקרא: אחרת זו דליפה. ה־<code>select</code> ממתין לכשל או לביטול. ו־<code>context.WithoutCancel</code>
+נחוץ כי <code>ctx</code> כבר בוטל: זמן החסד צריך context חדש, שלא מבוטל מיד, אבל עדיין נושא את הערכים של ההורה.</p>
+<table>
+<thead>
+<tr>
+<th><code>Shutdown</code> מחכה ל־</th>
+<th><code>Shutdown</code> לא מחכה ל־</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>בקשות שכבר בטיפול, עד שה־handler חוזר</td>
+<td>חיבורים שה־handler השתלט עליהם (<code>Hijack</code>), כמו WebSocket</td>
+</tr>
+<tr>
+<td></td>
+<td>עבודה שה־handler הפעיל ב־goroutine משלו ולא חיכה לה</td>
+</tr>
+<tr>
+<td></td>
+<td>כלום אחרי שזמן החסד נגמר: אז <code>Close</code> חותך הכול</td>
+</tr>
+</tbody>
+</table>
+<p>ושני דברים שהשרת צריך עוד לפני שמכבים אותו, בפונקציה <code>NewServer</code> באותו קובץ: זמנים קצובים.
+ל־<code>http.Server</code> ריק אין אף אחד, ולכן לקוח איטי אחד יכול להחזיק חיבור לנצח:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">ReadHeaderTimeout: 5 * time.Second,  // slow-header (Slowloris) clients
+ReadTimeout:       10 * time.Second, // the whole request, body included
+WriteTimeout:      30 * time.Second, // from the end of the headers to the end of the response
+IdleTimeout:       60 * time.Second, // keep-alive connections between requests
+</code></pre>
+
+
+</div>
+
+<p>ל־<code>shorty</code> יש שני שרתים, הציבורי והפרטי של pprof (סעיף 6.8), והפונקציה <code>Run</code> (הקובץ
+<code>internal/app/app.go</code>) מריצה אותם ב־<code>errgroup</code>. כשאחד נכשל, ה־context המשותף מתבטל, והשני נכבה בצורה
+מסודרת:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">g, gctx := errgroup.WithContext(ctx)
+log.Info(&quot;listening&quot;, slog.String(&quot;addr&quot;, ln.Addr().String()), slog.String(&quot;base_url&quot;, cfg.BaseURL))
+g.Go(func() error { return platform.Serve(gctx, api, ln, cfg.ShutdownTimeout) })
+</code></pre>
+
+
+</div>
+
+<blockquote>
+<p><strong>איך Rust עושה את זה:</strong> ב־axum, <code>axum::serve(listener, app).with_graceful_shutdown(signal)</code> מקבל
+future שמסתיים כשמגיע האות, ומחכה לחיבורים הפתוחים. ההבדל הוא בגבול: ב־axum מוסיפים בעצמך
+<code>tokio::time::timeout</code> סביב ההמתנה. ב־Go, גבול הזמן הוא ה־context שמועבר ל־<code>Shutdown</code>, ו־<code>Close</code> הוא מה
+שקורה כשהוא עובר.</p>
+</blockquote>
+<h2 id="66-httptest">6.6 בדיקות עם <code>httptest</code></h2>
+<p>החבילה <code>net/http/httptest</code> נותנת שתי דרכים לבדוק HTTP בתוך התהליך:</p>
+<table>
+<thead>
+<tr>
+<th>כלי</th>
+<th>מה הוא</th>
+<th>מתי</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>httptest.NewRecorder</code></td>
+<td><code>ResponseWriter</code> שזוכר סטטוס, כותרות וגוף</td>
+<td>בדיקת handler או middleware ישירות, בלי רשת</td>
+</tr>
+<tr>
+<td><code>httptest.NewServer</code></td>
+<td>שרת אמיתי על כתובת מקומית, עם <code>Close</code></td>
+<td>כשצריך לקוח אמיתי: ניתוקים, כיבוי, timeouts</td>
+</tr>
+</tbody>
+</table>
+<p>רוב הבדיקות של <code>shorty</code> הן טבלאיות מעל <code>NewRecorder</code>: כל שורה היא גוף בקשה, הסטטוס הצפוי וחלק מהודעת
+השגיאה. בדיקות ה־middleware כותבות את הלוגים ל־buffer, ומפרקות כל שורה כ־JSON כדי לבדוק שלכולן אותו
+<code>request_id</code>. ובדיקת ה־panic משתמשת ב־<code>NewServer</code>, כי רק לקוח אמיתי מגלה שחיבור נסגר במקום תשובה.</p>
+<p>הבדיקה המעניינת ביותר היא של הכיבוי המסודר. היא מפעילה את <code>Serve</code> עם handler שנתקע עד שהבדיקה משחררת
+אותו, שולחת בקשה, ומבטלת את ה־context כשהבקשה באמצע (הקובץ <code>internal/platform/server_test.go</code>):</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">&lt;-started  // the request is in the handler
+shutdown() // what SIGTERM does in main
+select {
+case err := &lt;-served:
+    t.Fatalf(&quot;Serve returned %v while a request was still in flight&quot;, err)
+case &lt;-time.After(100 * time.Millisecond):
+}
+if _, err := net.DialTimeout(&quot;tcp&quot;, url[len(&quot;http://&quot;):], time.Second); err == nil {
+    t.Error(&quot;new connections are still accepted during shutdown&quot;)
+}
+
+close(release) // the handler finishes
+if r := &lt;-got; r.err != nil || r.body != &quot;finished&quot; {
+    t.Errorf(&quot;in-flight request got %q, %v; want the full response&quot;, r.body, r.err)
+}
+</code></pre>
+
+
+</div>
+
+<p>הבדיקה מוכיחה, בסדר הזה, ש־<code>Serve</code> לא חוזרת כל עוד בקשה בטיפול, שחיבורים חדשים כבר לא מתקבלים, ושהבקשה
+שבדרך מקבלת תשובה מלאה. בדיקה שנייה מראה ש־handler שלא משתחרר גורם ל־<code>Serve</code> להחזיר
+<code>context.DeadlineExceeded</code> עטופה אחרי זמן החסד. את הסדר קובעים ה־channels <code>started</code> ו־<code>release</code>, לא
+<code>time.Sleep</code>.</p>
+<p>כלל אחרון לבדיקות שירות: לוגר שלא צריך לבדוק אותו, <code>slog.New(slog.DiscardHandler)</code>, כדי שהפלט של הבדיקות
+יישאר קריא. וכמו בפרק 5, הכול רץ עם <code>-race</code>.</p>
+<h2 id="67-makefile">6.7 מבנה פרויקט ו־Makefile</h2>
+<p>למבנה של מודול Go יש שתי מוסכמות שהכלים עצמם מכבדים:</p>
+<ul>
+<li><strong>התיקייה <code>cmd/&lt;name&gt;/</code></strong> לכל תוכנית: חבילת <code>main</code> קטנה, שקוראת תצורה ומחברת חלקים. ב־<code>shorty</code> יש
+  שתיים,
+  <code>shorty</code> עצמו ו־<code>loadgen</code> לסעיף 6.8.</li>
+<li><strong>התיקייה <code>internal/</code></strong> לכל השאר. חבילה תחת <code>internal</code> אפשר לייבא רק מתוך העץ שמעליה; הקומפיילר אוכף את
+  זה. כך
+  את מחליטה מה ה־API הציבורי של המודול (כאן: כלום), ויכולה לשנות את כל השאר בחופשיות.</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>חבילה</th>
+<th>אחריות</th>
+<th>מייבאת את</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>internal/platform</code></td>
+<td>תצורה, לוגים, middleware, JSON, שרת, pprof</td>
+<td>הספרייה הסטנדרטית בלבד</td>
+</tr>
+<tr>
+<td><code>internal/links</code></td>
+<td><code>Link</code>, הממשק <code>Store</code>, <code>MemoryStore</code>, ה־handlers</td>
+<td><code>platform</code></td>
+</tr>
+<tr>
+<td><code>internal/app</code></td>
+<td><code>Config</code>, <code>NewHandler</code> ו־<code>Run</code>: החיבור בין החלקים</td>
+<td><code>platform</code>, <code>links</code>, <code>errgroup</code></td>
+</tr>
+<tr>
+<td><code>cmd/shorty</code></td>
+<td><code>main</code>: תצורה, לוגר, אותות, <code>Run</code></td>
+<td><code>app</code>, <code>platform</code></td>
+</tr>
+</tbody>
+</table>
+<p>כיוון התלויות הוא העיקר: <code>platform</code> לא יודעת כלום על קיצור כתובות, ולכן Hookline יכול לקחת אותה כמו שהיא.
+ו־<code>links</code> תלויה בממשק <code>Store</code> ולא במימוש, כך שבחלק ג יוכל להיכנס מימוש על PostgreSQL בלי לגעת ב־handlers.</p>
+<p>ה־Makefile הוא רשימת הפקודות של הפרויקט, כדי שכל אחת תהיה מילה אחת, זהה אצלך ובהמשך ב־CI (הקובץ
+<code>Makefile</code>):</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-make">test:
+    $(GO) test -race ./...
+
+lint:
+    @out=&quot;$$(gofmt -l .)&quot;; if [ -n &quot;$$out&quot; ]; then echo &quot;gofmt needed:&quot;; echo &quot;$$out&quot;; exit 1; fi
+    $(GO) vet ./...
+    staticcheck ./...
+</code></pre>
+
+
+</div>
+
+<p>שתי מלכודות של <code>make</code>: שורות הפקודה חייבות להתחיל בטאב ולא ברווחים, ו־<code>$</code> שמיועד ל־shell נכתב <code>$$</code>.
+והפקודה <code>gofmt -l</code> רק מדפיסה קבצים שצריך לפרמט, בלי להיכשל, ולכן ה־Makefile בודק אם הפלט ריק.</p>
+<h2 id="68-pprof">6.8 pprof: פרופיל ראשון</h2>
+<p>הכלי pprof (הפרופיילר של Go, וגם שם הפורמט שלו) עונה על השאלה „על מה התהליך מבזבז זמן או זיכרון?” מתוך
+תהליך שרץ. החבילה <code>net/http/pprof</code> חושפת אותו ב־HTTP, ו־<code>shorty</code> מגיש אותה <strong>על מאזין נפרד, שקשור
+ל־<code>127.0.0.1</code></strong> (הקובץ <code>internal/platform/debug.go</code>):</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func DebugHandler() http.Handler {
+    mux := http.NewServeMux()
+    mux.HandleFunc(&quot;/debug/pprof/&quot;, pprof.Index) // index, heap, goroutine, allocs, ...
+    mux.HandleFunc(&quot;/debug/pprof/cmdline&quot;, pprof.Cmdline)
+    mux.HandleFunc(&quot;/debug/pprof/profile&quot;, pprof.Profile) // CPU, ?seconds=N
+    mux.HandleFunc(&quot;/debug/pprof/symbol&quot;, pprof.Symbol)
+    mux.HandleFunc(&quot;/debug/pprof/trace&quot;, pprof.Trace)
+    return mux
+}
+</code></pre>
+
+
+</div>
+
+<p>למה לא על הפורט הציבורי? פרופיל חושף את מבנה הקוד ואת שורת הפקודה, ופרופיל CPU עולה CPU כל זמן שהוא רץ,
+כך שכל אחד מבחוץ היה יכול להאט את השירות. בדיקה מוודאת ש־<code>/debug/pprof/</code> על השרת הציבורי מחזיר 404.
+והייבוא של החבילה רושם את אותם נתיבים גם על <code>http.DefaultServeMux</code>, שלא מזיק רק כי <code>shorty</code> לא מגיש אותו.</p>
+<p><strong>הפרופיל הראשון.</strong> צריך שלושה טרמינלים: השירות, עומס, והפרופיילר. בראשון:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">cd ~/senior-course/ch06
+make run
+</code></pre>
+
+
+</div>
+
+<p>בשני, יוצרים קוד מקוצר ומריצים עליו עומס במשך עשרים שניות. הכלי <code>cmd/loadgen</code> שולח בקשות משמונה
+goroutines, ולא עוקב אחרי ההפניה לאתר האמיתי:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">curl -s -X POST localhost:8080/v1/links -d '{&quot;url&quot;: &quot;https://go.dev/&quot;, &quot;code&quot;: &quot;gohome&quot;}'
+go run ./cmd/loadgen -url http://localhost:8080/gohome -c 8 -d 20s
+</code></pre>
+
+
+</div>
+
+<p>ובשלישי, בזמן שהעומס רץ, פרופיל CPU של עשר שניות:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">go tool pprof -top -nodecount 20 'http://127.0.0.1:6060/debug/pprof/profile?seconds=10'
+</code></pre>
+
+
+</div>
+
+<p>הפלט הוא טבלה, וכך קוראים אותה:</p>
+<table>
+<thead>
+<tr>
+<th>עמודה</th>
+<th>פירוש</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>flat</code></td>
+<td>זמן שבו הפונקציה עצמה רצה, בלי מה שהיא קראה לו</td>
+</tr>
+<tr>
+<td><code>flat%</code></td>
+<td>אותו זמן, כאחוז מסך הדגימות</td>
+</tr>
+<tr>
+<td><code>sum%</code></td>
+<td>סכום מצטבר של <code>flat%</code> עד השורה הזאת</td>
+</tr>
+<tr>
+<td><code>cum</code></td>
+<td>זמן הפונקציה יחד עם כל מה שהיא קראה לו</td>
+</tr>
+<tr>
+<td><code>cum%</code></td>
+<td>אותו זמן, כאחוז</td>
+</tr>
+</tbody>
+</table>
+<p>רשמי בפתק את חמש השורות העליונות ואת שורת הכותרת, שאומרת כמה דגימות נאספו. אחר כך שאלי את עצמך: האם בראש
+יש קוד של <code>shorty</code>, או של הספרייה הסטנדרטית ומערכת ההפעלה? אם רוב הזמן בקריאות מערכת, זה רמז שהעבודה
+נשלטת על ידי כתיבה לרשת וללוג, ולא על ידי החישוב. אל תניחי מראש מה תמצאי: מה שהפרופיל שלך מראה הוא
+התשובה.</p>
+<p>הפרופיל נשמר כקובץ בתיקייה <code>~/pprof</code>, ואפשר לפתוח אותו בממשק דפדפן עם <code>go tool pprof -http=:8081</code> ושם
+הקובץ; שם יש גם תצוגת flame graph. ושני פרופילים נוספים שימושיים מיד: <code>heap</code> לזיכרון שבשימוש,
+ו־<code>goroutine?debug=1</code> למחסניות של כל ה־goroutines, הכלי הראשון כשחושדים בדליפה (סעיף 5.9).</p>
+<h2 id="69">6.9 בנצ'מרקים</h2>
+<p>בנצ'מרק (benchmark) ב־Go הוא פונקציה בקובץ בדיקה, שהשם שלה מתחיל ב־<code>Benchmark</code> והיא מקבלת <code>*testing.B</code>.
+ב־<code>shorty</code> יש אחד, שמודד את כל נתיב הפענוח בתוך התהליך: שלוש שכבות ה־middleware, הנתב, המאגר וההפניה
+(הקובץ <code>internal/app/bench_test.go</code>):</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">log := platform.NewLogger(io.Discard, slog.LevelInfo) // real JSON encoding, output discarded
+h := app.NewHandler(app.Config{BaseURL: &quot;http://sho.rt&quot;, MaxBodyBytes: 4096}, store, log)
+req := httptest.NewRequest(http.MethodGet, &quot;/go&quot;, nil)
+
+for b.Loop() {
+    rec := httptest.NewRecorder()
+    h.ServeHTTP(rec, req)
+    if rec.Code != http.StatusFound {
+        b.Fatalf(&quot;status %d&quot;, rec.Code)
+    }
+}
+</code></pre>
+
+
+</div>
+
+<p>הלולאה <code>for b.Loop()</code> מחליטה בעצמה כמה סיבובים להריץ, לא מודדת את ההכנה שלפניה, ומונעת מהקומפיילר להשמיט
+את הגוף. בקוד ישן תראי לולאה על <code>b.N</code> עם <code>b.ResetTimer()</code>. הלוגר כותב JSON אמיתי ל־<code>io.Discard</code>, כך
+שהקידוד נמדד והפלט לא נשמר.</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">make bench
+</code></pre>
+
+
+</div>
+
+<p>הפלט כולל שלושה מספרים, ואותם את רושמת:</p>
+<table>
+<thead>
+<tr>
+<th>מספר</th>
+<th>פירוש</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ns/op</code></td>
+<td>זמן ממוצע לסיבוב, בננו־שניות</td>
+</tr>
+<tr>
+<td><code>B/op</code></td>
+<td>בתים שהוקצו בממוצע לסיבוב</td>
+</tr>
+<tr>
+<td><code>allocs/op</code></td>
+<td>מספר ההקצאות לסיבוב; כל אחת היא עבודה עתידית לאוסף הזבל</td>
+</tr>
+</tbody>
+</table>
+<p>רשמי את שלושתם בפתק, יחד עם שם המעבד שמופיע בשורה <code>cpu:</code> בפלט ותאריך הריצה. מספר בלי מכונה הוא חסר
+משמעות. ריצה אחת גם אינה מדידה: השתמשי ב־<code>-count=10</code> ובכלי <code>benchstat</code> כשתרצי להשוות שני מימושים (ראי
+העשרה).</p>
+<h2 id="610-1">6.10 נקודת ביקורת 1</h2>
+<p>זה סוף חלק א. נקודת הביקורת עוברת על הכול מתחילתו, משכפול נקי של המאגר שלך, בלי להסתכל בפתרונות. כל פריט
+צריך לעבוד:</p>
+<ul>
+<li><strong>פרק 3:</strong> הבדיקות הטבלאיות של <code>logstat</code> עוברות.</li>
+<li><strong>פרק 4:</strong> חבילת הבדיקות של <code>ledger</code> עוברת לשני המאגרים, בזיכרון ובקובץ JSON.</li>
+<li><strong>פרק 5:</strong> <code>linkcheck</code> עובר עם <code>go test -race ./...</code>, ובדיקת הדליפות שקטה.</li>
+<li><strong>תצורה:</strong> <code>shorty</code> עולה רק מתצורה בסביבה; בלי <code>SHORTY_BASE_URL</code>, או עם ערך שגוי, הוא מסרב עם הודעה
+  ברורה.</li>
+<li><strong>ממשק:</strong> יצירה, פענוח וסטטיסטיקה עובדים ב־<code>curl</code>, ו־<code>GET /v1/links</code> מחזיר 405.</li>
+<li><strong>לוגים:</strong> כל שורה של בקשה נושאת את אותו <code>request_id</code>, וזה גם הערך בכותרת <code>X-Request-ID</code> של התשובה.</li>
+<li><strong>התאוששות:</strong> handler שזורק panic מחזיר 500, והשירות ממשיך לשרת.</li>
+<li><strong>כיבוי:</strong> Ctrl-C מסיים את הלוג ב־<code>shutting down</code> ואז <code>stopped</code>, ובדיקת הכיבוי מראה שבקשה שבדרך מסיימת.</li>
+<li><strong>מדידה:</strong> <code>make lint test build</code> ירוק, הבנצ'מרק רץ, ופרופיל CPU נשמר.</li>
+<li><strong>בעל פה:</strong> את עונה בקול על שאלות הראיון של פרקים 3 עד 6.</li>
+</ul>
+<p>כל דבר שנכשל נרשם ביומן התקיעות עם התיקון שלו. ולסיום, השאלה שמראיינים אוהבים: תארי בשתי דקות את חייה של
+בקשה אחת ב־<code>shorty</code>. התרשים הזה הוא השלד של התשובה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-mermaid">flowchart LR
+  C[client] --&gt; S[http.Server goroutine]
+  S --&gt; RID[RequestID]
+  RID --&gt; AL[AccessLog]
+  AL --&gt; RC[Recover]
+  RC --&gt; MUX[ServeMux]
+  MUX --&gt; H[links handler]
+  H --&gt; ST[(MemoryStore)]
+  H --&gt; RC
+  AL --&gt; LOG[slog JSON line]
+</code></pre>
+
+
+</div>
+
+<h2 id="_3">סיכום</h2>
+<ul>
+<li>הכול ב־<code>net/http</code> הוא <code>Handler</code>. כל בקשה רצה ב־goroutine משלה, ולכן מצב משותף מוגן.</li>
+<li>הנתב מאז Go 1.22 מתאים מתודה ו־wildcards, הספציפית מנצחת, ו־404 ו־405 מגיעים ממנו.</li>
+<li>ה־middleware היא פונקציה מ־<code>Handler</code> ל־<code>Handler</code>; הסדר: מזהה בחוץ, לוג באמצע, התאוששות בפנים.</li>
+<li>קלט JSON מוגבל בגודל, בלי שדות לא ידועים ובלי ערך שני; שגיאות פנימיות לא יוצאות ללקוח.</li>
+<li>תצורה ממשתני סביבה נבדקת כולה בעלייה, וכל הבעיות מדווחות יחד.</li>
+<li>הספרייה <code>slog</code> כותבת JSON; context handler מוסיף את מזהה הבקשה לכל שורה שנכתבה עם context.</li>
+<li>כיבוי מסודר: אות הופך ל־context, <code>Shutdown</code> מחכה לבקשות שבדרך עד זמן החסד, ו־<code>Close</code> אחריו.</li>
+<li>הכלי pprof על מאזין פרטי בלבד; בנצ'מרק נרשם עם המכונה שבה רץ.</li>
+</ul>
+<h2 id="_4">מונחים לזכור</h2>
+<table>
+<thead>
+<tr>
+<th>מונח בעברית</th>
+<th>באנגלית</th>
+<th>במשפט אחד</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>handler</td>
+<td>handler</td>
+<td>מה שעונה לבקשה: כל מי שמממש <code>ServeHTTP</code></td>
+</tr>
+<tr>
+<td>נתב</td>
+<td>router (mux)</td>
+<td>בוחר handler לפי המתודה והנתיב</td>
+</tr>
+<tr>
+<td>middleware</td>
+<td>middleware</td>
+<td>שכבה שעוטפת handler ופועלת לפניו ואחריו</td>
+</tr>
+<tr>
+<td>מזהה בקשה</td>
+<td>request ID</td>
+<td>ערך שמלווה בקשה אחת בכל שורות הלוג ובין שירותים</td>
+</tr>
+<tr>
+<td>לוג מובנה</td>
+<td>structured log</td>
+<td>רשומה של זוגות מפתח וערך, ולא משפט חופשי</td>
+</tr>
+<tr>
+<td>לוג גישה</td>
+<td>access log</td>
+<td>שורה אחת לכל בקשה: מתודה, תבנית, סטטוס, משך</td>
+</tr>
+<tr>
+<td>משתנה סביבה</td>
+<td>environment variable</td>
+<td>הדרך שבה שירות מקבל את התצורה שלו</td>
+</tr>
+<tr>
+<td>כיבוי מסודר</td>
+<td>graceful shutdown</td>
+<td>הפסקת קבלה, סיום מה שבדרך, ואז יציאה</td>
+</tr>
+<tr>
+<td>זמן חסד</td>
+<td>grace period</td>
+<td>הזמן שבקשות שבדרך מקבלות לסיים בכיבוי</td>
+</tr>
+<tr>
+<td>פרופיל</td>
+<td>profile</td>
+<td>דגימות של היכן תהליך מבזבז זמן או זיכרון</td>
+</tr>
+<tr>
+<td>בנצ'מרק</td>
+<td>benchmark</td>
+<td>פונקציה שמודדת זמן והקצאות לפעולה אחת</td>
+</tr>
+<tr>
+<td>הקצאה</td>
+<td>allocation</td>
+<td>זיכרון שנלקח מהערימה ויעבור לאוסף הזבל</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_5">טעויות נפוצות</h2>
+<ul>
+<li><strong>שרת <code>http.Server</code> בלי זמנים קצובים.</strong> לקוח איטי אחד מחזיק חיבור לנצח. תמיד <code>ReadHeaderTimeout</code> לפחות.</li>
+<li><strong>להפעיל <code>ListenAndServe</code> בלי כיבוי מסודר.</strong> <code>SIGTERM</code> קוטע בקשות באמצע. אות הופך ל־context,
+  ו־<code>Shutdown</code> עם
+  זמן חסד.</li>
+<li><strong>לקרוא ל־<code>Shutdown</code> עם ה־context שכבר בוטל.</strong> החזרה מיידית, והבקשות שבדרך נקטעות. זמן החסד צריך
+  context חדש.</li>
+<li><strong>לפענח עם <code>json.NewDecoder(r.Body)</code> בלי גבול.</strong> גוף של גיגה־בית נקרא כולו לזיכרון. קודם
+  <code>http.MaxBytesReader</code>.</li>
+<li><strong>להגיש pprof על הפורט הציבורי.</strong> הייבוא לבדו רושם נתיבים על <code>DefaultServeMux</code>; מגישים אותו רק על מאזין
+  פרטי.</li>
+<li><strong>לכתוב <code>log.Info</code> במקום <code>log.InfoContext</code> בתוך handler.</strong> השורה יוצאת בלי מזהה הבקשה, והקשר בין השורות
+  אובד.</li>
+<li><strong>להחזיר <code>err.Error()</code> ללקוח.</strong> הודעות פנימיות חושפות כתובות ומבנה. ללקוח הודעה כללית, ללוג הפרטים.</li>
+</ul>
+<h2 id="_6">שאלות ראיון</h2>
+<ol>
+<li><strong>מה קורה כששירות Go מקבל SIGTERM, ומה צריך כדי שלא יאבדו בקשות?</strong>
+   בלי טיפול, התהליך יוצא מיד, וכל בקשה באמצע נקטעת. עם <code>signal.NotifyContext</code> האות מבטל context;
+   <code>Server.Shutdown</code> סוגר את המאזינים, מחכה שה־handlers שבדרך יחזרו, ועוצר כשזמן החסד נגמר, ואז <code>Close</code>
+   חותך את השאר. צריך שזמן החסד יהיה קצר מהזמן שהמערכת מחכה לפני <code>SIGKILL</code>. ו־<code>Shutdown</code> לא מחכה לחיבורים
+   שהשתלטו עליהם ולא ל־goroutines שה־handler הפעיל, ואלה באחריותך.</li>
+</ol>
+<p><strong>המשך:</strong> ומה עם בקשות שעוד בדרך מה־load balancer? הן יגיעו לשירות שכבר סוגר. לכן מסמנים קודם „לא
+   מוכן” בבדיקת המוכנות, מחכים שהניתוב יתעדכן, ורק אז מכבים; Kubernetes ו־probes מגיעים בחלק ה.</p>
+<ol start="2">
+<li>
+<p><strong>איך תבני middleware לשירות, ובאיזה סדר?</strong>
+   פונקציה שמקבלת <code>Handler</code> ומחזירה <code>Handler</code>, ושרשרת שבה הראשונה היא החיצונית. מזהה בקשה בחוץ, כדי שכל
+   מה שאחריו יכתוב אותו; לוג גישה וזמן אחריו; התאוששות מ־panic בפנים, כדי שלוג הגישה יראה את ה־500.
+   לטיפוס שעוטף את ה־<code>ResponseWriter</code> יש <code>Unwrap</code>, אחרת <code>Flush</code> ו־deadlines נשברים. השיקול המרכזי הוא מה
+   כל שכבה צריכה לראות.</p>
+</li>
+<li>
+<p><strong>למה לבדוק את התצורה בעלייה, ולא כשמשתמשים בה?</strong>
+   כי כשל בעלייה נראה מיד, בפריסה, לפני שתנועה מגיעה; כשל בשימוש מופיע שעות אחר כך, בבקשה של לקוח. השירות
+   מסרב לעלות, והפריסה נכשלת בצורה בטוחה. ובונים את הבדיקה כך שתדווח על כל הבעיות בבת אחת. החיסרון: ערך
+   שהשתנה בזמן ריצה לא נקלט בלי הפעלה מחדש, וזו בדרך כלל התנהגות רצויה.</p>
+</li>
+<li>
+<p><strong>למה לוגים מובנים, ומה לא נכנס ללוג?</strong>
+   כי מערכת לוגים יכולה לסנן ולקבץ לפי שדות, ולא לפי משפטים. שאלה כמו „כמה 500 היו בתבנית <code>GET /{code}</code>
+   בשעה האחרונה” הופכת לשאילתה. מזהה בקשה בכל שורה קושר את כל מה שקרה לבקשה אחת. בחוץ נשארים סודות,
+   כותרות אימות ומידע אישי, כי לוגים מועתקים ונשמרים זמן רב.</p>
+</li>
+<li>
+<p><strong>איך תמצאי למה שירות איטי בעומס?</strong>
+   קודם מודדים, לא מנחשים. פרופיל CPU מ־pprof בזמן עומס מראה איפה הזמן הולך, <code>flat</code> מול <code>cum</code>. פרופיל
+   heap ו־<code>allocs</code> מראים לחץ זיכרון, ופרופיל goroutine מראה מה מחכה. אחר כך בנצ'מרק לנתיב החם, עם
+   <code>-benchmem</code>, כדי לתקן ולהוכיח שיפור על אותה מכונה, בכמה ריצות. pprof רק על מאזין פרטי.</p>
+</li>
+</ol>
+<h2 id="obsidian">פתק Obsidian</h2>
+<p>הפתק המוכן נמצא גם כקובץ: <code>obsidian/06-go-http-service.md</code>. זה תוכנו:</p>
+<ul>
+<li><strong>Handler:</strong> כל מה שעונה לבקשה; כל בקשה ב־goroutine משלה, ולכן מצב משותף מוגן.</li>
+<li><strong>נתב:</strong> תבנית עם מתודה ו־wildcards; הספציפית מנצחת; 404 ו־405 עם <code>Allow</code> מגיעים ממנו.</li>
+<li><strong>middleware:</strong> מזהה בחוץ, לוג באמצע, התאוששות בפנים.</li>
+<li><strong>JSON נכנס:</strong> גבול גודל, בלי שדות לא ידועים, בלי ערך שני.</li>
+<li><strong>שגיאות:</strong> <code>HTTPError</code> יוצאת כמו שהיא; כל השאר 500 כללי, והפרטים ללוג.</li>
+<li><strong>תצורה:</strong> נבדקת כולה בעלייה, כל הבעיות יחד, <code>lookup</code> מוזרק לבדיקות.</li>
+<li><strong>לוגים:</strong> JSON עם <code>slog</code>; מזהה הבקשה מה־context; רק הגרסאות עם context.</li>
+<li><strong>כיבוי:</strong> אות הופך ל־context, <code>Shutdown</code> עם context חדש לזמן החסד, ו־<code>Close</code> אחריו.</li>
+<li><strong>pprof:</strong> מאזין פרטי בלבד; <code>flat</code> מול <code>cum</code>.</li>
+<li><strong>בנצ'מרק:</strong> <code>b.Loop()</code>, שלושה מספרים, ותמיד עם שם המכונה.</li>
+<li><strong>שאלה פתוחה:</strong> ___</li>
+</ul>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">mux.HandleFunc(&quot;GET /{code}&quot;, h)        r.PathValue(&quot;code&quot;)   r.Pattern
+type Middleware func(http.Handler) http.Handler
+r.Body = http.MaxBytesReader(w, r.Body, n); dec.DisallowUnknownFields()
+slog.New(slog.NewJSONHandler(w, &amp;slog.HandlerOptions{Level: lvl}))   log.InfoContext(ctx, ...)
+ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM); context.AfterFunc(ctx, stop)
+srv.Shutdown(context.WithTimeout(context.WithoutCancel(ctx), grace))  then srv.Close()
+ReadHeaderTimeout ReadTimeout WriteTimeout IdleTimeout
+httptest.NewRecorder()  httptest.NewServer(h)  slog.New(slog.DiscardHandler)
+go tool pprof -top 'http://127.0.0.1:6060/debug/pprof/profile?seconds=10'
+go test -run '^$' -bench Resolve -benchmem ./internal/app/
+my bench: ___ ns/op  ___ B/op  ___ allocs/op  on cpu ___  date ___
+my profile top function: ___
+</code></pre>
+
+
+</div>
+
+<h2 id="_7">תרגיל</h2>
+<p><strong>מטרה:</strong> לבנות את <code>shorty</code>, שירות קיצור כתובות עם יצירה, פענוח וסטטיסטיקה, מאגר בזיכרון מאחורי ממשק,
+תצורה ממשתני סביבה, שלוש שכבות middleware, כיבוי מסודר, pprof פרטי, בדיקות ובנצ'מרק, ולעבור את נקודת
+הביקורת.
+<strong>זמן:</strong> ארבעה ימי לימוד, ימים 11 עד 14, כ־55, 65 ו־60 דקות בנייה ויום ביקורת קל.
+<strong>ידע מקדים:</strong> הפרק, פרקים 3 עד 5, ו־<code>build-essential</code> מותקן.</p>
+<p>הצעדים, קוד ההתחלה, הרמזים והפתרון נמצאים
+ב־<a href="../exercises/ch06-shorty/README.md"><code>exercises/ch06-shorty/README.md</code></a>.</p>
+<p><strong>קריטריון סיום:</strong></p>
+<ul>
+<li>קוד מקוצר נוצר ומפוענח בבקשה ידנית, ותצורה חסרה או שגויה עוצרת את העלייה עם הודעה ברורה.</li>
+<li>לכל שורות הלוג של בקשה יש אותו מזהה; בקשה שבדרך מסיימת בזמן כיבוי; handler שזורק panic מחזיר 500
+  והשירות ממשיך.</li>
+<li>היעדים <code>make lint</code>, <code>make test</code> ו־<code>make build</code> ירוקים, ו־<code>/debug/pprof</code> לא קיים על הפורט הציבורי.</li>
+<li>פרופיל CPU נשמר והפונקציה העליונה שלו רשומה בפתק; תוצאת הבנצ'מרק רשומה עם המכונה.</li>
+<li>כל רשימת נקודת הביקורת של סעיף 6.10 עובדת בלי להסתכל בפתרונות.</li>
+</ul>
+<h2 id="_8">העשרה אופציונלית</h2>
+<ul>
+<li>הפוסט „Routing Enhancements for Go 1.22” בבלוג של Go מסביר את כללי הקדימות של הנתב, כולל הנימוק מאחורי
+  ההתנגשויות.</li>
+<li>המדריך „A Guide to Writing slog Handlers” במאגר הדוגמאות של Go מראה איך כותבים handler נכון, כולל
+  טיפול בקבוצות, שה־handler של <code>shorty</code> עושה בפשטות.</li>
+<li>הכלי <code>benchstat</code> (<code>golang.org/x/perf/cmd/benchstat</code>) משווה שתי סדרות של ריצות בנצ'מרק ואומר אם ההבדל
+  מובהק. נסי: שנו את ה־<code>RWMutex</code> ב־<code>MemoryStore</code> ל־<code>Mutex</code> רגיל, ומדדי.</li>
+<li>פרופיל <code>mutex</code> ו־<code>block</code> צריכים הפעלה מפורשת (<code>runtime.SetMutexProfileFraction</code>). הוסיפי אותה מאחורי
+  משתנה סביבה, ובדקי אם יש תחרות על הנעילה תחת עומס.</li>
+</ul>
+</main>
+<nav class="bottom"><a href="index.html">תוכן העניינים</a> · <a href="05-go-concurrency.html">← פרק 5: מקביליות ב־Go</a> · <a href="07-python-typed-packaged.html">פרק 7: Python עם טיפוסים, אריזה ובדיקות →</a></nav>
+<script type="module">
+  // Render ```mermaid blocks in the browser (needs internet once; cached afterwards).
+  const blocks = document.querySelectorAll("pre > code.language-mermaid");
+  if (blocks.length) {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs")).default;
+    for (const code of blocks) {
+      const div = document.createElement("div");
+      div.className = "mermaid";
+      div.textContent = code.textContent;
+      code.parentElement.replaceWith(div);
+    }
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run();
+  }
+</script>
+</body>
+</html>

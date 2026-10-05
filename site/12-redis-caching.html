@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>פרק 12: Redis ומטמון</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="top"><a href="index.html">תוכן העניינים</a> · <a href="11-postgres-transactions-migrations.html">← פרק 11: PostgreSQL: טרנזקציות, נעילות ומיגרציות</a> · <a href="TERMINOLOGY.html">Terminology policy (book 2) →</a></nav>
+<main class="book">
+<div class="toc"><span class="toctitle">תוכן הפרק</span><ul>
+<li><a href="#_1">מה נלמד בפרק</a></li>
+<li><a href="#_2">ידע מקדים</a></li>
+<li><a href="#121-redis">12.1 Redis בקונטיינר ומבני הנתונים</a><ul>
+<li><a href="#1211">12.1.1 הקונטיינרים</a></li>
+<li><a href="#1212-ttl-incr">12.1.2 מחרוזות, TTL ו־INCR</a></li>
+<li><a href="#1213-set-nx-px">12.1.3 SET NX PX: מפתח שרק אחד מקבל</a></li>
+<li><a href="#1214-hash">12.1.4 hash וקבוצה ממוינת</a></li>
+<li><a href="#1215-go-redis">12.1.5 go-redis</a></li>
+</ul>
+</li>
+<li><a href="#122-cache-aside">12.2 cache-aside</a><ul>
+<li><a href="#1221">12.2.1 מסלול הקריאה</a></li>
+<li><a href="#1222">12.2.2 מסלול הכתיבה: למחוק, לא לעדכן</a></li>
+<li><a href="#1223-commit">12.2.3 למה אחרי ה־commit</a></li>
+<li><a href="#1224">12.2.4 דפוסים אחרים, בקצרה</a></li>
+</ul>
+</li>
+<li><a href="#123-ttl">12.3 TTL, פינוי ואי־תוקף</a><ul>
+<li><a href="#1231-ttl">12.3.1 TTL הוא רשת הביטחון</a></li>
+<li><a href="#1232">12.3.2 המרוץ בין קריאה ישנה לאי־תוקף</a></li>
+<li><a href="#1233-ttl">12.3.3 פיזור אקראי ב־TTL</a></li>
+<li><a href="#1234">12.3.4 פינוי: מה קורה כשהזיכרון נגמר</a></li>
+<li><a href="#1235">12.3.5 יחס פגיעות</a></li>
+</ul>
+</li>
+<li><a href="#124-singleflight">12.4 התפרצות מטמון ו־singleflight</a><ul>
+<li><a href="#1241">12.4.1 מה זה</a></li>
+<li><a href="#1242">12.4.2 למדוד</a></li>
+<li><a href="#1243-singleflight">12.4.3 singleflight</a></li>
+<li><a href="#1244-singleflight">12.4.4 מה singleflight לא פותר</a></li>
+<li><a href="#1245">12.4.5 בין תהליכים: מפתח נעילה ורענון מוקדם</a></li>
+</ul>
+</li>
+<li><a href="#125">12.5 מונים ופעולות אטומיות</a><ul>
+<li><a href="#1251-incr">12.5.1 INCR מול „קרא ואז כתוב”</a></li>
+<li><a href="#1252-lua">12.5.2 כמה פקודות כפעולה אחת: Lua</a></li>
+</ul>
+</li>
+<li><a href="#126">12.6 מתי לא לשים מטמון</a></li>
+<li><a href="#_3">סיכום</a></li>
+<li><a href="#_4">מונחים לזכור</a></li>
+<li><a href="#_5">טעויות נפוצות</a></li>
+<li><a href="#_6">שאלות ראיון</a></li>
+<li><a href="#obsidian">פתק Obsidian</a></li>
+<li><a href="#_7">תרגיל</a></li>
+<li><a href="#_8">העשרה אופציונלית</a></li>
+</ul>
+</div>
+
+<h1 id="12-redis">פרק 12: Redis ומטמון</h1>
+<p>מטמון נראה כמו האופטימיזציה הקלה ביותר בעולם: שומרים תשובה בזיכרון ומחזירים אותה בפעם הבאה. בפועל הוא
+מוסיף מקור אמת שני שמתיישן, תלות שיכולה ליפול, ותקלות שמופיעות רק תחת עומס. בראיון לתפקיד backend
+בכיר לא ישאלו אותך איך כותבים <code>GET</code>; ישאלו מה קורה כשהמפתח החם פג באמצע שעת שיא, ולמה מוחקים אחרי
+הכתיבה ולא לפניה. בפרק הזה תבני מטמון מעל מאגר המוצרים, תראי התפרצות מטמון במספרים שלך, ותתקני אותה.</p>
+<h2 id="_1">מה נלמד בפרק</h2>
+<ul>
+<li>להריץ Redis בקונטיינר, ולהכיר את מבני הנתונים שבאמת משמשים ב־backend.</li>
+<li>את דפוס cache-aside: מסלול הקריאה, מסלול הכתיבה, ולמה מוחקים אחרי ה־commit.</li>
+<li>זמן חיים (TTL) עם פיזור אקראי, מדיניות פינוי, והמרוץ שה־TTL חוסם.</li>
+<li>התפרצות מטמון: למדוד אותה, ולתקן אותה עם singleflight.</li>
+<li>מונים אטומיים עם <code>INCR</code>, וסקריפט Lua ראשון כהקדמה לפרק 16.</li>
+<li>מתי מטמון מזיק, ואיך מודדים יחס פגיעות במקום לנחש.</li>
+</ul>
+<h2 id="_2">ידע מקדים</h2>
+<ul>
+<li>פרק 2, סעיף 2.4 (Docker Desktop): שני קונטיינרים ירוצו מקובץ compose אחד.</li>
+<li>פרק 4, סעיף 4.5 (עטיפת שגיאות) וסעיף 4.7 (generics): העוזר הגנרי של הפרק בנוי על שניהם.</li>
+<li>פרק 5, סעיפים 5.4 ו־5.5 (context ו־WaitGroup), וסעיף 5.8 (<code>-race</code>): הבדיקות מריצות עשרות goroutines.</li>
+<li>פרק 10, סעיף 10.7 (pgx ו־<code>pgxpool</code>): התרגיל כולל מאגר מוצרים קטן משלו, שמשקף את טבלת <code>products</code>
+  ואת ה־repository מפרק 10. הוא עצמאי, ולא מייבא דבר מהתרגיל של פרק 10.</li>
+<li>לא צריך <code>redis-cli</code> מותקן: הוא רץ בתוך הקונטיינר.</li>
+</ul>
+<h2 id="121-redis">12.1 Redis בקונטיינר ומבני הנתונים</h2>
+<p>Redis הוא שרת מבני נתונים בזיכרון: מפתח הוא מחרוזת, והערך הוא מחרוזת, hash, רשימה, קבוצה או קבוצה
+ממוינת. כל פקודה רצה עד סופה לפני שהבאה מתחילה, ולכן כל פקודה בודדת היא אטומית. זו התכונה החשובה
+ביותר שלו בפרק הזה, יותר מהמהירות.</p>
+<p>בסקר המודעות של הספר Redis הופיע במפורש בחמש מתוך 30 מודעות בלבד. מנגד, אתרי הכנה לראיונות מציינים
+„מטמון LRU עם TTL” ו„מגביל קצב” כשאלות קוד נפוצות בסבבי backend, אם כי בביטחון נמוך עד בינוני. המקור:
+סעיפים 1.4 ו־3.2 בקובץ <code>00-stage1/01-market-research.md</code>.</p>
+<h3 id="1211">12.1.1 הקונטיינרים</h3>
+<p>התרגיל מביא קובץ compose עם PostgreSQL ו־Redis. זה החלק של Redis, מהקובץ <code>data/compose.yaml</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-yaml">  cache:
+    image: redis:8.10.2
+    # A cache, not a database: a memory limit, an eviction policy, and no persistence.
+    command: [&quot;redis-server&quot;, &quot;--maxmemory&quot;, &quot;64mb&quot;, &quot;--maxmemory-policy&quot;, &quot;allkeys-lru&quot;, &quot;--save&quot;, &quot;&quot;, &quot;--appendonly&quot;, &quot;no&quot;]
+    ports:
+      - &quot;127.0.0.1:6312:6379&quot;
+</code></pre>
+
+
+</div>
+
+<p>שלוש ההחלטות שבשורת הפקודה הן החלטות של מטמון, לא של מסד נתונים: תקרת זיכרון, מדיניות שאומרת מה
+לזרוק כשמגיעים אליה, ובלי כתיבה לדיסק. סעיף 12.3 חוזר אליהן. הגרסה מקובעת בקובץ, נכון לאוקטובר 2026
+(ראי נספח ג). מפעילים מתוך תיקיית הפרק, ופותחים את הלקוח של Redis בתוך הקונטיינר:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">cd ~/senior-course/ch12
+docker compose -p ch12 -f data/compose.yaml up -d --wait
+docker compose -p ch12 -f data/compose.yaml exec cache redis-cli
+</code></pre>
+
+
+</div>
+
+<h3 id="1212-ttl-incr">12.1.2 מחרוזות, TTL ו־<code>INCR</code></h3>
+<p>מחרוזת היא מבנה הנתונים של המטמון: ערך אחד, בדרך כלל JSON, עם זמן חיים (TTL). הקלידי בתוך <code>redis-cli</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">127.0.0.1:6379&gt; SET product:42 hello EX 60
+OK
+127.0.0.1:6379&gt; GET product:42
+&quot;hello&quot;
+127.0.0.1:6379&gt; TTL product:42
+(integer) 60
+127.0.0.1:6379&gt; GET product:43
+(nil)
+127.0.0.1:6379&gt; INCR views:42
+(integer) 1
+127.0.0.1:6379&gt; INCR views:42
+(integer) 2
+</code></pre>
+
+
+</div>
+
+<p>האפשרות <code>EX 60</code> קובעת זמן חיים בשניות, ו־<code>PX</code> במילישניות. מפתח שאין לו ערך מחזיר <code>(nil)</code>, ומ־Go זו
+תהיה שגיאה מיוחדת. הפקודה <code>INCR</code> יוצרת מונה מאפס אם אינו קיים ומגדילה אותו באחד, בפקודה אחת.</p>
+<h3 id="1213-set-nx-px">12.1.3 <code>SET NX PX</code>: מפתח שרק אחד מקבל</h3>
+<p>האפשרות <code>NX</code> פירושה „כתבי רק אם המפתח לא קיים”. יחד עם <code>PX</code> זו נעילה פשוטה עם תפוגה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">127.0.0.1:6379&gt; SET lock:product:42 worker-a NX PX 5000
+OK
+127.0.0.1:6379&gt; SET lock:product:42 worker-b NX PX 5000
+(nil)
+127.0.0.1:6379&gt; PTTL lock:product:42
+(integer) 4714
+</code></pre>
+
+
+</div>
+
+<p>הראשונה קיבלה את המפתח, והשנייה קיבלה <code>(nil)</code> כי הוא כבר קיים. אם מחזיקת המפתח קורסת, התפוגה משחררת
+אותו אחרי חמש שניות. נשתמש בזה בסעיף 12.4, ופרק 18 ידון במה שנעילה כזו לא מבטיחה.</p>
+<h3 id="1214-hash">12.1.4 hash וקבוצה ממוינת</h3>
+<p>שני מבנים נוספים שתפגשי בכל שירות:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">127.0.0.1:6379&gt; HSET product:42:h name Lamp price_cents 1554
+(integer) 2
+127.0.0.1:6379&gt; HGET product:42:h price_cents
+&quot;1554&quot;
+127.0.0.1:6379&gt; ZINCRBY top:views 3 product:42
+&quot;3&quot;
+127.0.0.1:6379&gt; ZINCRBY top:views 5 product:7
+&quot;5&quot;
+127.0.0.1:6379&gt; ZINCRBY top:views 1 product:42
+&quot;4&quot;
+127.0.0.1:6379&gt; ZREVRANGE top:views 0 -1 WITHSCORES
+1) &quot;product:7&quot;
+2) &quot;5&quot;
+3) &quot;product:42&quot;
+4) &quot;4&quot;
+</code></pre>
+
+
+</div>
+
+<table>
+<thead>
+<tr>
+<th>מבנה</th>
+<th>פקודות</th>
+<th>שימוש טיפוסי ב־backend</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>מחרוזת</td>
+<td><code>SET</code>, <code>GET</code>, <code>INCR</code></td>
+<td>ערך שמור ב־JSON, מונה, נעילה</td>
+</tr>
+<tr>
+<td>hash</td>
+<td><code>HSET</code>, <code>HGET</code>, <code>HINCRBY</code></td>
+<td>אובייקט שמעדכנים שדה אחד שלו, מונים לפי שדה</td>
+</tr>
+<tr>
+<td>קבוצה ממוינת</td>
+<td><code>ZADD</code>, <code>ZINCRBY</code>, <code>ZREVRANGE</code></td>
+<td>דירוג, „עשרת הנצפים”, חלון זמן לפי ציון</td>
+</tr>
+<tr>
+<td>רשימה</td>
+<td><code>LPUSH</code>, <code>RPOP</code></td>
+<td>תור פשוט; בפרק 13 תראי למה Kafka מתאים יותר</td>
+</tr>
+</tbody>
+</table>
+<p>המטמון של הפרק שומר את המוצר כמחרוזת JSON אחת. hash מתאים כשמעדכנים שדה בודד, אבל בשביל מטמון
+שנמחק בכל כתיבה, מחרוזת אחת פשוטה יותר. יוצאים מהלקוח עם <code>exit</code>.</p>
+<h3 id="1215-go-redis">12.1.5 go-redis</h3>
+<p>הספרייה שמדברת עם Redis מ־Go היא go-redis, והגרסה שלה מקובעת בקובץ המודול של התרגיל. הלקוח מחזיק pool של
+חיבורים, בדיוק כמו <code>pgxpool</code> מפרק 10, ולכן יוצרים אחד לתהליך ומשתפים אותו. ההחלטה המעניינת היא מפתח
+חסר: go-redis מחזירה אותו כשגיאה בשם <code>redis.Nil</code>. בקובץ <code>internal/cache/redis.go</code> היא הופכת לשגיאה
+שלנו:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func (s *RedisStore) Get(ctx context.Context, key string) ([]byte, error) {
+    b, err := s.rdb.Get(ctx, key).Bytes()
+    if errors.Is(err, redis.Nil) {
+        return nil, ErrMiss
+    }
+    return b, err
+}
+</code></pre>
+
+
+</div>
+
+<blockquote>
+<p><strong>איך Rust עושה את זה:</strong> שם היית מבקשת מהספרייה ערך אופציונלי, <code>Option&lt;Vec&lt;u8&gt;&gt;</code>, ומפתח חסר היה
+פשוט <code>None</code>: ערך, לא שגיאה. ב־Go „לא נמצא” הוא ערך שגיאה מוסכם שבודקים עם <code>errors.Is</code>. ההבדל חשוב: פספוס הוא מצב רגיל של
+מטמון, ושגיאה אמיתית (Redis לא עונה) מחייבת התנהגות אחרת לגמרי.</p>
+</blockquote>
+<h2 id="122-cache-aside">12.2 cache-aside</h2>
+<h3 id="1221">12.2.1 מסלול הקריאה</h3>
+<p>בדפוס cache-aside האפליקציה, לא המטמון, אחראית על הכול. בקריאה: לחפש במטמון; בפגיעה (hit) להחזיר; בפספוס
+(miss) לקרוא מהמסד, לשמור במטמון עם TTL, ולהחזיר. המטמון לא יודע שהמסד קיים. זה הדפוס הנפוץ ביותר,
+כי הוא עובד מול כל מסד ולא דורש מהמטמון שום היגיון.</p>
+<p>זה מסלול הקריאה מהקובץ <code>productcache.go</code>, הגרסה שתכתבי ביד ביום הראשון:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func (c *ProductCache) Get(ctx context.Context, id int64) (Product, error) {
+    key := ProductKey(c.prefix, id)
+    raw, err := c.rdb.Get(ctx, key).Bytes()
+    switch {
+    case err == nil:
+        var p Product
+        if json.Unmarshal(raw, &amp;p) == nil {
+            return p, nil // hit
+        }
+        // An entry we cannot decode is treated as a miss and overwritten below.
+    case errors.Is(err, redis.Nil):
+        // miss
+    default:
+        // Redis is down or slow: serve from the database and do not try to fill.
+        return c.store.GetProduct(ctx, id)
+    }
+
+    p, err := c.store.GetProduct(ctx, id)
+    if err != nil {
+        return Product{}, err // not-found is not cached: see section 12.6
+    }
+    if raw, err := json.Marshal(p); err == nil {
+        // A failed fill is not a failed read: the next reader simply misses again.
+        _ = c.rdb.Set(ctx, key, raw, cache.Jittered(c.ttl, c.jitter)).Err()
+    }
+    return p, nil
+}
+</code></pre>
+
+
+</div>
+
+<p>שלוש החלטות בקוד הזה, וכל אחת שווה שאלה בראיון:</p>
+<ul>
+<li><strong>Redis שלא עונה אינו סיבה להיכשל.</strong> הקריאה עוברת ישר למסד. המטמון הוא אופטימיזציה, והשירות צריך
+  לעבוד בלעדיו, גם אם לאט יותר.</li>
+<li><strong>כתיבה שנכשלה למטמון אינה קריאה שנכשלה.</strong> המשתמשת קיבלה את המוצר; הקוראת הבאה פשוט תפספס שוב.</li>
+<li><strong>ערך שאי אפשר לפענח הוא פספוס.</strong> זה קורה אחרי פריסה ששינתה את מבנה ה־struct. הערך הישן נדרס, ולא
+  מפיל את הבקשה.</li>
+</ul>
+<h3 id="1222">12.2.2 מסלול הכתיבה: למחוק, לא לעדכן</h3>
+<p>בכתיבה יש שתי אפשרויות: לעדכן את הערך במטמון, או למחוק אותו ולתת לקריאה הבאה למלא. cache-aside מוחק,
+משלוש סיבות:</p>
+<ul>
+<li><strong>שני כותבים במקביל.</strong> כותבת א' מעדכנת את המסד למחיר 10, כותבת ב' למחיר 20. אם כל אחת גם כותבת
+  למטמון, הסדר ביניהן במטמון יכול להתהפך, ואז המסד אומר 20 והמטמון אומר 10 עד סוף ה־TTL. מחיקה היא
+  פעולה שאין לה סדר: שתי מחיקות משאירות את אותו מצב.</li>
+<li><strong>הצורה השמורה מחושבת.</strong> ערך במטמון הוא לעתים קרובות צירוף של כמה טבלאות. מי שכותבת שורה אחת לא תמיד
+  יודעת לבנות אותו.</li>
+<li><strong>עצלות.</strong> מוצר שמתעדכן מאה פעמים ונקרא פעם אחת לא צריך מאה כתיבות למטמון.</li>
+</ul>
+<p>זה מסלול הכתיבה מאותו קובץ:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func (c *ProductCache) UpdatePrice(ctx context.Context, id, priceCents int64) error {
+    if err := c.store.UpdatePrice(ctx, id, priceCents); err != nil {
+        return err
+    }
+    // After the commit, never before: a delete inside the transaction lets a reader
+    // refill the old row before the commit makes the new one visible.
+    if err := c.rdb.Del(ctx, ProductKey(c.prefix, id)).Err(); err != nil {
+        return fmt.Errorf(&quot;price of %d updated, but invalidation failed (the TTL will expire it): %w&quot;, id, err)
+    }
+    return nil
+}
+</code></pre>
+
+
+</div>
+
+<h3 id="1223-commit">12.2.3 למה אחרי ה־commit</h3>
+<p>הפונקציה <code>UpdatePrice</code> של המאגר עוטפת את העדכון בטרנזקציה, וכשהיא מחזירה <code>nil</code> השינוי כבר מחויב. נניח
+שהיינו מוחקים מהמטמון לפני כן, בתוך הטרנזקציה. בין המחיקה ל־commit השורה החדשה עדיין לא נראית לאף
+אחד (פרק 11 מסביר למה). קוראת שמגיעה בדיוק אז מפספסת, קוראת מהמסד את המחיר הישן, וממלאת בו את המטמון.
+ה־commit מגיע, ואיש כבר לא מוחק: הערך הישן יחיה עד סוף ה־TTL.</p>
+<p>אחרי ה־commit, כל קוראת שמפספסת רואה את השורה החדשה. נשאר מקרה אחד, עדין יותר, וסעיף 12.3.2 עוסק בו.
+ומה אם המחיקה עצמה נכשלת? השינוי במסד כבר קרה, ולכן הפונקציה מחזירה שגיאה שאומרת בדיוק את זה, וה־TTL
+הוא רשת הביטחון.</p>
+<h3 id="1224">12.2.4 דפוסים אחרים, בקצרה</h3>
+<table>
+<thead>
+<tr>
+<th>דפוס</th>
+<th>מי ממלא את המטמון</th>
+<th>מה מקבלים</th>
+<th>מה משלמים</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>cache-aside</td>
+<td>האפליקציה, בפספוס</td>
+<td>פשוט, עובד מול כל מסד</td>
+<td>פספוס ראשון איטי, חלון של ערך ישן</td>
+</tr>
+<tr>
+<td>read-through</td>
+<td>ספריית המטמון, בפספוס</td>
+<td>קוד קורא נקי</td>
+<td>המטמון צריך לדעת לטעון</td>
+</tr>
+<tr>
+<td>write-through</td>
+<td>הכותבת, למטמון ולמסד יחד</td>
+<td>קריאה טרייה מיד</td>
+<td>כל כתיבה איטית יותר, ערכים שאיש לא קורא</td>
+</tr>
+<tr>
+<td>write-behind</td>
+<td>המטמון, למסד באיחור</td>
+<td>כתיבות מהירות מאוד</td>
+<td>אובדן נתונים אם המטמון נופל לפני הכתיבה</td>
+</tr>
+</tbody>
+</table>
+<p>העוזר שתבני ביום השני הוא בעצם read-through קטן: הקוראת מוסרת לו פונקציית טעינה, והוא מחליט מתי לקרוא לה.</p>
+<h2 id="123-ttl">12.3 TTL, פינוי ואי־תוקף</h2>
+<h3 id="1231-ttl">12.3.1 TTL הוא רשת הביטחון</h3>
+<p>אי־תוקף (invalidation) מפורש מטפל במקרה הרגיל. ה־TTL מטפל בכל השאר: מחיקה שנכשלה, כותבת שעוקפת את הקוד
+שלך (מיגרציה, תיקון ידני ב־psql), ומרוץ שעוד רגע תראי. בלי TTL, כל אחד מאלה משאיר ערך שגוי לתמיד.
+ה־TTL הוא גם החוזה מול המוצר: „מחיר יכול להיות ישן עד דקה” הוא משפט שמישהי צריכה לאשר.</p>
+<h3 id="1232">12.3.2 המרוץ בין קריאה ישנה לאי־תוקף</h3>
+<p>גם כשמוחקים אחרי ה־commit יש חלון אחד. קוראת מפספסת ומתחילה לקרוא מהמסד. באמצע, כותבת מחייבת מחיר חדש
+ומוחקת את המפתח, שעוד לא קיים. ואז הקוראת, עם השורה הישנה בידיה, ממלאת את המטמון:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-mermaid">sequenceDiagram
+    participant R as Reader
+    participant C as Redis
+    participant DB as PostgreSQL
+    participant W as Writer
+    R-&gt;&gt;C: GET (miss)
+    R-&gt;&gt;DB: SELECT (old price)
+    W-&gt;&gt;DB: UPDATE, COMMIT (new price)
+    W-&gt;&gt;C: DEL (nothing to delete)
+    R-&gt;&gt;C: SET old price, TTL
+    Note over C: stale until the TTL expires
+</code></pre>
+
+
+</div>
+
+<p>הבדיקה <code>TestStaleFillIsBoundedByTTL</code> בקובץ <code>internal/cache/cache_test.go</code> משחזרת את הרצף צעד אחר צעד,
+עם ערוצים במקום תזמון מזל. זה הלב שלה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    &lt;-read
+    source.Store(&quot;new&quot;)                            // 2a. the writer commits
+    if err := c.Invalidate(ctx, key); err != nil { // 2b. and invalidates: nothing to delete yet
+        t.Fatal(err)
+    }
+    close(release)
+    if v := &lt;-done; v != &quot;old&quot; {
+        t.Fatalf(&quot;slow reader returned %q, want old&quot;, v)
+    }
+
+    fresh := func(context.Context) (string, error) { return source.Load().(string), nil }
+    if v, _ := c.Get(ctx, key, fresh); v != &quot;old&quot; {
+        t.Fatalf(&quot;right after the race Get = %q, want the stale old&quot;, v)
+    }
+    time.Sleep(ttl + 100*time.Millisecond)
+    if v, _ := c.Get(ctx, key, fresh); v != &quot;new&quot; {
+        t.Errorf(&quot;after the TTL Get = %q, want new&quot;, v)
+    }
+</code></pre>
+
+
+</div>
+
+<p>החלון צר: הקוראת צריכה להתחיל לפני הכתיבה ולסיים אחריה, ובמערכת אמיתית זה נדיר. אבל „נדיר” במיליון
+בקשות ביום הוא „כמה פעמים ביום”. אין כאן תיקון פשוט; יש גבול: ה־TTL קובע כמה זמן הערך השגוי יכול לחיות.
+לכן ה־TTL נבחר לפי כמה התיישנות מותרת, לא לפי כמה זיכרון יש. מי שצריכה יותר מזה משתמשת בגרסה בתוך
+הערך, או לא שמה מטמון (סעיף 12.6).</p>
+<blockquote>
+<p><strong>שימי לב:</strong> מחיקה כפולה (delayed double delete) היא תיקון שתמצאי ברשת: למחוק שוב כמה מאות מילישניות
+אחרי הכתיבה. היא מצמצמת את החלון, לא סוגרת אותו, ומוסיפה עבודת רקע. ה־TTL עדיין נדרש.</p>
+</blockquote>
+<h3 id="1233-ttl">12.3.3 פיזור אקראי ב־TTL</h3>
+<p>אם אלף מפתחות נטענו יחד, למשל אחרי פריסה שהתחילה עם מטמון ריק, ולכולם TTL של דקה בדיוק, הם יפוגו יחד
+בעוד דקה. כל הפספוסים יגיעו למסד באותה שנייה. התיקון הוא פיזור אקראי (jitter) קטן לכל TTL. מהקובץ
+<code>internal/cache/ttl.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func Jittered(base, jitter time.Duration) time.Duration {
+    if jitter &lt;= 0 {
+        return base
+    }
+    return base + rand.N(jitter)
+}
+</code></pre>
+
+
+</div>
+
+<p>הפונקציה <code>rand.N</code> מהחבילה <code>math/rand/v2</code> גנרית, ולכן היא מקבלת <code>time.Duration</code> ישירות. בתרגיל ה־TTL הוא
+דקה עם עד עשר שניות פיזור, והבדיקה <code>TestTTLIsSetWithJitter</code> קוראת את הזמן שנשאר עם <code>PTTL</code> ומוודאת
+שהוא בטווח.</p>
+<h3 id="1234">12.3.4 פינוי: מה קורה כשהזיכרון נגמר</h3>
+<p>הפקודה <code>maxmemory</code> קובעת תקרה, ו־<code>maxmemory-policy</code> קובעת מה לזרוק כשמגיעים אליה. לפי התיעוד של Redis
+בעמוד „Key eviction”, נכון לאוקטובר 2026, אלה המדיניות:</p>
+<table>
+<thead>
+<tr>
+<th>מדיניות</th>
+<th>מה נזרק</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>noeviction</code></td>
+<td>שום דבר: פקודות שמוסיפות נתונים נכשלות בשגיאה, קריאות ממשיכות</td>
+</tr>
+<tr>
+<td><code>allkeys-lru</code></td>
+<td>המפתח שלא נגעו בו הכי הרבה זמן, מכל המפתחות</td>
+</tr>
+<tr>
+<td><code>allkeys-lfu</code></td>
+<td>המפתח שנקרא הכי מעט, לפי מונה תדירות שדועך עם הזמן</td>
+</tr>
+<tr>
+<td><code>allkeys-lrm</code></td>
+<td>המפתח שלא נכתב הכי הרבה זמן (חדש ב־Redis 8.6)</td>
+</tr>
+<tr>
+<td><code>allkeys-random</code></td>
+<td>מפתח אקראי</td>
+</tr>
+<tr>
+<td><code>volatile-lru</code>, <code>volatile-lfu</code>, <code>volatile-lrm</code>, <code>volatile-random</code></td>
+<td>כמו הקודמות, רק מבין המפתחות שיש להם TTL</td>
+</tr>
+<tr>
+<td><code>volatile-ttl</code></td>
+<td>המפתח עם ה־TTL הקצר ביותר שנשאר</td>
+</tr>
+</tbody>
+</table>
+<p>ברירת המחדל היא <code>noeviction</code>, ובדקתי אותה על ה־image המקובע. זו ברירת מחדל נכונה למסד נתונים ושגויה
+למטמון: כשהזיכרון מתמלא, כל <code>SET</code> נכשל. לכן קובץ ה־compose קובע <code>allkeys-lru</code>, שהתיעוד ממליץ עליה
+כברירת מחדל כשחלק קטן מהמפתחות נקרא הרבה יותר מהשאר. מדיניות <code>volatile</code> מתנהגת כמו <code>noeviction</code> כשלאף
+מפתח אין TTL, מלכודת קלאסית.</p>
+<p>שני פרטים מהתיעוד ששווה לזכור. ה־LRU של Redis מקורב: הוא דוגם כמה מפתחות אקראיים (<code>maxmemory-samples</code>,
+ברירת מחדל 5) וזורק את הישן מביניהם. ובשירות שמשמש גם כמטמון וגם כמאגר של מפתחות שאסור לאבד, התיעוד
+ממליץ על שני שרתים נפרדים ולא על מדיניות <code>volatile</code>.</p>
+<h3 id="1235">12.3.5 יחס פגיעות</h3>
+<p>מטמון בלי מדידה הוא ניחוש. Redis סופר פגיעות ופספוסים בכל השרת:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">docker compose -p ch12 -f data/compose.yaml exec cache redis-cli INFO stats | grep -E 'keyspace_(hits|misses)|evicted_keys'
+</code></pre>
+
+
+</div>
+
+<p>יחס הפגיעות הוא פגיעות חלקי סך הבדיקות. אבל המספר הזה כולל את כל המפתחות של כל השירותים, ולכן העוזר
+של התרגיל סופר גם בעצמו, לכל סוג ערך. מהקובץ <code>internal/cache/cache.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func (s Stats) HitRatio() float64 {
+    if total := s.Hits + s.Misses; total &gt; 0 {
+        return float64(s.Hits) / float64(total)
+    }
+    return 0
+}
+</code></pre>
+
+
+</div>
+
+<p>בפרק 24 המונים האלה יהפכו למדדים ב־Prometheus. כשהיחס נמוך, בדקי קודם את <code>evicted_keys</code>: הרבה פינויים
+אומרים שהמטמון קטן מדי או שהמדיניות לא מתאימה; מעט פינויים והרבה פספוסים אומרים שה־TTL קצר מדי או
+שהגישה פשוט לא חוזרת על עצמה.</p>
+<h2 id="124-singleflight">12.4 התפרצות מטמון ו־singleflight</h2>
+<h3 id="1241">12.4.1 מה זה</h3>
+<p>התפרצות מטמון (cache stampede) קורית כשמפתח חם חסר, כי פג או כי השירות רק עלה, והרבה בקשות מגיעות
+אליו בבת אחת. כולן מפספסות, וכולן שולחות את אותה שאילתה למסד. השאילתה האיטית ביותר שלך רצה פתאום חמישים
+פעם במקביל, בדיוק ברגע שהמסד הכי עמוס. מכאן גם השם השני, „thundering herd”.</p>
+<h3 id="1242">12.4.2 למדוד</h3>
+<p>התוכנית <code>cmd/stampede</code> בתרגיל משחררת N קוראות יחד על מפתח קר, פעם דרך הגרסה הידנית ופעם דרך העוזר.
+המאגר סופר כל קריאה שלו, ובכל קריאה הוא מוסיף <code>pg_sleep</code> שמדמה שאילתה של 200 מילישניות. מריצים:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">export DATABASE_URL=postgres://course:change-me@localhost:5412/catalog
+export REDIS_ADDR=localhost:6312
+go run ./cmd/stampede
+</code></pre>
+
+
+</div>
+
+<p>הפלט במכונה שעליה נכתב התרגיל היה כזה. מספר הקריאות לא אמור להשתנות אצלך, והזמנים כן:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">cold key, 50 concurrent readers, 200ms per query
+without singleflight:   50 database calls, 1.041s
+with singleflight:       1 database calls, 204ms
+helper stats: hits 50, misses 50, loads 1, hit ratio 0.50
+</code></pre>
+
+
+</div>
+
+<p>חמישים קוראות, חמישים שאילתות. ושימי לב לזמן: ה־pool מוגבל לעשרה חיבורים (כמו בפרק 10), ולכן חמישים
+השאילתות רצו בחמישה גלים, והאחרונה חיכתה שנייה שלמה. התפרצות לא רק מעמיסה על המסד, היא גם מאריכה את זמן
+התגובה בזנב (p99) של כל מי שבתור. תריצי ותרשמי את המספרים שלך בפתק.</p>
+<h3 id="1243-singleflight">12.4.3 singleflight</h3>
+<p>החבילה <code>golang.org/x/sync/singleflight</code> עושה דבר אחד: לכל מפתח, רק קריאה אחת לפונקציה רצה בכל רגע. מי
+שמגיעה בזמן שהקריאה רצה מחכה ומקבלת את אותה תוצאה. זה מסלול הקריאה של העוזר, מהקובץ
+<code>internal/cache/cache.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func (c *Cache[T]) Get(ctx context.Context, key string, load func(context.Context) (T, error)) (T, error) {
+    raw, err := c.store.Get(ctx, key)
+    if err == nil {
+        var v T
+        if json.Unmarshal(raw, &amp;v) == nil {
+            c.hits.Add(1)
+            return v, nil
+        }
+    } else if !errors.Is(err, ErrMiss) {
+        c.errored.Add(1)
+    }
+    c.misses.Add(1)
+
+    // Do runs the function once per key at a time; callers that arrive while it runs
+    // wait and receive the same result. The context is the first caller's.
+    v, err, _ := c.group.Do(key, func() (any, error) {
+        c.loads.Add(1)
+        v, err := load(ctx)
+        if err != nil {
+            return v, err
+        }
+        if raw, err := json.Marshal(v); err == nil {
+            // Fill before returning, so a reader that misses after this flight ends
+            // finds the value instead of starting a new flight.
+            _ = c.store.Set(ctx, key, raw, Jittered(c.opts.TTL, c.opts.Jitter))
+        }
+        return v, nil
+    })
+    if err != nil {
+        var zero T
+        return zero, err
+    }
+    return v.(T), nil
+}
+</code></pre>
+
+
+</div>
+
+<p>הסדר בתוך הפונקציה שמועברת ל־<code>Do</code> חשוב: המילוי למטמון קורה לפני שהטיסה (flight) נגמרת. אם היה קורה
+אחריה, קוראת שמפספסת ברגע שבין הסוף למילוי הייתה פותחת טיסה שנייה. ה־API של singleflight קודם ל־generics,
+ולכן התוצאה חוזרת כ־<code>any</code> ומומרת חזרה עם <code>v.(T)</code>. הגרסה מקובעת בקובץ <code>go.mod</code> של התרגיל.</p>
+<blockquote>
+<p><strong>איך Rust עושה את זה:</strong> אין בספרייה הסטנדרטית מקבילה מוכנה. היית בונה את זה בעצמך: מילון ממפתח
+ל־future משותף, מאחורי נעילה. הספרייה futures נותנת לשם כך את <code>Shared</code>. ב־Go זה שלושים שורות בספרייה של צוות Go, וכל מי
+שקוראת את הקוד שלך מכירה אותן.</p>
+</blockquote>
+<h3 id="1244-singleflight">12.4.4 מה singleflight לא פותר</h3>
+<ul>
+<li><strong>תהליכים אחרים.</strong> הקבוצה חיה בזיכרון של תהליך אחד. עשרה replicas של השירות יריצו עשר שאילתות, אחת לכל
+  replica. זה כבר עשר במקום חמש מאות, ולעתים קרובות זה מספיק.</li>
+<li><strong>ה־context של הראשונה.</strong> כל הממתינות תלויות ב־context של מי שפתחה את הטיסה. אם הוא בוטל, כולן מקבלות
+  את השגיאה, גם אם להן היה זמן. אפשר לטעון עם <code>context.WithoutCancel</code> וזמן קצוב משלך; זו פשרה, והעוזר
+  משאיר אותה פשוטה.</li>
+<li><strong>שגיאות משותפות.</strong> כשהטעינה נכשלת, כל הממתינות נכשלות יחד. העוזר לא שומר שגיאה במטמון, ולכן הקוראת
+  הבאה מנסה שוב.</li>
+<li><strong>מפתח שאינו חם.</strong> אם כל בקשה מבקשת מפתח אחר, אין מה לאחד.</li>
+</ul>
+<h3 id="1245">12.4.5 בין תהליכים: מפתח נעילה ורענון מוקדם</h3>
+<p>כשגם שאילתה אחת לכל replica היא יותר מדי, יש שתי דרכים מוכרות, ושתיהן נשארות בפרק כפרוזה:</p>
+<ul>
+<li><strong>מפתח נעילה.</strong> בפספוס, הקוראת מנסה <code>SET lock:&lt;key&gt; &lt;id&gt; NX PX &lt;ms&gt;</code> מסעיף 12.1.3. מי שקיבלה את המפתח
+  טוענת וממלאת; האחרות מחכות קצת וקוראות שוב מהמטמון, או מחזירות ערך ישן אם שמרו אחד. המחיר: המתנה,
+  ותפוגה שצריכה להיות ארוכה מהטעינה, אחרת שתיים טוענות בכל זאת.</li>
+<li><strong>רענון מוקדם.</strong> במקום לחכות שהמפתח יפוג, קוראת שרואה שנשאר לו מעט זמן מרעננת אותו ברקע בהסתברות
+  שגדלה ככל שהתפוגה קרובה. המפתח החם כמעט אף פעם לא חסר, ואין רגע שבו כולן מפספסות. הגרסה המוכרת של
+  הרעיון נקראת XFetch, והיא מקושרת בהעשרה.</li>
+</ul>
+<h2 id="125">12.5 מונים ופעולות אטומיות</h2>
+<h3 id="1251-incr">12.5.1 <code>INCR</code> מול „קרא ואז כתוב”</h3>
+<p>מונה צפיות נראה כמו <code>GET</code>, הוספת אחד, ו־<code>SET</code>. בשתי קוראות במקביל שתיהן קוראות 41 ושתיהן כותבות 42:
+עדכון אחד אבד. זה אותו מרוץ מפרק 5, רק בין תהליכים, ולכן <code>-race</code> לא יראה אותו. הפקודה <code>INCR</code> עושה את
+שלושת הצעדים בתוך השרת, בפקודה אחת, ושום פקודה אחרת לא נכנסת באמצע. מהקובץ <code>counters.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func IncrViews(ctx context.Context, rdb redis.Cmdable, prefix string, id int64) (int64, error) {
+    return rdb.Incr(ctx, fmt.Sprintf(&quot;%sviews:%d&quot;, prefix, id)).Result()
+}
+</code></pre>
+
+
+</div>
+
+<p>הבדיקה <code>TestIncrViewsIsAtomic</code> מריצה מאתיים goroutines ומצפה למונה 200 בדיוק.</p>
+<h3 id="1252-lua">12.5.2 כמה פקודות כפעולה אחת: Lua</h3>
+<p>מגביל קצב בחלון קבוע צריך שני צעדים: להגדיל מונה, ובפעם הראשונה בחלון לקבוע לו תפוגה. בשתי פקודות
+נפרדות, תהליך שקורס ביניהן משאיר מונה בלי TTL, והלקוח נחסם לתמיד. סקריפט Lua רץ בתוך Redis כפקודה אחת,
+ולכן אי אפשר להפריד בין הצעדים. מאותו קובץ:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">var fixedWindow = redis.NewScript(`
+local n = redis.call('INCR', KEYS[1])
+if n == 1 then
+  redis.call('PEXPIRE', KEYS[1], ARGV[1])
+end
+return n
+`)
+
+// Allow is a fixed-window rate limiter, a preview of chapter 16: at most limit
+// calls per window for key, counted in Redis so that every replica shares it.
+func Allow(ctx context.Context, rdb redis.Scripter, key string, limit int64, window time.Duration) (bool, error) {
+    n, err := fixedWindow.Run(ctx, rdb, []string{key}, window.Milliseconds()).Int64()
+    if err != nil {
+        return false, fmt.Errorf(&quot;rate limit %s: %w&quot;, key, err)
+    }
+    return n &lt;= limit, nil
+}
+</code></pre>
+
+
+</div>
+
+<p>המפתחות עוברים ב־<code>KEYS</code> והערכים ב־<code>ARGV</code>, ולא נבנים לתוך מחרוזת הסקריפט: כך הסקריפט קבוע, ו־Redis שומר
+אותו לפי הגיבוב שלו. לפי התיעוד של go-redis, <code>Run</code> שולחת קודם <code>EVALSHA</code> עם הגיבוב, ורק אם השרת לא מכיר
+אותו שולחת את הסקריפט המלא. שימי לב גם לממשקים הקטנים בחתימות: <code>redis.Cmdable</code> ו־<code>redis.Scripter</code> במקום
+הלקוח עצמו.</p>
+<p>סקריפט חוסם את כל השרת בזמן שהוא רץ, ולכן הוא צריך להיות קצר: כמה פקודות, בלי לולאות על אוספים גדולים.
+פרק 16 בונה על זה מגביל קצב אמיתי. חסרון אחד של חלון קבוע כבר רואים מכאן: לקוח יכול לשלוח את כל המכסה
+בסוף חלון אחד ושוב בתחילת הבא, כלומר פי שניים בזמן קצר.</p>
+<h2 id="126">12.6 מתי לא לשים מטמון</h2>
+<p>מטמון הוא מקור אמת שני, ולכן כל מטמון צריך להצדיק את עצמו במספרים. המקרים שבהם הוא מזיק:</p>
+<ul>
+<li><strong>הרבה כתיבות, מעט קריאות.</strong> כל כתיבה מוחקת, ואף ערך לא חי מספיק זמן כדי שיקראו אותו. משלמים על מסלול
+  נוסף ולא מקבלים פגיעות.</li>
+<li><strong>עקביות חזקה.</strong> יתרה בחשבון, מלאי לפני תשלום, הרשאות שבוטלו: ערך ישן הוא באג, לא פשרה. כאן קוראים
+  מהמסד, ומשפרים את השאילתה (פרק 10) במקום להסתיר אותה.</li>
+<li><strong>יחס פגיעות נמוך.</strong> כשהגישה מפוזרת על מיליוני מפתחות שכל אחד נקרא פעם אחת, כל בקשה משלמת על פספוס ועל
+  מילוי, ומקבלת זמן תגובה גרוע מבלי מטמון. מודדים את היחס עם <code>Stats</code> ועם <code>INFO stats</code> לפני שמחליטים.</li>
+<li><strong>המקור כבר זול.</strong> שאילתה של מילישנייה לפי מפתח ראשי לא צריכה מטמון ברשת שעולה בערך אותו דבר.</li>
+<li><strong>המטמון מסתיר עומס שהמסד לא יעמוד בו.</strong> אם Redis נופל, כל התנועה עוברת למסד. העוזר של התרגיל עושה
+  בדיוק את זה (הבדיקה <code>TestStoreDownFallsBackToSource</code>), וזו הבחירה הנכונה רק אם המסד מסוגל לשאת את זה.
+  אחרת צריך גם הגבלה של מקביליות מול המסד, נושא של פרק 16.</li>
+</ul>
+<p>ועוד החלטה אחת שהקוד של הפרק מקבל במכוון: „לא נמצא” לא נשמר. זה פשוט ונכון, אבל תוקפת שמבקשת מיליון
+מזהים שלא קיימים עוקפת את המטמון לגמרי. ההגנה היא מטמון שלילי (negative caching): לשמור „אין כזה” עם TTL
+קצר מאוד. זו העשרה, לא ברירת מחדל, כי היא מוסיפה עוד חלון של ערך ישן למוצר שנוצר הרגע.</p>
+<p>הפרויקט המסכם, Hookline, ישתמש בעוזר הזה כמו שהוא בשלב M3: מטמון ל„אילו מנויים מעוניינים באירוע הזה”,
+שאלה שכל אירוע שואל ושמשתנה רק כשמנוי נוצר או נמחק. ראי פרק 38.</p>
+<h2 id="_3">סיכום</h2>
+<ul>
+<li>Redis מריץ כל פקודה עד סופה, ולכן כל פקודה בודדת אטומית; סקריפט Lua הופך כמה פקודות לאחת.</li>
+<li>במטמון cache-aside האפליקציה קוראת מהמטמון, ובפספוס טוענת מהמסד וממלאת עם TTL.</li>
+<li>בכתיבה מוחקים ולא מעדכנים, ומוחקים אחרי ה־commit. מחיקה לפניו ממלאת את המטמון בערך הישן.</li>
+<li>גם אחרי ה־commit נשאר מרוץ בין קריאה איטית למחיקה; ה־TTL הוא מה שחוסם אותו.</li>
+<li>פיזור אקראי ב־TTL מונע תפוגה המונית, ומדיניות פינוי מתאימה מונעת כשלי כתיבה כשהזיכרון מלא.</li>
+<li>התפרצות מטמון נמדדת במספר הקריאות למסד; singleflight מאחד אותן לאחת בכל תהליך.</li>
+<li>מטמון צריך להצדיק את עצמו ביחס פגיעות מדוד, ושירות צריך לעבוד גם כש־Redis לא עונה.</li>
+</ul>
+<h2 id="_4">מונחים לזכור</h2>
+<table>
+<thead>
+<tr>
+<th>מונח בעברית</th>
+<th>באנגלית</th>
+<th>במשפט אחד</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>מטמון</td>
+<td>cache</td>
+<td>עותק מהיר של נתונים שמקורם במקום אחר, שמותר לו להתיישן לזמן מוגדר</td>
+</tr>
+<tr>
+<td>פגיעה ופספוס</td>
+<td>hit, miss</td>
+<td>הערך נמצא במטמון, או שצריך לטעון אותו מהמקור</td>
+</tr>
+<tr>
+<td>cache-aside</td>
+<td>cache-aside</td>
+<td>האפליקציה קוראת מהמטמון, טוענת בפספוס ומוחקת בכתיבה</td>
+</tr>
+<tr>
+<td>אי־תוקף</td>
+<td>invalidation</td>
+<td>מחיקת ערך שמור כי המקור השתנה</td>
+</tr>
+<tr>
+<td>זמן חיים</td>
+<td>time to live (TTL)</td>
+<td>הזמן שאחריו Redis מוחק מפתח בעצמו</td>
+</tr>
+<tr>
+<td>פיזור אקראי</td>
+<td>jitter</td>
+<td>תוספת אקראית קטנה ל־TTL, כדי שמפתחות לא יפוגו יחד</td>
+</tr>
+<tr>
+<td>פינוי</td>
+<td>eviction</td>
+<td>זריקת מפתחות כשהזיכרון מגיע לתקרה, לפי מדיניות</td>
+</tr>
+<tr>
+<td>יחס פגיעות</td>
+<td>hit ratio</td>
+<td>פגיעות חלקי כל הבדיקות; המספר שמצדיק מטמון</td>
+</tr>
+<tr>
+<td>התפרצות מטמון</td>
+<td>cache stampede</td>
+<td>הרבה פספוסים בו־זמנית על אותו מפתח, שכולם פוגעים במקור</td>
+</tr>
+<tr>
+<td>singleflight</td>
+<td>singleflight</td>
+<td>מאחד קריאות מקבילות לאותו מפתח לקריאה אחת בתוך תהליך</td>
+</tr>
+<tr>
+<td>מונה אטומי</td>
+<td>atomic counter</td>
+<td>הגדלה שקורית בפקודה אחת בשרת, בלי עדכונים שאובדים</td>
+</tr>
+<tr>
+<td>מטמון שלילי</td>
+<td>negative caching</td>
+<td>שמירת „לא נמצא” עם TTL קצר, נגד בקשות לדברים שלא קיימים</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_5">טעויות נפוצות</h2>
+<ul>
+<li><strong>למחוק מהמטמון לפני ה־commit, או בתוך הטרנזקציה.</strong> קוראת ממלאת בינתיים את הערך הישן. מחקי אחרי
+  שהטרנזקציה החזירה הצלחה.</li>
+<li><strong>לעדכן את המטמון בכתיבה במקום למחוק.</strong> שני כותבים יכולים להשאיר את הישן אחרון. מחקי.</li>
+<li><strong>מפתח בלי TTL.</strong> כל באג באי־תוקף הופך לערך שגוי לתמיד. לכל מפתח מטמון יש TTL.</li>
+<li><strong>להשאיר את ברירת המחדל <code>noeviction</code> בשרת מטמון.</strong> כשהזיכרון מתמלא כל <code>SET</code> נכשל. קבעי <code>allkeys-lru</code>
+  או מדיניות אחרת במודע.</li>
+<li><strong>להחזיר שגיאה כש־Redis לא עונה.</strong> המטמון הפך לנקודת כשל. קראי מהמסד.</li>
+<li><strong>לשמור שגיאה במטמון.</strong> תקלה רגעית במסד הופכת לתשובה שגויה לכל משך ה־TTL.</li>
+<li><strong>להניח ש־singleflight מגן על כל הצי.</strong> הוא מאחד בתוך תהליך אחד בלבד.</li>
+</ul>
+<h2 id="_6">שאלות ראיון</h2>
+<ol>
+<li>
+<p><strong>מה ההבדל בין cache-aside ל־write-through, ומתי תבחרי בכל אחד?</strong> ב־cache-aside האפליקציה טוענת
+   בפספוס ומוחקת בכתיבה, ולכן המטמון מכיל רק מה שנקרא, והוא עובד מול כל מסד. המחיר הוא פספוס ראשון איטי
+   וחלון קצר של ערך ישן. ב־write-through כל כתיבה מעדכנת גם את המטמון, כך שקריאה אחרי כתיבה טרייה מיד,
+   אבל כל כתיבה איטית יותר, והמטמון מתמלא בערכים שאולי איש לא יקרא. ברוב שירותי הקריאה cache-aside הוא
+   ברירת המחדל; write-through מתאים כשקריאה מיד אחרי כתיבה נפוצה וחייבת להיות טרייה.</p>
+</li>
+<li>
+<p><strong>למה מוחקים מהמטמון אחרי הכתיבה ולא לפניה, ומה עדיין יכול להשתבש?</strong> מחיקה לפני ה־commit משאירה
+   חלון שבו קוראת מפספסת, קוראת את השורה הישנה (החדשה עוד לא נראית) וממלאת אותה. אחרי ה־commit כל פספוס
+   רואה את החדשה. עדיין יכולה קוראת שהתחילה לפני הכתיבה לסיים אחרי המחיקה ולמלא ערך ישן. אין לזה תיקון
+   זול, ולכן ה־TTL הוא החסם, ונבחר לפי כמה התיישנות המוצר מוכן לקבל.</p>
+</li>
+</ol>
+<p><strong>המשך:</strong> ואם המחיקה עצמה נכשלת? השינוי במסד כבר קרה, אז מחזירים שגיאה שאומרת זאת ומסתמכים על ה־TTL.
+   מי שצריכה ערבות חזקה יותר כותבת את האי־תוקף כאירוע ב־outbox (פרק 13) ומוחקת ממנו.</p>
+<ol start="3">
+<li><strong>מה זו התפרצות מטמון, ואיך מטפלים בה?</strong> מפתח חם חסר, והרבה בקשות מפספסות יחד ושולחות את אותה
+   שאילתה. בתוך תהליך, singleflight מאחד אותן לקריאה אחת, ובתרגיל חמישים קריאות ירדו לאחת. בין
+   תהליכים: מפתח נעילה עם <code>SET NX PX</code>, שבו רק אחת טוענת והאחרות מחכות או מקבלות ערך ישן, או רענון
+   מוקדם הסתברותי שמונע מהמפתח להיעלם בכלל. וגם פיזור אקראי ב־TTL, כדי שהרבה מפתחות לא יפוגו יחד.</li>
+</ol>
+<p><strong>המשך:</strong> מה החיסרון של singleflight? כולן תלויות ב־context ובשגיאה של הראשונה: אם היא בוטלה, כולן
+   נכשלות. אפשר לטעון עם context מנותק וזמן קצוב משלו, במחיר טעינה שממשיכה גם כשאף אחת כבר לא מחכה.</p>
+<ol start="4">
+<li>
+<p><strong>איך תחליטי אם בכלל לשים מטמון?</strong> קודם מודדים: כמה עולה השאילתה, כמה פעמים אותו מפתח נקרא בתוך
+   חלון ה־TTL, וכמה התיישנות מותרת. מטמון משתלם כשהקריאות חוזרות, המקור יקר, והתיישנות קצרה מקובלת.
+   הוא מזיק כשהכתיבות רבות, כשהעקביות חייבת להיות חזקה, וכשיחס הפגיעות נמוך. אחרי שמוסיפים אותו,
+   ממשיכים למדוד את יחס הפגיעות ואת הפינויים, ומוכנים להוריד אותו.</p>
+</li>
+<li>
+<p><strong>למה <code>INCR</code> ולא קריאה ואחריה כתיבה, ומתי צריך סקריפט Lua?</strong> קריאה וכתיבה נפרדות הן שתי פקודות, וקוראת
+   אחרת יכולה להיכנס ביניהן, כך שעדכונים אובדים. <code>INCR</code> עושה את הכול בפקודה אחת בשרת. כשצריך כמה פקודות
+   כפעולה אחת, למשל הגדלה ותפוגה במגביל קצב, סקריפט Lua רץ כפקודה אחת. המחיר: הוא חוסם את כל השרת בזמן
+   הריצה, ולכן הוא חייב להיות קצר.</p>
+</li>
+</ol>
+<h2 id="obsidian">פתק Obsidian</h2>
+<p>הפתק המוכן נמצא גם כקובץ: <code>obsidian/12-redis-caching.md</code>. זה תוכנו:</p>
+<ul>
+<li><strong>Redis:</strong> פקודה אחת רצה עד סופה; לכן כל פקודה אטומית, ו־Lua הופך כמה לאחת.</li>
+<li><strong>cache-aside:</strong> קריאה מהמטמון; בפספוס טעינה מהמסד ומילוי עם TTL; בכתיבה מחיקה.</li>
+<li><strong>למחוק, לא לעדכן:</strong> מחיקה אינה תלויה בסדר בין כותבים.</li>
+<li><strong>אחרי ה־commit:</strong> מחיקה לפניו ממלאת את הישן. גם אחריו נשאר מרוץ, וה־TTL חוסם אותו.</li>
+<li><strong>TTL:</strong> רשת ביטחון וחוזה התיישנות; תמיד עם פיזור אקראי.</li>
+<li><strong>פינוי:</strong> ברירת המחדל <code>noeviction</code> שגויה למטמון; <code>allkeys-lru</code> כנקודת פתיחה.</li>
+<li><strong>התפרצות:</strong> המספרים שלי מ־<code>cmd/stampede</code>: בלי singleflight <strong><em>, עם </em></strong>.</li>
+<li><strong>singleflight:</strong> מאחד בתוך תהליך בלבד; context ושגיאה משותפים.</li>
+<li><strong>מתי לא:</strong> כתיבות רבות, עקביות חזקה, יחס פגיעות נמוך, מקור זול.</li>
+<li><strong>שאלה פתוחה:</strong> ___</li>
+</ul>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">docker compose -p ch12 -f data/compose.yaml up -d --wait
+docker compose -p ch12 -f data/compose.yaml exec cache redis-cli
+SET k v EX 60      GET k      TTL k / PTTL k      DEL k      INCR k
+SET lock:k id NX PX 5000      HSET h f v      ZINCRBY z 1 m      ZREVRANGE z 0 -1 WITHSCORES
+CONFIG GET maxmemory*         INFO stats   (keyspace_hits, keyspace_misses, evicted_keys)
+err == redis.Nil  -&gt;  miss
+read:  GET -&gt; miss -&gt; load -&gt; SET ttl+jitter
+write: COMMIT -&gt; DEL
+singleflight.Group.Do(key, fn) -&gt; (v any, err, shared bool)
+redis.NewScript(src).Run(ctx, rdb, keys, args...)   // EVALSHA, then EVAL
+my stampede run: without ___ calls, with ___ calls; hit ratio ___
+docker compose -p ch12 -f data/compose.yaml down -v
+</code></pre>
+
+
+</div>
+
+<h2 id="_7">תרגיל</h2>
+<p><strong>מטרה:</strong> לכתוב מטמון מעל מאגר המוצרים, עם זמן חיים, פיזור אקראי ומחיקה אחרי
+ה־commit; למדוד התפרצות על מפתח קר ולתקן אותה עם singleflight בחבילה גנרית <code>internal/cache</code>; ולהוסיף מונה
+<code>INCR</code> ומגביל קצב ב־Lua. <strong>זמן:</strong> שני ימי לימוד, ימים 31 ו־32, כ־55 דקות בנייה בכל אחד. <strong>ידע מקדים:</strong>
+סעיפים 12.1 עד 12.3 ליום 31 ו־12.4 עד 12.6 ליום 32; Docker פועל (פרק 2, סעיף 2.4) ו־pgx מפרק 10.</p>
+<p>הצעדים, קוד ההתחלה, הרמזים והפתרון נמצאים ב־
+<a href="../exercises/ch12-cache-aside/README.md"><code>exercises/ch12-cache-aside/README.md</code></a>.</p>
+<p><strong>קריטריון סיום:</strong></p>
+<ul>
+<li>בדיקה מראה פספוס ואחריו פגיעה, וכתיבה שמוחקת את הערך השמור.</li>
+<li>הבדיקה של המרוץ מראה ערך ישן אחרי המרוץ וערך חדש אחרי ה־TTL.</li>
+<li>הפלט של <code>cmd/stampede</code> מהריצה שלך רשום בפתק, בלי singleflight ועם.</li>
+<li>בדיקה מוודאת קריאה אחת למסד עם singleflight, והמונה האטומי מגיע ל־200 בדיוק.</li>
+<li>כל הבדיקות עוברות עם <code>-race</code> מול הקונטיינרים, והסביבה נמחקת בסוף.</li>
+</ul>
+<h2 id="_8">העשרה אופציונלית</h2>
+<ul>
+<li>בתיעוד של Redis, העמוד „Key eviction” מפרט את כל מדיניות הפינוי. הוא מסביר גם איך כל אלגוריתם מקורב,
+  ואילו פרמטרים אפשר לכוונן.</li>
+<li>הרענון המוקדם ההסתברותי מסעיף 12.4.5 מתואר במאמר „Optimal Probabilistic Cache Stampede Prevention”, שפורסם
+  בכתב העת PVLDB, כרך 8. נסי לממש אותו מעל העוזר: לשמור לצד הערך את זמן הטעינה.</li>
+<li>הוסיפי מטמון שלילי לעוזר: ערך „לא נמצא” עם TTL של כמה שניות, ובדיקה שמראה שבקשה שנייה למזהה חסר לא
+  מגיעה למסד.</li>
+<li>הריצי את ההדגמה עם הדגל <code>-n 500</code>, ואחר כך עם <code>-latency 1s</code>. ראי מה קורה לזמן של הגרסה הידנית כשכל
+  החיבורים תפוסים.</li>
+</ul>
+</main>
+<nav class="bottom"><a href="index.html">תוכן העניינים</a> · <a href="11-postgres-transactions-migrations.html">← פרק 11: PostgreSQL: טרנזקציות, נעילות ומיגרציות</a> · <a href="TERMINOLOGY.html">Terminology policy (book 2) →</a></nav>
+<script type="module">
+  // Render ```mermaid blocks in the browser (needs internet once; cached afterwards).
+  const blocks = document.querySelectorAll("pre > code.language-mermaid");
+  if (blocks.length) {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs")).default;
+    for (const code of blocks) {
+      const div = document.createElement("div");
+      div.className = "mermaid";
+      div.textContent = code.textContent;
+      code.parentElement.replaceWith(div);
+    }
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run();
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>פרק 7: Python עם טיפוסים, אריזה ובדיקות</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="top"><a href="index.html">תוכן העניינים</a> · <a href="06-go-http-service.html">← פרק 6: שירות HTTP לייצור</a> · <a href="08-python-async-fastapi.html">פרק 8: Python אסינכרונית ו־FastAPI →</a></nav>
+<main class="book">
+<div class="toc"><span class="toctitle">תוכן הפרק</span><ul>
+<li><a href="#_1">מה נלמד בפרק</a></li>
+<li><a href="#_2">ידע מקדים</a></li>
+<li><a href="#71-python">7.1 מה „Python בכירה” אומרת</a></li>
+<li><a href="#72-uv-pyproject-lock-scripts">7.2 פרויקט עם uv: pyproject, lock ו־scripts</a><ul>
+<li><a href="#721-pyprojecttoml">7.2.1 מה יש ב־pyproject.toml</a></li>
+<li><a href="#722">7.2.2 מה קובץ הנעילה מבטיח</a></li>
+<li><a href="#723-uv-run">7.2.3 uv run וקבוצות תלויות</a></li>
+</ul>
+</li>
+<li><a href="#73-ruff-mypy">7.3 ruff ו־mypy</a></li>
+<li><a href="#74-protocol-typeddict-generics">7.4 טיפוסים מתקדמים: Protocol, TypedDict ו־generics</a><ul>
+<li><a href="#741-protocol">7.4.1 Protocol: ממשק בלי ירושה</a></li>
+<li><a href="#742-typeddict-json">7.4.2 TypedDict: צורה של JSON</a></li>
+<li><a href="#743-generics">7.4.3 generics בתחביר החדש, ועוד שלושה כלים קטנים</a></li>
+</ul>
+</li>
+<li><a href="#75-pydantic-v2">7.5 pydantic v2</a><ul>
+<li><a href="#751">7.5.1 מודלים, אילוצים ובודקי תקינות</a></li>
+<li><a href="#752-typeadapter">7.5.2 איחוד מובחן ו־TypeAdapter</a></li>
+<li><a href="#753-pydantic">7.5.3 מה pydantic בודקת שרמזי טיפוס לא</a></li>
+</ul>
+</li>
+<li><a href="#76-pytest-fixtures-parametrize-monkeypatch">7.6 pytest: fixtures, parametrize ו־monkeypatch</a><ul>
+<li><a href="#761-fixtures">7.6.1 fixtures והטווח שלהן</a></li>
+<li><a href="#762-parametrize">7.6.2 parametrize</a></li>
+<li><a href="#763-monkeypatch-capsys">7.6.3 monkeypatch, capsys וסימונים</a></li>
+</ul>
+</li>
+<li><a href="#77-entry-points">7.7 מבנה חבילה ו־entry points</a><ul>
+<li><a href="#771">7.7.1 נקודת כניסה וקודי יציאה</a></li>
+<li><a href="#772-pytyped">7.7.2 הקובץ py.typed</a></li>
+</ul>
+</li>
+<li><a href="#78">7.8 ביצועים: מודדים לפני שמשפרים</a><ul>
+<li><a href="#781-cprofile">7.8.1 פרופיל עם cProfile</a></li>
+<li><a href="#782-timeit">7.8.2 השוואה עם timeit</a></li>
+</ul>
+</li>
+<li><a href="#_3">סיכום</a></li>
+<li><a href="#_4">מונחים לזכור</a></li>
+<li><a href="#_5">טעויות נפוצות</a></li>
+<li><a href="#_6">שאלות ראיון</a></li>
+<li><a href="#obsidian">פתק Obsidian</a></li>
+<li><a href="#_7">תרגיל</a></li>
+<li><a href="#_8">העשרה אופציונלית</a></li>
+</ul>
+</div>
+
+<h1 id="7-python">פרק 7: Python עם טיפוסים, אריזה ובדיקות</h1>
+<p>את כבר כותבת Python. מה שמבדיל קוד של בכירה הוא היגיינה: פרויקט שנבנה מקובץ נעילה, בדיקה סטטית
+קפדנית, טיפוסים שמתעדים חוזים, בדיקת תקינות בגבולות, בדיקות שרצות בשנייה, ומדידה לפני כל שיפור.
+אלה הדברים שסוקרת קוד רואה ראשונים. בפרק תבני כלי שורת פקודה קטן ושלם, <code>eventcheck</code>, שבודק קובץ
+של אירועי webhook ומדווח על כל שורה פגומה.</p>
+<h2 id="_1">מה נלמד בפרק</h2>
+<ul>
+<li>פרויקט uv: מה יש ב־<code>pyproject.toml</code>, מה מבטיח קובץ הנעילה, וקבוצות תלויות.</li>
+<li>בודק סגנון ובודק טיפוסים במצב קפדני, כחלק מהיום־יום.</li>
+<li>טיפוסים מתקדמים: ממשקים מבניים, מילונים עם צורה ידועה, generics בתחביר החדש, ועוד כמה כלים קטנים.</li>
+<li>pydantic v2: מודלים, בודקי תקינות, איחוד מובחן ומתאם טיפוסים.</li>
+<li>pytest כמו בצוות: fixtures והטווחים שלהן, פרמטרים, תיקיות זמניות, החלפות זמניות וסימונים.</li>
+<li>מבנה חבילה (src layout), נקודות כניסה, והקובץ שמפרסם את הטיפוסים שלך.</li>
+<li>מדידה עם הכלים של הספרייה התקנית, ומספרים שאת מודדת ורושמת בעצמך.</li>
+</ul>
+<h2 id="_2">ידע מקדים</h2>
+<ul>
+<li>פרק 2, סעיף 2.8: uv ו־Python 3.14 מותקנים ועובדים.</li>
+<li>פרק 3, סעיף 3.8, ופרק 4, סעיף 4.2: בדיקות טבלאיות וממשקים ב־Go, שאליהם נשווה את הכלים של Python.</li>
+<li>פרק 6, סעיף 6.8: פרופיל ראשון עם pprof.</li>
+<li>Python ברמה של יום עבודה: מחלקות, מחלקות נתונים, מחוללים (generators), חריגות ומנהלי הקשר.</li>
+</ul>
+<h2 id="71-python">7.1 מה „Python בכירה” אומרת</h2>
+<p>כשמודעה מבקשת „Python ברמה גבוהה”, היא לא מתכוונת לטריקים. היא מתכוונת לכך שאפשר לתת לך מאגר,
+ושבעוד חצי שנה הוא עדיין יהיה תקין. בפועל זה שישה הרגלים:</p>
+<table>
+<thead>
+<tr>
+<th>הרגל</th>
+<th>מה רואים במאגר</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>בנייה משוחזרת</td>
+<td>קובץ הפרויקט וקובץ הנעילה מחויבים ב־Git</td>
+</tr>
+<tr>
+<td>ניתוח סטטי</td>
+<td>ruff ו־mypy עוברים בלי השתקות</td>
+</tr>
+<tr>
+<td>חוזים מפורשים</td>
+<td>רמזי טיפוס (type hints) בכל גבול של מודול</td>
+</tr>
+<tr>
+<td>בדיקת תקינות בגבול</td>
+<td>קלט חיצוני עובר דרך מודל pydantic</td>
+</tr>
+<tr>
+<td>בדיקות מהירות</td>
+<td>בלי רשת ובלי שעון אמיתי</td>
+</tr>
+<tr>
+<td>מדידה</td>
+<td>פרופיל לפני אופטימיזציה</td>
+</tr>
+</tbody>
+</table>
+<p>הרעיון שמחבר את כולם: בתוך פונקציה Python דינמית ונוחה, אבל בגבול (קובץ, בקשת HTTP, הודעה מתור)
+היא חייבת להיות קפדנית, כי שם נכנס קלט שאת לא שולטת בו. התרגיל הוא גבול כזה. קובץ JSONL (שורת JSON
+אחת לכל אירוע) מגיע מבחוץ, והכלי צריך להגיד על כל שורה אם היא תקינה, ואם לא, למה. בפרק 8 תבני את
+הצד השני: שירות שמקבל את האירועים האלה ב־HTTP.</p>
+<h2 id="72-uv-pyproject-lock-scripts">7.2 פרויקט עם uv: pyproject, lock ו־scripts</h2>
+<p>הפקודה <code>uv init --package</code> יוצרת שלד של חבילה: מבנה <code>src/</code>, מערכת בנייה, פקודה וקובץ שנועל את גרסת
+המפרש (בתרגיל תריצי אותה פעם אחת בתיקייה זמנית, כדי לראות). שימי לב שהשדה <code>authors</code> מתמלא מהגדרות
+ה־Git שלך; בפרויקט פתוח מחליטים במודע מה נכנס לשם.</p>
+<h3 id="721-pyprojecttoml">7.2.1 מה יש ב־pyproject.toml</h3>
+<p>זה קובץ הפרויקט של התרגיל (<code>exercises/ch07-eventcheck/solution/pyproject.toml</code>), בלי הגדרות הכלים:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-toml">[project]
+name = &quot;eventcheck&quot;
+version = &quot;0.1.0&quot;
+description = &quot;Validate a JSONL file of webhook events and report every bad line.&quot;
+requires-python = &quot;&gt;=3.14&quot;
+dependencies = [
+    &quot;pydantic==2.13.5&quot;,
+]
+
+[project.scripts]
+eventcheck = &quot;eventcheck.cli:main&quot;
+
+[dependency-groups]
+dev = [
+    &quot;mypy==2.4.0&quot;,
+    &quot;pytest==9.1.1&quot;,
+    &quot;ruff==0.16.10&quot;,
+]
+
+[build-system]
+requires = [&quot;uv_build&gt;=0.12.23,&lt;0.13.0&quot;]
+build-backend = &quot;uv_build&quot;
+</code></pre>
+
+
+</div>
+
+<p>ארבע טבלאות. הראשונה: מטא־נתונים ותלויות זמן ריצה (PEP 621). השנייה: פקודה שקוראת לפונקציה <code>main</code>.
+השלישית: תלויות פיתוח שלא נשלחות עם החבילה (PEP 735). הרביעית: מערכת הבנייה. הגרסאות מוצמדות במדויק, נכון לאוקטובר 2026; הרשימה
+המלאה בנספח C (<code>book/appendices/c-tool-versions.md</code>). ספרייה שאחרים מתקינים מצמידה טווח, כדי לא
+לכפות גרסה על המשתמשות בה.</p>
+<h3 id="722">7.2.2 מה קובץ הנעילה מבטיח</h3>
+<p>הקובץ <code>uv.lock</code> נוצר בפעם הראשונה שמסנכרנים את הפרויקט או מוסיפים לו תלות. הוא רושם את כל עץ
+התלויות, כולל העקיפות, עם גרסה מדויקת ותמצית (hash) לכל קובץ. הוא אוניברסלי: אותו קובץ מתאר את
+הפתרון לכל מערכת הפעלה וארכיטקטורה, ולא רק למחשב שיצר אותו.</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">uv sync --locked
+uv sync --frozen
+</code></pre>
+
+
+</div>
+
+<table>
+<thead>
+<tr>
+<th>פקודה</th>
+<th>מה היא עושה</th>
+<th>מתי</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>uv sync --locked</code></td>
+<td>נכשלת אם הנעילה לא תואמת לקובץ הפרויקט</td>
+<td>ב־CI: מוכיחה שאיש לא שכח לעדכן</td>
+</tr>
+<tr>
+<td><code>uv sync --frozen</code></td>
+<td>מתקינה בדיוק מה שבנעילה, בלי לבדוק התאמה</td>
+<td>בבניית image, אחרי שהנעילה נבדקה</td>
+</tr>
+</tbody>
+</table>
+<p>מה הוא <strong>לא</strong> מבטיח: שהגרסאות טובות, בטוחות, או עובדות עם הקוד שלך. הוא מבטיח רק שכולן מקבלות
+אותן גרסאות. עדכון הוא פעולה מפורשת, בקומיט משלה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">uv lock --upgrade-package pydantic
+uv sync
+</code></pre>
+
+
+</div>
+
+<blockquote>
+<p><strong>איך Rust עושה את זה:</strong>
+- הקובץ <code>uv.lock</code> מקביל ל־<code>Cargo.lock</code>.
+- לדגל <code>--locked</code> יש אותה משמעות בשני הכלים.
+- קבוצת התלויות <code>dev</code> מקבילה ל־<code>[dev-dependencies]</code>.
+- ההבדל המהותי: ב־Rust המהדר בודק טיפוסים, וב־Python זה כלי נפרד שאת בוחרת להריץ.</p>
+</blockquote>
+<h3 id="723-uv-run">7.2.3 uv run וקבוצות תלויות</h3>
+<p>הפקודה <code>uv run</code> מסנכרנת את הסביבה לפי הנעילה ואז מריצה בתוכה, בלי הפעלה ידנית של סביבה וירטואלית.
+קבוצת <code>dev</code> מותקנת כברירת מחדל; בבניית image לייצור מוותרים עליה. תלות מוסיפים תמיד דרך uv, שמעדכן
+את קובץ הפרויקט ואת הנעילה יחד. לא מתקינים עם pip, בדיוק כי הוא לא יודע לעדכן את הנעילה.</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">uv run eventcheck --help
+uv sync --frozen --no-dev
+uv add 'pydantic==2.13.5'
+uv add --dev 'pytest==9.1.1'
+</code></pre>
+
+
+</div>
+
+<h2 id="73-ruff-mypy">7.3 ruff ו־mypy</h2>
+<p>הכלי ruff משלב בודק סגנון (linter) ומעצב קוד. הוא כתוב ב־Rust, ומהיר מספיק כדי לרוץ בכל שמירה.
+הכלי mypy בודק טיפוסים: הוא קורא את רמזי הטיפוס ומוכיח שהקוד עקבי איתם, בלי להריץ אותו. ההגדרות
+של שניהם יושבות בקובץ הפרויקט:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-toml">[tool.ruff]
+line-length = 100
+target-version = &quot;py314&quot;
+
+[tool.ruff.lint]
+select = [&quot;E&quot;, &quot;W&quot;, &quot;F&quot;, &quot;I&quot;, &quot;B&quot;, &quot;UP&quot;, &quot;SIM&quot;, &quot;RUF&quot;, &quot;PT&quot;, &quot;N&quot;]
+
+[tool.mypy]
+python_version = &quot;3.14&quot;
+strict = true
+plugins = [&quot;pydantic.mypy&quot;]
+enable_error_code = [&quot;explicit-override&quot;, &quot;ignore-without-code&quot;, &quot;redundant-expr&quot;, &quot;truthy-bool&quot;]
+</code></pre>
+
+
+</div>
+
+<p>כל אות ברשימת <code>select</code> היא קבוצת כללים: ייבוא שלא בשימוש, סדר ייבוא, באגים נפוצים כמו ברירת מחדל
+שהיא רשימה, תחביר ישן, וסגנון בדיקות. הרשימה היא החלטה של צוות, ומרחיבים אותה לאט. בדיקה, ואחריה תיקון:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">uv run ruff check . &amp;&amp; uv run ruff format --check .
+uv run ruff check --fix . &amp;&amp; uv run ruff format .
+uv run mypy src tests
+</code></pre>
+
+
+</div>
+
+<p>הדגל <code>strict</code> מפעיל קבוצת בדיקות: אין פונקציה בלי טיפוסים, אין ערך בלי טיפוס שמוחזר בשקט, אין
+השתקה מיותרת. בפרויקט חדש מתחילים קפדניים, כי קפדנות שמוסיפים אחר כך פירושה מאות שגיאות בבת אחת.
+ארבעת הקודים הנוספים אינם חלק מ־<code>strict</code>:</p>
+<ul>
+<li><strong>הקוד <code>explicit-override</code>:</strong> מתודה שדורסת מתודה של מחלקת אב חייבת לשאת <code>@override</code>.</li>
+<li><strong>הקוד <code>ignore-without-code</code>:</strong> אסור <code># type: ignore</code> בלי לציין איזו שגיאה משתיקים.</li>
+<li><strong>הקוד <code>redundant-expr</code>:</strong> תנאי שלפי הטיפוסים תמיד אמת או תמיד שקר.</li>
+<li><strong>הקוד <code>truthy-bool</code>:</strong> בדיקת אמת על אובייקט שתמיד אמת, למשל פונקציה ששכחו לקרוא לה.</li>
+</ul>
+<p>התוסף <code>pydantic.mypy</code> מלמד את הבודק איך נבנה הבנאי של כל מודל, כך שארגומנט חסר נתפס כבר סטטית. כך
+נראית שגיאה אמיתית. כשהסרתי את <code>@override</code> מהמתודה <code>__str__</code> בתרגיל, הבודק אמר:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">src/eventcheck/checker.py:36: error: Method &quot;__str__&quot; is not using @override but is overriding a method in class &quot;builtins.object&quot;  [explicit-override]
+Found 1 error in 1 file (checked 7 source files)
+</code></pre>
+
+
+</div>
+
+<h2 id="74-protocol-typeddict-generics">7.4 טיפוסים מתקדמים: Protocol, TypedDict ו־generics</h2>
+<p>הדוגמאות כאן נבדקו מול התיעוד של Python 3.14. כדאי לדעת מאיזו גרסה כל כלי קיים:</p>
+<table>
+<thead>
+<tr>
+<th>כלי</th>
+<th>מגרסה</th>
+<th>מה הוא נותן</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Protocol</code>, <code>TypedDict</code></td>
+<td>3.8</td>
+<td>ממשק מבני; מילון עם מפתחות ידועים</td>
+</tr>
+<tr>
+<td><code>typing.Self</code></td>
+<td>3.11</td>
+<td>„המחלקה הנוכחית”, גם בתת־מחלקה</td>
+</tr>
+<tr>
+<td><code>class Box[T]</code> ו־<code>type X = ...</code></td>
+<td>3.12</td>
+<td>תחביר generics חדש (PEP 695)</td>
+</tr>
+<tr>
+<td><code>typing.override</code></td>
+<td>3.12</td>
+<td>מסמן דריסה; הבודק מוודא שיש מה לדרוס</td>
+</tr>
+<tr>
+<td>הערות טיפוס עצלות</td>
+<td>3.14</td>
+<td>בלי <code>from __future__ import annotations</code></td>
+</tr>
+</tbody>
+</table>
+<p>השורה האחרונה חשובה כשקוראים קוד. מגרסה 3.14 הערות הטיפוס מחושבות רק כשמבקשים אותן (PEP 649), ולכן
+אפשר להפנות למחלקה שמוגדרת בהמשך הקובץ בלי מרכאות. הייבוא מ־<code>__future__</code> בקוד ישן הוא שריד.</p>
+<h3 id="741-protocol">7.4.1 Protocol: ממשק בלי ירושה</h3>
+<p><code>Protocol</code> מגדיר צורה ולא שושלת: כל אובייקט עם המתודות הנכונות מקיים אותו, גם אם לא שמע עליו. זה
+הממשק של Go מפרק 4. בקובץ <code>report.py</code> של התרגיל יש שניים:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-python">class Writer(Protocol):
+    &quot;&quot;&quot;Anything with write(str): sys.stdout, io.StringIO, an open text file.&quot;&quot;&quot;
+
+    def write(self, text: str, /) -&gt; object: ...
+
+
+class Reporter(Protocol):
+    def write(self, report: Report, out: Writer) -&gt; None: ...
+</code></pre>
+
+
+</div>
+
+<p>הראשון מראה למה Protocol קיים. הפלט הסטנדרטי, מחרוזת בזיכרון וקובץ פתוח לא יורשים ממחלקה שלנו,
+ואין דרך לגרום להם לרשת; הם פשוט מקיימים את הצורה. מחלקת בסיס מופשטת (ABC) לא הייתה עובדת כאן.
+ABC עדיפה כשרוצים לשתף מימוש, או שגיאה בזמן ריצה כשמחלקה לא מימשה מתודה. Protocol עדיף כשהחוזה שייך
+לצרכנית: הפונקציה שכותבת דוח אומרת מה היא צריכה, וכל מי שמתאים נכנס. זה „ממשק קטן אצל הצרכן” של Go.</p>
+<blockquote>
+<p><strong>טעות נפוצה:</strong> להניח ש־<code>Protocol</code> נבדק בזמן ריצה. הוא לא. בדיקת <code>isinstance</code> עליו נכשלת, אלא אם
+מסמנים אותו <code>@runtime_checkable</code>, וגם אז נבדק רק שהמתודות קיימות. האכיפה כולה של הבודק הסטטי.</p>
+</blockquote>
+<h3 id="742-typeddict-json">7.4.2 TypedDict: צורה של JSON</h3>
+<p>כשהפלט הוא JSON, <code>TypedDict</code> מתאר את המבנה בלי מחלקה בזמן ריצה: זה מילון רגיל, והבודק מוודא כל
+מפתח וכל ערך. מתוך <code>report.py</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-python">class SummaryDict(TypedDict):
+    lines: int
+    valid: int
+    bad_lines: list[int]
+    by_type: dict[str, int]
+    issues: list[IssueDict]
+</code></pre>
+
+
+</div>
+
+<p>אם תכתבי בטעות <code>"bad_line"</code> במקום <code>"bad_lines"</code>, הבודק יעצור אותך. בלעדיו, הטעות הייתה מתגלה רק
+כשכלי אחר קורא את ה־JSON. לנתונים פנימיים מחלקת נתונים עדיפה, כי יש לה מתודות ואי־שינוי.</p>
+<h3 id="743-generics">7.4.3 generics בתחביר החדש, ועוד שלושה כלים קטנים</h3>
+<p>התחביר החדש מצהיר על משתנה הטיפוס ליד השם, בלי <code>TypeVar</code>. בקובץ <code>checker.py</code>, ניתוח שורה מחזיר
+הצלחה עם ערך, או כישלון עם רשימת בעיות:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-python">@dataclass(frozen=True, slots=True)
+class Ok[T]:
+    value: T
+
+
+@dataclass(frozen=True, slots=True)
+class Err:
+    issues: list[Issue]
+
+
+type Outcome[T] = Ok[T] | Err
+</code></pre>
+
+
+</div>
+
+<p>ההוראה <code>type</code> יוצרת כינוי טיפוס (alias) שמחושב בעצלות. הפונקציה <code>check_lines</code> מפרקת את התוצאה
+עם <code>match</code>. בענף <code>case Ok(event)</code> הבודק כבר יודע שיש בידיו אירוע אמיתי.</p>
+<p>ושלושה כלים קטנים, באותו קובץ:</p>
+<ul>
+<li><strong>הטיפוס <code>Literal</code>:</strong> סוג הבעיה (<code>IssueKind</code>) הוא אחת משלוש מחרוזות, והערך <code>"jsno"</code> הוא שגיאת טיפוס.</li>
+<li><strong>הטיפוס <code>Self</code>:</strong> המתודה <code>from_validation_error</code> מחזירה <code>list[Self]</code>, כך שבתת־מחלקה תחזור תת־המחלקה.</li>
+<li><strong>המעטר <code>@override</code>:</strong> על <code>__str__</code>, מצהיר שזו דריסה. אם מחלקת האב תשנה שם, הבודק יגיד.</li>
+</ul>
+<blockquote>
+<p><strong>איך Rust עושה את זה:</strong>
+- הזוג שלנו הוא בעצם <code>Result&lt;T, Vec&lt;Issue&gt;&gt;</code> בלי הסוכר, והפירוק עם <code>match</code> זהה.
+- ההבדל: ב־Rust המהדר דורש לטפל בכל הענפים.
+- ב־Python הבודק מתריע על ענף חסר רק אם מוסיפים <code>assert_never</code> בסוף.
+- ובזמן ריצה, פירוק בלי ענף מתאים פשוט לא עושה כלום.</p>
+</blockquote>
+<h2 id="75-pydantic-v2">7.5 pydantic v2</h2>
+<p>רמזי טיפוס הם הבטחה של המתכנתת, ו־Python לא אוכפת אותם. קלט חיצוני לא חתם על ההבטחה. pydantic
+סוגרת את הפער: מודל שמוגדר ברמזי טיפוס, ובנייה שבודקת וממירה את הקלט, או זורקת <code>ValidationError</code>
+עם כל השגיאות. הליבה שלה כתובה ב־Rust, בחבילה נפרדת, ולכן היא מהירה מספיק
+לשמש בכל בקשת HTTP.</p>
+<h3 id="751">7.5.1 מודלים, אילוצים ובודקי תקינות</h3>
+<p>מתוך <code>models.py</code> של התרגיל:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-python">class Strict(BaseModel):
+    &quot;&quot;&quot;Shared configuration: unknown fields are errors, instances are immutable.&quot;&quot;&quot;
+
+    model_config = ConfigDict(extra=&quot;forbid&quot;, frozen=True)
+
+
+class EventBase(Strict):
+    id: UUID
+    tenant: TenantId
+    created_at: AwareDatetime
+
+    @field_validator(&quot;created_at&quot;)
+    @classmethod
+    def to_utc(cls, value: datetime) -&gt; datetime:
+        return value.astimezone(UTC)
+
+
+class InvoicePaidData(Strict):
+    invoice_id: str = Field(min_length=5)
+    amount_cents: int = Field(gt=0, strict=True)
+    currency: Currency
+</code></pre>
+
+
+</div>
+
+<table>
+<thead>
+<tr>
+<th>הגדרה</th>
+<th>מה היא אוכפת</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>extra="forbid"</code></td>
+<td>שדה לא מוכר הוא שגיאה, ולא נבלע בשקט</td>
+</tr>
+<tr>
+<td><code>frozen=True</code></td>
+<td>אי אפשר לשנות אחרי הבנייה</td>
+</tr>
+<tr>
+<td><code>UUID</code>, <code>AwareDatetime</code></td>
+<td>מחרוזת שאינה מזהה תקין, או תאריך בלי אזור זמן, נדחים</td>
+</tr>
+<tr>
+<td><code>Field(gt=0, strict=True)</code></td>
+<td>מספר שלם חיובי; המחרוזת <code>"1999"</code> <strong>לא</strong> מתקבלת</td>
+</tr>
+<tr>
+<td><code>@field_validator</code></td>
+<td>קוד שלך שרץ אחרי הבדיקה המובנית של השדה</td>
+</tr>
+</tbody>
+</table>
+<p>ברירת המחדל היא מצב מקל (lax), שממיר <code>"1999"</code> ל־1999. בשדה של כסף זה מסוכן, כי זה מסתיר שולחת שבנתה
+JSON לא נכון. ההחלטה היא לכל שדה, לא לכל הפרויקט. כשהבדיקה תלויה בכמה שדות, משתמשים בבודק ברמת המודל:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-python">    @model_validator(mode=&quot;after&quot;)
+    def location_when_in_transit(self) -&gt; Self:
+        if self.status == &quot;in_transit&quot; and not self.location:
+            raise ValueError(&quot;location is required when status is 'in_transit'&quot;)
+        return self
+</code></pre>
+
+
+</div>
+
+<p>בודק תקינות מעלה <code>ValueError</code> או <code>AssertionError</code>, והספרייה הופכת אותו לשגיאה עם מיקום. חריגה מסוג
+אחר עוברת הלאה כמו שהיא, וזה טוב: באג בבודק לא מתחפש לקלט שגוי.</p>
+<h3 id="752-typeadapter">7.5.2 איחוד מובחן ו־TypeAdapter</h3>
+<p>השדה <code>type</code> של כל אירוע קובע איזה מודל חל עליו. זה איחוד מובחן (discriminated union):</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-python">type Event = Annotated[InvoicePaid | ShipmentMoved, Field(discriminator=&quot;type&quot;)]
+
+# The discriminator values; pydantic puts the matching one first in an error's location.
+EVENT_TYPES = frozenset({&quot;invoice.paid&quot;, &quot;shipment.moved&quot;})
+
+EVENT_ADAPTER: TypeAdapter[Event] = TypeAdapter(Event)
+</code></pre>
+
+
+</div>
+
+<p>בלי המבחין, הספרייה מנסה כל מודל בתורו ומחזירה שגיאות מכולם, איטי ומבלבל. איתו, היא קוראת את <code>type</code>,
+בוחרת מודל אחד ומדווחת רק את השגיאות שלו. מתאם הטיפוסים (<code>TypeAdapter</code>) נותן את כל יכולות הבדיקה
+לטיפוס שאינו מודל, ונוצר <strong>פעם אחת</strong> ברמת המודול, כי הבנייה שלו מקמפלת סכמה. יש לו שתי דרכים לקרוא:</p>
+<table>
+<thead>
+<tr>
+<th>קריאה</th>
+<th>מה היא עושה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>EVENT_ADAPTER.validate_json(line)</code></td>
+<td>מפרקת את ה־JSON ובודקת, הכול בתוך הליבה</td>
+</tr>
+<tr>
+<td><code>EVENT_ADAPTER.validate_python(json.loads(line))</code></td>
+<td>פירוק ב־Python, ואז בדיקה של המבנה</td>
+</tr>
+</tbody>
+</table>
+<p>הפתרון משתמש בראשונה, ובסעיף 7.8 תמדדי את ההבדל. יתרון נוסף: JSON שבור מגיע כשגיאת תקינות רגילה,
+מסוג <code>json_invalid</code>, באותו ערוץ כמו שאר השגיאות.</p>
+<h3 id="753-pydantic">7.5.3 מה pydantic בודקת שרמזי טיפוס לא</h3>
+<p>זו שאלת ראיון קלאסית, והתשובה היא „את הקלט, בזמן ריצה”: טיפוסים בפועל, אילוצים שאין להם שפה
+ברמזי טיפוס, המרות מבוקרות, צורה, וכל השגיאות בבת אחת, כל אחת עם מיקום. המיקום הוא מה שהופך את הדוח
+של התרגיל לשימושי. השורה הזאת אומרת בדיוק מה לתקן ואיפה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">line 16: schema at data.amount_cents: Input should be greater than 0
+</code></pre>
+
+
+</div>
+
+<h2 id="76-pytest-fixtures-parametrize-monkeypatch">7.6 pytest: fixtures, parametrize ו־monkeypatch</h2>
+<p>שלושה דברים מבדילים חבילת בדיקות של צוות: מצב מוכן דרך fixtures ולא דרך העתקה, מקרים דרך פרמטרים
+ולא דרך לולאות, ובידוד מהסביבה.</p>
+<h3 id="761-fixtures">7.6.1 fixtures והטווח שלהן</h3>
+<p>פונקציית הכנה (fixture) מתבקשת לפי שם הפרמטר. המריצה מוצאת אותה בקובץ <code>conftest.py</code>. מתוך הקובץ
+הזה בתרגיל:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-python">@pytest.fixture(scope=&quot;session&quot;)
+def big_file(tmp_path_factory: pytest.TempPathFactory) -&gt; Path:
+    &quot;&quot;&quot;Built once per test session and shared: 50,000 lines, one bad line in every 1,000.&quot;&quot;&quot;
+    path = tmp_path_factory.mktemp(&quot;big&quot;) / &quot;big.jsonl&quot;
+    with path.open(&quot;w&quot;, encoding=&quot;utf-8&quot;) as handle:
+        for line in generate_lines(50_000, seed=11, bad_every=1_000):
+            handle.write(line + &quot;\n&quot;)
+    return path
+</code></pre>
+
+
+</div>
+
+<table>
+<thead>
+<tr>
+<th>טווח</th>
+<th>כמה פעמים נבנית</th>
+<th>מתי</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>function</code> (ברירת מחדל)</td>
+<td>לכל בדיקה</td>
+<td>כמעט תמיד: כל בדיקה מקבלת מצב נקי</td>
+</tr>
+<tr>
+<td><code>class</code>, <code>module</code>, <code>package</code></td>
+<td>פעם לכל קבוצה</td>
+<td>משאב יקר שרק קבוצה צריכה</td>
+</tr>
+<tr>
+<td><code>session</code></td>
+<td>פעם לכל הריצה</td>
+<td>קובץ גדול, קונטיינר, שרת</td>
+</tr>
+</tbody>
+</table>
+<p>הכלל: טווח רחב רק למשאב שאיש לא משנה. אם בדיקה אחת משנה משאב משותף, הבאה תלויה בסדר, ותיכשל רק
+כשמריצים אותה עם השכנות שלה. ה־fixture המובנית <code>tmp_path</code> נותנת תיקייה ריקה וייחודית לכל בדיקה.
+בתרגיל, <code>write_jsonl</code> עוטפת אותה כ„מפעל” (factory): היא מחזירה פונקציה, הבדיקה מחליטה מה לכתוב,
+והיא מחליטה איפה.</p>
+<h3 id="762-parametrize">7.6.2 parametrize</h3>
+<p>לולאה בתוך בדיקה עוצרת בכישלון הראשון ולא אומרת איזה מקרה נכשל. במקומה נותנים ל־pytest טבלה. מתוך
+<code>tests/test_models.py</code>, בקיצור:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-python">@pytest.mark.parametrize(
+    (&quot;path&quot;, &quot;value&quot;, &quot;location&quot;),
+    [
+        ((&quot;data&quot;, &quot;amount_cents&quot;), 0, (&quot;invoice.paid&quot;, &quot;data&quot;, &quot;amount_cents&quot;)),
+        ((&quot;data&quot;, &quot;amount_cents&quot;), &quot;1999&quot;, (&quot;invoice.paid&quot;, &quot;data&quot;, &quot;amount_cents&quot;)),
+        ((&quot;data&quot;, &quot;currency&quot;), &quot;GBP&quot;, (&quot;invoice.paid&quot;, &quot;data&quot;, &quot;currency&quot;)),
+</code></pre>
+
+
+</div>
+
+<p>כל שורה היא בדיקה נפרדת עם שם משלה (הפרמטר <code>ids</code> נותן שמות כמו <code>amount-as-string</code>). כשאחת נכשלת,
+הפלט אומר איזו, ואפשר להריץ רק אותה. זו הבדיקה הטבלאית של Go, בלי לכתוב את הלולאה.</p>
+<h3 id="763-monkeypatch-capsys">7.6.3 monkeypatch, capsys וסימונים</h3>
+<p><code>monkeypatch</code> משנה משהו לזמן הבדיקה ומחזיר אותו אחריה, גם אם הבדיקה נכשלה. מתוך <code>tests/test_cli.py</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-python">def test_dash_reads_stdin(
+    monkeypatch: pytest.MonkeyPatch, invoice: dict[str, Any], capsys: pytest.CaptureFixture[str]
+) -&gt; None:
+    monkeypatch.setattr(sys, &quot;stdin&quot;, io.StringIO(json.dumps(invoice) + &quot;\n&quot;))
+    assert main([&quot;check&quot;, &quot;-&quot;]) == EXIT_OK
+    assert &quot;invoice.paid=1&quot; in capsys.readouterr().out
+</code></pre>
+
+
+</div>
+
+<p>בדיקה אחרת בקובץ משתמשת ב־<code>monkeypatch.setenv</code> כדי לבחור פורמט פלט, ו־<code>capsys</code> לוכדת את מה
+שהודפס. הבדיקות קוראות ל־<code>main</code> עם רשימת ארגומנטים ומקבלות קוד יציאה כמספר, בלי להריץ תהליך. זה
+אפשרי רק כי <code>main</code> מחזיר מספר ולא קורא ל־<code>sys.exit</code> בעצמו.</p>
+<p>סימון (mark) מתייג בדיקה. הבדיקה על הקובץ הגדול מסומנת <code>slow</code>, והסימון רשום בקובץ הפרויקט, כדי
+שהדגל <code>--strict-markers</code> יתפוס שגיאת כתיב:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-toml">[tool.pytest]
+testpaths = [&quot;tests&quot;]
+addopts = [&quot;--strict-markers&quot;, &quot;--strict-config&quot;, &quot;-ra&quot;]
+markers = [&quot;slow: generates a large input file; deselect with -m 'not slow'&quot;]
+</code></pre>
+
+
+</div>
+
+<p>הטבלה <code>[tool.pytest]</code> עם טיפוסי TOML אמיתיים נתמכת מגרסה 9. כדי לדלג על הבדיקות האיטיות:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">uv run pytest -q -m &quot;not slow&quot;
+</code></pre>
+
+
+</div>
+
+<h2 id="77-entry-points">7.7 מבנה חבילה ו־entry points</h2>
+<p>המבנה של התרגיל הוא src layout, כלומר הקוד יושב בתיקיית מקור נפרדת:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">ch07/
+├── pyproject.toml   uv.lock   .python-version
+├── src/eventcheck/
+│   ├── __init__.py  __main__.py  py.typed
+│   └── models.py  checker.py  report.py  generate.py  cli.py
+└── tests/
+    └── conftest.py  test_models.py  test_checker.py  test_cli.py
+</code></pre>
+
+
+</div>
+
+<p>למה <code>src/</code>? כי בלעדיה Python מוצאת את החבילה בתיקייה הנוכחית ולא את מה שהותקן, ובדיקות עוברות אצלך
+ונכשלות אצל מי שמתקינה, למשל כשקובץ חסר בבנייה. עם <code>src/</code>, הדרך היחידה לייבא את החבילה היא דרך
+ההתקנה. הפקודה <code>uv sync</code> מתקינה אותה במצב עריכה (editable), כך ששינוי בקוד נראה מיד.</p>
+<h3 id="771">7.7.1 נקודת כניסה וקודי יציאה</h3>
+<p>הפקודה מנקודת הכניסה, ההרצה עם <code>python -m</code>, והקריאה הישירה מבדיקה מגיעות כולן לאותה פונקציה. השנייה
+עוברת דרך הקובץ <code>__main__.py</code> של התרגיל:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-python">from eventcheck.cli import main
+
+raise SystemExit(main())
+</code></pre>
+
+
+</div>
+
+<p>גם המעטפת שהמתקין יוצר לנקודת הכניסה קוראת ל־<code>main()</code> ומעבירה את הערך הלאה כקוד יציאה. קודי היציאה
+הם חלק מהחוזה: 0 תקין, 1 נמצאו שורות פגומות, 2 שגיאת שימוש. צעד ב־CI יכול לסמוך עליהם.</p>
+<h3 id="772-pytyped">7.7.2 הקובץ py.typed</h3>
+<p>הקובץ הריק <code>py.typed</code> מסמן לבודקי טיפוסים שהחבילה מתעדת טיפוסים (PEP 561). בלעדיו, קוד חיצוני רואה
+הכול כערך בלי טיפוס. זה נבדק בזמן כתיבת התרגיל: לפני שהקובץ נוסף, הבודק דילג על החבילה עם שגיאת
+<code>import-untyped</code>. אחרי שנוסף, אותה בדיקה הראתה <code>InvoicePaid | ShipmentMoved</code>.</p>
+<h2 id="78">7.8 ביצועים: מודדים לפני שמשפרים</h2>
+<p>בפרק 6 ראית את pprof. ב־Python יש שני כלים בספרייה התקנית, ולכל אחד שאלה אחרת:</p>
+<table>
+<thead>
+<tr>
+<th>כלי</th>
+<th>השאלה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cProfile</code></td>
+<td>איפה התוכנית מבלה את הזמן, לפי פונקציה</td>
+</tr>
+<tr>
+<td><code>timeit</code></td>
+<td>כמה זמן לוקח קטע קוד קטן, בחזרות רבות</td>
+</tr>
+</tbody>
+</table>
+<p>הסדר חשוב: קודם פרופיל על עבודה אמיתית, כדי לדעת <strong>מה</strong> איטי, ורק אז השוואה על החשוד.</p>
+<h3 id="781-cprofile">7.8.1 פרופיל עם cProfile</h3>
+<p>התרגיל כולל מחולל שמשתמש בזרע אקראי (seed) קבוע, ולכן מייצר בדיוק אותו קובץ בכל ריצה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">mkdir -p /tmp/ch07
+uv run eventcheck generate 200000 /tmp/ch07/big.jsonl --bad-every 1000
+uv run python -m cProfile -o /tmp/ch07/check.prof -m eventcheck check /tmp/ch07/big.jsonl &gt; /dev/null
+uv run python -c &quot;import pstats; pstats.Stats('/tmp/ch07/check.prof').sort_stats('cumulative').print_stats(12)&quot;
+</code></pre>
+
+
+</div>
+
+<p>הפקודות יוצרות מאתיים אלף שורות, מריצות את החבילה תחת פרופיל ושומרות את התוצאה, ומדפיסות 12 שורות
+מובילות לפי זמן מצטבר. בפלט יש שלוש עמודות:</p>
+<ul>
+<li><strong>העמודה <code>ncalls</code>:</strong> כמה פעמים הפונקציה נקראה.</li>
+<li><strong>העמודה <code>tottime</code>:</strong> הזמן בתוך הפונקציה עצמה.</li>
+<li><strong>העמודה <code>cumtime</code>:</strong> הזמן כולל כל מה שהיא קראה לו.</li>
+</ul>
+<p>במדידה שלי, השורות המובילות אחרי מנגנון ההרצה היו הפונקציות של הכלי עצמו, מ־<code>main</code> ועד
+<code>validate_json</code>. הזמנים שלך יהיו אחרים, ולכן הם לא מופיעים כאן: תמדדי ותרשמי בפתק את חמש השורות
+המובילות שלך. ואז שאלי: כמה מהזמן הוא הבדיקה של pydantic, וכמה הלולאה שלך? אם רוב הזמן בספרייה, שכתוב
+הלולאה לא ישנה הרבה.</p>
+<blockquote>
+<p><strong>שימי לב:</strong> תחת <code>cProfile</code> קוד היציאה אובד. על הקובץ הזה הכלי מחזיר 1, אבל הפקודה עם הפרופיל
+מחזירה 0. אל תבדקי קודי יציאה בהרצה עם פרופיל.</p>
+</blockquote>
+<h3 id="782-timeit">7.8.2 השוואה עם timeit</h3>
+<p>השאלה מסעיף 7.5.2: האם פירוק בתוך הליבה מהיר מפירוק ב־Python ובדיקה אחריו? על אותה שורה בדיוק:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">head -1 /tmp/ch07/big.jsonl &gt; /tmp/ch07/one.jsonl
+uv run python -m timeit -s &quot;from pathlib import Path; from eventcheck.models import EVENT_ADAPTER; line = Path('/tmp/ch07/one.jsonl').read_text()&quot; &quot;EVENT_ADAPTER.validate_json(line)&quot;
+uv run python -m timeit -s &quot;import json; from pathlib import Path; from eventcheck.models import EVENT_ADAPTER; line = Path('/tmp/ch07/one.jsonl').read_text()&quot; &quot;EVENT_ADAPTER.validate_python(json.loads(line))&quot;
+</code></pre>
+
+
+</div>
+
+<p>הדגל <code>-s</code> הוא הכנה שלא נמדדת; הכלי בוחר מספר חזרות ומדווח את הטובה מחמש סדרות. רשמי בפתק:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">validate_json:                    ____ usec per loop
+validate_python(json.loads(...)): ____ usec per loop
+machine / date:                   ____
+</code></pre>
+
+
+</div>
+
+<p>שני כללים למדידה הוגנת: נתונים מייצגים (שורה אמיתית, לא <code>{}</code>), והשוואה רק בין מדידות מאותה מכונה
+באותו מצב. מחשב נייד על סוללה, או עם תהליכים כבדים ברקע, נותן מספרים שאי אפשר להשוות.</p>
+<h2 id="_3">סיכום</h2>
+<ul>
+<li>פרויקט uv הוא קובץ פרויקט וקובץ נעילה, שניהם מחויבים. ב־CI, הדגל <code>--locked</code> מוכיח שהם תואמים.</li>
+<li>הבודקים הסטטיים רצים כל הזמן, במצב קפדני, וההגדרות שלהם בקובץ הפרויקט.</li>
+<li>הטיפוס <code>Protocol</code> מתאים כשהחוזה שייך לצרכנית; מחלקה מופשטת כשמשתפים מימוש.</li>
+<li>הטיפוס <code>TypedDict</code> מתאר צורות שעוברות גבול.</li>
+<li>התחביר החדש של generics והמעטר <code>override</code> הופכים כוונה לבדיקה.</li>
+<li>המודלים של pydantic בודקים קלט בזמן ריצה, עם אילוצים, איחוד מובחן ושגיאות עם מיקום.</li>
+<li>בבדיקות: fixtures בטווח מתאים, פרמטרים במקום לולאות, החלפות זמניות לבידוד, וסימונים רשומים.</li>
+<li>מבנה src, נקודת כניסה, וקובץ <code>py.typed</code> כדי שהטיפוסים יגיעו למשתמשות.</li>
+<li>מודדים קודם, משווים אחר כך, ורושמים רק מספרים שמדדת בעצמך.</li>
+</ul>
+<h2 id="_4">מונחים לזכור</h2>
+<table>
+<thead>
+<tr>
+<th>מונח בעברית</th>
+<th>באנגלית</th>
+<th>במשפט אחד</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>קובץ נעילה</td>
+<td>lock file</td>
+<td>כל התלויות בגרסה ובתמצית מדויקות, כדי שכולם יתקינו אותו דבר</td>
+</tr>
+<tr>
+<td>קבוצת תלויות</td>
+<td>dependency group</td>
+<td>תלויות פיתוח שלא נשלחות עם החבילה</td>
+</tr>
+<tr>
+<td>נקודת כניסה</td>
+<td>entry point</td>
+<td>פקודה שהמתקין יוצר ושקוראת לפונקציה בחבילה</td>
+</tr>
+<tr>
+<td>מבנה src</td>
+<td>src layout</td>
+<td>הקוד בתוך <code>src/</code>, כך שאפשר לייבא אותו רק דרך ההתקנה</td>
+</tr>
+<tr>
+<td>רמזי טיפוס</td>
+<td>type hints</td>
+<td>הערות טיפוס שבודק סטטי קורא ושהמפרש לא אוכף</td>
+</tr>
+<tr>
+<td>טיפוסיות מבנית</td>
+<td>structural typing</td>
+<td>התאמה לפי צורה ולא לפי ירושה</td>
+</tr>
+<tr>
+<td>בדיקת תקינות</td>
+<td>validation</td>
+<td>בדיקה בזמן ריצה שקלט מתאים למודל</td>
+</tr>
+<tr>
+<td>איחוד מובחן</td>
+<td>discriminated union</td>
+<td>איחוד שבו שדה אחד קובע איזה מודל חל</td>
+</tr>
+<tr>
+<td>מדידת פרופיל</td>
+<td>profiling</td>
+<td>מדידה של היכן תוכנית מבלה את זמנה</td>
+</tr>
+<tr>
+<td>בנצ'מרק</td>
+<td>benchmark</td>
+<td>מדידה חוזרת של קטע קוד קטן כדי להשוות חלופות</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_5">טעויות נפוצות</h2>
+<ul>
+<li><strong>לא לחייב את קובץ הנעילה.</strong> כל מכונה פותרת תלויות מחדש, ו„אצלי זה עובד” חוזר.</li>
+<li><strong>להתקין עם pip לתוך סביבת uv.</strong> הנעילה לא מתעדכנת, וה־CI מקבל סביבה אחרת.</li>
+<li><strong>להשתיק את הבודק בלי קוד שגיאה.</strong> ההשתקה בולעת גם את השגיאה הבאה. תמיד עם קוד, ועדיף לתקן.</li>
+<li><strong>להניח שרמזי טיפוס בודקים קלט.</strong> הם לא. קלט חיצוני עובר דרך pydantic, בגבול.</li>
+<li><strong>ליצור מתאם טיפוסים בתוך לולאה.</strong> כל יצירה מקמפלת סכמה מחדש.</li>
+<li><strong>לשנות בבדיקה משאב בטווח רחב.</strong> הבדיקות נהיות תלויות סדר.</li>
+<li><strong>לשפר לפני שמודדים.</strong> מה שנראה איטי הוא לעתים רחוקות מה שאיטי.</li>
+</ul>
+<h2 id="_6">שאלות ראיון</h2>
+<ol>
+<li>
+<p><strong>מה קובץ נעילה מבטיח, ומה לא?</strong> שחזור: כולן מקבלות אותו עץ תלויות, כולל העקיפות, עם תמציות
+   שמזהות קובץ שהוחלף. הוא לא מבטיח שהגרסאות בטוחות או נכונות, ולא מתעדכן לבד; עדכון הוא קומיט נפרד
+   שעובר את הבדיקות. בספרייה מצמידים טווחים, כדי לא לכפות גרסאות על אחרים.</p>
+</li>
+<li>
+<p><strong>מתי <code>Protocol</code> עדיף על מחלקת בסיס מופשטת?</strong> כשהחוזה שייך לצרכנית, ובמיוחד כשאין שליטה במחלקות
+   שצריכות לקיים אותו; הפלט הסטנדרטי לא יירש לעולם ממחלקה שלי. מחלקה מופשטת עדיפה כשמשתפים מימוש,
+   או כשרוצים שגיאה בזמן ריצה על מתודה חסרה. המחיר של Protocol: האכיפה כולה סטטית.</p>
+</li>
+</ol>
+<p><strong>המשך:</strong> ואם צריך בדיקת <code>isinstance</code>? מסמנים <code>@runtime_checkable</code>, וזוכרים שנבדק רק קיום המתודות.
+   לרוב עדיף לבדוק בגבול עם pydantic.</p>
+<ol start="3">
+<li>
+<p><strong>מה pydantic בודקת שרמזי טיפוס לא?</strong> את הקלט, בזמן ריצה: טיפוסים בפועל, אילוצים, צורה והמרות
+   מבוקרות, עם כל השגיאות ומיקומן. ההחלטה המעניינת היא מקל מול קפדני: מקל נוח לקלט אנושי, קפדני מתאים
+   לשדות כמו כסף, שבהם המרה שקטה מסתירה באג אצל השולחת.</p>
+</li>
+<li>
+<p><strong>למה בדיקה שעוברת אצלך נכשלת אצל אחרת?</strong> בלי מבנה src, הבדיקות מייבאות מתיקיית העבודה ולא מהחבילה
+   המותקנת, וקובץ שחסר בבנייה לא נתפס. סיבות נוספות: תלויות לא נעולות, משאבים משותפים שמשתנים, ותלות
+   בשעון או ברשת. הפתרונות: מבנה src, נעילה, טווח צר כברירת מחדל, והזרקה של זמן ואקראיות.</p>
+</li>
+<li>
+<p><strong>מציעים לשכתב את לולאת הבדיקה כדי שתהיה מהירה יותר. מה את עושה?</strong> פרופיל על קלט מייצג. אם רוב
+   הזמן בספרייה, השכתוב לא ישנה הרבה, והשאלה האמיתית היא אם הבדיקה נחוצה. אם יש נקודה חמה בקוד שלנו,
+   משווים חלופות, משנים ומודדים שוב באותה מכונה. המספרים נכנסים להודעת הקומיט, כדי שאפשר יהיה לשחזר.</p>
+</li>
+</ol>
+<h2 id="obsidian">פתק Obsidian</h2>
+<p>הפתק המוכן נמצא גם כקובץ: <code>obsidian/07-python-typed-packaged.md</code>. זה תוכנו:</p>
+<ul>
+<li><strong>שני קבצים:</strong> קובץ הפרויקט מתאר, קובץ הנעילה מצמיד, ושניהם ב־Git.</li>
+<li><strong>שני דגלים לסנכרון:</strong> <code>--locked</code> נכשל כשהנעילה לא תואמת, <code>--frozen</code> מתקין בלי לבדוק.</li>
+<li><strong>בודקים סטטיים:</strong> ההגדרות בקובץ הפרויקט, מצב קפדני, השתקה רק עם קוד שגיאה.</li>
+<li><strong>הטיפוס <code>Protocol</code>:</strong> חוזה של הצרכנית, טיפוסיות מבנית, נאכף רק סטטית.</li>
+<li><strong>הטיפוס <code>TypedDict</code>:</strong> צורה של JSON שעובר גבול.</li>
+<li><strong>תחביר חדש:</strong> <code>class Ok[T]</code> ו־<code>type Outcome[T]</code>; מגרסה 3.14 הערות טיפוס עצלות.</li>
+<li><strong>בדיקת תקינות:</strong> pydantic בודקת קלט בזמן ריצה, עם קפדנות לפי שדה ואיחוד מובחן.</li>
+<li><strong>בדיקות:</strong> טווח צר כברירת מחדל, פרמטרים במקום לולאות, החלפה זמנית שמוחזרת בסוף.</li>
+<li><strong>אריזה:</strong> מבנה src, נקודת כניסה, וקובץ <code>py.typed</code> שמפרסם את הטיפוסים.</li>
+<li><strong>ביצועים:</strong> <code>cProfile</code> כדי לדעת מה איטי, <code>timeit</code> כדי להשוות.</li>
+<li><strong>שאלה פתוחה:</strong> ___</li>
+</ul>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">uv init --package --python 3.14 NAME
+uv add 'pkg==X.Y.Z'      uv add --dev 'pytest==9.1.1'
+uv sync --locked (CI)    uv sync --frozen --no-dev (image)
+uv lock --upgrade-package pkg &amp;&amp; uv sync
+uv run ruff check . &amp;&amp; uv run ruff format --check . &amp;&amp; uv run mypy src tests
+uv run pytest -q -m &quot;not slow&quot;
+uv run python -m cProfile -o check.prof -m eventcheck check big.jsonl &gt; /dev/null
+python -m timeit -s &quot;SETUP&quot; &quot;STATEMENT&quot;
+class Ok[T]: ...   type Outcome[T] = Ok[T] | Err   @override   -&gt; list[Self]
+my profile, top 5 (cumtime): ____
+validate_json vs validate_python(json.loads): ____ / ____ usec
+</code></pre>
+
+
+</div>
+
+<h2 id="_7">תרגיל</h2>
+<p><strong>מטרה:</strong> לבנות את <code>eventcheck</code>, כלי שבודק קובץ אירועים ומדווח על כל שורה פגומה. הוא פרויקט נעול
+עם נקודת כניסה, בודקים סטטיים במצב קפדני, ממשקים מבניים, מודלים של pydantic, בדיקות עם פרמטרים,
+ומדידת פרופיל אחת.
+<strong>זמן:</strong> שני ימי לימוד, ימים 15 ו־16, כ־45 דקות בנייה ביום הראשון וכ־65 ביום השני.
+<strong>ידע מקדים:</strong> הפרק הזה, ופרק 2 (uv ו־Python 3.14).</p>
+<p>הצעדים, קוד ההתחלה, הרמזים והפתרון נמצאים ב־
+<a href="../exercises/ch07-eventcheck/README.md"><code>exercises/ch07-eventcheck/README.md</code></a>.</p>
+<p><strong>קריטריון סיום:</strong></p>
+<ul>
+<li>הפרויקט מסתנכרן מקובץ הנעילה בעותק נקי, והבודקים הסטטיים עוברים.</li>
+<li>הכלי מדווח על כל השורות הפגומות בקובץ הדוגמה, עם מספר השורה, ומחזיר קוד יציאה 1.</li>
+<li>כל הבדיקות עוברות, כולל הבדיקה המסומנת <code>slow</code>.</li>
+<li>פלט הפרופיל נשמר, וחמש השורות המובילות ושתי מדידות ההשוואה רשומות בפתק שלך.</li>
+</ul>
+<h2 id="_8">העשרה אופציונלית</h2>
+<ul>
+<li>המסמכים PEP 695 ו־PEP 649 קצרים יחסית, ומסבירים למה התחביר החדש עצל.</li>
+<li>בתיעוד של uv, הפרק על נעילה וסנכרון מפרט מתי <code>uv run</code> מסנכרן ומתי לא.</li>
+<li>בתיעוד של pydantic, הפרקים על מצב קפדני ועל איחודים מראים את כל ההבדלים.</li>
+<li>הוסיפי לכלי דגל שמגביל את מספר הבעיות המודפסות, ובדיקה עם פרמטרים עליו.</li>
+</ul>
+</main>
+<nav class="bottom"><a href="index.html">תוכן העניינים</a> · <a href="06-go-http-service.html">← פרק 6: שירות HTTP לייצור</a> · <a href="08-python-async-fastapi.html">פרק 8: Python אסינכרונית ו־FastAPI →</a></nav>
+<script type="module">
+  // Render ```mermaid blocks in the browser (needs internet once; cached afterwards).
+  const blocks = document.querySelectorAll("pre > code.language-mermaid");
+  if (blocks.length) {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs")).default;
+    for (const code of blocks) {
+      const div = document.createElement("div");
+      div.className = "mermaid";
+      div.textContent = code.textContent;
+      code.parentElement.replaceWith(div);
+    }
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run();
+  }
+</script>
+</body>
+</html>

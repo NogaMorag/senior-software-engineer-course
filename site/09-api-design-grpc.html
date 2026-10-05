@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>פרק 9: עיצוב API ו־gRPC</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="top"><a href="index.html">תוכן העניינים</a> · <a href="08-python-async-fastapi.html">← פרק 8: Python אסינכרונית ו־FastAPI</a> · <a href="10-postgres-queries-indexes.html">פרק 10: PostgreSQL: שאילתות ואינדקסים →</a></nav>
+<main class="book">
+<div class="toc"><span class="toctitle">תוכן הפרק</span><ul>
+<li><a href="#_1">מה נלמד בפרק</a></li>
+<li><a href="#_2">ידע מקדים</a></li>
+<li><a href="#91-rest">9.1 REST כחוזה: משאבים ופעלים</a></li>
+<li><a href="#92-openapi">9.2 OpenAPI כמקור אמת</a></li>
+<li><a href="#93-problem-details">9.3 חוזה שגיאות: problem details</a></li>
+<li><a href="#94-offset-cursor">9.4 עימוד: offset מול cursor</a><ul>
+<li><a href="#941-cursor">9.4.1 cursor: להמשיך מהפריט האחרון</a></li>
+</ul>
+</li>
+<li><a href="#95">9.5 מפתחות אידמפוטנטיות</a></li>
+<li><a href="#96">9.6 גרסאות ותאימות לאחור</a></li>
+<li><a href="#97-grpc-protobuf">9.7 gRPC ו־protobuf</a><ul>
+<li><a href="#971-buf">9.7.1 buf: בדיקה וחילול</a></li>
+<li><a href="#972-bufconn">9.7.2 שרת, קודי סטטוס ובדיקה עם bufconn</a></li>
+</ul>
+</li>
+<li><a href="#98-grpc">9.8 מתי לא gRPC</a></li>
+<li><a href="#99">9.9 אימות קלט וגבולות</a></li>
+<li><a href="#_3">סיכום</a></li>
+<li><a href="#_4">מונחים לזכור</a></li>
+<li><a href="#_5">טעויות נפוצות</a></li>
+<li><a href="#_6">שאלות ראיון</a></li>
+<li><a href="#obsidian">פתק Obsidian</a></li>
+<li><a href="#_7">תרגיל</a></li>
+<li><a href="#_8">העשרה אופציונלית</a></li>
+</ul>
+</div>
+
+<h1 id="9-api-grpc">פרק 9: עיצוב API ו־gRPC</h1>
+<p>ממשק API הוא הבטחה. ברגע שלקוח אחד כתב קוד מול צורת התשובה שלך, כל שינוי בה הוא משא ומתן, וכל שגיאה
+שלא תיעדת היא באג אצל מישהו אחר. הפרק מלמד לתכנן את ההבטחה לפני הקוד: חוזה כתוב, צורת שגיאה אחת, עימוד
+שלא מאבד פריטים, ניסיון חוזר שלא יוצר כפילויות, ושינויים שלא שוברים לקוחות. ואז הוא מראה מתי gRPC
+מתאים יותר מממשק JSON רגיל, ומתי ממש לא.</p>
+<h2 id="_1">מה נלמד בפרק</h2>
+<ul>
+<li>לחשוב על API כחוזה: משאבים, פעלים וקודי סטטוס שמשמעותם ידועה מראש.</li>
+<li>לכתוב קובץ OpenAPI 3.1 שהוא מקור האמת, ולבדוק אותו בכלי שרץ בקונטיינר.</li>
+<li>להחזיר כל שגיאה בצורה אחת: פרטי בעיה לפי RFC 9457.</li>
+<li>עימוד עם cursor שלא מכפיל ולא מדלג כשנוספים פריטים באמצע.</li>
+<li>מפתחות אידמפוטנטיות, כולל בקשות מקבילות עם אותו מפתח.</li>
+<li>גרסאות ותאימות לאחור: שינויים מוסיפים, קורא סובלני, כותרות הוצאה משימוש.</li>
+<li>שירות gRPC קטן שמחולל עם buf, בדיקות בלי רשת, ומתי לא לבחור בו.</li>
+</ul>
+<h2 id="_2">ידע מקדים</h2>
+<ul>
+<li>פרק 6, סעיפים 6.1 עד 6.6: הנתב, שכבות ביניים (middleware), לוגים מובנים, תצורה ובדיקות. התרגיל כותב
+  גרסאות קטנות משלו לאותם רכיבים, ולא מייבא את התרגיל של פרק 6.</li>
+<li>פרק 4: ממשקים ושגיאות עטופות. פרק 5: מנעולים, context והדגל <code>-race</code>.</li>
+<li>פרק 2: Docker פועל. את buf ושני התוספים שלו התרגיל בודק בתחילת יום 21, ומתקין אם הם חסרים.</li>
+</ul>
+<h2 id="91-rest">9.1 REST כחוזה: משאבים ופעלים</h2>
+<p>ב־REST מתארים את המערכת כאוסף של משאבים (resources), שלכל אחד כתובת, ומפעילים עליהם קבוצה קטנה
+וקבועה של פעלים, שיטות ה־HTTP. הכוח של הסגנון הוא האחידות: כל לקוח, פרוקסי ומטמון יודעים מה מותר לעשות
+עם <code>GET</code> בלי לקרוא את התיעוד שלך. בתרגיל המשאב הוא פריט בקטלוג:</p>
+<table>
+<thead>
+<tr>
+<th>פעולה</th>
+<th>שיטה ונתיב</th>
+<th>הצלחה</th>
+<th>בטוחה</th>
+<th>אידמפוטנטית</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>רשימה</td>
+<td><code>GET /v1/items</code></td>
+<td>200</td>
+<td>כן</td>
+<td>כן</td>
+</tr>
+<tr>
+<td>יצירה</td>
+<td><code>POST /v1/items</code></td>
+<td>201 עם <code>Location</code></td>
+<td>לא</td>
+<td>לא, אלא עם מפתח</td>
+</tr>
+<tr>
+<td>קריאה</td>
+<td><code>GET /v1/items/{id}</code></td>
+<td>200</td>
+<td>כן</td>
+<td>כן</td>
+</tr>
+<tr>
+<td>מחיקה</td>
+<td><code>DELETE /v1/items/{id}</code></td>
+<td>204</td>
+<td>לא</td>
+<td>כן</td>
+</tr>
+</tbody>
+</table>
+<p>שיטה <strong>בטוחה</strong> (safe) לא משנה מצב, ולכן מותר לשמור את התשובה במטמון. שיטה <strong>אידמפוטנטית</strong> (idempotent)
+היא כזו שעשר בקשות זהות משאירות את אותו מצב כמו בקשה אחת. מחיקה פעמיים משאירה פריט מחוק; יצירה פעמיים
+יוצרת שני פריטים. לכן לקוח שקיבל זמן קצוב ביצירה לא יודע אם מותר לו לנסות שוב, וסעיף 9.5 פותר את זה.</p>
+<p>קוד הסטטוס (status code) הוא החלק היחיד בתשובה שכל רכיב בדרך מבין, ולכן הוא חייב להיות נכון:</p>
+<table>
+<thead>
+<tr>
+<th>קוד</th>
+<th>מתי</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>400, 413, 415</td>
+<td>קלט שגוי; גוף גדול מדי; סוג תוכן שאינו JSON</td>
+</tr>
+<tr>
+<td>404, 405</td>
+<td>אין משאב או נתיב כזה; שיטה לא נתמכת (עם הכותרת <code>Allow</code>)</td>
+</tr>
+<tr>
+<td>409, 422</td>
+<td>התנגשות עם המצב; בקשה מובנת אבל אסורה</td>
+</tr>
+<tr>
+<td>429, 503</td>
+<td>עומס; הלקוח מנסה שוב אחרי המתנה (פרק 15)</td>
+</tr>
+<tr>
+<td>500</td>
+<td>באג אצלנו</td>
+</tr>
+</tbody>
+</table>
+<p>הכלל שכדאי לומר בראיון במשפט אחד: <strong>4xx אומר „את טעית”, 5xx אומר „אנחנו טעינו”.</strong> קוד 400 על באג בשרת
+עוצר ניסיונות חוזרים בדיוק כשהיה צריך אותם, וקוד 500 על קלט שגוי מעיר את התורנית בלילה.</p>
+<h2 id="92-openapi">9.2 OpenAPI כמקור אמת</h2>
+<p>המונח OpenAPI הוא תקן לתיאור ממשק HTTP בקובץ טקסט: נתיבים, פרמטרים, גופי בקשה, תשובות לכל קוד וסכמות
+של הנתונים. גרסה 3.1 מיישרת את הסכמות שלה עם התקן JSON Schema, ולכן כלים של התקן הזה מבינים גם אותן.</p>
+<p>„מקור אמת” (source of truth) הוא סדר עבודה: שינוי ב־API מתחיל בקובץ ונסקר כקובץ, ורק אחר כך נכתב הקוד.
+כשמפיקים את הקובץ מהקוד, החוזה הוא תוצאת לוואי: שדה שנוסף בטעות למבנה מופיע בו, ואף אחד לא החליט עליו. בקובץ <code>api/openapi.yaml</code> של התרגיל גם הגבולות כתובים:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-yaml">    NewItem:
+      type: object
+      additionalProperties: false
+      required: [sku, name, price_cents]
+      properties:
+        sku:
+          type: string
+          pattern: &quot;^[A-Z0-9-]{3,32}$&quot;
+          examples: [MUG-001]
+</code></pre>
+
+
+</div>
+
+<p>קובץ חוזה שאף אחד לא בודק נרקב. כלי בדיקה (linter) תופס הפניה לסכמה שלא קיימת, פעולה בלי תשובת שגיאה
+או מזהה פעולה כפול. התרגיל מריץ את Redocly מתוך קונטיינר, כך שאין מה להתקין מעבר ל־Docker. התג נעול
+לגרסה שנבדקה ב־Docker Hub (נכון לאוקטובר 2026; ראי נספח C):</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">docker run --rm -v &quot;$PWD/api:/spec:ro&quot; -w /spec redocly/cli:2.57.0 lint openapi.yaml
+</code></pre>
+
+
+</div>
+
+<p>הפלט המצופה מסתיים בשורה <code>Your API description is valid</code>. ממצא אחד מוחרג במפורש, לפי מיקום: לנתיב
+<code>/healthz</code> אין שגיאת לקוח לתעד.</p>
+<blockquote>
+<p><strong>שימי לב:</strong> הכלי מוכיח שהקובץ תקין, לא שהשרת מקיים אותו. את הצד השני בודקות בדיקות הקוד: נתיבי השרת
+מול נתיבי החוזה, וקוד, סוג תוכן וצורת גוף של כל שגיאה. פרק 26 מרחיב לבדיקות חוזה (contract tests).</p>
+</blockquote>
+<h2 id="93-problem-details">9.3 חוזה שגיאות: problem details</h2>
+<p>בלי החלטה מפורשת, כל נתיב ממציא צורת שגיאה משלו, והלקוח כותב קוד שונה לכל אחד. המסמך RFC 9457
+(יולי 2023, מחליף את RFC 7807) מגדיר צורה אחת שנקראת פרטי בעיה (problem details). סוג התוכן שלה הוא
+<code>application/problem+json</code>, ואלה החברים שלה:</p>
+<table>
+<thead>
+<tr>
+<th>חבר</th>
+<th>משמעות</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>type</code></td>
+<td>כתובת שמזהה את סוג הבעיה; ברירת המחדל היא <code>about:blank</code></td>
+</tr>
+<tr>
+<td><code>title</code></td>
+<td>תקציר קבוע לסוג, שלא משתנה בין מופעים</td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td>קוד הסטטוס, חוזר בגוף</td>
+</tr>
+<tr>
+<td><code>detail</code></td>
+<td>הסבר למופע הזה, לבני אדם; אסור לפענח אותו בקוד</td>
+</tr>
+<tr>
+<td><code>instance</code></td>
+<td>מזהה המופע; בתרגיל, הנתיב שבו קרתה הבעיה</td>
+</tr>
+</tbody>
+</table>
+<p>מותר להוסיף חברי הרחבה (extension members), וה־RFC מחייב לקוחות להתעלם ממה שהם לא מכירים. התרגיל
+מוסיף חבר בשם <code>errors</code>: רשימת שדות לא תקינים, ולכל שדה הסבר ומצביע (JSON Pointer) למקומו בגוף. זו
+הדוגמה שה־RFC עצמו מביא לשגיאת תקינות. הלקוח מחליט מה לעשות לפי <code>type</code>, ולא לפי הטקסט.</p>
+<p>הקובץ <code>internal/problem/problem.go</code> מגדיר את המבנה ואת פונקציית הכתיבה היחידה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// Write sends p as the response. Instance defaults to the request path, so a log line and the body agree.
+func Write(w http.ResponseWriter, r *http.Request, p *Problem) {
+    if p.Instance == &quot;&quot; &amp;&amp; r != nil {
+        p.Instance = r.URL.Path
+    }
+    w.Header().Set(&quot;Content-Type&quot;, ContentType)
+    w.Header().Set(&quot;X-Content-Type-Options&quot;, &quot;nosniff&quot;)
+    w.WriteHeader(p.Status)
+    _ = json.NewEncoder(w).Encode(p) // the status line is already sent; nothing useful to do on error
+}
+</code></pre>
+
+
+</div>
+
+<p>כותרות נקבעות לפני <code>WriteHeader</code>, ואחרי ששורת הסטטוס נשלחה אי אפשר לשנות אותה, ולכן שגיאה בקידוד
+נבלעת. כל סוג בעיה מוגדר פעם אחת, ומתועד בחוזה בסכמה <code>Problem</code>, שאותה את מוסיפה ביום 19.</p>
+<p>חוזה שגיאות אחד חל גם על שגיאות שלא כתבת. הנתב של Go עונה על נתיב לא מוכר ועל שיטה לא נתמכת בטקסט
+פשוט. הקובץ <code>internal/httpapi/server.go</code> סוגר את שני הפערים:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    // A pattern without a method is less specific than the same pattern with one, so these catch
+    // every other method and answer 405 in the problem format instead of the mux's plain text.
+    mux.Handle(&quot;/v1/items&quot;, methodNotAllowed(&quot;GET, POST&quot;))
+    mux.Handle(&quot;/v1/items/{id}&quot;, methodNotAllowed(&quot;GET&quot;))
+    mux.Handle(&quot;/v1/products/{id}&quot;, methodNotAllowed(&quot;GET&quot;))
+    mux.HandleFunc(&quot;/&quot;, func(w http.ResponseWriter, r *http.Request) {
+        problem.Write(w, r, problem.NotFound.New(&quot;no such route&quot;))
+    })
+</code></pre>
+
+
+</div>
+
+<p>תבנית עם שיטה מדויקת יותר מאותה תבנית בלי שיטה (פרק 6), ולכן כל שיטה אחרת נופלת לתבנית הכללית. גם
+שגיאת 500 עוברת דרך <code>Write</code>, והשגיאה האמיתית נרשמת רק בלוג: הודעה של מסד נתונים בתוך <code>detail</code> היא
+דליפה של מבנה פנימי.</p>
+<h2 id="94-offset-cursor">9.4 עימוד: offset מול cursor</h2>
+<p>רשימה בלי עימוד (pagination) היא תקרית שמחכה ליום שבו יש בטבלה מיליון שורות. הדרך הנאיבית היא היסט (offset): „תני לי 5 פריטים החל ממקום 5”. היא נשברת כשהרשימה מסודרת
+מהחדש לישן ונוספים פריטים בזמן שהלקוח עובר בין עמודים:</p>
+<table>
+<thead>
+<tr>
+<th>שלב</th>
+<th>מה הלקוח רואה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>עמוד 1, היסט 0</td>
+<td>פריטים 10, 9, 8, 7, 6</td>
+</tr>
+<tr>
+<td>בינתיים נוספים 11 ו־12</td>
+<td>הרשימה היא עכשיו 12, 11, 10, 9, 8, 7, 6, ...</td>
+</tr>
+<tr>
+<td>עמוד 2, היסט 5</td>
+<td>פריטים 7, 6, 5, 4, 3: הפריטים 7 ו־6 חוזרים</td>
+</tr>
+</tbody>
+</table>
+<p>כשפריטים נמחקים קורה ההפך, ופריט מדלג ולא מוצג אף פעם. בדיקה אחת בתרגיל משחזרת את הטבלה כדי לתעד את
+הפגם. ויש להיסט גם מחיר: מסד הנתונים עובר על כל השורות שלפני ההיסט וזורק אותן (פרק 10).</p>
+<h3 id="941-cursor">9.4.1 cursor: להמשיך מהפריט האחרון</h3>
+<p>הפתרון הוא לזכור את הפריט האחרון שראית, לא את המקום. השרת מחזיר עם העמוד סמן שנקרא cursor, ובו מפתח
+המיון של הפריט האחרון; הבקשה הבאה מבקשת פריטים שממוינים אחריו, ופריטים חדשים לא משפיעים על ההמשך.</p>
+<p>זה עובד רק אם מפתח המיון <strong>יציב ושלם</strong>: לכל שני פריטים סדר אחד וקבוע. זמן יצירה לבדו לא מספיק, כי שני
+פריטים יכולים להיווצר באותו רגע. לכן המפתח הוא זוג, זמן ואחריו מזהה שמכריע תיקו. הקובץ
+<code>internal/catalog/memory.go</code> מתעד את השאילתה המקבילה, שתחזור בפרק 10:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// List returns up to limit items that sort strictly after the cursor (all items when after is nil),
+// and whether more exist. In SQL the same query is:
+//
+//  SELECT ... FROM items WHERE (created_at, id) &lt; ($1, $2)
+//  ORDER BY created_at DESC, id DESC LIMIT $3 + 1
+</code></pre>
+
+
+</div>
+
+<p>מבקשים פריט אחד יותר מגודל העמוד: אם הוא הגיע, יש עמוד הבא, בלי שאילתת ספירה. הסמן עצמו אטום
+(opaque): בפנים יש JSON קטן עם שדה גרסה, מקודד ב־base64 בגרסה שבטוחה לכתובות. הקובץ <code>internal/page/page.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func Encode(c Cursor) string {
+    b, _ := json.Marshal(wire{V: version, T: c.CreatedAt.UnixNano(), ID: c.ID}) // cannot fail for this struct
+    return base64.RawURLEncoding.EncodeToString(b)
+}
+</code></pre>
+
+
+</div>
+
+<p>קידוד כזה אינו הצפנה. הוא אומר ללקוח שאין כאן מה לפרק, וכל עוד הלקוחות רק מחזירים את המחרוזת, מותר לך
+לשנות את תוכנה. סמן שלא נוצר בשרת מקבל 400; סמן שאסור לזייף חותמים עליו (פרק 28).</p>
+<p>בדיקת הליבה היא <code>TestCursorNoDuplicatesNoGapsUnderInserts</code>. היא עוברת על 25 פריטים בעמודים בגדלים 1, 3
+ו־10, מוסיפה פריטים בין עמוד לעמוד, ובודקת שכל פריט מקורי הופיע בדיוק פעם אחת. היא רצה גם עם שעון
+קפוא, שבו לכל הפריטים אותו זמן, וזו הריצה שמוכיחה שהמזהה באמת מכריע תיקו.</p>
+<p>המחיר: אין קפיצה לעמוד 37, ומספר העמודים הכולל דורש ספירה נפרדת. לטבלה בממשק משתמש היסט סביר; לרשימות
+שלקוחות סורקים, כמו ב־Hookline, cursor הוא ברירת המחדל.</p>
+<h2 id="95">9.5 מפתחות אידמפוטנטיות</h2>
+<p>לקוח שולח בקשת יצירה ומקבל זמן קצוב. אולי הבקשה לא הגיעה, ואולי הפריט נוצר והתשובה אבדה. מפתח אידמפוטנטיות (idempotency key) פותר את זה: הלקוח
+מייצר ערך ייחודי לכל פעולה לוגית, ושולח אותו בכותרת <code>Idempotency-Key</code> בכל ניסיון של אותה פעולה.</p>
+<p>הכותרת מתוארת בטיוטה של קבוצת העבודה httpapi ב־IETF. הגרסה האחרונה, 07, פורסמה באוקטובר 2025 ותוקפה
+פג באפריל 2026 בלי שהפכה ל־RFC (נכון לאוקטובר 2026, לפי datatracker). כלומר זו מוסכמה מתועדת, לא תקן.
+התרגיל מממש את הסמנטיקה שלה:</p>
+<table>
+<thead>
+<tr>
+<th>מצב</th>
+<th>תשובה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>מפתח חסר או לא תקין</td>
+<td>400 מסוג <code>idempotency-key-missing</code></td>
+</tr>
+<tr>
+<td>מפתח חדש</td>
+<td>מריצים את ה־handler ושומרים את התשובה</td>
+</tr>
+<tr>
+<td>אותו מפתח ואותה בקשה, הראשונה הסתיימה</td>
+<td>התשובה השמורה, בית בבית, עם <code>Idempotent-Replayed</code></td>
+</tr>
+<tr>
+<td>אותו מפתח ובקשה אחרת</td>
+<td>422 מסוג <code>idempotency-key-reused</code></td>
+</tr>
+<tr>
+<td>אותו מפתח, הראשונה עוד רצה</td>
+<td>409 מסוג <code>idempotency-in-progress</code>, עם <code>Retry-After</code></td>
+</tr>
+<tr>
+<td>הראשונה הסתיימה ב־5xx או קרסה</td>
+<td>המפתח משתחרר, וניסיון חוזר ירוץ מחדש</td>
+</tr>
+</tbody>
+</table>
+<p>„אותה בקשה” נקבעת לפי טביעת אצבע (fingerprint): גיבוב SHA-256 של השיטה, הנתיב, סוג התוכן והגוף. הכותרת
+<code>Idempotent-Replayed</code> היא מוסכמה של התרגיל, לא של הטיוטה. הלב של המנגנון, בקובץ <code>internal/idem/idem.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// Begin claims key for a request with fingerprint fp, atomically.
+func (s *Store) Begin(key string, fp [32]byte) (Outcome, Response) {
+    s.mu.Lock()
+    defer s.mu.Unlock()
+    now := s.now()
+    s.sweep(now)
+    e, ok := s.entries[key]
+    if ok &amp;&amp; now.After(e.expires) {
+        delete(s.entries, key)
+        ok = false
+    }
+    switch {
+    case !ok:
+        s.entries[key] = &amp;entry{fingerprint: fp, expires: now.Add(s.ttl)}
+        return Started, Response{}
+    case e.fingerprint != fp:
+        return Mismatch, Response{}
+    case !e.done:
+        return InProgress, Response{}
+    default:
+        return Replay, e.resp
+    }
+}
+</code></pre>
+
+
+</div>
+
+<p>הבדיקה והשמירה קורות תחת נעילה אחת, וזה העיקר. בשתי קריאות נפרדות, שתי בקשות מקבילות היו עוברות את
+הבדיקה יחד ויוצרות שני פריטים: מרוץ (race condition) קלאסי של בדיקה ואז פעולה. במסד נתונים, אילוץ
+ייחודיות עושה את אותה עבודה (פרק 11). אחת הבדיקות עוצרת בקשה בתוך ה־handler ושולחת שנייה, שמקבלת 409.</p>
+<p>שכבת הביניים סביב <code>Begin</code> קוראת את הגוף, מחשבת טביעת אצבע ומריצה את ה־handler לתוך מקליט (recorder),
+כדי שאפשר יהיה לשמור את התשובה לפני שהיא נשלחת. שלוש החלטות תכנון מסתתרות בה, וכדאי שתדעי להגן עליהן:</p>
+<ul>
+<li><strong>תשובת 4xx נשמרת.</strong> לפי הטיוטה, מפתח שייך לגוף בקשה אחד; אחרי 400 מתקנים ושולחים מפתח חדש.</li>
+<li><strong>תשובת 5xx לא נשמרת</strong>, וגם לא בקשה שקרסה ב־panic. כשל שלנו לא אמור לנעול את הלקוח בחוץ. המחיר: אם
+  חלק מהעבודה בוצע לפני הכשל, הוא יבוצע שוב. מעל מסד נתונים הטרנזקציה מבטלת את החלק הזה, ולכן ב־Hookline
+  המפתח נשמר באותה טרנזקציה כמו האירוע (פרק 38, סעיף 38.2).</li>
+<li><strong>המפתח תחום לשיטה ולנתיב</strong>, וב־Hookline גם לדייר (tenant), כדי שלקוח אחד לא יראה תשובה של אחר.</li>
+</ul>
+<p>המפתחות נשמרים לזמן חיים (TTL) של 24 שעות, והחוזה מצהיר על כך כפי שהטיוטה דורשת. המגבלה הגדולה: החנות
+בזיכרון של תהליך אחד, וניסיון חוזר שמגיע לעותק אחר של השירות לא יכיר את המפתח.</p>
+<blockquote>
+<p><strong>איך Rust עושה את זה:</strong> ב־Rust הטבלה הייתה יושבת בתוך <code>Mutex&lt;HashMap&lt;..&gt;&gt;</code>, והמהדר היה מכריח אותך
+לגשת אליה רק דרך המנעול. ב־Go אין אכיפה כזאת: אפשר לגשת לשדה <code>entries</code> גם בלי לנעול. את המשמעת
+מחזירים מתודות קטנות שכל אחת נועלת בעצמה, והרצת הבדיקות עם <code>-race</code> (פרק 5).</p>
+</blockquote>
+<h2 id="96">9.6 גרסאות ותאימות לאחור</h2>
+<p>תאימות לאחור (backward compatibility) אומרת שלקוח שנכתב מול הגרסה של אתמול עובד גם היום. שומרים עליה
+כשיודעים מראש אילו שינויים בטוחים:</p>
+<table>
+<thead>
+<tr>
+<th>שינוי</th>
+<th>בטוח ללקוחות קיימים?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>להוסיף שדה לתשובה, נתיב, או פרמטר אופציונלי</td>
+<td>כן, אם הלקוחות סובלניים</td>
+</tr>
+<tr>
+<td>להוסיף ערך לרשימת ערכים סגורה (enum) בתשובה</td>
+<td>מסוכן: לקוח שמטפל בכל הערכים יישבר</td>
+</tr>
+<tr>
+<td>להפוך שדה אופציונלי בבקשה לחובה</td>
+<td>לא</td>
+</tr>
+<tr>
+<td>לשנות שם, טיפוס או משמעות של שדה</td>
+<td>לא</td>
+</tr>
+<tr>
+<td>להסיר שדה או נתיב</td>
+<td>רק אחרי תהליך הוצאה משימוש</td>
+</tr>
+</tbody>
+</table>
+<p>הכלל שמאפשר להוסיף שדות נקרא קורא סובלני (tolerant reader): לקוח קורא את מה שהוא צריך ומתעלם מהשאר.
+ובכל זאת, השרת <strong>דוחה</strong> שדות לא מוכרים בבקשה (סעיף 9.9). שדה כזה הוא כמעט תמיד שגיאת כתיב, ובלי
+דחייה הלקוח מקבל 201 ופריט בלי המחיר ששלח. השרת יודע מה הוא מבין, ולכן קפדנות זולה לו; הלקוח לא יודע
+מה יתווסף מחר, ולכן הוא זה שסובלני.</p>
+<blockquote>
+<p><strong>איך Rust עושה את זה:</strong> ב־serde ברירת המחדל סובלנית, ושדות לא מוכרים נזרקים בשקט. קפדנות מבקשים
+במפורש, עם <code>#[serde(deny_unknown_fields)]</code>. ב־Go המצב זהה, והקריאה <code>DisallowUnknownFields</code> היא הבקשה
+המפורשת להפך.</p>
+</blockquote>
+<p>הגרסה הראשית יושבת בנתיב (<code>/v1/</code>), וגרסה חדשה מגיעה רק עם שינוי שובר שאי אפשר להימנע ממנו. כדי להעביר
+לקוחות מודיעים להם בתוך הפרוטוקול. הנתיב הישן <code>/v1/products/{id}</code> בתרגיל עדיין עובד, ומסמן כל תשובה בשלוש כותרות:</p>
+<table>
+<thead>
+<tr>
+<th>כותרת</th>
+<th>מקור</th>
+<th>משמעות</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Deprecation</code></td>
+<td>RFC 9745 (מרץ 2025)</td>
+<td>מאז מתי הנתיב הוצא משימוש, כ־<code>@</code> ואחריו שניות יוניקס</td>
+</tr>
+<tr>
+<td><code>Sunset</code></td>
+<td>RFC 8594</td>
+<td>מתי הוא יפסיק לעבוד, בתאריך HTTP</td>
+</tr>
+<tr>
+<td><code>Link</code></td>
+<td><code>rel="successor-version"</code></td>
+<td>לאן לעבור</td>
+</tr>
+</tbody>
+</table>
+<p>כותרות לבדן לא מספיקות. לפני תאריך הסיום מודדים מי עדיין קורא לנתיב הישן (פרק 24) ופונים אליו. נתיב
+שנמחק כשעדיין יש לו תעבורה הוא תקרית שהכנת בעצמך.</p>
+<h2 id="97-grpc-protobuf">9.7 gRPC ו־protobuf</h2>
+<p>המסגרת gRPC משמשת לקריאות מרוחקות (RPC) בין שירותים. במקום משאבים ופעלים מגדירים שירות ושיטות, כמו
+ממשק בשפת תכנות. ההודעות מקודדות ב־protobuf, פורמט בינארי עם סכמה, והתעבורה רצה מעל HTTP/2. מקובץ הגדרה
+אחד מחוללים קוד ללקוח ולשרת. בתרגיל, השירות <code>CatalogService</code> מגדיר שתי שיטות, <code>Ping</code> ו־<code>GetItem</code>, ואלה
+ההודעות של פריט בקובץ <code>proto/catalog/v1/catalog.proto</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-proto">message Item {
+  string id = 1;
+  string sku = 2;
+  string name = 3;
+  int64 price_cents = 4;
+  // Field 5 was &quot;double price&quot; in an early draft. Removed fields are reserved, never reused.
+  reserved 5;
+  reserved &quot;price&quot;;
+  // Unix time in milliseconds.
+  int64 created_at_unix_ms = 6;
+}
+</code></pre>
+
+
+</div>
+
+<p>המספרים שליד השדות הם החוזה: על החוט נשלח מספר השדה, ושינוי מספר או טיפוס שובר כל לקוח קיים. שדה
+שהוסר מסומן <code>reserved</code>, כדי שלקוח ישן לא יפענח אף פעם בתים חדשים כמחיר.</p>
+<h3 id="971-buf">9.7.1 buf: בדיקה וחילול</h3>
+<p>הכלי buf מחליף את ההפעלה הידנית של <code>protoc</code>. הקובץ <code>buf.yaml</code> מגדיר את המודול ואת כללי הבדיקה, והקובץ
+<code>buf.gen.yaml</code> מפעיל את שני התוספים שמחוללים קוד לתיקייה <code>gen</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">buf lint
+buf generate
+git status --short gen
+</code></pre>
+
+
+</div>
+
+<table>
+<thead>
+<tr>
+<th>פקודה</th>
+<th>מה היא עשתה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>buf lint</code></td>
+<td>בדקה שמות, חבילות ומבנה לפי כללי <code>STANDARD</code>; שקט פירושו תקין</td>
+</tr>
+<tr>
+<td><code>buf generate</code></td>
+<td>מחקה את <code>gen/</code> וחוללה מחדש את ההודעות, השרת והלקוח</td>
+</tr>
+<tr>
+<td><code>git status --short gen</code></td>
+<td>פלט ריק: הקוד השמור זהה בדיוק למה שחולל עכשיו</td>
+</tr>
+</tbody>
+</table>
+<p><strong>את הקוד המחולל שומרים במאגר</strong>, משלוש סיבות:</p>
+<ul>
+<li>מי שבונה את הפרויקט לא צריך את buf ואת התוספים, בגרסאות המדויקות.</li>
+<li>סקירת קוד רואה מה השתנה בפועל בממשק המחולל.</li>
+<li>הפקודה <code>go get</code> של המודול עובדת בלי שלב חילול.</li>
+</ul>
+<p>המחיר הוא סכנה שקובץ ההגדרה והקוד יתרחקו, ולכן בודקים ב־CI שחילול מחדש לא משנה כלום (פרק 23). הפקודה
+<code>buf breaking</code> משווה את קובץ ההגדרה לענף הראשי ועוצרת שינוי שובר, למשל שינוי שם של שדה, לפני שהוא נכנס;
+ה־README של התרגיל מראה את הפלט.</p>
+<h3 id="972-bufconn">9.7.2 שרת, קודי סטטוס ובדיקה עם bufconn</h3>
+<p>הקובץ <code>internal/grpcapi/server.go</code> מממש את הממשק המחולל מעל אותה חנות שמשרתת את ה־HTTP. המבנה מטמיע את
+<code>UnimplementedCatalogServiceServer</code>, ולכן כשתתווסף שיטה, הקוד ימשיך להתקמפל ויחזיר <code>Unimplemented</code>. ב־gRPC
+אין פרטי בעיה: שגיאה היא קוד סטטוס של gRPC והודעה. המיפוי שווה שינון:</p>
+<table>
+<thead>
+<tr>
+<th>מצב</th>
+<th>HTTP</th>
+<th>gRPC</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>קלט לא תקין</td>
+<td>400</td>
+<td><code>InvalidArgument</code></td>
+</tr>
+<tr>
+<td>לא נמצא</td>
+<td>404</td>
+<td><code>NotFound</code></td>
+</tr>
+<tr>
+<td>כבר קיים</td>
+<td>409</td>
+<td><code>AlreadyExists</code></td>
+</tr>
+<tr>
+<td>עבר גבול הזמן הכולל</td>
+<td>504</td>
+<td><code>DeadlineExceeded</code></td>
+</tr>
+<tr>
+<td>באג אצלנו</td>
+<td>500</td>
+<td><code>Internal</code></td>
+</tr>
+</tbody>
+</table>
+<p>החבילה <code>bufconn</code> מספקת מאזין בזיכרון. השרת והלקוח מדברים את הפרוטוקול המלא, כולל מסגרות HTTP/2 וקודי
+סטטוס, בלי פורט ובלי רשת. השרת מאזין ל־<code>lis</code>, והלקוח מתחבר אליו כך, בקובץ
+<code>internal/grpcapi/server_test.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    conn, err := grpc.NewClient(&quot;passthrough:///bufnet&quot;,
+        grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) { return lis.DialContext(ctx) }),
+        grpc.WithTransportCredentials(insecure.NewCredentials()),
+    )
+</code></pre>
+
+
+</div>
+
+<p>בלי הקידומת <code>passthrough:///</code> הלקוח מנסה לפענח את השם <code>bufnet</code> ב־DNS. בדיקה נוספת שולחת קריאה עם גבול
+זמן כולל (deadline) שכבר עבר, ומקבלת <code>DeadlineExceeded</code>: ב־gRPC גבול הזמן עובר עם הבקשה לשרת.</p>
+<blockquote>
+<p><strong>איך Rust עושה את זה:</strong> ב־Rust המקבילה הנפוצה היא הספרייה tonic. הקוד מחולל בכל בנייה, מתוך הקובץ
+<code>build.rs</code>. ב־Go המוסכמה הפוכה: מחוללים פעם אחת ושומרים במאגר, והבנייה לא מריצה שום מחולל.</p>
+</blockquote>
+<h2 id="98-grpc">9.8 מתי לא gRPC</h2>
+<p>המסגרת gRPC טובה במקום שבו שני הצדדים בשליטתך: שירותים פנימיים, חוזה קפדני, קידוד קומפקטי, זרימה בשני
+הכיוונים וגבולות זמן שעוברים בשרשרת. מחוץ למקום הזה המחיר עולה מהר:</p>
+<ul>
+<li><strong>דפדפנים.</strong> קוד בדפדפן לא מקבל שליטה מלאה ב־HTTP/2, ובעיקר לא את ה־trailers שבהם נשלח הסטטוס. צריך
+  פרוטוקול מתווך כמו gRPC-Web ופרוקסי שמתרגם, כלומר עוד רכיב לתפעל.</li>
+<li><strong>API ציבורי.</strong> הלקוחות מצפים ל־JSON ולשורת <code>curl</code> שעובדת. לבקש מהם לחולל לקוח מקובץ הגדרה זה חסם
+  כניסה, ולכן גם Hookline חושף לדיירים ממשק JSON רגיל.</li>
+<li><strong>ניפוי באגים.</strong> התעבורה בינארית. כדי לקרוא אותה צריך את קובץ ההגדרה, או שירות השתקפות (reflection)
+  וכלי ייעודי כמו grpcurl.</li>
+<li><strong>מאזני עומסים.</strong> לקוח gRPC מחזיק חיבור HTTP/2 ארוך אחד ומרבב עליו בקשות רבות. מאזן שמחלק חיבורים, ולא
+  בקשות, שולח את כל התעבורה של לקוח לעותק אחד. ה־Service הרגיל של Kubernetes עובד ברמת החיבור (פרק 20).</li>
+</ul>
+<p>לכן בתרגיל ה־HTTP הוא הפנים הציבוריות וה־gRPC הוא הצינור הפנימי, ושניהם קוראים לאותה חנות.</p>
+<h2 id="99">9.9 אימות קלט וגבולות</h2>
+<p>אימות קלט (input validation, לא לבלבל עם אימות זהות) הוא הקו הראשון של שירות: כל בית שנכנס מגיע ממישהו
+שלא כתבת. הסדר הולך מהזול ליקר: גודל, אחר כך פורמט, אחר כך תוכן.</p>
+<p>הפונקציה <code>http.MaxBytesReader</code> עוטפת את גוף הבקשה ונכשלת אחרי מספר בתים נתון. היא חייבת לבוא <strong>לפני</strong> כל
+קורא: מפענח JSON שמקבל גוף של גיגה־בייט ישמח לקרוא את כולו לזיכרון. בתרגיל, שכבה בשם <code>limitBody</code> מחילה
+אותה על נתיב היצירה, 16 KiB כברירת מחדל, ושגיאת חריגה הופכת ל־413. גם לשרת עצמו יש זמנים קצובים
+לכותרות, לבקשה ולתשובה; בלעדיהם, לקוח ששולח בית אחד בדקה מחזיק חיבור לנצח.</p>
+<p>אחרי הגודל, פענוח קפדני של אובייקט JSON אחד בדיוק, בקובץ <code>internal/httpapi/decode.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    dec := json.NewDecoder(r.Body)
+    dec.DisallowUnknownFields()
+    err = dec.Decode(dst)
+    if err == nil &amp;&amp; dec.Decode(&amp;struct{}{}) != io.EOF {
+        err = errors.New(&quot;unexpected data after the JSON object&quot;)
+    }
+</code></pre>
+
+
+</div>
+
+<p>הפענוח השני הוא בדיקה שרבים שוכחים: <code>Decode</code> קורא ערך אחד ועוצר, כך ששני אובייקטים רצופים עוברים בשקט
+והשני נזרק. לפני כל זה נבדק סוג התוכן (415), ושדה בטיפוס שגוי הופך לבעיית תקינות עם מצביע לשדה.</p>
+<p>אחר כך כללי השדות, כפי שהם כתובים בחוזה. כל הבעיות מדווחות יחד, כדי שהלקוח יתקן הכול בסבב אחד:</p>
+<table>
+<thead>
+<tr>
+<th>שדה</th>
+<th>כלל</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sku</code></td>
+<td>חובה; 3 עד 32 תווים מתוך אותיות גדולות, ספרות ומקף</td>
+</tr>
+<tr>
+<td><code>name</code></td>
+<td>חובה; לא ריק אחרי הסרת רווחים; UTF-8 תקין; עד 200 תווים</td>
+</tr>
+<tr>
+<td><code>price_cents</code></td>
+<td>חובה; מספר שלם מ־0 עד 100,000,000</td>
+</tr>
+</tbody>
+</table>
+<p>המבנה שמקבל את הגוף משתמש במצביעים, כדי להבדיל בין שדה חסר לבין שדה ששווה אפס: מחיר 0 חוקי, מחיר חסר
+לא. מחירים נשמרים כמספר שלם של אגורות, כי חשבון בשברים בינאריים מאבד אגורות.</p>
+<blockquote>
+<p><strong>שימי לב:</strong> הגבולות כתובים פעמיים, בחוזה ובקוד, ולכן הם יכולים להתרחק. הבדיקות בודקות את הקוד; את
+ההתאמה לחוזה בודקת סקירת קוד, או כלי שבודק בקשות מול הסכמה (ראי העשרה אופציונלית).</p>
+</blockquote>
+<h2 id="_3">סיכום</h2>
+<ul>
+<li>API הוא חוזה: משאבים, פעלים אחידים וקודי סטטוס ידועים. 4xx טעות של הלקוח, 5xx שלנו.</li>
+<li>הקובץ <code>openapi.yaml</code> הוא מקור האמת: שינוי מתחיל בו, כלי בודק אותו, ובדיקות בודקות שהשרת מקיים אותו.</li>
+<li>כל שגיאה היא פרטי בעיה לפי RFC 9457, והלקוח מחליט לפי <code>type</code>; גם 404 ו־405 של הנתב.</li>
+<li>עימוד עם cursor על זמן ומזהה לא מכפיל ולא מדלג; מפתח אידמפוטנטיות הופך ניסיון חוזר לבטוח.</li>
+<li>תאימות לאחור: מוסיפים ולא משנים; לקוח סובלני ושרת קפדן בבקשות; הוצאה משימוש עם כותרות ומדידה.</li>
+<li>בין שירותים פנימיים מתאים gRPC, והמספרים בקובץ ה־proto הם החוזה; כלפי חוץ, ממשק JSON.</li>
+<li>גבול גודל לפני פענוח, פענוח קפדני, וכללי שדות שכתובים גם בחוזה.</li>
+</ul>
+<h2 id="_4">מונחים לזכור</h2>
+<table>
+<thead>
+<tr>
+<th>מונח בעברית</th>
+<th>באנגלית</th>
+<th>במשפט אחד</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>משאב</td>
+<td>resource</td>
+<td>דבר שיש לו כתובת ב־API, כמו פריט או אוסף פריטים</td>
+</tr>
+<tr>
+<td>אידמפוטנטיות</td>
+<td>idempotency</td>
+<td>חזרה על פעולה משאירה את אותו מצב כמו פעם אחת</td>
+</tr>
+<tr>
+<td>פרטי בעיה</td>
+<td>problem details</td>
+<td>צורת השגיאה של RFC 9457</td>
+</tr>
+<tr>
+<td>עימוד</td>
+<td>pagination</td>
+<td>חלוקה של רשימה ארוכה לעמודים</td>
+</tr>
+<tr>
+<td>היסט</td>
+<td>offset</td>
+<td>עימוד לפי מקום ברשימה; נשבר כשהרשימה משתנה</td>
+</tr>
+<tr>
+<td>cursor</td>
+<td>cursor</td>
+<td>סמן אטום עם מפתח המיון של הפריט האחרון שנראה</td>
+</tr>
+<tr>
+<td>מפתח אידמפוטנטיות</td>
+<td>idempotency key</td>
+<td>ערך שהלקוח שולח כדי שניסיון חוזר לא יבצע פעמיים</td>
+</tr>
+<tr>
+<td>טביעת אצבע</td>
+<td>fingerprint</td>
+<td>גיבוב של הבקשה, שקובע אם שתי בקשות הן אותה בקשה</td>
+</tr>
+<tr>
+<td>תאימות לאחור</td>
+<td>backward compatibility</td>
+<td>לקוח ישן ממשיך לעבוד מול שרת חדש</td>
+</tr>
+<tr>
+<td>קורא סובלני</td>
+<td>tolerant reader</td>
+<td>לקוח שמתעלם משדות שהוא לא מכיר</td>
+</tr>
+<tr>
+<td>הוצאה משימוש</td>
+<td>deprecation</td>
+<td>הודעה שנתיב ייעלם, עם תאריך ותחליף</td>
+</tr>
+<tr>
+<td>קוד מחולל</td>
+<td>generated code</td>
+<td>קוד שכלי כתב מקובץ הגדרה, ולא עורכים ביד</td>
+</tr>
+<tr>
+<td>אימות קלט</td>
+<td>input validation</td>
+<td>בדיקה שהקלט בגודל, בפורמט ובטווח המותרים</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_5">טעויות נפוצות</h2>
+<ul>
+<li><strong>להחזיר 200 עם הודעת שגיאה בגוף.</strong> פרוקסי, מטמון ומדדים רואים הצלחה. הסטטוס חייב לומר את האמת.</li>
+<li><strong>לפענח את <code>detail</code> בקוד הלקוח.</strong> זה טקסט לבני אדם, והוא ישתנה. מחליטים לפי <code>type</code>.</li>
+<li><strong>cursor על זמן יצירה בלבד.</strong> שני פריטים באותו רגע, והסדר ביניהם שרירותי. מוסיפים מזהה שמכריע תיקו.</li>
+<li><strong>לבדוק מפתח אידמפוטנטיות ולשמור אותו בשתי פעולות.</strong> בקשות מקבילות עוברות את הבדיקה יחד. ההחלטה
+  חייבת להיות אטומית: מנעול אחד, או אילוץ ייחודיות במסד.</li>
+<li><strong>לשמור תשובת 5xx תחת המפתח.</strong> הלקוח ננעל בחוץ בגלל כשל שלנו, עד שהמפתח יפוג.</li>
+<li><strong>להשתמש שוב במספר של שדה שנמחק ב־proto.</strong> לקוחות ישנים יפענחו בתים חדשים לשדה הלא נכון.</li>
+<li><strong>לשים את <code>MaxBytesReader</code> אחרי הפענוח, או לא לשים בכלל.</strong> הגבול שווה משהו רק לפני הקריאה הראשונה.</li>
+</ul>
+<h2 id="_6">שאלות ראיון</h2>
+<ol>
+<li>
+<p><strong>איך תתכנני את חוזה השגיאות של API חדש?</strong> צורה אחת לכל השגיאות, ועדיף תקן על המצאה: פרטי בעיה לפי
+   RFC 9457, עם סוג תוכן משלו וכלל ברור להרחבות. הלקוח מחליט לפי <code>type</code>, מזהה יציב שמתועד בחוזה, ולא
+   לפי הטקסט. גם שגיאות שלא כתבתי, של הנתב או מ־panic, יוצאות באותה צורה ובלי פרטי מימוש. התמורה: לקוח
+   שכותב טיפול בשגיאות פעם אחת.</p>
+</li>
+<li>
+<p><strong>למה עימוד לפי היסט נשבר, ומה מחליף אותו?</strong> היסט הוא מקום ברשימה, והמקום משתנה כשנוספים או נמחקים
+   פריטים לפניו, ולכן מופיעות כפילויות ודילוגים. cursor זוכר את מפתח המיון של הפריט האחרון, ובתנאי
+   שהמפתח שלם (זמן ומזהה) ויש עליו אינדקס, הוספות לא משפיעות. מוותרים על קפיצה לעמוד שרירותי ועל ספירה
+   זולה.</p>
+</li>
+</ol>
+<p><strong>המשך:</strong> ואם ממיינים לפי שדה שמשתנה, כמו מחיר? פריט שהמחיר שלו השתנה יכול לחצות את הסמן ולהופיע
+   פעמיים או לא בכלל. מתעדים את זה, או מעמדים מעל תמונת מצב (snapshot) של התוצאה, במחיר של אחסון.</p>
+<ol start="3">
+<li><strong>מה מבטיח מפתח אידמפוטנטיות, ומה לא?</strong> בתוך זמן החיים שלו, ניסיונות חוזרים של אותה בקשה מבצעים את
+   הפעולה לכל היותר פעם אחת ומחזירים את אותה תשובה; בקשה אחרת עם אותו מפתח נדחית, ובקשה מקבילה מקבלת</li>
+<li>הוא לא מגן אחרי שפג, לא עוזר ללקוח ששולח מפתח חדש בכל ניסיון, ובזיכרון של תהליך אחד לא חוצה
+   עותקים. במימוש אמיתי שומרים אותו באותה טרנזקציה כמו התוצאה, עם אילוץ ייחודיות לפי דייר ומפתח.</li>
+</ol>
+<p><strong>המשך:</strong> למה לא לשמור גם 5xx? כי אז כשל זמני שלנו נועל את הלקוח בחוץ. אם החשש הוא ביצוע חלקי,
+   הפתרון הוא טרנזקציה שמבטלת הכול, לא שמירת הכשל.</p>
+<ol start="4">
+<li>
+<p><strong>אילו שינויים ב־API בטוחים, ואיך מסירים נתיב?</strong> הוספה בטוחה כשהלקוחות סובלניים; שינוי שם, טיפוס,
+   משמעות או חובה אינו בטוח. להסרה מכריזים בכותרות הוצאה משימוש ותאריך סיום, מודדים מי עדיין
+   קורא ופונים אליו, ומסירים רק כשהתעבורה נעלמה. בקובץ ה־proto, בדיקת תאימות אוטומטית רצה ב־CI.</p>
+</li>
+<li>
+<p><strong>מתי תבחרי ב־gRPC, ומתי בממשק JSON רגיל?</strong> בין שירותים פנימיים שבשליטתי, gRPC: חוזה קפדני עם קוד
+   מחולל, קידוד קומפקטי וגבולות זמן שעוברים בשרשרת. לכל מה שפונה החוצה, ממשק JSON: דפדפנים, לקוחות
+   ציבוריים, אינטגרציות, וכל מקום שבו ניפוי עם <code>curl</code> חשוב. ובתשתית, חיבור ארוך אחד דורש איזון ברמת הבקשה.</p>
+</li>
+</ol>
+<h2 id="obsidian">פתק Obsidian</h2>
+<p>הפתק המוכן נמצא גם כקובץ: <code>obsidian/09-api-design-grpc.md</code>. זה תוכנו:</p>
+<ul>
+<li><strong>חוזה:</strong> משאבים, פעלים אחידים, קודי סטטוס; 4xx הלקוח טעה, 5xx אנחנו.</li>
+<li><strong>מקור אמת:</strong> הקובץ <code>openapi.yaml</code> קודם לקוד; כלי בודק אותו, בדיקות בודקות שהשרת מקיים אותו.</li>
+<li><strong>שגיאות:</strong> פרטי בעיה לפי RFC 9457; מחליטים לפי <code>type</code>, לא לפי הטקסט; גם שגיאות הנתב.</li>
+<li><strong>עימוד:</strong> היסט מכפיל ומדלג תחת שינויים; cursor אטום על זמן ומזהה לא.</li>
+<li><strong>אידמפוטנטיות:</strong> אותה בקשה מקבלת את התשובה השמורה, אחרת 422, מקבילה 409; 5xx משחרר; החלטה אטומית.</li>
+<li><strong>טיוטה:</strong> הכותרת <code>Idempotency-Key</code> היא טיוטה שפג תוקפה, לא RFC (נכון לאוקטובר 2026).</li>
+<li><strong>תאימות:</strong> מוסיפים ולא משנים; לקוח סובלני, שרת קפדן; הוצאה משימוש עם כותרות ומדידה.</li>
+<li><strong>gRPC:</strong> המספרים הם החוזה; הקוד המחולל במאגר. לא לדפדפנים, לא ל־API ציבורי.</li>
+<li><strong>עוד נגד:</strong> ניפוי באגים קשה; מאזני עומסים ברמת החיבור.</li>
+<li><strong>גבולות:</strong> גודל לפני פענוח; שדות לא מוכרים נדחים; כל הבעיות מדווחות יחד.</li>
+<li><strong>שאלה פתוחה:</strong> ___</li>
+</ul>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">lint spec     docker run --rm -v &quot;$PWD/api:/spec:ro&quot; -w /spec redocly/cli:2.57.0 lint openapi.yaml
+problem       application/problem+json  {type, title, status, detail, instance, errors[{detail, pointer}]}
+cursor        base64url(json{v, t, id}); ORDER BY created_at DESC, id DESC; WHERE (created_at, id) &lt; ($1, $2); LIMIT n+1
+idempotency   same key + same body -&gt; replay (Idempotent-Replayed: true); other body -&gt; 422; running -&gt; 409 + Retry-After
+deprecation   Deprecation: @&lt;unix&gt;   Sunset: &lt;HTTP-date&gt;   Link: &lt;...&gt;; rel=&quot;successor-version&quot;
+buf           buf lint | buf generate | git status --short gen | buf breaking --against '../.git#branch=main,subdir=ch09'
+grpc codes    400 InvalidArgument | 404 NotFound | 409 AlreadyExists | 504 DeadlineExceeded | 500 Internal
+limits        http.MaxBytesReader before decoding; dec.DisallowUnknownFields(); second Decode must return io.EOF
+mine          body limit ___ KiB   key TTL ___ h   tests passing ___ / 31
+</code></pre>
+
+
+</div>
+
+<h2 id="_7">תרגיל</h2>
+<p><strong>מטרה:</strong> לבנות שירות קטלוג ב־Go מתוך חוזה כתוב: שגיאות כפרטי בעיה, עימוד עם cursor, מפתחות
+אידמפוטנטיות, גבולות קלט, ושירות gRPC קטן שמחולל מקובץ הגדרה.
+<strong>זמן:</strong> שלושה ימי לימוד, ימים 19 עד 21, כ־35, 65 ו־60 דקות בנייה בהתאמה.
+<strong>ידע מקדים:</strong> הפרק; פרק 6; Docker פועל; buf ושני התוספים שלו (נבדקים ביום 21).</p>
+<p>הצעדים, קוד ההתחלה, הרמזים והפתרון נמצאים ב־
+<a href="../exercises/ch09-catalog-api/README.md"><code>exercises/ch09-catalog-api/README.md</code></a>.</p>
+<p><strong>קריטריון סיום:</strong></p>
+<ul>
+<li>כל נתיבי השגיאה של היצירה והקריאה מחזירים פרטי בעיה שתואמים לחוזה, והחוזה עובר את Redocly.</li>
+<li>הבדיקות מראות עמודים יציבים תחת הוספות, תשובה משוחזרת למפתח חוזר, 422 לגוף אחר ו־409 לבקשה מקבילה.</li>
+<li>בדיקת ה־gRPC עוברת, וחילול מחדש לא משנה את הקוד השמור.</li>
+<li>גוף גדול מדי ושדה לא תקין מקבלים פרטי בעיה; כל 31 הבדיקות עוברות, גם עם <code>-race</code>.</li>
+<li>בפתק: שני מקרים בעד gRPC ושניים נגד, ולמה גבול הגודל בא לפני הפענוח.</li>
+</ul>
+<h2 id="_8">העשרה אופציונלית</h2>
+<ul>
+<li>לקרוא את RFC 9457 באתר rfc-editor.org: קצר, ובסעיף 5 שיקולי אבטחה שכדאי להכיר.</li>
+<li>לקרוא את טיוטת <code>Idempotency-Key</code> באתר datatracker, ולהשוות את התרגיל לסעיף 2.6 שלה.</li>
+<li>לבדוק בקשות ותשובות מול הסכמות של החוזה בזמן הבדיקות, עם ספריית JSON Schema לבחירתך, ולסגור את הפער
+  שמוזכר בסוף סעיף 9.9.</li>
+</ul>
+</main>
+<nav class="bottom"><a href="index.html">תוכן העניינים</a> · <a href="08-python-async-fastapi.html">← פרק 8: Python אסינכרונית ו־FastAPI</a> · <a href="10-postgres-queries-indexes.html">פרק 10: PostgreSQL: שאילתות ואינדקסים →</a></nav>
+<script type="module">
+  // Render ```mermaid blocks in the browser (needs internet once; cached afterwards).
+  const blocks = document.querySelectorAll("pre > code.language-mermaid");
+  if (blocks.length) {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs")).default;
+    for (const code of blocks) {
+      const div = document.createElement("div");
+      div.className = "mermaid";
+      div.textContent = code.textContent;
+      code.parentElement.replaceWith(div);
+    }
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run();
+  }
+</script>
+</body>
+</html>

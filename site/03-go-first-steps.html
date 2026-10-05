@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>פרק 3: צעדים ראשונים ב־Go</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="top"><a href="index.html">תוכן העניינים</a> · <a href="02-workbench-wsl2.html">← פרק 2: סביבת העבודה: WSL2, Docker, Go ו־uv</a> · <a href="04-go-types-interfaces-errors.html">פרק 4: טיפוסים, ממשקים ושגיאות →</a></nav>
+<main class="book">
+<div class="toc"><span class="toctitle">תוכן הפרק</span><ul>
+<li><a href="#_1">מה נלמד בפרק</a></li>
+<li><a href="#_2">ידע מקדים</a></li>
+<li><a href="#31-go">3.1 למה Go, ומה היא לא</a></li>
+<li><a href="#32-run-build-fmt-vet">3.2 שרשרת הכלים: run, build, fmt, vet</a></li>
+<li><a href="#33">3.3 מודולים וחבילות</a></li>
+<li><a href="#34-rust">3.4 התחביר למתכנתת Rust</a></li>
+<li><a href="#35-gc">3.5 ערכים, מצביעים, ו־GC מול בעלות</a></li>
+<li><a href="#36-slices">3.6 slices מבפנים</a></li>
+<li><a href="#37-maps-runes">3.7 maps, מחרוזות ו־runes</a><ul>
+<li><a href="#371-maps">3.7.1 maps</a></li>
+<li><a href="#372">3.7.2 מחרוזות: בתים, לא תווים</a></li>
+</ul>
+</li>
+<li><a href="#38">3.8 בדיקות טבלאיות</a></li>
+<li><a href="#39-logstat">3.9 תוכנית קטנה: logstat</a></li>
+<li><a href="#310-staticcheck-gofmt">3.10 staticcheck ו־gofmt כהרגל</a></li>
+<li><a href="#_3">סיכום</a></li>
+<li><a href="#_4">מונחים לזכור</a></li>
+<li><a href="#_5">טעויות נפוצות</a></li>
+<li><a href="#_6">שאלות ראיון</a></li>
+<li><a href="#obsidian">פתק Obsidian</a></li>
+<li><a href="#_7">תרגיל</a></li>
+<li><a href="#_8">העשרה אופציונלית</a></li>
+</ul>
+</div>
+
+<h1 id="3-go">פרק 3: צעדים ראשונים ב־Go</h1>
+<p>את כותבת Rust כל יום, ולכן הפרק הזה לא מלמד אותך לתכנת. הוא מלמד אותך איפה Go מוותרת על ביטחון
+שהקומפיילר של Rust נותן לך, מה היא מקבלת בתמורה, ואיפה הוויתור נושך. בראיון ל־backend בכיר יצפו
+ממך לכתוב Go נקייה ובדוקה, ולהסביר מה קורה מתחת לפני השטח של slice או map. בסוף הפרק תהיה לך תוכנית
+אמיתית, <code>logstat</code>, עם בדיקות ובלי אזהרות.</p>
+<h2 id="_1">מה נלמד בפרק</h2>
+<ul>
+<li>מה Go מנסה להיות, ומה היא בכוונה לא.</li>
+<li>שרשרת הכלים, ומה מקביל לכל כלי ב־Cargo.</li>
+<li>מודולים וחבילות, ונראות לפי אות גדולה.</li>
+<li>ערכים, מצביעים, ומתי ערך „בורח” לערימה; אוסף זבל מול בעלות.</li>
+<li>slices מבפנים, כולל באג כינוי (aliasing) אמיתי.</li>
+<li>maps, ומחרוזות כבתים ו־runes, עם טקסט בעברית.</li>
+<li>בדיקות טבלאיות, ו־staticcheck ו־gofmt כהרגל.</li>
+</ul>
+<h2 id="_2">ידע מקדים</h2>
+<ul>
+<li>פרק 2: Go ו־staticcheck מותקנים ומאומתים, והמאגר של הקורס משוכפל ומיוצא כמשתנה <code>COURSE</code>.</li>
+<li>היכרות יומיומית עם Rust. אין צורך בידע קודם ב־Go.</li>
+</ul>
+<h2 id="31-go">3.1 למה Go, ומה היא לא</h2>
+<p>Go נולדה כדי לכתוב שירותי רשת בצוותים גדולים, כך שקוד של אדם אחד יהיה קריא לאחר בלי מאמץ. מכאן
+ההחלטות שלה: שפה קטנה, קומפילציה מהירה, בינארי סטטי אחד, ספרייה סטנדרטית רחבה לרשת, ומקביליות
+מובנית. רוב הכלים שתפגשי בהמשך הספר כתובים בה, ובהם Kubernetes ו־Terraform.</p>
+<p>בסקר המודעות של הספר Go הופיעה ב־13 מתוך 30 מודעות בכירות, בדרך כלל כאחת מכמה שפות אפשריות, והיא
+חזקה במיוחד במסלולי platform ו־DevOps. המקור: סעיף 4 בקובץ <code>00-stage1/01-market-research.md</code>.</p>
+<p>מה Go בכוונה לא נותנת לך, ביחס ל־Rust:</p>
+<table>
+<thead>
+<tr>
+<th>נושא</th>
+<th>Rust</th>
+<th>Go</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>זיכרון</td>
+<td>בעלות ושאילה, נבדקות בקומפילציה</td>
+<td>אוסף זבל (GC) בזמן ריצה</td>
+</tr>
+<tr>
+<td>שגיאות</td>
+<td><code>Result&lt;T, E&gt;</code> והאופרטור <code>?</code></td>
+<td>ערך <code>error</code> רגיל ובדיקה מפורשת</td>
+</tr>
+<tr>
+<td>ערך חסר</td>
+<td><code>Option&lt;T&gt;</code></td>
+<td>ערך אפס, או <code>nil</code></td>
+</tr>
+<tr>
+<td>פולימורפיזם</td>
+<td>traits מוצהרים</td>
+<td>ממשקים מרומזים</td>
+</tr>
+<tr>
+<td>מרוצי נתונים (data races)</td>
+<td>נמנעים בקומפילציה</td>
+<td>נתפסים בזמן ריצה עם <code>-race</code></td>
+</tr>
+</tbody>
+</table>
+<p>התמורה: פחות טקסים, קומפילציה מהירה, וסגנון אחיד לכולם. המחיר: חלק מהבאגים ש־Rust עוצרת בקומפילציה
+יגיעו אצלך לזמן ריצה, והפרק מראה איפה.</p>
+<h2 id="32-run-build-fmt-vet">3.2 שרשרת הכלים: run, build, fmt, vet</h2>
+<p>הכלי <code>go</code> הוא המהדר, מנהל החבילות ומריץ הבדיקות גם יחד:</p>
+<table>
+<thead>
+<tr>
+<th>פקודת Go</th>
+<th>מה היא עושה</th>
+<th>המקבילה ב־Rust</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>go run .</code></td>
+<td>מהדרת לתיקייה זמנית ומריצה</td>
+<td><code>cargo run</code></td>
+</tr>
+<tr>
+<td><code>go build ./...</code></td>
+<td>מהדרת הכול; תוכנית יחידה נכתבת כבינארי</td>
+<td><code>cargo build</code></td>
+</tr>
+<tr>
+<td><code>go test ./...</code></td>
+<td>מריצה את כל הבדיקות</td>
+<td><code>cargo test</code></td>
+</tr>
+<tr>
+<td><code>gofmt -l .</code></td>
+<td>מדפיסה קבצים שאינם מעוצבים</td>
+<td><code>cargo fmt --check</code></td>
+</tr>
+<tr>
+<td><code>go vet ./...</code></td>
+<td>ניתוח סטטי (static analysis) מובנה לבאגים נפוצים</td>
+<td>חלק קטן מ־clippy</td>
+</tr>
+<tr>
+<td><code>staticcheck ./...</code></td>
+<td>ניתוח סטטי רחב, כלי חיצוני</td>
+<td><code>cargo clippy</code></td>
+</tr>
+</tbody>
+</table>
+<p>הביטוי <code>./...</code> פירושו „החבילה בתיקייה הזאת וכל מה שמתחתיה”.</p>
+<p>לכלי העיצוב <code>gofmt</code> אין הגדרות כלל: אין קובץ תצורה ואין ויכוח על סגנון, ולכן כל קוד Go נראה אותו
+דבר. ועוד דבר: <code>go test</code> מריץ בעצמו חלק מבדיקות <code>vet</code> ונכשל אם הן מוצאות משהו. תראי את זה בפרק 4.</p>
+<blockquote>
+<p><strong>שימי לב:</strong> הספר כתוב ל־Go 1.27, נכון לאוקטובר 2026. הגרסה המדויקת שאומתה רשומה בנספח ג.</p>
+</blockquote>
+<h2 id="33">3.3 מודולים וחבילות</h2>
+<p><strong>מודול (module)</strong> הוא יחידת הגרסה וההפצה, המקבילה של crate. <strong>חבילה (package)</strong> היא תיקייה אחת של
+קבצי <code>.go</code> עם אותו שם <code>package</code>. חבילה בשם <code>main</code> עם פונקציה <code>main</code> היא תוכנית; כל חבילה אחרת היא
+ספרייה. יוצרים מודול מתוך תיקייה ריקה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">go mod init example.com/ch03-logstat
+go mod edit -go=1.27
+cat go.mod
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">module example.com/ch03-logstat
+
+go 1.27
+</code></pre>
+
+
+</div>
+
+<p>השורה הראשונה היא נתיב המודול, השם שבו מייבאים אותו; הוא לא חייב להתקיים ככתובת. השנייה אומרת על
+איזו גרסה של השפה הקוד נשען, והספר מקבע אותה במפורש.</p>
+<p>תלות חיצונית מוסיפים עם <code>go get</code>, והיא נרשמת בגרסה מדויקת ב־<code>go.mod</code>. לצידו נוצר <code>go.sum</code>, ובו
+גיבוב קריפטוגרפי של כל תלות. הוא לא קובץ נעילה: את הגרסאות קובע <code>go.mod</code>, והוא רק מוודא שהתוכן שירד נכון.
+שני הקבצים נכנסים ל־Git. לתרגיל של הפרק אין תלויות בכלל.</p>
+<blockquote>
+<p><strong>איך Rust עושה את זה:</strong> Cargo פותר טווח גרסאות לגרסה החדשה ביותר שמתאימה, ונועל אותה בקובץ
+הנעילה. ב־Go כל מודול מצהיר על הגרסה המינימלית שהוא צריך, והכלי בוחר את הגבוהה מבין המינימליות
+(minimal version selection). התוצאה דטרמיניסטית בלי קובץ נעילה, ושדרוג קורה רק כשמבקשים אותו.</p>
+</blockquote>
+<p>נראות נקבעת לפי האות הראשונה. שם שמתחיל באות גדולה (<code>ParseLine</code>) מיוצא; שם באות קטנה (<code>report</code>)
+פרטי לחבילה. אין <code>pub</code>, ואין פרטיות ברמת קובץ: כל הקבצים בחבילה רואים זה את זה.</p>
+<h2 id="34-rust">3.4 התחביר למתכנתת Rust</h2>
+<p>הדרך המהירה ללמוד תחביר היא לקרוא קוד אמיתי. זו תחילת הקובץ <code>parse.go</code> מהתרגיל:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// Entry is one parsed access-log line in Common Log Format:
+//
+//  host ident user [time] &quot;METHOD path PROTO&quot; status bytes
+type Entry struct {
+    Host   string
+    Time   time.Time
+    Method string
+    Path   string
+    Status int
+    Bytes  int64
+}
+
+// clfTime is Go's reference time (Mon Jan 2 15:04:05 MST 2006) written in the log's layout.
+const clfTime = &quot;02/Jan/2006:15:04:05 -0700&quot;
+</code></pre>
+
+
+</div>
+
+<p>הטיפוס בא אחרי השם, בלי נקודתיים. הערה מעל שם מיוצא היא התיעוד שלו. הקבוע מגלה הפתעה: תבנית זמן
+ב־Go אינה <code>%d/%m/%Y</code>. כותבים תאריך ייחוס קבוע, 2 בינואר 2006 בשעה 15:04:05, בצורה שבה הזמן מופיע
+בקלט. וזה תחילת גוף הפונקציה, מאותו קובץ:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func ParseLine(line string) (Entry, error) {
+    var e Entry
+    host, rest, ok := strings.Cut(line, &quot; &quot;)
+    if !ok || host == &quot;&quot; {
+        return Entry{}, fmt.Errorf(&quot;no host field&quot;)
+    }
+    e.Host = host
+</code></pre>
+
+
+</div>
+
+<p>מה לשים לב אליו:</p>
+<ul>
+<li><strong>החזרה מרובה.</strong> הפונקציה מחזירה כמה ערכים, והשגיאה תמיד אחרונה. בפרק 4 נעמיק.</li>
+<li><strong>הצהרה קצרה.</strong> האופרטור <code>:=</code> מצהיר ומאתחל עם טיפוס מוסק.</li>
+<li><strong>ערך אפס.</strong> הביטוי <code>var e Entry</code> יוצר struct שכל שדותיו באפס. אין משתנה לא מאותחל.</li>
+<li><strong>פירוק מחרוזות.</strong> הפונקציה <code>strings.Cut</code> מחזירה את מה שלפני המפריד, את מה שאחריו, והאם נמצא.</li>
+</ul>
+<p>לולאה יש אחת, <code>for</code>, בכמה צורות:</p>
+<table>
+<thead>
+<tr>
+<th>צורה</th>
+<th>שימוש</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>for i := 0; i &lt; n; i++</code></td>
+<td>לולאה קלאסית</td>
+</tr>
+<tr>
+<td><code>for cond</code></td>
+<td>המקבילה של <code>while</code></td>
+</tr>
+<tr>
+<td><code>for i, v := range items</code></td>
+<td>מעבר על slice, מחרוזת או map</td>
+</tr>
+<tr>
+<td><code>for i := range 10</code></td>
+<td>המספרים 0 עד 9</td>
+</tr>
+</tbody>
+</table>
+<p>החל מ־Go 1.22 משתנה הלולאה חדש בכל איטרציה, ולכן השורה <code>v := v</code> שתמצאי בקוד ישן מיותרת היום.</p>
+<blockquote>
+<p><strong>טעות נפוצה:</strong> משתנה או ייבוא שלא משתמשים בהם הם שגיאת קומפילציה, לא אזהרה. באמצע עבודה, כתבי
+<code>_ = x</code>.</p>
+</blockquote>
+<h2 id="35-gc">3.5 ערכים, מצביעים, ו־GC מול בעלות</h2>
+<p>ב־Go הכול מועבר לפי ערך. העברת struct לפונקציה מעתיקה אותו, כאילו לכל טיפוס יש <code>Copy</code>. מצביע הוא
+ערך בפני עצמו, כתובת, ולכן מועתקת רק הכתובת. אין שאילה, אין הבחנה בין קריאה לכתיבה, ואין משך חיים
+(lifetime). מותר להחזיר מצביע למשתנה מקומי, כמו בקובץ <code>stats.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// NewStats returns a Stats with its map allocated.
+func NewStats() *Stats {
+    return &amp;Stats{Paths: make(map[string]int)}
+}
+</code></pre>
+
+
+</div>
+
+<p>ב־C++ זה מצביע תלוי, וב־Rust זה לא מתקמפל. ב־Go זה תקין: המהדר מבצע <strong>ניתוח בריחה (escape
+analysis)</strong>, מזהה שהערך חי אחרי שהפונקציה חוזרת, ומקצה אותו על הערימה (heap). אוסף הזבל ישחרר
+אותו כשאיש כבר לא מצביע עליו. אפשר לבקש מהמהדר להראות את ההחלטות שלו:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">go build -o /dev/null -gcflags=-m . 2&gt;&amp;1 | grep -E 'NewStats|stats.go:27'
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">./stats.go:26:6: can inline NewStats
+./stats.go:48:15: inlining call to NewStats
+./stats.go:27:9: &amp;Stats{...} escapes to heap
+./stats.go:27:27: make(map[string]int) escapes to heap
+</code></pre>
+
+
+</div>
+
+<p>בלי ה־<code>grep</code> תראי שגם ארגומנטים לפונקציות של <code>fmt</code> בורחים, כי הן מקבלות אותם כממשק. בקוד רגיל לא
+חושבים על זה; בפרק 6 תמדדי הקצאות עם בנצ'מרק (benchmark).</p>
+<p>הכלל המעשי: מצביע כשהפונקציה צריכה לשנות את הערך של הקוראת; ערך לכל struct קטן ובלתי משתנה.</p>
+<blockquote>
+<p><strong>איך Rust עושה את זה:</strong> הקומפיילר יודע בדיוק מתי כל ערך נהרס, ולכן אין עלות בזמן ריצה, אבל
+משלמים בזמן כתיבה: משכי חיים, <code>Rc</code>, <code>Arc</code> ובודק השאילות. Go מעבירה את המחיר לזמן ריצה, לאוסף זבל
+שרץ במקביל לתוכנית. מה שהולך לאיבוד: אין ערבות לכותב יחיד, ולכן מרוצי נתונים אפשריים (פרק 5).
+וגם <code>Drop</code> אין: קבצים נסגרים ידנית עם <code>defer</code>.</p>
+</blockquote>
+<h2 id="36-slices">3.6 slices מבפנים</h2>
+<p>slice נראה כמו <code>Vec&lt;T&gt;</code>, אבל מתנהג כמו משהו בין וקטור לבין חלק שאול ממנו, ושם מתחילות ההפתעות.
+בפנים הוא שלושה שדות, „כותרת” (slice header):</p>
+<table>
+<thead>
+<tr>
+<th>שדה</th>
+<th>משמעות</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>מצביע</td>
+<td>לאיבר הראשון במערך הבסיס (backing array)</td>
+</tr>
+<tr>
+<td><code>len</code></td>
+<td>כמה איברים ה־slice רואה</td>
+</tr>
+<tr>
+<td><code>cap</code></td>
+<td>כמה מקום יש במערך מהמצביע ועד סופו</td>
+</tr>
+</tbody>
+</table>
+<p>השמה או העברה לפונקציה מעתיקות את הכותרת, לא את האיברים, ולכן שני slices יכולים לחלוק מערך. הביטוי
+<code>paths[:2]</code> יוצר כותרת עם אורך 2, אבל עם אותו מצביע, והקיבולת שלה נמשכת עד סוף המערך המקורי.</p>
+<p>הפונקציה <code>append</code> כותבת במערך הקיים כשיש מקום, ומקצה מערך חדש כשאין. כלומר היא לפעמים משנה זיכרון
+משותף ולפעמים לא, ומהקוד לבד אי אפשר לדעת. כך זה נראה, בקובץ <code>example_test.go</code> של התרגיל:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// The aliasing bug: head shares its backing array with paths, so append writes into paths.
+func Example_appendAliasing() {
+    paths := []string{&quot;/a&quot;, &quot;/b&quot;, &quot;/c&quot;, &quot;/d&quot;}
+    head := paths[:2]           // len 2, cap 4: same backing array
+    head = append(head, &quot;/new&quot;) // fits in cap, so it overwrites paths[2]
+    fmt.Println(paths, len(head), cap(head))
+
+    paths = []string{&quot;/a&quot;, &quot;/b&quot;, &quot;/c&quot;, &quot;/d&quot;}
+    safe := slices.Clone(paths[:2]) // own backing array
+    safe = append(safe, &quot;/new&quot;)
+    limited := paths[:2:2] // full slice expression: cap 2, so append must copy
+    limited = append(limited, &quot;/new&quot;)
+    fmt.Println(paths, safe, limited)
+    // Output:
+    // [/a /b /new /d] 3 4
+    // [/a /b /c /d] [/a /b /new] [/a /b /new]
+}
+</code></pre>
+
+
+</div>
+
+<p>השורה הראשונה בפלט היא הבאג: הוספנו ל־<code>head</code>, והאיבר השלישי של <code>paths</code> השתנה. בקוד אמיתי זה קורה
+כשפונקציה מחזירה חלק מ־slice פנימי, והקוראת מוסיפה לו. שתי דרכים מונעות זאת:</p>
+<ul>
+<li><strong>העתקה</strong> עם <code>slices.Clone</code>: הקצאה אחת, ואין שום שיתוף.</li>
+<li><strong>ביטוי slice מלא</strong> כמו <code>paths[:2:2]</code>: האינדקס השלישי מגביל את הקיבולת, והוספה חייבת להעתיק.</li>
+</ul>
+<p>פונקציה ששמה מתחיל ב־<code>Example</code> ומסתיימת בהערת <code>// Output:</code> היא בדיקה: <code>go test</code> מריץ אותה ומשווה את
+הפלט להערה. כך הדוגמאות בפרק מאומתות ולא רק מתוארות.</p>
+<blockquote>
+<p><strong>איך Rust עושה את זה:</strong> המצב הזה לא מתקמפל. חלק שאול של וקטור אי אפשר להגדיל, ובזמן שהשאילה
+פעילה אסור לשנות את המקור. Go נותנת לך כותרת זולה להעתקה, ומשאירה לך לדעת מי עוד רואה את המערך.</p>
+</blockquote>
+<p>כשנגמר המקום, <code>append</code> מקצה מערך גדול יותר; היחס המדויק הוא פרט מימוש, ואל תסמכי עליו. כשידוע
+מראש כמה איברים יהיו, הקצי מראש עם <code>make([]T, 0, n)</code>, כמו <code>Vec::with_capacity</code>. ועוד: slice שערכו
+<code>nil</code> הוא slice תקין באורך אפס, ואפשר לעבור עליו ולהוסיף לו.</p>
+<h2 id="37-maps-runes">3.7 maps, מחרוזות ו־runes</h2>
+<h3 id="371-maps">3.7.1 maps</h3>
+<p>map הוא טבלת גיבוב, כמו <code>HashMap</code>. ערך האפס שלו הוא <code>nil</code>: מותר לקרוא ממנו, אבל כתיבה אליו היא
+panic, ולכן <code>NewStats</code> יוצרת אותו עם <code>make</code>. מפתח חסר מחזיר ערך אפס, ולכן <code>s.Paths[path]++</code> עובד גם
+בפעם הראשונה. כדי להבחין בין „חסר” ל„אפס” כותבים <code>v, ok := m[k]</code>. ועוד שתי תכונות:</p>
+<ul>
+<li><strong>סדר המעבר לא מוגדר.</strong> המפרט אומר זאת במפורש, והמימוש מערבב בכוונה. כל פלט שנבנה ממעבר על map
+  צריך מיון.</li>
+<li><strong>אין בטיחות לכתיבה מקבילה.</strong> שתי goroutines (פונקציות שרצות במקביל, פרק 5) שכותבות לאותו map בלי
+  נעילה מפילות את התהליך עם <code>fatal error: concurrent map writes</code>. אי אפשר לתפוס את זה.</li>
+</ul>
+<p>כך <code>TopPaths</code> הופכת map לטבלה ממוינת ודטרמיניסטית, בקובץ <code>stats.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func TopPaths(paths map[string]int, n int) []PathCount {
+    rows := make([]PathCount, 0, len(paths))
+    for p, c := range paths {
+        rows = append(rows, PathCount{Path: p, Count: c})
+    }
+    slices.SortFunc(rows, func(a, b PathCount) int {
+        if c := cmp.Compare(b.Count, a.Count); c != 0 {
+            return c
+        }
+        return cmp.Compare(a.Path, b.Path)
+    })
+    return rows[:max(0, min(n, len(rows)))] // clamp n into 0..len(rows)
+}
+</code></pre>
+
+
+</div>
+
+<p>ההשוואה הראשונה הפוכה כדי למיין בסדר יורד. השנייה שוברת שוויון לפי הנתיב, כדי שהפלט יהיה זהה בכל הרצה.</p>
+<h3 id="372">3.7.2 מחרוזות: בתים, לא תווים</h3>
+<p>מחרוזת ב־Go היא רצף בתים בלתי ניתן לשינוי. בדרך כלל אלה בתים של UTF-8, אבל השפה לא אוכפת זאת. האורך
+<code>len(s)</code> נמדד בבתים. <strong>rune</strong> הוא נקודת קוד אחת של Unicode, המקבילה של <code>char</code>. בעברית ההבדל מיידי,
+כי כל אות היא שני בתים. מהקובץ <code>example_test.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// A string is bytes. Hebrew letters are two bytes each in UTF-8.
+func Example_hebrewBytesAndRunes() {
+    word := &quot;שלום&quot;
+    fmt.Println(len(word), utf8.RuneCountInString(word))
+    fmt.Println(utf8.ValidString(word[:3])) // a byte slice cut through a letter
+    for i, r := range &quot;אב!&quot; {
+        fmt.Println(i, string(r)) // i is the byte offset, r is the rune
+    }
+    fmt.Println(Truncate(&quot;/מוצרים/נעליים&quot;, 8))
+    // Output:
+    // 8 4
+    // false
+    // 0 א
+    // 2 ב
+    // 4 !
+    // /מוצרים…
+}
+</code></pre>
+
+
+</div>
+
+<p>מה רואים בפלט:</p>
+<ul>
+<li><strong>אורך.</strong> המילה „שלום” היא 8 בתים ו־4 runes.</li>
+<li><strong>חיתוך.</strong> חיתוך באמצע אות מצליח בשקט ומייצר מחרוזת פגומה. ב־Rust אותו חיתוך היה panic.</li>
+<li><strong>מעבר.</strong> לולאת <code>range</code> על מחרוזת מחזירה runes, אבל האינדקס הוא היסט בבתים: 0, 2, 4.</li>
+</ul>
+<p>לכן <code>logstat</code> חותכת נתיבים ארוכים לפי runes. מהקובץ <code>stats.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// Truncate shortens s to at most limit runes (not bytes), marking the cut with &quot;…&quot;.
+func Truncate(s string, limit int) string {
+    if limit &lt; 1 {
+        return &quot;&quot;
+    }
+    if utf8.RuneCountInString(s) &lt;= limit {
+        return s
+    }
+    runes := []rune(s)
+    return string(runes[:limit-1]) + &quot;…&quot;
+}
+</code></pre>
+
+
+</div>
+
+<p>ההמרה <code>[]rune(s)</code> מפענחת ומקצה זיכרון חדש. וגם rune אינו בהכרח תו שהעין רואה: אות עם ניקוד היא כמה
+runes. לספירת תווים נראים צריך ספרייה חיצונית, והתרגיל לא נזקק לה.</p>
+<blockquote>
+<p><strong>שימי לב:</strong> בלוג גישה נתיב בעברית מגיע מקודד באחוזים, כמו <code>%D7%A2%D7%92%D7%9C%D7%94</code>. הפונקציה
+<code>DisplayPath</code> מפענחת אותו רק לתצוגה; הספירה נעשית על הנתיב המקורי.</p>
+</blockquote>
+<h2 id="38">3.8 בדיקות טבלאיות</h2>
+<p>בדיקה ב־Go היא פונקציה ששמה מתחיל ב־<code>Test</code>, בקובץ שמסתיים ב־<code>_test.go</code>. אין מאקרו ואין ספריית
+assertions: בודקים עם <code>if</code>, ומדווחים עם <code>t.Errorf</code>, שממשיכה, או <code>t.Fatalf</code>, שעוצרת. קובץ הבדיקה יושב
+באותה חבילה ורואה גם שמות פרטיים, כמו מודול בדיקות פנימי ב־Rust.</p>
+<p>ההרגל המרכזי הוא <strong>בדיקה טבלאית (table-driven test)</strong>: slice של מקרים ולולאה אחת. מהקובץ
+<code>parse_test.go</code>, ההתחלה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func TestParseLine(t *testing.T) {
+    tests := []struct {
+        name    string
+        line    string
+        want    Entry
+        wantErr bool
+    }{
+</code></pre>
+
+
+</div>
+
+<p>ואחרי המקרים, הלולאה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            got, err := ParseLine(tt.line)
+            if tt.wantErr {
+                if err == nil {
+                    t.Fatalf(&quot;ParseLine(%q) = %+v, want an error&quot;, tt.line, got)
+                }
+                return
+            }
+</code></pre>
+
+
+</div>
+
+<p>למה זו ברירת המחדל:</p>
+<ul>
+<li><strong>מקרה חדש הוא שורה אחת.</strong> את השורה המשובשת שמצאת בייצור מוסיפים בשנייה.</li>
+<li><strong>לכל מקרה יש שם.</strong> הפונקציה <code>t.Run</code> יוצרת תת־בדיקה שאפשר להריץ לבד.</li>
+<li><strong>הודעה אחידה.</strong> הנוסח <code>got X, want Y</code> חוסך לפתוח את הקוד כדי להבין את הכשל.</li>
+</ul>
+<p>כך מריצים תת־בדיקה אחת; רווח בשם הופך לקו תחתון:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">go test -run 'TestParseLine/bad_time' -v .
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">=== RUN   TestParseLine
+=== RUN   TestParseLine/bad_time
+--- PASS: TestParseLine (0.00s)
+    --- PASS: TestParseLine/bad_time (0.00s)
+PASS
+ok      example.com/ch03-logstat    0.334s
+</code></pre>
+
+
+</div>
+
+<p>הזמן אצלך יהיה אחר. ועוד שתי מוסכמות שהתרגיל משתמש בהן:</p>
+<ul>
+<li><strong>תיקיית <code>testdata</code>.</strong> הכלי מתעלם ממנה בבנייה, ושם שמים קבצי קלט לבדיקות.</li>
+<li><strong>פונקציית <code>run</code>.</strong> הפונקציה <code>main</code> רק קוראת לה; הבדיקות קוראות לה עם זרמים מזויפים ובודקות קוד יציאה.</li>
+</ul>
+<h2 id="39-logstat">3.9 תוכנית קטנה: <code>logstat</code></h2>
+<p>הכלי קורא לוג גישה בפורמט הנפוץ של שרתי web, מקובץ או מהקלט הסטנדרטי, וסופר:</p>
+<ul>
+<li>כמה שורות היו, כמה מהן משובשות, ומספרי השורות של המשובשות הראשונות.</li>
+<li>כמה תשובות היו בכל מחלקת סטטוס.</li>
+<li>אילו נתיבים התבקשו הכי הרבה, בלי מחרוזת השאילתה ועם עברית קריאה.</li>
+</ul>
+<p>שורה משובשת נספרת ואינה עוצרת את הכלי: לוג אמיתי תמיד מכיל זבל, וכלי שקורס בשורה ה־40,000 חסר
+תועלת. הלב הוא המתודה <code>Add</code>, בקובץ <code>stats.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// Add counts one line. A malformed line is counted, never fatal.
+func (s *Stats) Add(line string) {
+    s.Lines++
+    e, err := ParseLine(line)
+    if err != nil {
+        s.Malformed++
+        if len(s.BadLines) &lt; maxBadLines {
+            s.BadLines = append(s.BadLines, s.Lines)
+        }
+        return
+    }
+    s.Classes[e.Status/100]++
+    path, _, _ := strings.Cut(e.Path, &quot;?&quot;) // count /a?x=1 and /a?x=2 as /a
+    s.Paths[path]++
+}
+</code></pre>
+
+
+</div>
+
+<p>הטיפוס של <code>Classes</code> הוא <code>[6]int</code>, מערך באורך קבוע ולא slice. מערך הוא ערך: השמה מעתיקה את כל ששת
+המספרים, ומשווים שני מערכים עם <code>==</code>. ה־map, לעומתו, משותף; הדוגמה <code>Example_valuesAndReferences</code>
+מראה את ההבדל. הקריאה עצמה, באותו קובץ:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func Collect(r io.Reader) (*Stats, error) {
+    s := NewStats()
+    sc := bufio.NewScanner(r)
+    sc.Buffer(make([]byte, 0, 64*1024), 1024*1024) // allow lines up to 1 MiB
+    for sc.Scan() {
+        s.Add(sc.Text())
+    }
+    return s, sc.Err()
+}
+</code></pre>
+
+
+</div>
+
+<p>שתי מלכודות. הסורק מוותר כברירת מחדל על שורה ארוכה מ־64 KiB, והלולאה נגמרת כאילו הקובץ נגמר. ומי
+שלא בודקת את <code>sc.Err()</code> מקבלת ספירה חלקית בשקט. את <code>io.Reader</code> נכיר בפרק 4.</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">go run . testdata/access.log
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">lines      15
+malformed  2 (first at lines [7 14])
+1xx        0
+2xx        8
+3xx        2
+4xx        2
+5xx        1
+top paths:
+    5  /api/orders
+    2  /מוצרים/נעליים
+    2  /api/orders/17
+    2  /healthz
+    1  /עגלה
+</code></pre>
+
+
+</div>
+
+<p>שלושה נתיבים עם ספירה 2 ממוינים לפי הנתיב המקודד, ולכן העברי, שמתחיל ב־<code>%</code>, קודם. זה הסדר בכל הרצה,
+וזו המטרה.</p>
+<h2 id="310-staticcheck-gofmt">3.10 staticcheck ו־gofmt כהרגל</h2>
+<p>שלושה כלים רצים לפני כל commit. כשהכול תקין, אף אחד מהם לא מדפיס דבר:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">gofmt -l .
+go vet ./...
+staticcheck ./...
+</code></pre>
+
+
+</div>
+
+<table>
+<thead>
+<tr>
+<th>כלי</th>
+<th>מה הוא תופס</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>gofmt -l</code></td>
+<td>קבצים לא מעוצבים; הדגל <code>-w</code> מתקן במקום</td>
+</tr>
+<tr>
+<td><code>go vet</code></td>
+<td>באגים שהמהדר מאשר, כמו מחרוזת פורמט שלא מתאימה לארגומנטים</td>
+</tr>
+<tr>
+<td><code>staticcheck</code></td>
+<td>באגים, קוד מת, ערכים שמחושבים ולא נקראים, ו־API שהוצא משימוש</td>
+</tr>
+</tbody>
+</table>
+<p>העורך מעצב בדרך כלל בכל שמירה. זה מה ש־staticcheck מוצא בקוד ההתחלה של התרגיל, לפני שמילאת אותו:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">parse.go:21:7: const clfTime is unused (U1000)
+stats.go:10:7: const maxBadLines is unused (U1000)
+</code></pre>
+
+
+</div>
+
+<p>לכל ממצא יש קוד שאפשר לחפש בתיעוד; <code>U1000</code> פירושו קוד שלא בשימוש. כאן הממצאים צפויים, והם ייעלמו
+כשתסיימי. בפרק 27 נוסיף את golangci-lint, שמריץ עשרות כלים כאלה יחד. ההרגל מתחיל כאן: הכלים שקטים
+לפני שמבקשים סקירת קוד.</p>
+<h2 id="_3">סיכום</h2>
+<ul>
+<li>Go מחליפה בדיקות קומפילציה של Rust בפשטות ובזמן ריצה: אוסף זבל, ערכי אפס, ושגיאות כערכים.</li>
+<li>מודול מוגדר בקובץ <code>go.mod</code> עם גרסה מינימלית לכל תלות; לכלי העיצוב אין הגדרות.</li>
+<li>הכול מועבר לפי ערך. ערך שחי אחרי הפונקציה בורח לערימה, והדגל <code>-gcflags=-m</code> מראה זאת.</li>
+<li>slice הוא מצביע, אורך וקיבולת; הוספה עשויה לכתוב למערך משותף. העתקה או ביטוי slice מלא מונעים זאת.</li>
+<li>סדר המעבר על map אקראי, וכתיבה מקבילה אליו מפילה את התהליך.</li>
+<li>מחרוזת היא בתים, ו־runes הם נקודות קוד. בעברית כל אות היא שני בתים.</li>
+<li>בדיקות טבלאיות הן ברירת המחדל, ופונקציית <code>Example</code> היא בדיקה שגם מתעדת.</li>
+</ul>
+<h2 id="_4">מונחים לזכור</h2>
+<table>
+<thead>
+<tr>
+<th>מונח בעברית</th>
+<th>באנגלית</th>
+<th>במשפט אחד</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>מודול</td>
+<td>module</td>
+<td>יחידת גרסה והפצה, מוגדרת בקובץ <code>go.mod</code></td>
+</tr>
+<tr>
+<td>חבילה</td>
+<td>package</td>
+<td>תיקייה של קבצים עם אותו שם חבילה; יחידת הקומפילציה והנראות</td>
+</tr>
+<tr>
+<td>ערך אפס</td>
+<td>zero value</td>
+<td>הערך שכל משתנה מקבל בלי אתחול: 0, מחרוזת ריקה או <code>nil</code></td>
+</tr>
+<tr>
+<td>אוסף זבל</td>
+<td>garbage collector (GC)</td>
+<td>משחרר בזמן ריצה זיכרון שאין אליו הפניות</td>
+</tr>
+<tr>
+<td>ניתוח בריחה</td>
+<td>escape analysis</td>
+<td>החלטת המהדר אם ערך נשאר על המחסנית או עובר לערימה</td>
+</tr>
+<tr>
+<td>כותרת slice</td>
+<td>slice header</td>
+<td>מצביע, אורך וקיבולת; זה מה שמועתק</td>
+</tr>
+<tr>
+<td>מערך בסיס</td>
+<td>backing array</td>
+<td>הזיכרון שעליו slices מצביעים, ושיכול להיות משותף</td>
+</tr>
+<tr>
+<td>כינוי</td>
+<td>aliasing</td>
+<td>שני שמות לאותו זיכרון, כך ששינוי באחד נראה בשני</td>
+</tr>
+<tr>
+<td>rune</td>
+<td>rune</td>
+<td>נקודת קוד אחת של Unicode</td>
+</tr>
+<tr>
+<td>בדיקה טבלאית</td>
+<td>table-driven test</td>
+<td>רשימת מקרים ולולאה אחת שמריצה כל אחד כתת־בדיקה</td>
+</tr>
+<tr>
+<td>ניתוח סטטי</td>
+<td>static analysis</td>
+<td>בדיקת קוד בלי להריץ אותו</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_5">טעויות נפוצות</h2>
+<ul>
+<li><strong>להחזיר חלק מ־slice פנימי.</strong> הקוראת מוסיפה לו ומשנה את הנתונים שלך. החזירי עותק או הגבילי קיבולת.</li>
+<li><strong>להניח שהוספה משנה את ה־slice המקורי.</strong> המהדר מחייב להשתמש בתוצאה, אבל השמה למשתנה אחר עוברת
+  ומשאירה שני slices שאולי חולקים מערך. כותבים <code>s = append(s, x)</code>.</li>
+<li><strong>לכתוב ל־map שלא אותחל.</strong> זה panic. אתחלי עם <code>make</code> או עם ליטרל.</li>
+<li><strong>להסתמך על סדר המעבר ב־map.</strong> זה „עובד אצלי” ונכשל לפעמים ב־CI. מייני.</li>
+<li><strong>לחתוך מחרוזת לפי בתים.</strong> עברית תיחתך באמצע אות. ספרי runes.</li>
+<li><strong>לשכוח את <code>sc.Err()</code>.</strong> סורק שנכשל נראה בדיוק כמו סוף קובץ.</li>
+</ul>
+<h2 id="_6">שאלות ראיון</h2>
+<ol>
+<li><strong>מה זה slice header, ולמה <code>append</code> יכולה להפתיע?</strong> זה מצביע למערך בסיס, אורך וקיבולת.
+   העתקה שלו מעתיקה רק את שלושתם, ולכן שני slices יכולים לחלוק מערך. הוספה כותבת במקום כשיש קיבולת
+   ומקצה מערך חדש כשאין, כך שהתוצאה תלויה בקיבולת, שלא רואים בקוד. ההגנה היא לדעת מי הבעלים של
+   המערך: מי שמחזירה slice פנימי מחזירה עותק או מגבילה קיבולת.</li>
+</ol>
+<p><strong>המשך:</strong> למה לא להעתיק תמיד? כי העתקה עולה הקצאה, ורוב ה־slices לא משותפים. Go משאירה את ההחלטה
+   לך, ובקוד חם ההבדל נמדד.</p>
+<ol start="2">
+<li>
+<p><strong>מה Go מרוויחה ומה היא מפסידה בכך שיש לה אוסף זבל במקום בעלות?</strong> היא מרוויחה פשטות: אין משכי
+   חיים, מותר להחזיר מצביע לערך מקומי, ומבנים עם מעגלים לא דורשים מונה הפניות. היא מפסידה דטרמיניזם:
+   עבודת GC בזמן ריצה, ואין ערבות קומפילציה נגד מרוצי נתונים. בשירותי רשת, שבהם זמן התגובה נשלט
+   בעיקר על ידי הרשת ומסד הנתונים, זה בדרך כלל שווה; במערכות זמן אמת קשיחות, פחות.</p>
+</li>
+<li>
+<p><strong>למה סדר המעבר על map אקראי, ומה עושים כשצריך סדר?</strong> המפרט לא מגדיר סדר, והמימוש מערבב בכוונה
+   כדי שאף קוד לא יסתמך על סדר מקרי שיישבר בשדרוג. כשצריך סדר, אוספים ל־slice וממיינים, כולל שבירת
+   שוויון, כדי שהפלט יהיה דטרמיניסטי.</p>
+</li>
+</ol>
+<p><strong>המשך:</strong> ומה אם שתי goroutines כותבות לאותו map? התהליך קורס בשגיאה פטאלית שאי אפשר לתפוס.
+   פותרים בנעילה סביב ה־map, נושא של פרק 5.</p>
+<ol start="4">
+<li><strong>מה מחזיר <code>len</code> על המחרוזת „שלום”, ואיך חותכים עברית בבטחה?</strong> 8, כי האורך נמדד בבתים ובעברית
+   כל אות היא שני בתים. כדי לחתוך לפי תווים סופרים runes וממירים ל־slice של runes לפני החיתוך. גם זה
+   לא מושלם: אות עם ניקוד היא כמה runes לתו אחד שהעין רואה.</li>
+</ol>
+<h2 id="obsidian">פתק Obsidian</h2>
+<p>הפתק המוכן נמצא גם כקובץ: <code>obsidian/03-go-first-steps.md</code>. זה תוכנו:</p>
+<ul>
+<li><strong>הוויתור של Go:</strong> אוסף זבל במקום בעלות, ערך אפס במקום אופציה, שגיאה כערך.</li>
+<li><strong>מודול וחבילה:</strong> מודול עם גרסאות מינימליות; חבילה היא תיקייה; אות גדולה מייצאת.</li>
+<li><strong>ערכים ומצביעים:</strong> הכול מועתק; ערך שחי אחרי הפונקציה בורח לערימה.</li>
+<li><strong>slice:</strong> מצביע, אורך וקיבולת. הוספה כותבת במקום כשיש קיבולת. עותק או ביטוי מלא נגד כינוי.</li>
+<li><strong>map:</strong> סדר מעבר אקראי ולכן מיון; כתיבה ל־map שערכו nil היא panic; כתיבה מקבילה מפילה את התהליך.</li>
+<li><strong>מחרוזות:</strong> בתים; לולאת <code>range</code> נותנת runes והיסט בבתים; עברית היא שני בתים לאות.</li>
+<li><strong>בדיקות:</strong> טבלה, תת־בדיקה עם שם, הודעת got ו־want; דוגמה עם הערת פלט נבדקת.</li>
+<li><strong>שאלה פתוחה:</strong> ___</li>
+</ul>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">go mod init example.com/NAME &amp;&amp; go mod edit -go=1.27
+go run .            go build ./...        go test ./...
+go test -run 'TestX/case_name' -v .
+gofmt -l .          go vet ./...          staticcheck ./...
+go build -o /dev/null -gcflags=-m .       # escape analysis
+s[low:high:max]     slices.Clone(s)       make([]T, 0, n)
+v, ok := m[k]       slices.SortFunc(rows, func(a, b T) int { return cmp.Compare(a.X, b.X) })
+len(&quot;שלום&quot;) = ___   utf8.RuneCountInString(&quot;שלום&quot;) = ___
+sc.Buffer(make([]byte, 0, 64*1024), 1024*1024);  check sc.Err() after the loop
+</code></pre>
+
+
+</div>
+
+<h2 id="_7">תרגיל</h2>
+<p><strong>מטרה:</strong> לכתוב את <code>logstat</code>, כלי שורת פקודה שמפרק לוג גישה, סופר מחלקות סטטוס ונתיבים מובילים,
+מדווח על שורות משובשות בלי לקרוס, ונבדק בבדיקות טבלאיות. <strong>זמן:</strong> שני ימי לימוד, ימים 4 ו־5, כ־50 דקות בנייה ביום 4 וכ־65 ביום 5. <strong>ידע מקדים:</strong> סעיפים 3.1 עד 3.5 ליום 4 ו־3.6 עד 3.10 ליום 5;
+הכלים מפרק 2.</p>
+<p>הצעדים, קוד ההתחלה, הרמזים והפתרון נמצאים ב־
+<a href="../exercises/ch03-logstat/README.md"><code>exercises/ch03-logstat/README.md</code></a>.</p>
+<p><strong>קריטריון סיום:</strong></p>
+<ul>
+<li>הכלי סופר מחלקות סטטוס על קובץ הדוגמה ומציג נתיבים בעברית קריאה.</li>
+<li>כל הבדיקות הטבלאיות עוברות, כולל השורות המשובשות והשורה הארוכה.</li>
+<li>שלושת הכלים שקטים: עיצוב, <code>go vet</code> ו־staticcheck.</li>
+<li>בפתק: הפלט של ניתוח הבריחה על <code>NewStats</code>, ומשפט שמסביר אותו.</li>
+</ul>
+<h2 id="_8">העשרה אופציונלית</h2>
+<ul>
+<li>בבלוג של Go יש שני מאמרים קצרים שהפרק נשען עליהם: על המבנה הפנימי של slices, ועל מחרוזות, בתים
+  ו־runes.</li>
+<li>שני שורת <code>// Output:</code> אחת בקובץ הדוגמאות, הריצי את הבדיקות, וראי איך נראה כשל של דוגמה.</li>
+<li>כתבי בדיקה שמראה שהוספה ל־slice מלא מקצה מערך חדש: השווי את כתובת האיבר הראשון לפני ואחרי.</li>
+</ul>
+</main>
+<nav class="bottom"><a href="index.html">תוכן העניינים</a> · <a href="02-workbench-wsl2.html">← פרק 2: סביבת העבודה: WSL2, Docker, Go ו־uv</a> · <a href="04-go-types-interfaces-errors.html">פרק 4: טיפוסים, ממשקים ושגיאות →</a></nav>
+<script type="module">
+  // Render ```mermaid blocks in the browser (needs internet once; cached afterwards).
+  const blocks = document.querySelectorAll("pre > code.language-mermaid");
+  if (blocks.length) {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs")).default;
+    for (const code of blocks) {
+      const div = document.createElement("div");
+      div.className = "mermaid";
+      div.textContent = code.textContent;
+      code.parentElement.replaceWith(div);
+    }
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run();
+  }
+</script>
+</body>
+</html>

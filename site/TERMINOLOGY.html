@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Terminology policy (book 2)</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="top"><a href="index.html">תוכן העניינים</a> · <a href="12-redis-caching.html">← פרק 12: Redis ומטמון</a> · <a href="a-glossary.html">נספח א: מילון מונחים →</a></nav>
+<main class="book">
+<div class="toc"><span class="toctitle">תוכן הפרק</span><ul>
+<li><a href="#1-rule-of-thumb">1. Rule of thumb</a></li>
+<li><a href="#2-stays-english-gloss-on-first-use">2. Stays English (gloss on first use)</a></li>
+<li><a href="#3-translated-concepts-one-rendering-each">3. Translated concepts (one rendering each)</a></li>
+<li><a href="#4-words-to-avoid">4. Words to avoid</a></li>
+</ul>
+</div>
+
+<h1 id="terminology-policy-book-2">Terminology policy (book 2)</h1>
+<p>Written 2026-10-05 (Stage 1b). Applies to every chapter, exercise README, appendix and Obsidian note. It extends the
+rules in <code>CONVENTIONS.md</code> ("Hebrew first, English in parentheses on first use") with a domain decision: <strong>which words
+stay English and which are translated</strong>, and the one rendering each translated concept uses. Where book 1
+(<code>ai-engineering-course</code>, appendix A) already has a rendering, this book reuses it unless the brief fixed another.</p>
+<h2 id="1-rule-of-thumb">1. Rule of thumb</h2>
+<ul>
+<li><strong>Product nouns and their own vocabulary stay English</strong>, with a Hebrew gloss on first use in a chapter:
+  "pod (היחידה הקטנה ביותר שרצה ב־Kubernetes: קונטיינר אחד או יותר)". Afterwards the English word, unformatted in
+  prose when it is a concept (pod, topic), in backticks when it is an identifier or a command (<code>kubectl</code>, <code>Deployment</code>
+  as a manifest <code>kind</code>).</li>
+<li><strong>Concepts are translated</strong>, one rendering each, listed below. On first use per chapter: Hebrew, then English in
+  parentheses. Never alternate between two Hebrew renderings of the same concept in one book.</li>
+<li><strong>Metrics and acronyms stay English</strong> as in book 1: p99, RED, USE, SLI, MTTR, QPS, ACID, CAP, PACELC, RPO/RTO.
+  SLO is introduced once as "יעד רמת שירות (SLO)" and then written SLO.</li>
+<li><strong>Hebrew grammar attaches with a maqaf</strong>: ה־pod, ב־Kafka, ל־goroutine. Plurals of English nouns: "שלושה pods",
+  not "פודים"; in prose about a kind of object prefer the English plural.</li>
+<li>A new term not in this file: pick one rendering, use it consistently, add it to the chapter's terms table (appendix
+  A is generated from those tables) and, if it will recur across chapters, add it here in the same change.</li>
+</ul>
+<h2 id="2-stays-english-gloss-on-first-use">2. Stays English (gloss on first use)</h2>
+<table>
+<thead>
+<tr>
+<th>Area</th>
+<th>Words</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Go</td>
+<td>goroutine, channel, <code>select</code>, context, slice, map, struct, receiver, module, package, generics, <code>defer</code>, panic, <code>go vet</code>, pprof (interface and method are translated: see §3)</td>
+</tr>
+<tr>
+<td>Python</td>
+<td>asyncio, coroutine, <code>asyncio.Task</code>, <code>TaskGroup</code>, FastAPI, pydantic, fixture, uv, ruff, mypy</td>
+</tr>
+<tr>
+<td>Containers</td>
+<td>Docker, image, container, layer, Dockerfile, registry, tag, distroless, compose</td>
+</tr>
+<tr>
+<td>Kubernetes</td>
+<td>Kubernetes, cluster, node, pod, Deployment, ReplicaSet, Service, Ingress, ConfigMap, Secret (the object), namespace, probe, HPA, Helm, chart, release, values, kind, kubectl</td>
+</tr>
+<tr>
+<td>Kafka</td>
+<td>Kafka, Redpanda, topic, partition, offset, consumer group, producer, consumer, broker, rebalance, <code>acks</code></td>
+</tr>
+<tr>
+<td>Infra &amp; CI</td>
+<td>Terraform, provider, resource, state, module, plan, apply, GitHub Actions, workflow, job, step, runner, action</td>
+</tr>
+<tr>
+<td>Observability</td>
+<td>OpenTelemetry, span, Prometheus, PromQL, Grafana, Loki, Tempo, exporter, collector, histogram, counter, gauge, label</td>
+</tr>
+<tr>
+<td>Data</td>
+<td>PostgreSQL, Redis, index (B-tree, GIN), <code>EXPLAIN</code>, WAL, replica, primary, pgx, goose, advisory lock</td>
+</tr>
+<tr>
+<td>APIs</td>
+<td>REST, gRPC, protobuf, OpenAPI, JSON, endpoint, header, webhook, cursor, JWT, OIDC, HMAC</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3-translated-concepts-one-rendering-each">3. Translated concepts (one rendering each)</h2>
+<table>
+<thead>
+<tr>
+<th>English</th>
+<th>Hebrew</th>
+<th>Note</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>consistency</td>
+<td>עקביות</td>
+<td>consistency model: מודל עקביות</td>
+</tr>
+<tr>
+<td>eventual consistency</td>
+<td>עקביות בסופו של דבר</td>
+<td></td>
+</tr>
+<tr>
+<td>replication</td>
+<td>שכפול</td>
+<td>replica lag: פיגור שכפול</td>
+</tr>
+<tr>
+<td>partitioning (data)</td>
+<td>חלוקה למחיצות</td>
+<td>a Kafka partition stays "partition"</td>
+</tr>
+<tr>
+<td>idempotency</td>
+<td>אידמפוטנטיות</td>
+<td>book 1</td>
+</tr>
+<tr>
+<td>idempotency key</td>
+<td>מפתח אידמפוטנטיות</td>
+<td>book 1</td>
+</tr>
+<tr>
+<td>retry</td>
+<td>ניסיון חוזר</td>
+<td>book 1</td>
+</tr>
+<tr>
+<td>backoff</td>
+<td>המתנה גדלה</td>
+<td>exponential backoff with jitter: המתנה גדלה מעריכית עם פיזור אקראי (jitter)</td>
+</tr>
+<tr>
+<td>jitter</td>
+<td>פיזור אקראי (jitter)</td>
+<td></td>
+</tr>
+<tr>
+<td>timeout</td>
+<td>זמן קצוב</td>
+<td>book 1</td>
+</tr>
+<tr>
+<td>deadline</td>
+<td>גבול זמן כולל</td>
+<td>book 1; a context deadline in Go is the same concept</td>
+</tr>
+<tr>
+<td>circuit breaker</td>
+<td>מפסק זרם</td>
+<td>book 1</td>
+</tr>
+<tr>
+<td>bulkhead</td>
+<td>מחיצה אטומה</td>
+<td></td>
+</tr>
+<tr>
+<td>rate limiting</td>
+<td>הגבלת קצב</td>
+<td>a rate limit (the number): מגבלת קצב (book 1)</td>
+</tr>
+<tr>
+<td>back-pressure</td>
+<td>לחץ חוזר</td>
+<td></td>
+</tr>
+<tr>
+<td>load shedding</td>
+<td>השלת עומס</td>
+<td></td>
+</tr>
+<tr>
+<td>graceful degradation</td>
+<td>הידרדרות מכובדת</td>
+<td>book 1</td>
+</tr>
+<tr>
+<td>graceful shutdown</td>
+<td>כיבוי מסודר</td>
+<td></td>
+</tr>
+<tr>
+<td>observability</td>
+<td>תצפיתיות</td>
+<td>book 1</td>
+</tr>
+<tr>
+<td>trace</td>
+<td>מעקב</td>
+<td>book 1; span stays English</td>
+</tr>
+<tr>
+<td>metric</td>
+<td>מדד</td>
+<td>book 1</td>
+</tr>
+<tr>
+<td>log</td>
+<td>לוג</td>
+<td>book 1; structured log: לוג מובנה</td>
+</tr>
+<tr>
+<td>SLO</td>
+<td>יעד רמת שירות (SLO)</td>
+<td>SLI: מדד רמת שירות (SLI)</td>
+</tr>
+<tr>
+<td>error budget</td>
+<td>תקציב שגיאות</td>
+<td>burn rate: קצב שריפה</td>
+</tr>
+<tr>
+<td>alert</td>
+<td>התראה</td>
+<td></td>
+</tr>
+<tr>
+<td>on-call</td>
+<td>תורנות</td>
+<td></td>
+</tr>
+<tr>
+<td>incident</td>
+<td>תקרית</td>
+<td></td>
+</tr>
+<tr>
+<td>postmortem</td>
+<td>תחקיר</td>
+<td>blameless: ללא האשמה</td>
+</tr>
+<tr>
+<td>runbook</td>
+<td>runbook</td>
+<td>stays English (no settled Hebrew term)</td>
+</tr>
+<tr>
+<td>migration (schema)</td>
+<td>מיגרציה</td>
+<td></td>
+</tr>
+<tr>
+<td>migration (system)</td>
+<td>הגירה</td>
+<td></td>
+</tr>
+<tr>
+<td>transaction</td>
+<td>טרנזקציה</td>
+<td>isolation level: רמת בידוד</td>
+</tr>
+<tr>
+<td>lock</td>
+<td>נעילה</td>
+<td>deadlock: קיפאון</td>
+</tr>
+<tr>
+<td>leader election</td>
+<td>בחירת מנהיג</td>
+<td></td>
+</tr>
+<tr>
+<td>consensus</td>
+<td>קונצנזוס</td>
+<td></td>
+</tr>
+<tr>
+<td>saga</td>
+<td>סאגה</td>
+<td>compensating action: פעולה מפצה</td>
+</tr>
+<tr>
+<td>outbox pattern</td>
+<td>תבנית ה־outbox</td>
+<td></td>
+</tr>
+<tr>
+<td>dead-letter queue</td>
+<td>תור מתים</td>
+<td></td>
+</tr>
+<tr>
+<td>at-least-once / exactly-once</td>
+<td>לפחות פעם אחת / בדיוק פעם אחת</td>
+<td>in quotes on first use</td>
+</tr>
+<tr>
+<td>cache</td>
+<td>מטמון</td>
+<td>cache stampede: התפרצות מטמון; invalidation: אי־תוקף</td>
+</tr>
+<tr>
+<td>throughput</td>
+<td>תפוקה</td>
+<td></td>
+</tr>
+<tr>
+<td>latency</td>
+<td>זמן תגובה</td>
+<td>tail latency: זמן התגובה בזנב (p99)</td>
+</tr>
+<tr>
+<td>secret</td>
+<td>סוד</td>
+<td>book 1 (the Kubernetes object stays <code>Secret</code>)</td>
+</tr>
+<tr>
+<td>least privilege</td>
+<td>מינימום הרשאות</td>
+<td>book 1</td>
+</tr>
+<tr>
+<td>threat model</td>
+<td>מודל איומים</td>
+<td>book 1</td>
+</tr>
+<tr>
+<td>authentication / authorization</td>
+<td>אימות / הרשאה</td>
+<td></td>
+</tr>
+<tr>
+<td>infrastructure as code</td>
+<td>תשתית כקוד</td>
+<td></td>
+</tr>
+<tr>
+<td>design doc</td>
+<td>מסמך תכנון</td>
+<td>ADR: רשומת החלטה (ADR)</td>
+</tr>
+<tr>
+<td>code review</td>
+<td>סקירת קוד</td>
+<td></td>
+</tr>
+<tr>
+<td>static analysis</td>
+<td>ניתוח סטטי</td>
+<td></td>
+</tr>
+<tr>
+<td>ownership</td>
+<td>בעלות</td>
+<td>in Rust boxes, "ownership" of memory is בעלות as well; the context disambiguates</td>
+</tr>
+<tr>
+<td>technical debt</td>
+<td>חוב טכני</td>
+<td></td>
+</tr>
+<tr>
+<td>feature flag</td>
+<td>דגל תכונה</td>
+<td></td>
+</tr>
+<tr>
+<td>race condition / data race</td>
+<td>מרוץ / מרוץ נתונים</td>
+<td></td>
+</tr>
+<tr>
+<td>garbage collector</td>
+<td>אוסף זבל (GC)</td>
+<td></td>
+</tr>
+<tr>
+<td>property-based test</td>
+<td>בדיקת תכונה</td>
+<td></td>
+</tr>
+<tr>
+<td>contract test</td>
+<td>בדיקת חוזה</td>
+<td></td>
+</tr>
+<tr>
+<td>load test</td>
+<td>בדיקת עומס</td>
+<td></td>
+</tr>
+<tr>
+<td>table-driven test</td>
+<td>בדיקה טבלאית</td>
+<td></td>
+</tr>
+<tr>
+<td>benchmark</td>
+<td>בנצ'מרק</td>
+<td></td>
+</tr>
+<tr>
+<td>interface (Go, and the general concept)</td>
+<td>ממשק</td>
+<td>the keyword stays <code>interface</code>; Rust's trait stays trait</td>
+</tr>
+<tr>
+<td>method</td>
+<td>מתודה</td>
+<td>receiver stays English</td>
+</tr>
+<tr>
+<td>event loop</td>
+<td>לולאת האירועים</td>
+<td>asyncio's loop; the identifier stays English</td>
+</tr>
+<tr>
+<td>task (asyncio, background job)</td>
+<td>משימה</td>
+<td>the class <code>asyncio.Task</code> stays an identifier</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-words-to-avoid">4. Words to avoid</h2>
+<table>
+<thead>
+<tr>
+<th>Avoid</th>
+<th>Use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>„פודים”, „קונטיינרים” as Hebrew plurals in technical prose</td>
+<td>pods, containers</td>
+</tr>
+<tr>
+<td>„ריטריי”, „טיימאאוט”, „קאש”</td>
+<td>ניסיון חוזר, זמן קצוב, מטמון</td>
+</tr>
+<tr>
+<td>„דיפלוי”</td>
+<td>פריסה (deploy as a verb: לפרוס)</td>
+</tr>
+<tr>
+<td>„בק־אנד” in Hebrew letters</td>
+<td>backend</td>
+</tr>
+<tr>
+<td>„מימוש” for deployment</td>
+<td>פריסה</td>
+</tr>
+<tr>
+<td>„לרנדר”</td>
+<td>להפיק (a template), להציג (a page)</td>
+</tr>
+</tbody>
+</table>
+</main>
+<nav class="bottom"><a href="index.html">תוכן העניינים</a> · <a href="12-redis-caching.html">← פרק 12: Redis ומטמון</a> · <a href="a-glossary.html">נספח א: מילון מונחים →</a></nav>
+<script type="module">
+  // Render ```mermaid blocks in the browser (needs internet once; cached afterwards).
+  const blocks = document.querySelectorAll("pre > code.language-mermaid");
+  if (blocks.length) {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs")).default;
+    for (const code of blocks) {
+      const div = document.createElement("div");
+      div.className = "mermaid";
+      div.textContent = code.textContent;
+      code.parentElement.replaceWith(div);
+    }
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run();
+  }
+</script>
+</body>
+</html>

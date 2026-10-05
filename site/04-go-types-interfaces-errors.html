@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>פרק 4: טיפוסים, ממשקים ושגיאות</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="top"><a href="index.html">תוכן העניינים</a> · <a href="03-go-first-steps.html">← פרק 3: צעדים ראשונים ב־Go</a> · <a href="05-go-concurrency.html">פרק 5: מקביליות ב־Go →</a></nav>
+<main class="book">
+<div class="toc"><span class="toctitle">תוכן הפרק</span><ul>
+<li><a href="#_1">מה נלמד בפרק</a></li>
+<li><a href="#_2">ידע מקדים</a></li>
+<li><a href="#41-structs-receivers">4.1 structs, מתודות ו־receivers</a></li>
+<li><a href="#42-traits">4.2 ממשקים מול traits</a><ul>
+<li><a href="#421-nil-nil">4.2.1 ממשק שהוא nil, וממשק שמכיל nil</a></li>
+</ul>
+</li>
+<li><a href="#43-ioreader-iowriter">4.3 ממשקים קטנים: io.Reader ו־io.Writer</a></li>
+<li><a href="#44-result">4.4 שגיאות כערכים מול Result</a></li>
+<li><a href="#45-w-errorsis-errorsas">4.5 עטיפה: %w, errors.Is ו־errors.As</a></li>
+<li><a href="#46-panic-recover">4.6 panic ו־recover, ולמה כמעט אף פעם</a></li>
+<li><a href="#47-generics">4.7 generics</a></li>
+<li><a href="#48-embedding">4.8 הטמעה (embedding) והרכבה</a></li>
+<li><a href="#49-ledger">4.9 תוכנית קטנה: ledger</a></li>
+<li><a href="#_3">סיכום</a></li>
+<li><a href="#_4">מונחים לזכור</a></li>
+<li><a href="#_5">טעויות נפוצות</a></li>
+<li><a href="#_6">שאלות ראיון</a></li>
+<li><a href="#obsidian">פתק Obsidian</a></li>
+<li><a href="#_7">תרגיל</a></li>
+<li><a href="#_8">העשרה אופציונלית</a></li>
+</ul>
+</div>
+
+<h1 id="4">פרק 4: טיפוסים, ממשקים ושגיאות</h1>
+<p>בפרק 3 כתבת תוכנית. בפרק הזה תכתבי ספרייה: קוד שאחרים קוראים לו, שמחזיר שגיאות שאפשר לפעול לפיהן,
+ושאפשר להחליף את האחסון שלו בלי לגעת בכללים. אלה הנושאים שסוקרת קוד בכירה בודקת קודם: האם הממשק קטן,
+האם השגיאה נושאת הקשר בלי לאבד את הסיבה, והאם יש panic במקום שאסור. הכלי שתבני, <code>ledger</code>, הוא ספר
+חשבונות קטן עם שני מימושי אחסון וחבילת בדיקות אחת שרצה על שניהם.</p>
+<h2 id="_1">מה נלמד בפרק</h2>
+<ul>
+<li>structs, מתודות, ומתי receiver הוא מצביע.</li>
+<li>ממשקים מרומזים מול traits, ומלכודת ה־<code>nil</code> בתוך ממשק.</li>
+<li>ממשקים קטנים: <code>io.Reader</code> ו־<code>io.Writer</code>.</li>
+<li>שגיאות כערכים: sentinel מול טיפוס שגיאה, עטיפה ושליפה דרך שרשרת העטיפות.</li>
+<li>panic ו־recover, ולמה כמעט אף פעם לא.</li>
+<li>generics עם אילוצים, כולל מתודות גנריות.</li>
+<li>הטמעה (embedding): מה היא מקדמת, ולמה היא לא ירושה.</li>
+</ul>
+<h2 id="_2">ידע מקדים</h2>
+<ul>
+<li>פרק 3: מודולים, slices ובאג הכינוי, maps, בדיקות טבלאיות, ושלושת כלי הבדיקה.</li>
+<li>היכרות עם traits ועם <code>Result</code> ב־Rust.</li>
+</ul>
+<h2 id="41-structs-receivers">4.1 structs, מתודות ו־receivers</h2>
+<p>מתודה ב־Go היא פונקציה עם receiver: הפרמטר שלפני השם. אפשר להגדיר מתודות על כל טיפוס בעל שם בחבילה
+שלך, לא רק על struct. כך הספר מייצג כסף, בקובץ <code>cents.go</code> של התרגיל:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// Cents is an amount of money in hundredths. Money is never a float.
+type Cents int64
+
+// String implements fmt.Stringer: Cents(1250) prints as &quot;12.50&quot;.
+func (c Cents) String() string {
+    sign := &quot;&quot;
+    if c &lt; 0 {
+        sign, c = &quot;-&quot;, -c
+    }
+    return fmt.Sprintf(&quot;%s%d.%02d&quot;, sign, c/100, c%100)
+}
+</code></pre>
+
+
+</div>
+
+<p>הטיפוס <code>Cents</code> הוא טיפוס חדש שבסיסו <code>int64</code>, כמו newtype. אי אפשר לערבב אותו בטעות עם מספר רגיל
+בלי המרה מפורשת. המתודה <code>String</code> הופכת אותו ל־<code>fmt.Stringer</code>, ולכן הוא מודפס <code>12.50</code> ולא <code>1250</code>. אין
+הצהרת מימוש; מספיקה מתודה בשם הנכון.</p>
+<p>ה־receiver יכול להיות ערך או מצביע:</p>
+<table>
+<thead>
+<tr>
+<th>receiver</th>
+<th>משמעות</th>
+<th>מתי</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ערך, <code>(c Cents)</code></td>
+<td>המתודה מקבלת עותק</td>
+<td>טיפוס קטן שהמתודה לא משנה</td>
+</tr>
+<tr>
+<td>מצביע, <code>(s *MemStore)</code></td>
+<td>המתודה רואה את המקור ויכולה לשנות אותו</td>
+<td>כל מתודה שמשנה מצב, או struct גדול</td>
+</tr>
+</tbody>
+</table>
+<p>המוסכמה: אם מתודה אחת של טיפוס צריכה מצביע, כולן מקבלות מצביע. המתודות של <code>MemStore</code> משנות maps
+ומונה, ולכן כולן עם <code>*MemStore</code>.</p>
+<p>לקבועים ממוספרים אין <code>enum</code>. משתמשים ב־<code>iota</code>, מונה שגדל באחד בכל שורה של בלוק <code>const</code>, מהקובץ
+<code>store.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">const (
+    Deposit Kind = iota + 1 // start at 1 so the zero Kind is visibly invalid
+    Withdrawal
+)
+</code></pre>
+
+
+</div>
+
+<p>ה־<code>+ 1</code> אינו קישוט. ערך האפס של <code>Kind</code> הוא 0, ו־struct שלא אותחל במלואו יקבל אותו. אם 0 היה <code>Deposit</code>,
+טרנזקציה שנשכח בה השדה הייתה הפקדה תקינה. כך האפס פסול ונראה לעין, והמתודה <code>String</code> מדפיסה אותו
+כ־<code>Kind(0)</code>.</p>
+<h2 id="42-traits">4.2 ממשקים מול traits</h2>
+<p>ממשק (interface) הוא רשימת מתודות. כל טיפוס שיש לו את המתודות האלה מממש את הממשק, בלי להצהיר על כך.
+זה הממשק המרכזי של התרגיל, בקובץ <code>store.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// Store is everything the ledger needs from storage. Any type with these
+// four methods is a Store; it never has to say so.
+type Store interface {
+    CreateAccount(a Account) error
+    Account(id AccountID) (Account, error)
+    // Record applies tx to its account, stores it with a fresh ID, and returns
+    // the stored transaction and the updated account.
+    Record(tx Transaction) (Transaction, Account, error)
+    Transactions(id AccountID) ([]Transaction, error)
+}
+</code></pre>
+
+
+</div>
+
+<p>אין <code>impl Store for MemStore</code> בשום מקום. כדי שבכל זאת תקבלי שגיאת קומפילציה אם מתודה חסרה, מקובל
+להוסיף שורת בדיקה כזו, מהקובץ <code>memstore.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// Compile-time check that *MemStore implements Store.
+var _ Store = (*MemStore)(nil)
+</code></pre>
+
+
+</div>
+
+<p>שימי לב שהשורה כתובה על <code>*MemStore</code> ולא על <code>MemStore</code>. המתודות מוגדרות על מצביע, ולכן רק המצביע
+מממש את הממשק. זו קבוצת המתודות (method set) של הטיפוס, והמהדר אוכף אותה.</p>
+<blockquote>
+<p><strong>איך Rust עושה את זה:</strong> מימוש של trait הוא הצהרה מפורשת, ובזכותה מקבלים קריאה סטטית בלי עלות
+(monomorphization). ב־Go המימוש מרומז, ולכן הצרכנית יכולה להגדיר ממשק אחרי שהטיפוס כבר קיים, אפילו
+לטיפוס מספרייה אחרת. קריאה דרך ממשק היא תמיד דינמית, כמו <code>dyn Trait</code>: ערך הממשק הוא זוג של טיפוס
+ומצביע לנתונים.</p>
+</blockquote>
+<p>מכאן נובעת מוסכמה: <strong>הממשק מוגדר אצל מי שמשתמשת בו</strong>, לא אצל מי שמממשת. החבילה <code>ledger</code> מגדירה את
+<code>Store</code> כי היא צריכה אותו. ומי שמממשת מחזירה טיפוס קונקרטי, כמו <code>*FileStore</code>, ולא ממשק.</p>
+<h3 id="421-nil-nil">4.2.1 ממשק שהוא <code>nil</code>, וממשק שמכיל <code>nil</code></h3>
+<p>כי ערך ממשק הוא זוג של טיפוס וערך, הוא <code>nil</code> רק כששניהם ריקים. מצביע <code>nil</code> שהוכנס לממשק יוצר ממשק
+שאינו <code>nil</code>. מהקובץ <code>example_test.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// lookup returns a nil *InsufficientFundsError inside a non-nil error interface.
+// This is the bug: the interface holds a type, so it is not nil.
+func lookup() error {
+    var e *InsufficientFundsError // nil pointer
+    return e                      // wrapped in an interface: (type=*InsufficientFundsError, value=nil)
+}
+
+func Example_nilInterfaceTrap() {
+    err := lookup()
+    fmt.Println(err == nil)
+    fmt.Printf(&quot;%T\n&quot;, err)
+    // Output:
+    // false
+    // *ledger.InsufficientFundsError
+}
+</code></pre>
+
+
+</div>
+
+<p>זה אחד הבאגים הקלאסיים ב־Go: פונקציה מחזירה משתנה שגיאה מטיפוס קונקרטי שנשאר <code>nil</code>, והקוראת רואה
+שגיאה. הכלל: פונקציה שמחזירה <code>error</code> מחזירה <code>nil</code> מפורש בהצלחה, ולעולם לא משתנה מטיפוס קונקרטי.
+ב־Rust <code>Option</code> מבדיל בין „אין” ל„יש, וזה ריק” בטיפוס עצמו; ב־Go ההבחנה חבויה בתוך הממשק.</p>
+<h2 id="43-ioreader-iowriter">4.3 ממשקים קטנים: <code>io.Reader</code> ו־<code>io.Writer</code></h2>
+<p>הממשקים החשובים בספרייה הסטנדרטית קטנים מאוד. הפקודה <code>go doc</code> מציגה אותם:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">go doc io.Reader | head -5
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">package io // import &quot;io&quot;
+
+type Reader interface {
+    Read(p []byte) (n int, err error)
+}
+</code></pre>
+
+
+</div>
+
+<p>מתודה אחת. קובץ, חיבור רשת, גוף בקשת HTTP, מחרוזת בזיכרון ודחיסה, כולם מממשים אותה, ולכן כל קוד
+שמקבל <code>io.Reader</code> עובד עם כולם. כך <code>Collect</code> מפרק 3 קוראת גם קובץ וגם מחרוזת בבדיקה. ו־<code>io.Writer</code>
+הוא התמונה ההפוכה: מתודת <code>Write</code> אחת.</p>
+<p>התוכנית <code>ledger</code> כותבת את כל הפלט שלה ל־<code>io.Writer</code> שהיא מקבלת, ולא ישירות לטרמינל. מהקובץ
+<code>cmd/ledger/main.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func main() {
+    os.Exit(run(os.Args[1:], os.Stdout, os.Stderr, time.Now))
+}
+</code></pre>
+
+
+</div>
+
+<p>בייצור אלה הזרמים האמיתיים; בבדיקה הם <code>bytes.Buffer</code>, ובודקים מה נכתב. גם השעון מוזרק, כדי שהבדיקות
+יראו תמיד אותו זמן. ככל שהממשק קטן יותר, קל יותר לממש, לזייף ולהרכיב אותו.</p>
+<h2 id="44-result">4.4 שגיאות כערכים מול <code>Result</code></h2>
+<p>ב־Go שגיאה היא ערך רגיל מטיפוס <code>error</code>, ממשק עם מתודה אחת, <code>Error() string</code>. פונקציה שיכולה להיכשל
+מחזירה אותה כערך האחרון, והקוראת בודקת: <code>if err != nil</code>. יש שתי צורות של שגיאות:</p>
+<table>
+<thead>
+<tr>
+<th>צורה</th>
+<th>מה היא</th>
+<th>שליפה</th>
+<th>בתרגיל</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>sentinel</td>
+<td>ערך קבוע של חבילה</td>
+<td><code>errors.Is</code></td>
+<td><code>ErrAccountNotFound</code></td>
+</tr>
+<tr>
+<td>טיפוס שגיאה</td>
+<td>struct שמממש <code>error</code> ונושא נתונים</td>
+<td><code>errors.As</code> או <code>errors.AsType</code></td>
+<td><code>InsufficientFundsError</code></td>
+</tr>
+</tbody>
+</table>
+<p>כך הן מוגדרות, בקובץ <code>errors.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// Sentinel errors: fixed values that callers compare with errors.Is.
+var (
+    ErrAccountNotFound = errors.New(&quot;account not found&quot;)
+    ErrAccountExists   = errors.New(&quot;account already exists&quot;)
+    ErrInvalidAmount   = errors.New(&quot;amount must be positive&quot;)
+)
+
+// InsufficientFundsError carries data the caller may want, so it is a type,
+// not a sentinel. Callers extract it with errors.As or errors.AsType.
+type InsufficientFundsError struct {
+    Account   AccountID
+    Balance   Cents
+    Requested Cents
+}
+</code></pre>
+
+
+</div>
+
+<p>בוחרים sentinel כשהקוראת צריכה רק לדעת מה קרה, וטיפוס כשהיא צריכה נתונים: כאן, כמה כסף חסר. הכלל
+העסקי עצמו נמצא בקובץ <code>store.go</code>, ומחזיר את טיפוס השגיאה כערך:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    case Withdrawal:
+        if tx.Amount &gt; a.Balance {
+            return a, InsufficientFundsError{Account: a.ID, Balance: a.Balance, Requested: tx.Amount}
+        }
+        a.Balance -= tx.Amount
+</code></pre>
+
+
+</div>
+
+<blockquote>
+<p><strong>איך Rust עושה את זה:</strong> הטיפוס <code>Result</code> מכריח אותך לטפל בשגיאה כדי להגיע לערך, והאופרטור <code>?</code>
+מעביר אותה הלאה בתו אחד. ב־Go אין כפייה כזו: מותר להתעלם מ־<code>err</code>, ורק כלי ניתוח
+סטטי יעירו. אין גם <code>?</code>; כל העברה היא <code>if err != nil { return ..., err }</code> מפורש. המחיר הוא
+טקסט; התמורה היא שכל נקודת כשל נראית, וזה בדיוק המקום להוסיף הקשר.</p>
+</blockquote>
+<h2 id="45-w-errorsis-errorsas">4.5 עטיפה: <code>%w</code>, <code>errors.Is</code> ו־<code>errors.As</code></h2>
+<p>שגיאה שעוברת שכבות צריכה לצבור הקשר: „לא נמצא” לבדו לא אומר איזה חשבון ובאיזו פעולה. הפועל <code>%w</code>
+של <code>fmt.Errorf</code> יוצר שגיאה חדשה עם הודעה מורחבת, שעוטפת את המקורית ושומרת אותה. מהקובץ <code>ledger.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    _, a, err := l.store.Record(tx)
+    if err != nil {
+        // Add context, keep the cause: callers can still use errors.Is and errors.As.
+        return Account{}, fmt.Errorf(&quot;%v of %s on %s: %w&quot;, kind, amount, id, err)
+    }
+</code></pre>
+
+
+</div>
+
+<p>ההודעה שמתקבלת היא <code>withdrawal of 5.00 on ghost: account not found</code>, והשגיאה המקורית עדיין בפנים. עכשיו
+השוואה ישירה, <code>err == ErrAccountNotFound</code>, נכשלת, כי <code>err</code> הוא העוטף. לכן משווים עם <code>errors.Is</code>, שעוברת
+על שרשרת העטיפות. ושולפים טיפוס עם <code>errors.As</code>, או עם הגרסה הגנרית <code>errors.AsType</code> (קיימת מאז Go
+1.26). מהקובץ <code>errors_test.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    // The classic form: a target variable and a pointer to it.
+    var target InsufficientFundsError
+    if !errors.As(err, &amp;target) {
+        t.Fatalf(&quot;errors.As found no InsufficientFundsError in %v&quot;, err)
+    }
+    // The generic form (Go 1.26 and later): no target variable.
+    got, ok := errors.AsType[InsufficientFundsError](err)
+</code></pre>
+
+
+</div>
+
+<p>שלושה כללים מעשיים לעטיפה:</p>
+<ul>
+<li><strong><code>%w</code> כשהקוראת אמורה לפעול לפי הסיבה</strong>, ו־<code>%v</code> כשהסיבה היא פרט מימוש שאסור להפוך לחלק מה־API.
+  ברגע שעטפת עם <code>%w</code>, מי שבודקת <code>errors.Is</code> תלויה בשגיאה הפנימית שלך.</li>
+<li><strong>הקשר אחד לכל שכבה, בלי חזרות.</strong> השכבה שקוראת מוסיפה את מה שהיא יודעת, לא את מה שהשגיאה כבר אומרת.</li>
+<li><strong>אותה צורה לאורך השרשרת.</strong> אם השגיאה נוצרה כערך, שולפים ערך; אם כמצביע, שולפים מצביע.</li>
+</ul>
+<p>הכלל האחרון מגיע עם עזרה חדשה: החל מ־Go 1.27, הכלי <code>go vet</code> מזהיר כשעוטפים מצביע לטיפוס שהערך
+שלו כבר מממש <code>error</code>. המתודה <code>Error</code> של <code>InsufficientFundsError</code> מוגדרת על
+ערך, ולכן גם הערך וגם המצביע הם <code>error</code>; עטיפה של מצביע הייתה גורמת לשליפה לפי ערך להיכשל בשקט. וכי
+<code>go test</code> מריץ את הבדיקה הזו בעצמו, טעות כזו עוצרת כבר את הבדיקות.</p>
+<p>השגיאות הופכות להחלטה במקום אחד בלבד, בגבול של התוכנית. מהקובץ <code>cmd/ledger/main.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// report is the one place that turns errors into messages and exit codes.
+func report(err error, stderr io.Writer) int {
+    if err == nil {
+        return exitOK
+    }
+    if insufficient, ok := errors.AsType[ledger.InsufficientFundsError](err); ok {
+        fmt.Fprintf(stderr, &quot;ledger: %v (short by %s)\n&quot;, err, insufficient.Shortfall())
+        return exitInsufficient
+    }
+    fmt.Fprintln(stderr, &quot;ledger:&quot;, err)
+    switch {
+    case errors.Is(err, errUsage):
+        fmt.Fprintln(stderr, usage)
+        return exitUsage
+    case errors.Is(err, ledger.ErrAccountNotFound):
+        return exitNotFound
+    default:
+        return exitError
+    }
+}
+</code></pre>
+
+
+</div>
+
+<p>בשכבות הפנימיות לא מדפיסים ולא רושמים ללוג; רק מוסיפים הקשר ומחזירים. שגיאה שגם נרשמת וגם מוחזרת
+מופיעה בלוג פעמיים או שלוש, וזו טעות שסוקרות מחפשות.</p>
+<h2 id="46-panic-recover">4.6 panic ו־recover, ולמה כמעט אף פעם</h2>
+<p>panic עוצר את הפונקציה, מריץ את ה־<code>defer</code>s בדרך למעלה, ואם איש לא עוצר אותו, מפיל את התהליך עם
+מחסנית קריאות. בשימוש הוא דומה ל־<code>panic!</code>: לבאג של המתכנתת, לא לתנאי שקורה בזמן ריצה. קלט שגוי מהמשתמשת,
+קובץ חסר או רשת שנפלה הם שגיאות, לא panics.</p>
+<p>המקום הלגיטימי הנפוץ הוא פונקציית <code>Must</code>, לקלט שכתוב בקוד עצמו, מהקובץ <code>cents.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// MustParseCents is for constants in code and tests. It panics on bad input,
+// because bad input here is a programmer error, not a runtime condition.
+func MustParseCents(s string) Cents {
+    c, err := ParseCents(s)
+    if err != nil {
+        panic(err)
+    }
+    return c
+}
+</code></pre>
+
+
+</div>
+
+<p>הפונקציה <code>recover</code> עוצרת panic, אבל רק כשהיא נקראת ישירות מתוך <code>defer</code>. הבדיקה
+<code>TestMustParseCentsPanicsOnBadInput</code> בקובץ <code>cents_test.go</code> משתמשת בה כדי לוודא שה־panic אכן קורה.</p>
+<p>למה <code>recover</code> שייכת רק לגבול של goroutine או של בקשה:</p>
+<ul>
+<li><strong>אין תפיסה בין goroutines.</strong> panic שלא נתפס באותה goroutine מפיל את כל התהליך, ותפיסה במקום אחר
+  לא תעזור.</li>
+<li><strong>בגבול יש למי לדווח.</strong> שרת HTTP ממיר panic בבקשה אחת לתשובת 500 ולשורת לוג, והשרת ממשיך לשרת
+  אחרות. בפרק 6 תכתבי middleware כזה.</li>
+<li><strong>באמצע הקוד אין מה לעשות איתו.</strong> recover שם מסתיר באג ומשאיר מצב חצי מעודכן.</li>
+</ul>
+<h2 id="47-generics">4.7 generics</h2>
+<p>generics הגיעו ל־Go מאוחר, ובכוונה מצומצמים. פרמטרי טיפוס נכתבים בסוגריים מרובעים, ולכל אחד אילוץ
+(constraint). בקובץ <code>page.go</code> מוגדר הטיפוס הגנרי <code>Page[T]</code>, עם רשימת פריטים, סמן לדף הבא ודגל
+<code>HasMore</code>, והפונקציה שמייצרת דף:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func Paginate[T any](items []T, cursor, limit int) (Page[T], error) {
+    if limit &lt; 1 {
+        return Page[T]{}, fmt.Errorf(&quot;limit %d: must be at least 1&quot;, limit)
+    }
+    if cursor &lt; 0 || cursor &gt; len(items) {
+        return Page[T]{}, fmt.Errorf(&quot;cursor %d of %d items: %w&quot;, cursor, len(items), ErrBadCursor)
+    }
+    end := min(cursor+limit, len(items))
+    return Page[T]{
+        Items:   items[cursor:end:end], // cap == len: appending to Items cannot touch items
+        Next:    end,
+        HasMore: end &lt; len(items),
+    }, nil
+}
+</code></pre>
+
+
+</div>
+
+<p>האילוץ <code>any</code> אומר „כל טיפוס”. שימי לב לאינדקס השלישי ב־<code>items[cursor:end:end]</code>: זה ביטוי ה־slice המלא
+מפרק 3, והוא מבטיח שמי שמוסיפה לדף לא דורסת את הרשימה המקורית. הבדיקה
+<code>TestPageItemsDoNotAliasTheSource</code> שומרת עליו.</p>
+<p>אילוץ יכול להיות גם קבוצת טיפוסים. מאותו קובץ:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// Integer is a constraint: any type whose underlying type is one of these.
+// The ~ is what lets Cents (underlying int64) satisfy it.
+type Integer interface {
+    ~int | ~int32 | ~int64
+}
+
+// Sum adds up values of any Integer type and returns the same type.
+func Sum[N Integer](values []N) N {
+    var total N // the zero value of N
+    for _, v := range values {
+        total += v
+    }
+    return total
+}
+</code></pre>
+
+
+</div>
+
+<p>בלי הטילדה, <code>Sum</code> הייתה מקבלת רק <code>int64</code> עצמו, ו־<code>Cents</code> הייתה נדחית. הטילדה פירושה „כל טיפוס שזה
+הבסיס שלו”, ובזכותה <code>Sum([]Cents{...})</code> מחזירה <code>Cents</code>, שמודפס יפה.</p>
+<p>החל מ־Go 1.27 גם מתודה יכולה להצהיר על פרמטרי טיפוס משלה. כך <code>Page</code> מקבלת מתודה שממירה את הפריטים:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// Map converts every item and keeps the paging fields. It is a generic method,
+// with its own type parameter U; Go supports these since 1.27.
+func (p Page[T]) Map[U any](f func(T) U) Page[U] {
+    out := Page[U]{Items: make([]U, 0, len(p.Items)), Next: p.Next, HasMore: p.HasMore}
+    for _, item := range p.Items {
+        out.Items = append(out.Items, f(item))
+    }
+    return out
+}
+</code></pre>
+
+
+</div>
+
+<p>מגבלה אחת חשובה, לפי הערות השחרור: מתודה בתוך ממשק לא יכולה להיות גנרית, ומתודה גנרית לא מממשת מתודת
+ממשק. בקוד ישן, או בספריות שתומכות בגרסאות קודמות, תמצאי במקומה פונקציה רגילה כמו <code>MapPage(p, f)</code>.</p>
+<blockquote>
+<p><strong>איך Rust עושה את זה:</strong> אילוץ ב־Go הוא רשימת מתודות או קבוצת טיפוסים, ואילו ב־Rust יש trait
+bounds עשירים עם טיפוסים משויכים ומימושים גנריים. ב־Rust אפשר לכתוב <code>impl&lt;T: Display&gt; Trait for Vec&lt;T&gt;</code>;
+ב־Go לא. הכלל המעשי שהקהילה אימצה: generics למבני נתונים ולפונקציות עזר כמו <code>Paginate</code> ו־<code>Sum</code>,
+וממשקים רגילים להתנהגות, כמו <code>Store</code>.</p>
+</blockquote>
+<h2 id="48-embedding">4.8 הטמעה (embedding) והרכבה</h2>
+<p>ב־Go אין ירושה. יש <strong>הטמעה</strong>: שדה בלי שם בתוך struct. השדות והמתודות של הטיפוס המוטמע „מקודמים”
+(promoted), ואפשר לקרוא להם כאילו הוגדרו על הטיפוס החיצוני. מהקובץ <code>filestore.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">// FileStore is a MemStore that saves itself to a JSON file after every change.
+// It embeds MemStore: Account and Transactions are promoted unchanged, while
+// CreateAccount and Record are redefined here to call the embedded version and then save.
+type FileStore struct {
+    MemStore
+    path string
+}
+</code></pre>
+
+
+</div>
+
+<p>שתי מתודות מקודמות כמו שהן. שתיים מוגדרות מחדש על <code>*FileStore</code>, ומסתירות את המקודמות. ההגדרה החדשה
+קוראת לגרסה המוטמעת בשמה המלא, ואז שומרת:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func (s *FileStore) CreateAccount(a Account) error {
+    if err := s.MemStore.CreateAccount(a); err != nil {
+        return err
+    }
+    return s.save()
+}
+</code></pre>
+
+
+</div>
+
+<p>למה זו לא ירושה, ומה זה אומר בפועל:</p>
+<ul>
+<li><strong>אין קריאה וירטואלית חזרה.</strong> המתודה <code>MemStore.Record</code> קוראת ל־<code>s.Account</code>, וזו תמיד הגרסה של
+  <code>MemStore</code>, גם כשהיא רצה בתוך <code>FileStore</code>. אין <code>virtual</code> ואין <code>super</code>.</li>
+<li><strong>אין יחס „הוא”.</strong> אי אפשר להעביר <code>*FileStore</code> לפונקציה שמצפה ל־<code>*MemStore</code>. שניהם מממשים את <code>Store</code>,
+  וזה הקשר היחיד ביניהם.</li>
+<li><strong>הכול מקודם, גם מה שלא רצית.</strong> אם תטמיעי טיפוס עם מתודות <code>Lock</code> ו־<code>Unlock</code>, הן יהפכו לחלק מה־API
+  שלך. לכן נעילה שומרים בשדה עם שם, לא בהטמעה.</li>
+</ul>
+<p>הדוגמה <code>Example_embeddingPromotes</code> בקובץ <code>example_test.go</code> מראה גם קריאה למתודה המקודמת וגם קריאה
+ישירה לגרסה המוטמעת, שלא שומרת לקובץ. ואם תכתבי ליטרל של <code>FileStore</code>, החל מ־Go 1.27 מותר לתת בו ערך
+גם לשדה מקודם, לא רק לשדות ברמה העליונה.</p>
+<h2 id="49-ledger">4.9 תוכנית קטנה: <code>ledger</code></h2>
+<p>הספרייה מחולקת לשלוש שכבות: הטיפוס <code>Ledger</code> מחזיק את הכללים ותלוי רק בממשק, ושני מימושים עומדים
+מאחוריו.</p>
+<p>שני פרטים במימושים ששווה לראות. הראשון: הערך האפס של <code>MemStore</code> מוכן לשימוש. maps שערכם <code>nil</code>
+מותרים לקריאה, ולכן רק כתיבה מאתחלת אותם, דרך <code>lazyInit</code>. מי שכותבת <code>&amp;MemStore{}</code> לא צריכה בנאי.
+השני: <code>Transactions</code> מחזירה עותק עם <code>slices.Clone</code>, כדי שקוראת שמשנה את הרשימה לא תשנה את האחסון.
+זה באג הכינוי מפרק 3, בתפקיד אמיתי.</p>
+<p><code>FileStore</code> שומר את כל המצב אחרי כל שינוי. הוא כותב לקובץ זמני באותה תיקייה ואז מחליף את השם, כך
+שקריסה באמצע לא משאירה קובץ חצי כתוב. לפני הכתיבה הוא ממיין, כי סדר המעבר על maps אקראי, וקובץ
+שמשתנה בלי שהנתונים השתנו מבלבל את Git.</p>
+<p>הבדיקות הן חבילה אחת שרצה על שני המימושים. מהקובץ <code>store_test.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func TestMemStore(t *testing.T) {
+    testStore(t, func(t *testing.T) Store { return &amp;MemStore{} })
+}
+
+func TestFileStore(t *testing.T) {
+    testStore(t, func(t *testing.T) Store {
+        s, err := OpenFileStore(filepath.Join(t.TempDir(), &quot;ledger.json&quot;))
+        if err != nil {
+            t.Fatal(err)
+        }
+        return s
+    })
+}
+</code></pre>
+
+
+</div>
+
+<p>הפונקציה <code>testStore</code> מקבלת פונקציה שיוצרת מאגר ריק, ומריצה עליו את כל תתי־הבדיקות. מימוש שלישי,
+על מסד נתונים למשל, יקבל את אותה חבילה בשלוש שורות. הפונקציה <code>t.TempDir</code> יוצרת תיקייה זמנית
+ומוחקת אותה בסוף הבדיקה.</p>
+<p>כך נראית הפעלה של הכלי:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">go build -o bin/ledger ./cmd/ledger
+bin/ledger open alice &quot;Alice Levi&quot;
+bin/ledger deposit alice 120 &quot;משכורת&quot;
+bin/ledger withdraw alice 45.50 &quot;סופר&quot;
+bin/ledger withdraw alice 100
+echo &quot;exit=$?&quot;
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">opened alice for Alice Levi
+alice balance 120.00
+alice balance 74.50
+ledger: withdrawal of 100.00 on alice: insufficient funds in alice: balance 74.50, requested 100.00 (short by 25.50)
+exit=3
+</code></pre>
+
+
+</div>
+
+<p>השורה הרביעית מראה את כל השרשרת: ההקשר שהוסיף <code>Ledger</code>, ההודעה של טיפוס השגיאה, והחוסר ש־<code>report</code>
+שלפה ממנו. קוד היציאה 3 מאפשר לסקריפט להבדיל בין „ביקשת לא נכון” לבין „אין מספיק כסף”.</p>
+<h2 id="_3">סיכום</h2>
+<ul>
+<li>מתודות מוגדרות על כל טיפוס בעל שם; receiver מצביע כשהמתודה משנה מצב, ואז כל המתודות מצביע.</li>
+<li>ממשקים מרומזים ומוגדרים אצל מי שמשתמשת בהם; שורת <code>var _ Store</code> נותנת בדיקת קומפילציה.</li>
+<li>ממשק שמכיל מצביע <code>nil</code> אינו <code>nil</code>. החזירי <code>nil</code> מפורש.</li>
+<li>sentinel לשגיאה שמספיק לזהות, טיפוס לשגיאה שנושאת נתונים; עוטפים עם <code>%w</code> ושולפים עם <code>errors.Is</code>
+  ו־<code>errors.AsType</code>.</li>
+<li>panic לבאג של המתכנתת; <code>recover</code> רק בגבול. generics למבני נתונים ולעזרים, עם <code>~</code> לטיפוסים בעלי שם.</li>
+<li>הטמעה מקדמת שדות ומתודות, אבל אין בה קריאה וירטואלית ואין יחס „הוא”.</li>
+</ul>
+<h2 id="_4">מונחים לזכור</h2>
+<table>
+<thead>
+<tr>
+<th>מונח בעברית</th>
+<th>באנגלית</th>
+<th>במשפט אחד</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>מתודה</td>
+<td>method</td>
+<td>פונקציה עם receiver, מוגדרת על טיפוס בעל שם</td>
+</tr>
+<tr>
+<td>קבוצת מתודות</td>
+<td>method set</td>
+<td>המתודות שטיפוס מסוים מממש; קובעת אילו ממשקים הוא מספק</td>
+</tr>
+<tr>
+<td>ממשק</td>
+<td>interface</td>
+<td>רשימת מתודות; כל טיפוס שיש לו אותן מממש אותו בלי הצהרה</td>
+</tr>
+<tr>
+<td>שגיאת sentinel</td>
+<td>sentinel error</td>
+<td>ערך שגיאה קבוע של חבילה, שמזהים עם <code>errors.Is</code></td>
+</tr>
+<tr>
+<td>טיפוס שגיאה</td>
+<td>error type</td>
+<td>struct שמממש <code>error</code> ונושא נתונים, ששולפים עם <code>errors.As</code></td>
+</tr>
+<tr>
+<td>עטיפה</td>
+<td>wrapping</td>
+<td>הוספת הקשר לשגיאה עם <code>%w</code> בלי לאבד את המקורית</td>
+</tr>
+<tr>
+<td>אילוץ</td>
+<td>constraint</td>
+<td>הממשק שמגביל פרמטר טיפוס בפונקציה גנרית</td>
+</tr>
+<tr>
+<td>קבוצת טיפוסים</td>
+<td>type set</td>
+<td>אילוץ כמו <code>~int64</code>, שמונה טיפוסים מותרים</td>
+</tr>
+<tr>
+<td>הטמעה</td>
+<td>embedding</td>
+<td>שדה בלי שם, שהשדות והמתודות שלו מקודמים לטיפוס החיצוני</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_5">טעויות נפוצות</h2>
+<ul>
+<li><strong>להחזיר משתנה שגיאה מטיפוס קונקרטי.</strong> כשהוא <code>nil</code>, הקוראת מקבלת ממשק שאינו <code>nil</code>. החזירי <code>nil</code>
+  מפורש.</li>
+<li><strong>להשוות שגיאות עם <code>==</code>.</strong> אחרי עטיפה ההשוואה נכשלת. השתמשי ב־<code>errors.Is</code>.</li>
+<li><strong>לעטוף עם <code>%v</code> כשהקוראת צריכה את הסיבה.</strong> ההודעה נשמרת, אבל השגיאה עצמה אובדת ו־<code>errors.Is</code> לא
+  ימצא אותה.</li>
+<li><strong>לרשום ללוג וגם להחזיר.</strong> השגיאה תופיע פעמיים. החליטי במקום אחד, בגבול.</li>
+<li><strong>לממש ממשק על ערך ולהעביר מצביע, או להפך.</strong> קבוצת המתודות של <code>T</code> אינה של <code>*T</code>. הוסיפי שורת
+  <code>var _ Iface = (*T)(nil)</code>.</li>
+<li><strong>להטמיע כדי לחסוך הקלדה.</strong> כל מתודה של המוטמע הופכת ל־API שלך. שדה עם שם הוא ברירת המחדל.</li>
+</ul>
+<h2 id="_6">שאלות ראיון</h2>
+<ol>
+<li>
+<p><strong>מה ההבדל בין ממשק ב־Go ל־trait ב־Rust, ומה כל גישה מאפשרת?</strong> ממשק מתממש מעצמו כשיש לטיפוס
+   המתודות, ולכן הצרכנית יכולה להגדיר ממשק קטן אחרי מעשה, גם לטיפוס מספרייה זרה. trait ב־Rust מצריך
+   הצהרה, אבל נותן קריאה סטטית בלי עלות, מימושים גנריים ו־associated types. ב־Go כל קריאה דרך ממשק
+   היא dynamic dispatch. הבחירה ב־Go מעדיפה צימוד חלש ופשטות על פני כוח ביטוי.</p>
+</li>
+<li>
+<p><strong>מתי תגדירי sentinel ומתי טיפוס שגיאה?</strong> sentinel כשהקוראת צריכה רק לזהות את המקרה, כמו „לא נמצא”.
+   טיפוס כשהיא צריכה נתונים כדי לפעול, כמו כמה כסף חסר או אחרי כמה זמן לנסות שוב. בשני המקרים זה הופך
+   לחלק מה־API: אחרי שקוראות בודקות אותם, שינוי שלהם שובר אותן. לכן לא חושפים כל שגיאה פנימית, ועוטפים
+   עם <code>%v</code> את מה שאינו חוזה.</p>
+</li>
+</ol>
+<p><strong>המשך:</strong> למה <code>errors.Is</code> ולא <code>==</code>? כי אחרי עטיפה השגיאה היא עוטף שמכיל את ה־sentinel. <code>errors.Is</code>
+   עוברת על כל השרשרת, כולל עצים של שגיאות מרובות.</p>
+<ol start="3">
+<li>
+<p><strong>למה ממשק שמכיל מצביע <code>nil</code> אינו <code>nil</code>?</strong> ערך ממשק הוא זוג: טיפוס דינמי וערך. הוא <code>nil</code> רק אם שניהם
+   ריקים. מצביע <code>nil</code> מטיפוס ידוע ממלא את חלק הטיפוס, ולכן ההשוואה ל־<code>nil</code> שקרית. הבאג מופיע כשפונקציה
+   מחזירה משתנה מטיפוס שגיאה קונקרטי; התיקון הוא להחזיר <code>nil</code> מפורש.</p>
+</li>
+<li>
+<p><strong>מתי <code>recover</code> מוצדק?</strong> בגבול שבו יש למי לדווח ואפשר להמשיך: בקשת HTTP בודדת, משימה בודדת בתור
+   עבודות. שם ממירים panic לשגיאה, רושמים ללוג עם מחסנית, וממשיכים לשרת אחרים. באמצע הקוד זה מסתיר
+   באג ומשאיר מצב חלקי. ותפיסה לא עובדת בין goroutines, ולכן כל goroutine ארוכת חיים צריכה גבול
+   משלה.</p>
+</li>
+</ol>
+<p><strong>המשך:</strong> ולמה לא להשתמש ב־panic כמו בחריגה? כי זה הופך כל קריאה לנקודת יציאה נסתרת, והקוראת לא
+   רואה אותה בחתימה. ב־Go שגיאה צפויה היא ערך שחוזר.</p>
+<h2 id="obsidian">פתק Obsidian</h2>
+<p>הפתק המוכן נמצא גם כקובץ: <code>obsidian/04-go-types-interfaces-errors.md</code>. זה תוכנו:</p>
+<ul>
+<li><strong>receivers:</strong> מצביע כשמשנים מצב, ואז כל המתודות מצביע; קבוצת המתודות קובעת את הממשקים.</li>
+<li><strong>ממשקים:</strong> מרומזים, קטנים, מוגדרים אצל הצרכנית; שורת <code>var _</code> לבדיקת קומפילציה.</li>
+<li><strong>nil בתוך ממשק:</strong> טיפוס עם ערך ריק אינו <code>nil</code>; החזירי <code>nil</code> מפורש.</li>
+<li><strong>שגיאות:</strong> sentinel לזיהוי, טיפוס לנתונים; <code>%w</code> להקשר; <code>errors.Is</code> ו־<code>errors.AsType</code> לשליפה.</li>
+<li><strong>גבול אחד:</strong> בשכבות הפנימיות מוסיפים הקשר ומחזירים; בגבול מחליטים, מדפיסים ובוחרים קוד יציאה.</li>
+<li><strong>panic:</strong> לבאג בלבד; <code>recover</code> רק בגבול של goroutine או בקשה.</li>
+<li><strong>generics:</strong> <code>any</code>, קבוצות טיפוסים עם <code>~</code>; מאז 1.27 מתודות גנריות, אבל לא בממשקים.</li>
+<li><strong>הטמעה:</strong> קידום בלי ירושה; אין קריאה וירטואלית ואין יחס „הוא”.</li>
+<li><strong>שאלה פתוחה:</strong> ___</li>
+</ul>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">var _ Store = (*MemStore)(nil)               // compile-time interface check
+var ErrX = errors.New(&quot;x&quot;)                    // sentinel
+type XError struct{ ... }; func (e XError) Error() string
+return fmt.Errorf(&quot;op %s: %w&quot;, id, err)       // wrap, keep cause
+errors.Is(err, ErrX)
+var t XError; errors.As(err, &amp;t)
+t, ok := errors.AsType[XError](err)           // Go 1.26+
+defer func() { if r := recover(); r != nil { ... } }()
+func F[T any](xs []T) ...    type Integer interface{ ~int | ~int64 }
+func (p Page[T]) Map[U any](f func(T) U) Page[U]   // Go 1.27+
+type FileStore struct { MemStore; path string }    // embedding
+exit codes: 0 ok / 1 error / 2 usage / 3 insufficient / 4 not found
+</code></pre>
+
+
+</div>
+
+<h2 id="_7">תרגיל</h2>
+<p><strong>מטרה:</strong> לבנות את <code>ledger</code>: ספרייה עם ממשק <code>Store</code> ושני מימושים, sentinels וטיפוס שגיאה שעוברים עטיפה,
+<code>Page[T]</code> גנרי, וכלי שורת פקודה מעליה, עם חבילת בדיקות אחת לשני המימושים. <strong>זמן:</strong> שני ימי לימוד, ימים 6 ו־7, כ־50 דקות בנייה ביום 6 וכ־60 ביום 7. <strong>ידע מקדים:</strong> פרק 3 כולו; סעיפים 4.1 עד 4.5 ליום 6
+ו־4.6 עד 4.9 ליום 7.</p>
+<p>הצעדים, קוד ההתחלה, הרמזים והפתרון נמצאים ב־
+<a href="../exercises/ch04-ledger/README.md"><code>exercises/ch04-ledger/README.md</code></a>.</p>
+<p><strong>קריטריון סיום:</strong></p>
+<ul>
+<li>הבדיקות מראות ש־<code>errors.Is</code> מוצאת את ה־sentinel ו־<code>errors.As</code> שולפת את טיפוס השגיאה דרך עטיפה.</li>
+<li>חבילת הבדיקות המשותפת עוברת גם על המאגר בזיכרון וגם על המאגר בקובץ.</li>
+<li>הכלי פותח חשבון, רושם טרנזקציות ומדפדף בהיסטוריה, עם קודי יציאה שונים לכל סוג כשל.</li>
+<li>שלושת הכלים מפרק 3 שקטים.</li>
+</ul>
+<h2 id="_8">העשרה אופציונלית</h2>
+<ul>
+<li>בבלוג של Go יש מאמר מ־2019 על השגיאות בגרסה 1.13, שבה נוספה העטיפה. הוא מסביר היטב את ההחלטה.</li>
+<li>הערות השחרור של Go 1.26 ו־1.27 מתארות את <code>errors.AsType</code> ואת המתודות הגנריות; קראי את הסעיפים האלה
+  במקור.</li>
+<li>נסי לשנות את <code>apply</code> כך שתחזיר <code>&amp;InsufficientFundsError{...}</code>, והריצי את הבדיקות. מה נכשל, ולמה?
+  אחר כך עטפי מצביע כזה עם <code>%w</code> במקום אחר, והריצי <code>go vet</code>.</li>
+</ul>
+</main>
+<nav class="bottom"><a href="index.html">תוכן העניינים</a> · <a href="03-go-first-steps.html">← פרק 3: צעדים ראשונים ב־Go</a> · <a href="05-go-concurrency.html">פרק 5: מקביליות ב־Go →</a></nav>
+<script type="module">
+  // Render ```mermaid blocks in the browser (needs internet once; cached afterwards).
+  const blocks = document.querySelectorAll("pre > code.language-mermaid");
+  if (blocks.length) {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs")).default;
+    for (const code of blocks) {
+      const div = document.createElement("div");
+      div.className = "mermaid";
+      div.textContent = code.textContent;
+      code.parentElement.replaceWith(div);
+    }
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run();
+  }
+</script>
+</body>
+</html>
