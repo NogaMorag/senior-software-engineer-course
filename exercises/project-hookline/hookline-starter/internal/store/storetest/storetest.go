@@ -225,6 +225,40 @@ func testSubscriptionList(t *testing.T, s store.Store) {
 	}
 }
 
+// ActiveSubscriptions checks store.Subscriptions.ActiveSubscriptions (milestone M3). It is separate from
+// Run so that the M1 and M2 commands can skip it by name until milestone M3.
+func ActiveSubscriptions(t *testing.T, s store.Store) {
+	ctx := context.Background()
+	a, _ := NewTenant(t, s, "A")
+	b, _ := NewTenant(t, s, "B")
+	on := newEndpoint(t, s, a.ID, base)
+	off := newEndpoint(t, s, a.ID, base)
+	other := newEndpoint(t, s, b.ID, base)
+	for _, sub := range []domain.Subscription{
+		newSub(a.ID, on.ID, "invoice.paid", base), newSub(a.ID, on.ID, domain.AllTypes, base),
+		newSub(a.ID, off.ID, "invoice.paid", base), newSub(b.ID, other.ID, "invoice.paid", base),
+	} {
+		if err := s.CreateSubscription(ctx, sub); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := s.DisableEndpoint(ctx, a.ID, off.ID); err != nil {
+		t.Fatal(err)
+	}
+	subs, err := s.ActiveSubscriptions(ctx, a.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(subs) != 2 {
+		t.Fatalf("active = %+v, want the 2 subscriptions of the enabled endpoint", subs)
+	}
+	for _, sub := range subs {
+		if sub.EndpointID != on.ID || sub.TenantID != a.ID {
+			t.Fatalf("active subscription %+v belongs to a disabled endpoint or another tenant", sub)
+		}
+	}
+}
+
 // NewEvent builds an event for ingest with the body hash of body.
 func NewEvent(tenantID, key, typ, payload string, at time.Time) domain.Event {
 	body := fmt.Sprintf(`{"type":%q,"payload":%s}`, typ, payload)

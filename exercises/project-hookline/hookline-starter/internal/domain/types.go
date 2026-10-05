@@ -53,3 +53,43 @@ type Event struct {
 	BodyHash       [32]byte        `json:"-"`
 	CreatedAt      time.Time       `json:"created_at"`
 }
+
+// DeliveryStatus is where a delivery is in its life (chapter 37, section 37.4).
+type DeliveryStatus string
+
+// The four statuses. pending: waiting for next_attempt_at. in_flight: claimed by a worker under a lease.
+// delivered: a 2xx arrived. dead: out of attempts, or failed permanently; waits for a replay.
+const (
+	Pending   DeliveryStatus = "pending"
+	InFlight  DeliveryStatus = "in_flight"
+	Delivered DeliveryStatus = "delivered"
+	Dead      DeliveryStatus = "dead"
+)
+
+// Delivery is one event on its way to one endpoint. Attempts counts every attempt ever made and never
+// goes down: it numbers the history and the Hookline-Attempt header. A replay sets AttemptBase to
+// Attempts, so the round in progress has Attempts-AttemptBase attempts (chapter 29, section 29.5).
+type Delivery struct {
+	ID            string         `json:"id"`
+	TenantID      string         `json:"-"`
+	EventID       string         `json:"event_id"`
+	EndpointID    string         `json:"endpoint_id"`
+	Status        DeliveryStatus `json:"status"`
+	Attempts      int            `json:"attempts"`
+	AttemptBase   int            `json:"attempt_base"`
+	NextAttemptAt time.Time      `json:"next_attempt_at"`
+	LastError     string         `json:"last_error,omitempty"`
+	DeliveredAt   *time.Time     `json:"delivered_at,omitempty"`
+	CreatedAt     time.Time      `json:"created_at"`
+	History       []Attempt      `json:"history,omitempty"`
+}
+
+// Attempt is one recorded HTTP attempt of a delivery. N is the delivery's Attempts value at the time,
+// so it keeps rising across replays; StatusCode is 0 when no response arrived (timeout, connection error), and then Error says why.
+type Attempt struct {
+	N          int       `json:"n"`
+	StartedAt  time.Time `json:"started_at"`
+	DurationMS int       `json:"duration_ms"`
+	StatusCode int       `json:"status_code,omitempty"`
+	Error      string    `json:"error,omitempty"`
+}

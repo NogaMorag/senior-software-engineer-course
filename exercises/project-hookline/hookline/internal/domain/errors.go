@@ -11,4 +11,7 @@ var (
 	ErrConflict = errors.New("already exists")
 	// ErrIdempotencyMismatch: the idempotency key was already used by this tenant with a different body.
 	ErrIdempotencyMismatch = errors.New("idempotency key reused with a different body")
+	// ErrNotDead: a replay was asked for a delivery that is not dead (pending, in flight or delivered).
+	// Refusing it is what makes a double click on "replay" harmless.
+	ErrNotDead = errors.New("delivery is not dead")
 )

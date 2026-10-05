@@ -1,6 +1,11 @@
-# Hookline's local infrastructure. Milestone M2: PostgreSQL. M3 adds Redis and the sink, M4 Redpanda.
+# Hookline's local infrastructure.
 #   docker compose -p hookline -f deploy/compose.yaml up -d --wait
-#   export DATABASE_URL=postgres://hookline:change-me@localhost:5438/hookline
+# M2: PostgreSQL. M3: Redis and the sink. M4: Redpanda (and its console). M6: a second sink for the N3 lab.
+# From the host:
+#   DATABASE_URL=postgres://hookline:change-me@localhost:5438/hookline
+#   REDIS_ADDR=localhost:6438
+#   KAFKA_BROKERS=localhost:19438
+#   SINK_URL=http://localhost:8091      (the slow lab sink: http://localhost:8092)
 name: hookline
 services:
   postgres:
@@ -18,5 +23,87 @@ services:
       interval: 2s
       timeout: 3s
       retries: 30
+
+  redis:
+    image: redis:8.10.2
+    # A cache, not a database (chapter 12): a memory limit, an eviction policy, no persistence.
+    command: ["redis-server", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru", "--save", "", "--appendonly", "no"]
+    ports:
+      - "127.0.0.1:6438:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v26.2.3
+    command:
+      - redpanda
+      - start
+      # "internal" for containers on the compose network, "external" for programs on your machine.
+      - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19438
+      - --advertise-kafka-addr internal://redpanda:9092,external://localhost:19438
+      - --rpc-addr redpanda:33145
+      - --advertise-rpc-addr redpanda:33145
+      # Development settings for a container (chapter 13): never in production.
+      - --mode dev-container
+      - --smp 1
+      - --default-log-level=info
+    ports:
+      - "127.0.0.1:19438:19438"
+    volumes:
+      - redpanda:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD", "rpk", "cluster", "info"]
+      interval: 3s
+      timeout: 10s
+      retries: 30
+
+  console:
+    image: docker.redpanda.com/redpandadata/console:v3.12.0
+    entrypoint: /bin/sh
+    command: -c 'echo "$$CONSOLE_CONFIG_FILE" > /tmp/config.yml && /app/console'
+    environment:
+      CONFIG_FILEPATH: /tmp/config.yml
+      CONSOLE_CONFIG_FILE: |
+        kafka:
+          brokers: ["redpanda:9092"]
+    ports:
+      - "127.0.0.1:8098:8080" # open http://localhost:8098
+    depends_on:
+      redpanda:
+        condition: service_healthy
+
+  sink:
+    build: ../sink
+    environment:
+      # Every hook name is accepted and verified with this secret (chapter 8). The tests give their
+      # endpoints the same secret; a real receiver has one secret per endpoint.
+      RECEIVER_DEFAULT_SECRET: whsec_change-me # local practice value, not a secret
+    ports:
+      - "127.0.0.1:8091:8081"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8081/stats')"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # A second receiver for the isolation lab (scripts/lab-n3.sh, spec N3): the lab puts this one in
+  # timeout mode while the first stays healthy. Same image, its own counters.
+  sink-slow:
+    build: ../sink
+    environment:
+      RECEIVER_DEFAULT_SECRET: whsec_change-me # local practice value, not a secret
+      RECEIVER_TIMEOUT_HOLD_S: "60" # how long a request hangs in timeout mode
+    ports:
+      - "127.0.0.1:8092:8081"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8081/stats')"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
 volumes:
   pgdata:
+  redpanda:

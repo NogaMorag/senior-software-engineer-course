@@ -8,5 +8,5 @@ This directory collects what the project produces along the way:
 | `runbooks/*.md` | M8 | one runbook per alert |
 | `postmortem-*.md` | M8 | the postmortem of the deliberately broken release |
 | `threat-model.md` | M9 | threats, mitigations, and the tests that prove them |
-| `EVALUATION.md` | M10 | the SLO and chaos results you measured, with date and machine |
+| `EVALUATION.md` | M6, M10 | the results you measured (N3 from M6; SLOs and chaos in M10), with date and machine |
 | `DEMO.md` | M10 | the demo script |

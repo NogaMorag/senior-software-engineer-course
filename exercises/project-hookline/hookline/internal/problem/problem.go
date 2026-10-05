@@ -40,7 +40,10 @@ var (
 	NotFound           = Kind{http.StatusNotFound, "not-found", "Resource not found"}
 	MethodNotAllowed   = Kind{http.StatusMethodNotAllowed, "method-not-allowed", "Method not allowed"}
 	Conflict           = Kind{http.StatusConflict, "conflict", "Resource already exists"}
+	NotDead            = Kind{http.StatusConflict, "delivery-not-dead", "Only a dead delivery can be replayed"}
 	TooLarge           = Kind{http.StatusRequestEntityTooLarge, "body-too-large", "Request body is too large"}
+	RateLimited        = Kind{http.StatusTooManyRequests, "rate-limited", "Rate limit exceeded"}
+	Overloaded         = Kind{http.StatusServiceUnavailable, "overloaded", "Server is overloaded"}
 	UnsupportedMedia   = Kind{http.StatusUnsupportedMediaType, "unsupported-media-type", "Content-Type must be application/json"}
 	KeyReused          = Kind{http.StatusUnprocessableEntity, "idempotency-key-reused", "Idempotency-Key was used with a different request"}
 	Internal           = Kind{http.StatusInternalServerError, "internal", "Internal error"}

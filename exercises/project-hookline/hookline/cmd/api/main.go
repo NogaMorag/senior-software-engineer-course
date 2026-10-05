@@ -9,8 +9,6 @@ import (
 	"log/slog"
 	"net"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -18,11 +16,12 @@ import (
 	"example.com/hookline/internal/admin"
 	"example.com/hookline/internal/api"
 	"example.com/hookline/internal/config"
-	"example.com/hookline/internal/db"
 	"example.com/hookline/internal/platform"
+	"example.com/hookline/internal/shed"
 	"example.com/hookline/internal/store"
 	"example.com/hookline/internal/store/memory"
 	"example.com/hookline/internal/store/postgres"
+	"example.com/hookline/internal/wire"
 )
 
 func main() {
@@ -39,10 +38,8 @@ func run() error {
 	}
 	log := platform.NewLogger(os.Stdout, cfg.LogLevel)
 
-	// The first SIGINT or SIGTERM cancels ctx and starts the graceful shutdown; a second one kills.
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	ctx, stop := wire.SignalContext()
 	defer stop()
-	context.AfterFunc(ctx, stop)
 
 	st, closeStore, err := openStore(ctx, cfg)
 	if err != nil {
@@ -50,13 +47,26 @@ func run() error {
 	}
 	defer closeStore()
 
-	handler := api.New(st, api.Options{MaxBodyBytes: cfg.MaxBodyBytes, DevMode: cfg.DevMode, Logger: log})
+	rdb := wire.Redis(cfg.RedisAddr)
+	if rdb != nil {
+		defer rdb.Close()
+	}
+	opts := api.Options{
+		MaxBodyBytes: cfg.MaxBodyBytes, DevMode: cfg.DevMode, Logger: log,
+		// The API never reads the subscription cache; it only drops a tenant's entry after each change.
+		Subscriptions: wire.Subscriptions(rdb, st),
+		Limiter:       wire.Limiter(rdb), // fails open; the log line is the signal until milestone M8's metric
+	}
+	if cfg.MaxInFlight > 0 {
+		opts.Shedder = shed.New(shed.Options{Limit: cfg.MaxInFlight, RetryAfter: time.Second})
+	}
+	handler := api.New(st, opts)
 	ln, err := net.Listen("tcp", cfg.Addr)
 	if err != nil {
 		return err
 	}
 	g, gctx := errgroup.WithContext(ctx)
-	log.Info("listening", slog.String("addr", ln.Addr().String()), slog.Bool("dev_mode", cfg.DevMode))
+	log.Info("listening", slog.String("addr", ln.Addr().String()), slog.String("config", cfg.String()))
 	g.Go(func() error { return platform.Serve(gctx, platform.NewServer(handler, log), ln, cfg.ShutdownTimeout) })
 	if cfg.DebugAddr != "off" {
 		debugLn, err := net.Listen("tcp", cfg.DebugAddr)
@@ -86,11 +96,7 @@ func openStore(ctx context.Context, cfg config.Config) (store.Store, func(), err
 		fmt.Fprintf(os.Stderr, "memory store: development tenant %s, API key (shown once): %s\n", t.ID, key)
 		return st, func() {}, nil
 	}
-	pcfg, err := db.Config(cfg.DatabaseURL)
-	if err != nil {
-		return nil, nil, err
-	}
-	pool, err := db.Connect(ctx, pcfg)
+	pool, err := wire.Pool(ctx, cfg.DatabaseURL)
 	if err != nil {
 		return nil, nil, err
 	}

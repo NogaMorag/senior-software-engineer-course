@@ -202,6 +202,22 @@ func (s *Store) DeleteSubscription(ctx context.Context, tenantID, id string) err
 	return nil
 }
 
+// ActiveSubscriptions implements store.Subscriptions: the join keeps only enabled endpoints.
+func (s *Store) ActiveSubscriptions(ctx context.Context, tenantID string) ([]domain.Subscription, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT s.id, s.tenant_id, s.endpoint_id, s.event_type, s.created_at
+		FROM subscriptions s JOIN endpoints e ON e.tenant_id = s.tenant_id AND e.id = s.endpoint_id
+		WHERE s.tenant_id = $1 AND e.enabled`, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("active subscriptions: %w", err)
+	}
+	subs, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (domain.Subscription, error) { return scanSubscription(r) })
+	if err != nil {
+		return nil, fmt.Errorf("active subscriptions: %w", err)
+	}
+	return subs, nil
+}
+
 // IngestEvent implements store.Events in one read-committed transaction:
 //
 //  1. INSERT ... ON CONFLICT (tenant_id, idempotency_key) DO NOTHING. A concurrent insert of the same key
@@ -267,6 +283,112 @@ func (s *Store) GetEvent(ctx context.Context, tenantID, id string) (domain.Event
 	e, err := scanEvent(s.pool.QueryRow(ctx, `
 		SELECT `+eventColumns+` FROM events WHERE tenant_id = $1 AND id = $2`, tenantID, id))
 	return e, one(err, "select event")
+}
+
+const deliveryColumns = `id, tenant_id, event_id, endpoint_id, status, attempts, attempt_base, next_attempt_at,
+	COALESCE(last_error, ''), delivered_at, created_at`
+
+func scanDelivery(row pgx.Row) (domain.Delivery, error) {
+	var d domain.Delivery
+	err := row.Scan(&d.ID, &d.TenantID, &d.EventID, &d.EndpointID, &d.Status, &d.Attempts, &d.AttemptBase, &d.NextAttemptAt,
+		&d.LastError, &d.DeliveredAt, &d.CreatedAt)
+	d.NextAttemptAt, d.CreatedAt = d.NextAttemptAt.UTC(), d.CreatedAt.UTC()
+	if d.DeliveredAt != nil {
+		at := d.DeliveredAt.UTC()
+		d.DeliveredAt = &at
+	}
+	return d, err
+}
+
+// EventDeliveries implements store.Deliveries: the deliveries of one event, then every attempt of
+// those deliveries in a second query, attached in Go.
+func (s *Store) EventDeliveries(ctx context.Context, tenantID, eventID string) ([]domain.Delivery, error) {
+	var exists bool
+	if err := s.pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM events WHERE tenant_id = $1 AND id = $2)`,
+		tenantID, eventID).Scan(&exists); err != nil {
+		return nil, fmt.Errorf("event deliveries: %w", err)
+	}
+	if !exists {
+		return nil, domain.ErrNotFound
+	}
+	rows, err := s.pool.Query(ctx, `
+		SELECT `+deliveryColumns+` FROM deliveries
+		WHERE tenant_id = $1 AND event_id = $2 ORDER BY created_at, id`, tenantID, eventID)
+	if err != nil {
+		return nil, fmt.Errorf("event deliveries: %w", err)
+	}
+	ds, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (domain.Delivery, error) { return scanDelivery(r) })
+	if err != nil || len(ds) == 0 {
+		return ds, err
+	}
+	index := map[string]int{}
+	ids := make([]string, len(ds))
+	for i, d := range ds {
+		index[d.ID], ids[i] = i, d.ID
+	}
+	rows, err = s.pool.Query(ctx, `
+		SELECT delivery_id, n, started_at, duration_ms, COALESCE(status_code, 0), COALESCE(error, '')
+		FROM attempts WHERE delivery_id = ANY($1::uuid[]) ORDER BY delivery_id, n`, ids)
+	if err != nil {
+		return nil, fmt.Errorf("attempts: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		var a domain.Attempt
+		if err := rows.Scan(&id, &a.N, &a.StartedAt, &a.DurationMS, &a.StatusCode, &a.Error); err != nil {
+			return nil, fmt.Errorf("attempts: %w", err)
+		}
+		a.StartedAt = a.StartedAt.UTC()
+		ds[index[id]].History = append(ds[index[id]].History, a)
+	}
+	return ds, rows.Err()
+}
+
+// DeadDeliveries implements store.Deliveries over the partial index deliveries_dead_page_idx.
+func (s *Store) DeadDeliveries(ctx context.Context, tenantID string, after *page.Cursor, limit int) ([]domain.Delivery, bool, error) {
+	at, id := cursorArgs(after)
+	rows, err := s.pool.Query(ctx, `
+		SELECT `+deliveryColumns+` FROM deliveries
+		WHERE tenant_id = $1 AND status = 'dead'
+		  AND ($2::timestamptz IS NULL OR (created_at, id) < ($2, $3::uuid))
+		ORDER BY created_at DESC, id DESC
+		LIMIT $4`, tenantID, at, id, limit+1)
+	if err != nil {
+		return nil, false, fmt.Errorf("dead deliveries: %w", err)
+	}
+	items, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (domain.Delivery, error) { return scanDelivery(r) })
+	if err != nil {
+		return nil, false, fmt.Errorf("dead deliveries: %w", err)
+	}
+	return trim(items, limit)
+}
+
+// ReplayDelivery implements store.Deliveries. attempts is not reset: attempt_base remembers where the new
+// round starts, so attempts.n stays unique and Hookline-Attempt keeps rising (chapter 29, section 29.5).
+// The status condition is in the UPDATE itself, so two replays at once move the delivery once; the
+// second finds it pending and gets domain.ErrNotDead.
+func (s *Store) ReplayDelivery(ctx context.Context, tenantID, id string) (domain.Delivery, error) {
+	d, err := scanDelivery(s.pool.QueryRow(ctx, `
+		UPDATE deliveries SET status = 'pending', attempt_base = attempts, next_attempt_at = now(),
+		       lease_until = NULL, last_error = NULL
+		WHERE tenant_id = $1 AND id = $2 AND status = 'dead'
+		RETURNING `+deliveryColumns, tenantID, id))
+	if err == nil {
+		return d, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return domain.Delivery{}, fmt.Errorf("replay delivery: %w", err)
+	}
+	var exists bool
+	if err := s.pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM deliveries WHERE tenant_id = $1 AND id = $2)`,
+		tenantID, id).Scan(&exists); err != nil {
+		return domain.Delivery{}, fmt.Errorf("replay delivery: %w", err)
+	}
+	if exists {
+		return domain.Delivery{}, domain.ErrNotDead
+	}
+	return domain.Delivery{}, domain.ErrNotFound
 }
 
 // cursorArgs turns an optional cursor into the two SQL parameters; NULL means "from the start".

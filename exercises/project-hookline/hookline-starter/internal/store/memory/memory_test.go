@@ -11,3 +11,5 @@ import (
 func TestConformance(t *testing.T) {
 	storetest.Run(t, func(*testing.T) store.Store { return memory.New() })
 }
+
+func TestActiveSubscriptions(t *testing.T) { storetest.ActiveSubscriptions(t, memory.New()) }

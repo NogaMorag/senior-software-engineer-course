@@ -24,8 +24,18 @@ info:
     key with a different body is 422. Concurrent requests with one key store exactly one event and all
     get it back. Keys do not expire in this version.
 
-    Delivery (from milestone M5): every event is delivered at least once to every enabled endpoint with
-    a matching subscription. Receivers must deduplicate by the `Hookline-Event-Id` header.
+    Limits: `POST /v1/events` is limited per tenant to its `rate_per_sec` with bursts of `burst`
+    (token bucket); over the limit it answers 429 `rate-limited` with `Retry-After`, and every answer
+    carries the `RateLimit` and `RateLimit-Policy` fields. When the server has too many requests in flight,
+    every `/v1` route answers 503 `overloaded` with `Retry-After` at once instead of queueing; `/healthz`
+    is never shed.
+
+    Delivery: every event is delivered at least once to every enabled endpoint with a matching
+    subscription, as a signed POST. Receivers must deduplicate by the `Hookline-Event-Id` header and
+    verify `Hookline-Signature`: `t=<unix seconds>,v1=<hex HMAC-SHA256(secret, "<t>." + raw body)>`,
+    rejecting timestamps more than 5 minutes away. Failures (timeout, connection error, 408, 429, 5xx)
+    are retried with capped exponential backoff and full jitter; other 4xx responses and redirects are
+    not retried. After the last attempt a delivery is dead until it is replayed.
   license:
     name: MIT
     identifier: MIT
@@ -43,6 +53,8 @@ tags:
     description: Which event types an endpoint receives.
   - name: events
     description: Event ingest and lookup.
+  - name: deliveries
+    description: Delivery status, attempt history, dead deliveries and replay.
   - name: ops
     description: Operational endpoints.
 paths:
@@ -331,6 +343,10 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "503":
+          $ref: "#/components/responses/Overloaded"
         default:
           $ref: "#/components/responses/Error"
   /v1/events/{id}:
@@ -351,6 +367,87 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
+        default:
+          $ref: "#/components/responses/Error"
+  /v1/events/{id}/deliveries:
+    get:
+      tags: [deliveries]
+      operationId: listEventDeliveries
+      summary: The deliveries of one event, with every attempt
+      description: |
+        One delivery per matching endpoint, created by the dispatcher shortly after ingest (the list is
+        empty until then). `history` lists every recorded attempt, across replays.
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: The deliveries of the event.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeliveryList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        default:
+          $ref: "#/components/responses/Error"
+  /v1/deliveries:
+    get:
+      tags: [deliveries]
+      operationId: listDeadDeliveries
+      summary: List dead deliveries, newest first
+      description: The dead-letter view. `status` is required and, in this version, must be `dead`.
+      parameters:
+        - name: status
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [dead]
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: One page of dead deliveries.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeliveryPage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        default:
+          $ref: "#/components/responses/Error"
+  /v1/deliveries/{id}/replay:
+    post:
+      tags: [deliveries]
+      operationId: replayDelivery
+      summary: Replay a dead delivery
+      description: |
+        Moves a dead delivery back to pending with a fresh budget of attempts; a worker sends it again
+        soon. `attempts` keeps counting (receivers see `Hookline-Attempt` continue), and `attempt_base`
+        records where the new round starts. Replaying a delivery that is not dead is 409, so a double click cannot send twice.
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "202":
+          description: Accepted; the delivery is pending again.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Delivery"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: The delivery is not dead (`delivery-not-dead`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
         default:
           $ref: "#/components/responses/Error"
 components:
@@ -533,6 +630,81 @@ components:
         created_at:
           type: string
           format: date-time
+    Delivery:
+      type: object
+      required: [id, event_id, endpoint_id, status, attempts, next_attempt_at, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Also sent to receivers as `Hookline-Delivery-Id`.
+        event_id:
+          type: string
+          format: uuid
+        endpoint_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, in_flight, delivered, dead]
+        attempts:
+          type: integer
+          description: Every attempt so far; it never goes down, also across replays.
+        attempt_base:
+          type: integer
+          description: The value of `attempts` at the last replay (0 if never replayed).
+        next_attempt_at:
+          type: string
+          format: date-time
+        last_error:
+          type: string
+        delivered_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        history:
+          type: array
+          description: Every recorded attempt (only in the per-event list).
+          items:
+            $ref: "#/components/schemas/Attempt"
+    Attempt:
+      type: object
+      required: [n, started_at, duration_ms]
+      properties:
+        n:
+          type: integer
+          description: 1, 2, 3, ... and still rising after a replay; also sent as `Hookline-Attempt`.
+        started_at:
+          type: string
+          format: date-time
+        duration_ms:
+          type: integer
+        status_code:
+          type: integer
+          description: Absent when no response arrived.
+        error:
+          type: string
+    DeliveryList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Delivery"
+    DeliveryPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Delivery"
+        next_cursor:
+          type: string
+          description: Absent on the last page.
     Problem:
       type: object
       description: Problem details (RFC 9457). Clients must ignore members they do not know.
@@ -544,8 +716,8 @@ components:
           description: |
             Identifies the problem type. One of https://hookline.example.com/problems/ followed by
             validation, malformed-json, invalid-cursor, idempotency-key-missing, unauthorized,
-            not-found, method-not-allowed, conflict, body-too-large, unsupported-media-type,
-            idempotency-key-reused or internal.
+            not-found, method-not-allowed, conflict, delivery-not-dead, body-too-large,
+            unsupported-media-type, idempotency-key-reused, rate-limited, overloaded or internal.
           examples: ["https://hookline.example.com/problems/validation"]
         title:
           type: string
@@ -609,8 +781,38 @@ components:
         application/problem+json:
           schema:
             $ref: "#/components/schemas/Problem"
+    RateLimited:
+      description: The tenant is over its ingest rate (`rate-limited`).
+      headers:
+        Retry-After:
+          description: Seconds until a token is available.
+          schema:
+            type: integer
+        RateLimit:
+          description: The remaining budget, as in the IETF httpapi draft.
+          schema:
+            type: string
+        RateLimit-Policy:
+          description: The tenant's quota and window.
+          schema:
+            type: string
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    Overloaded:
+      description: Too many requests in flight; shed at once (`overloaded`). May come from any /v1 route.
+      headers:
+        Retry-After:
+          description: Seconds to wait before trying again.
+          schema:
+            type: integer
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
     Error:
-      description: Any other error, including 405 and 500.
+      description: Any other error, including 405, 500 and 503 (`overloaded`).
       content:
         application/problem+json:
           schema:

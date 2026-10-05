@@ -40,6 +40,9 @@ type Subscriptions interface {
 	// ListSubscriptions is like ListEndpoints; a non-empty endpointID keeps only that endpoint's.
 	ListSubscriptions(ctx context.Context, tenantID, endpointID string, after *page.Cursor, limit int) ([]domain.Subscription, bool, error)
 	DeleteSubscription(ctx context.Context, tenantID, id string) error
+	// ActiveSubscriptions returns every subscription of the tenant whose endpoint is enabled: what the
+	// dispatcher (milestone M4) matches events against, through the cache of milestone M3.
+	ActiveSubscriptions(ctx context.Context, tenantID string) ([]domain.Subscription, error)
 }
 
 // Events are ingested once per (tenant, idempotency key).
@@ -53,10 +56,25 @@ type Events interface {
 	GetEvent(ctx context.Context, tenantID, id string) (domain.Event, error)
 }
 
+// Deliveries are created by the dispatcher and moved by the workers (package delivery); the API
+// only reads them and replays dead ones (milestone M5).
+type Deliveries interface {
+	// EventDeliveries returns the deliveries of one event with their attempt history, or
+	// domain.ErrNotFound when the event is not the tenant's.
+	EventDeliveries(ctx context.Context, tenantID, eventID string) ([]domain.Delivery, error)
+	// DeadDeliveries pages through the tenant's dead deliveries, newest first.
+	DeadDeliveries(ctx context.Context, tenantID string, after *page.Cursor, limit int) ([]domain.Delivery, bool, error)
+	// ReplayDelivery makes a dead delivery pending again with a fresh budget of attempts, without
+	// resetting the attempt count (it sets attempt_base). It returns
+	// domain.ErrNotFound for an unknown id and domain.ErrNotDead for a delivery in any other status.
+	ReplayDelivery(ctx context.Context, tenantID, id string) (domain.Delivery, error)
+}
+
 // Store is everything the API uses.
 type Store interface {
 	Tenants
 	Endpoints
 	Subscriptions
 	Events
+	Deliveries
 }

@@ -7,15 +7,28 @@ chapter: 38
 
 - **‏M1:** ממשקי מאגר; מימוש בזיכרון; אימות לפי גיבוב; 404 לכל משאב של דיירת אחרת.
 - **‏M2:** מיגרציות לכל המודל; ‏`ON CONFLICT DO NOTHING` ואז `SELECT`; אירוע ו־outbox בטרנזקציה אחת.
+- **‏M3:** מטמון לכל דיירת; מוחקים אחרי השמירה; זמן החיים הוא הגבול לרשימה ישנה; ה־sink עם worker אחד.
+- **‏M4:** פרסום, אישור, ואז סימון; ‏offset אחרי ההכנסה; ‏`ON CONFLICT DO NOTHING` על אירוע ו־endpoint.
+- **‏M5:** ‏`SKIP LOCKED` וחכירה; 408, 429 ו־5xx מנוסים שוב, שאר 4xx לא; ‏`attempt_base` בהפעלה חוזרת.
+- **‏M6:** מחיצה בלי המתנה ומפסק לכל endpoint; דחייה בלי ניסיון; מגבלה לכל דיירת, נכשלת פתוח; השלה לפני האימות.
 - **שאלה פתוחה:** ___
 
 <div dir="ltr" align="left">
 
 ```text
-M1 tests  DATABASE_URL= go test -race ./internal/api/ ./internal/store/... ./internal/admin/
+M1 tests  DATABASE_URL= go test -race -skip 'Invalidat|Deliver|Replay|ActiveSubscriptions|RateLimit|OverItsLimit|LimiterFailure|Shed' ./internal/api/ ./internal/store/... ./internal/admin/
 M2 db     make db-up && export DATABASE_URL=postgres://hookline:change-me@localhost:5438/hookline
-M2 tests  go test -race -count=1 ./...
-admin     go run ./cmd/hookline-admin migrate up | create-tenant -name <name>
+M2 tests  go test -race -count=1 -skip 'Invalidat|Deliver|Replay|ActiveSubscriptions|RateLimit|OverItsLimit|LimiterFailure|Shed' ./internal/api/ ./internal/store/... ./internal/admin/ ./internal/db/ ./migrations/
+admin     go run ./cmd/hookline-admin migrate up | create-tenant -name <name> | create-topic -partitions 6
+stack     make up   (postgres, redis, redpanda, console :8098, sink :8091)   make down
+env       REDIS_ADDR=localhost:6438 KAFKA_BROKERS=localhost:19438 SINK_URL=http://localhost:8091
+run       make run | make relay | make dispatcher | make worker
+sink      curl -s localhost:8091/stats    curl -s -X POST localhost:8091/control -d '{"failure_rate":1}'
+retry     408 429 5xx timeout refused -> retry      other 4xx 3xx -> dead      replay: dead -> pending
+lab       make lab-n3      GUARDS=off make lab-n3      (record your p50/p99, date, machine)
+guards    HOOKLINE_ENDPOINT_CONCURRENCY=2 HOOKLINE_BREAKER_FAILURES=5 HOOKLINE_BREAKER_OPEN=30s HOOKLINE_MAX_IN_FLIGHT=256
+m5 tests  go test -race -count=1 -skip 'RateLimit|OverItsLimit|LimiterFailure|Shed|Breaker|Bulkhead' ./internal/backoff/ ./internal/delivery/ ./internal/api/ ./internal/store/... ./internal/e2e/
+skip      -skip drops later milestones' tests: Invalidat ActiveSubscriptions (M3), StaleRelay RateLimit OverItsLimit LimiterFailure Shed Breaker Bulkhead (M6), Deliver Replay (M5)
 ```
 
 </div>

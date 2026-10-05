@@ -22,6 +22,10 @@ func TestConformance(t *testing.T) {
 	storetest.Run(t, func(t *testing.T) store.Store { return postgres.New(testdb.Pool(t)) })
 }
 
+func TestActiveSubscriptions(t *testing.T) {
+	storetest.ActiveSubscriptions(t, postgres.New(testdb.Pool(t)))
+}
+
 func count(t *testing.T, query string, args ...any) int {
 	t.Helper()
 	var n int

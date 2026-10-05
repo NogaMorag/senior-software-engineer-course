@@ -16,7 +16,7 @@ import (
 )
 
 // The whole data model of chapter 37, section 37.4.
-var wantTables = []string{"attempts", "deliveries", "endpoints", "events", "outbox", "subscriptions", "tenants"}
+var wantTables = []string{"attempts", "deliveries", "endpoints", "events", "leader_terms", "outbox", "subscriptions", "tenants"}
 
 func files(t *testing.T) []string {
 	t.Helper()
@@ -30,8 +30,8 @@ func files(t *testing.T) []string {
 // Every file has both halves, so every migration can be rolled back (runs without a database).
 func TestEveryMigrationHasUpAndDown(t *testing.T) {
 	names := files(t)
-	if len(names) != 4 {
-		t.Fatalf("migrations = %v, want 4 files", names)
+	if len(names) != 6 {
+		t.Fatalf("migrations = %v, want 6 files", names)
 	}
 	for _, name := range names {
 		b, _ := fs.ReadFile(migrations.FS, name)

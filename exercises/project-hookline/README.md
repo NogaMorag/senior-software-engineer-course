@@ -16,8 +16,10 @@ endpoint מנוי, עם בידוד בין מקבלים, ניסיונות חוז�
 
 **ידע מקדים:** פרק 37 (המפרט), ופרק 38 לפי אבן הדרך. הפרויקט מעתיק ומתאים קוד מהתרגילים שלך: החבילה
 `internal/platform` מפרק 6 (`ch06-shorty`), החבילות של פרטי הבעיה, העימוד והאידמפוטנטיות מפרק 9
-(`ch09-catalog-api`), וחיבור המסד, המיגרציות והמסד הזמני לבדיקות מפרק 11 (`ch11-isolation-lab`). אבני הדרך
-הבאות יביאו קוד מפרקים 8, 12, 13 ו־14. הגרסאות של הספריות ושל המסד מקובעות ב־`go.mod` ובקובץ
+(`ch09-catalog-api`), וחיבור המסד, המיגרציות והמסד הזמני לבדיקות מפרק 11 (`ch11-isolation-lab`). מאבן הדרך
+השלישית: המקבל מפרק 8 (`ch08-receiver`), המטמון מפרק 12 (`ch12-cache-aside`), ה־outbox והלקוחות של Kafka מפרק 13
+(`ch13-outbox`), וההמתנה, התור וה־workers מפרק 14 (`ch14-jobqueue`). מאבן הדרך השישית: המפסק והמחיצה מפרק 15
+(`ch15-resilience-lab`), הגבלת הקצב וההשלה מפרק 16 (`ch16-ratelimit`), ובחירת המנהיג מפרק 18 (`ch18-leader`). הגרסאות של הספריות ושל המסד מקובעות ב־`go.mod` ובקובץ
 ה־compose, נכון לאוקטובר 2026 (נספח ג).
 
 ## מה בתיקייה הזאת
@@ -34,7 +36,7 @@ endpoint מנוי, עם בידוד בין מקבלים, ניסיונות חוז�
 | נתיב | מה יש בו | אבן דרך |
 | --- | --- | --- |
 | `cmd/api/main.go` | חיווט השרת: הגדרות, מאגר, שני listeners, כיבוי מסודר | M1 |
-| `cmd/hookline-admin/main.go` | כלי המפעילה: `migrate`, ‏`create-tenant` | M1, M2 |
+| `cmd/hookline-admin/main.go` | כלי המפעילה: `migrate`, ‏`create-tenant`, ‏`create-topic` | M1, M2, M4 |
 | `api/openapi.yaml` | החוזה: OpenAPI 3.1, כל נתיב וכל סוג בעיה | M1 |
 | `internal/config` | ההגדרות מהסביבה (שלם) | M1 |
 | `internal/platform` | השרת, ה־middleware, הלוגים וה־pprof מפרק 6 (שלם) | M1 |
@@ -44,11 +46,24 @@ endpoint מנוי, עם בידוד בין מקבלים, ניסיונות חוז�
 | `internal/store/memory` | המאגר בזיכרון | M1 |
 | `internal/api` | ה־handlers, האימות והקליטה; ‏`server.go` שלם | M1 |
 | `internal/admin` | יצירת דיירת | M1 |
-| `migrations/` | ארבע מיגרציות goose לכל מודל הנתונים (שלמות) | M2 |
+| `migrations/` | ארבע מיגרציות goose לכל מודל הנתונים, ועמודה אחת שנוספה באבן הדרך החמישית (שלמות) | M2, M5 |
 | `internal/db`, ‏`internal/testdb` | ה־pool, המיגרציות מתוך Go, ומסד זמני לבדיקות, מפרק 11 (שלמים) | M2 |
 | `internal/store/postgres` | המאגר ב־PostgreSQL | M2 |
-| `deploy/compose.yaml` | ‏PostgreSQL 18 בפרויקט compose בשם `hookline`, בפורט 5438 | M2 |
-| `Makefile` | כל הפקודות: `test-unit`, ‏`test`, ‏`lint`, ‏`db-up`, ‏`migrate`, ‏`run-dev` | M1 |
+| `deploy/compose.yaml` | הסביבה בפרויקט compose בשם `hookline`: PostgreSQL, ‏Redis, ‏Redpanda, הקונסולה וה־sink | M2 עד M4 |
+| `internal/cache`, ‏`internal/subcache` | ‏cache-aside מפרק 12, ומטמון המנויים לכל דיירת | M3 |
+| `internal/wire` | החיבורים המשותפים לבינאריים: מסד, מטמון, אותות (שלם) | M3 |
+| `sink/` | המקבל המדומה מפרק 8, עם `Dockerfile` ווקטורי החתימה ב־`sink/data/` | M3 |
+| `internal/bus` | לקוחות franz-go מפרק 13 (שלם) | M4 |
+| `internal/outbox`, ‏`internal/dispatch` | ה־relay וה־dispatcher | M4 |
+| `cmd/relay`, ‏`cmd/dispatcher`, ‏`cmd/worker` | שלושת הבינאריים החדשים (שלמים) | M4, M5 |
+| `internal/backoff`, ‏`internal/delivery` | ההמתנה מפרק 14; החתימה, השליחה, התור וה־workers | M5 |
+| `internal/testenv` | ‏topics פרטיים ונתוני בדיקה (שלם) | M4, M5 |
+| `internal/e2e` | הבדיקה מקצה לקצה מול ה־compose | M5 |
+| `internal/breaker`, ‏`internal/bulkhead` | מפסק ומחיצה מפרק 15 | M6 |
+| `internal/ratelimit`, ‏`internal/shed` | הגבלת קצב והשלת עומס מפרק 16 | M6 |
+| `internal/leader` | בחירת מנהיג מפרק 18, ל־relay | M6 |
+| `scripts/lab-n3.sh` | ניסוי הבידוד של N3, עם sink שני ב־compose | M6 |
+| `Makefile` | כל הפקודות: `test-unit`, ‏`test`, ‏`lint`, ‏`up`, ‏`down`, ‏`migrate`, ‏`run`, ‏`relay`, ‏`dispatcher`, ‏`worker`, ‏`sink-test` | M1 |
 | `docs/` | יקבל runbooks, תחקיר, מודל איומים ותוצאות הערכה | M8 עד M10 |
 
 ## צעדים
@@ -74,9 +89,16 @@ make test-unit
 
 | אבן דרך | ימים | סעיף | הפקודה שמסיימת אותה |
 | --- | --- | --- | --- |
-| ‏M1: שלד ה־API | 22 ו־23 | 38.1 | `DATABASE_URL= go test -race ./internal/api/ ./internal/store/... ./internal/admin/` |
-| ‏M2: PostgreSQL וקליטה אידמפוטנטית | 29 ו־30 | 38.2 | `go test -race -count=1 ./...` עם `DATABASE_URL` מוגדר |
-| ‏M3 עד M10 | לפי הטבלה בפרק 37 | 38.3 עד 38.10 | יפורסמו עם אבני הדרך |
+| ‏M1: שלד ה־API | 22 ו־23 | 38.1 | הפקודה בסעיף 38.1.5 |
+| ‏M2: PostgreSQL וקליטה אידמפוטנטית | 29 ו־30 | 38.2 | הפקודה בסעיף 38.2.5, מול המסד |
+| ‏M3: מטמון והמקבל המדומה | 33 ו־34 | 38.3 | הפקודה בסעיף 38.3.5, ו־`make sink-test` |
+| ‏M4: ‏outbox ו־Redpanda | 39 ו־40 | 38.4 | הפקודה בסעיף 38.4.5 |
+| ‏M5: מסירה, חתימה וניסיונות חוזרים | 43 ו־44 | 38.5 | הפקודה בסעיף 38.5.5, כולל הבדיקה מקצה לקצה |
+| ‏M6: חוסן ועומס | 54 ו־55 | 38.6 | הפקודה בסעיף 38.6.5, ו־`make lab-n3` בשתי הגרסאות |
+| ‏M7 עד M10 | לפי הטבלה בפרק 37 | 38.7 עד 38.10 | יפורסמו עם אבני הדרך |
+
+הפקודות של כל אבן דרך מונות את החבילות שלה בלבד, ובדגל `-skip` מדלגות על בדיקות של אבני דרך מאוחרות שכבר נמצאות
+באותן חבילות. ה־starter מכיל את כל העץ, ולכן `go test ./...` ירוק רק בסוף.
 
 **3. קומיט לכל אבן דרך.** כשהפקודה ירוקה:
 
@@ -90,23 +112,24 @@ git commit -m "M1: API skeleton"
 
 </div>
 
-**4. המסד, מאבן הדרך השנייה.** כל עבודה עם PostgreSQL מתחילה ונגמרת כך:
+**4. הסביבה, מאבן הדרך השנייה.** באבן הדרך השנייה מספיק המסד (`make db-up`); מהשלישית, כל ה־compose. כל יום עבודה
+מתחיל ונגמר כך:
 
 <div dir="ltr" align="left">
 
 ```bash
 cd ~/senior-course/hookline
-make db-up
+make up
 export DATABASE_URL=postgres://hookline:change-me@localhost:5438/hookline
+export REDIS_ADDR=localhost:6438 KAFKA_BROKERS=localhost:19438 SINK_URL=http://localhost:8091
 go run ./cmd/hookline-admin migrate up
-make test
-make db-down
+make down
 ```
 
 </div>
 
-הסיסמה `change-me` היא סיסמת תרגול מקומית, ולא סוד. הפקודה `make db-down` מוחקת גם את ה־volume, כך שכל יום מתחיל
-ממסד נקי.
+בין שתי הפקודות האחרונות מריצים את הבדיקות של אבן הדרך. הסיסמה `change-me` והסוד `whsec_change-me` הם ערכי
+תרגול מקומיים, ולא סודות. ‏`make down` מוחקת גם את ה־volumes, כך שכל יום מתחיל ממצב נקי.
 
 ## פלט צפוי
 
@@ -125,24 +148,43 @@ ok  	example.com/hookline/internal/admin	3.010s
 
 </div>
 
-אחרי אבן הדרך השנייה, הרצה מלאה מול המסד מסתיימת כך (הזמנים אצלך יהיו אחרים):
+אחרי אבן הדרך החמישית, כל המודול מול ה־compose (`go test -race -count=1 ./...`) מסתיים כך, והזמנים אצלך יהיו אחרים:
 
 <div dir="ltr" align="left">
 
 ```text
-ok  	example.com/hookline/internal/admin	1.352s
-ok  	example.com/hookline/internal/api	2.177s
-ok  	example.com/hookline/internal/config	2.713s
-ok  	example.com/hookline/internal/db	3.995s
-ok  	example.com/hookline/internal/domain	1.727s
-ok  	example.com/hookline/internal/page	2.376s
-ok  	example.com/hookline/internal/platform	3.285s
-ok  	example.com/hookline/internal/problem	4.484s
-ok  	example.com/hookline/internal/store	4.788s
-ok  	example.com/hookline/internal/store/memory	2.058s
-ok  	example.com/hookline/internal/store/postgres	3.889s
-ok  	example.com/hookline/internal/store/storetest	4.147s
-ok  	example.com/hookline/migrations	4.469s
+ok  	example.com/hookline/internal/admin	1.534s
+ok  	example.com/hookline/internal/api	2.040s
+ok  	example.com/hookline/internal/backoff	1.817s
+ok  	example.com/hookline/internal/bus	2.656s
+ok  	example.com/hookline/internal/cache	3.612s
+ok  	example.com/hookline/internal/config	2.497s
+ok  	example.com/hookline/internal/db	2.815s
+ok  	example.com/hookline/internal/delivery	4.267s
+ok  	example.com/hookline/internal/dispatch	4.349s
+ok  	example.com/hookline/internal/domain	3.762s
+ok  	example.com/hookline/internal/e2e	5.467s
+ok  	example.com/hookline/internal/outbox	4.776s
+ok  	example.com/hookline/internal/page	4.339s
+ok  	example.com/hookline/internal/platform	4.002s
+ok  	example.com/hookline/internal/problem	3.882s
+ok  	example.com/hookline/internal/store	3.395s
+ok  	example.com/hookline/internal/store/memory	3.646s
+ok  	example.com/hookline/internal/store/postgres	4.074s
+ok  	example.com/hookline/internal/store/storetest	3.183s
+ok  	example.com/hookline/internal/subcache	3.270s
+ok  	example.com/hookline/internal/wire	3.076s
+ok  	example.com/hookline/migrations	3.585s
+```
+
+</div>
+
+ואחרי הרצה של ארבעת הבינאריים וחמישה אירועים (סעיף 38.5.4), ה־sink מדווח:
+
+<div dir="ltr" align="left">
+
+```text
+{"received":5,"unique":5,"duplicates":0,"rejected":0,"failed":0,"hooks":{"smoke":{"received":5,"unique":5,"duplicates":0,"rejected":0,"failed":0}}}
 ```
 
 </div>
@@ -154,9 +196,14 @@ ok  	example.com/hookline/migrations	4.469s
 - [ ] ‏M1: ‏`make run-dev`, ואז קליטה של אותו אירוע פעמיים מחזירה את אותו מזהה, וגוף אחר מחזיר 422.
 - [ ] ‏M1: החוזה עובר את redocly, ו־`TestSpecCoversEveryRoute` ירוקה.
 - [ ] ‏M2: המיגרציות עולות, יורדות עד 0 ועולות שוב.
-- [ ] ‏M2: ‏`go test -race -count=1 ./...` ירוק מול המסד, ואף בדיקה לא מדלגת.
+- [ ] ‏M2: הפקודה של סעיף 38.2.5 ירוקה מול המסד, ואף בדיקה שלה לא מדלגת.
+- [ ] ‏M3: בדיקות המטמון וההתפרצות עוברות מול Redis, ו־`make sink-test` נקי.
+- [ ] ‏M4: בדיקת נקודת הקריסה עוברת: כל אירוע מתפרסם פעמיים, ויש מסירה אחת לכל endpoint.
+- [ ] ‏M5: ‏`TestPipelineEndToEnd` ירוקה, ו־`go test -race -count=1 ./...` ירוק מול ה־compose.
+- [ ] ‏M6: המפסק, המחיצה, הגבלת הקצב וההשלה עוברים; שני relays, אחד מוביל.
+- [ ] ‏M6: ‏`make lab-n3` ו־`GUARDS=off make lab-n3` רצו, והמספרים שלך רשומים ב־`docs/EVALUATION.md`.
 - [ ] ‏M2: ‏`make lint` נקי, כולל staticcheck.
-- [ ] קומיט לכל אבן דרך שהסתיימה, ו־`make db-down` בסוף כל יום עם מסד.
+- [ ] קומיט לכל אבן דרך שהסתיימה, ו־`make down` בסוף כל יום.
 
 ## טעויות נפוצות ותיקונים
 

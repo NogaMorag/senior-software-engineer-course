@@ -38,10 +38,15 @@ type harness struct {
 }
 
 func newHarness(t *testing.T, devMode bool) *harness {
+	return newHarnessWith(t, devMode, nil)
+}
+
+// newHarnessWith is newHarness with a subscription-cache invalidator (milestone M3).
+func newHarnessWith(t *testing.T, devMode bool, subs api.Invalidator) *harness {
 	t.Helper()
 	st := newStore(t)
 	c := &clock{t: time.Date(2026, 10, 5, 9, 0, 0, 0, time.UTC)}
-	h := api.New(st, api.Options{MaxBodyBytes: 4096, DevMode: devMode, Now: c.now})
+	h := api.New(st, api.Options{MaxBodyBytes: 4096, DevMode: devMode, Now: c.now, Subscriptions: subs})
 	return &harness{t: t, store: st, h: h}
 }
 

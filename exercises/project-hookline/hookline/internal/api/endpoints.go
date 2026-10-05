@@ -79,6 +79,9 @@ func (s *server) disableEndpoint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	e, err := s.store.DisableEndpoint(r.Context(), tenantFrom(r.Context()).ID, id)
+	if err == nil {
+		s.changed(r, e.TenantID)
+	}
 	s.respond(w, r, "endpoint", id, e, err)
 }
 

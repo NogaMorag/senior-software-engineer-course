@@ -42,6 +42,7 @@ func (s *server) createSubscription(w http.ResponseWriter, r *http.Request) {
 	case err != nil:
 		s.internal(w, r, err)
 	default:
+		s.changed(r, sub.TenantID)
 		w.Header().Set("Location", "/v1/subscriptions/"+sub.ID)
 		writeJSON(w, http.StatusCreated, sub)
 	}
@@ -84,12 +85,14 @@ func (s *server) deleteSubscription(w http.ResponseWriter, r *http.Request) {
 		notFound(w, r, "subscription", id)
 		return
 	}
-	switch err := s.store.DeleteSubscription(r.Context(), tenantFrom(r.Context()).ID, id); {
+	tenantID := tenantFrom(r.Context()).ID
+	switch err := s.store.DeleteSubscription(r.Context(), tenantID, id); {
 	case errors.Is(err, domain.ErrNotFound):
 		notFound(w, r, "subscription", id)
 	case err != nil:
 		s.internal(w, r, err)
 	default:
+		s.changed(r, tenantID)
 		w.WriteHeader(http.StatusNoContent)
 	}
 }

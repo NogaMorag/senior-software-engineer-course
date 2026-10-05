@@ -123,6 +123,12 @@ func (s *Store) DeleteSubscription(ctx context.Context, tenantID, id string) err
 
 }
 
+// ActiveSubscriptions implements store.Subscriptions: the join keeps only enabled endpoints.
+func (s *Store) ActiveSubscriptions(ctx context.Context, tenantID string) ([]domain.Subscription, error) {
+	panic("TODO: see chapter 38")
+
+}
+
 // IngestEvent implements store.Events in one read-committed transaction:
 //
 //  1. INSERT ... ON CONFLICT (tenant_id, idempotency_key) DO NOTHING. A concurrent insert of the same key
@@ -145,6 +151,36 @@ func scanEvent(row pgx.Row) (domain.Event, error) {
 
 // GetEvent implements store.Events.
 func (s *Store) GetEvent(ctx context.Context, tenantID, id string) (domain.Event, error) {
+	panic("TODO: see chapter 38")
+
+}
+
+const deliveryColumns = `id, tenant_id, event_id, endpoint_id, status, attempts, attempt_base, next_attempt_at,
+	COALESCE(last_error, ''), delivered_at, created_at`
+
+func scanDelivery(row pgx.Row) (domain.Delivery, error) {
+	panic("TODO: see chapter 38")
+
+}
+
+// EventDeliveries implements store.Deliveries: the deliveries of one event, then every attempt of
+// those deliveries in a second query, attached in Go.
+func (s *Store) EventDeliveries(ctx context.Context, tenantID, eventID string) ([]domain.Delivery, error) {
+	panic("TODO: see chapter 38")
+
+}
+
+// DeadDeliveries implements store.Deliveries over the partial index deliveries_dead_page_idx.
+func (s *Store) DeadDeliveries(ctx context.Context, tenantID string, after *page.Cursor, limit int) ([]domain.Delivery, bool, error) {
+	panic("TODO: see chapter 38")
+
+}
+
+// ReplayDelivery implements store.Deliveries. attempts is not reset: attempt_base remembers where the new
+// round starts, so attempts.n stays unique and Hookline-Attempt keeps rising (chapter 29, section 29.5).
+// The status condition is in the UPDATE itself, so two replays at once move the delivery once; the
+// second finds it pending and gets domain.ErrNotDead.
+func (s *Store) ReplayDelivery(ctx context.Context, tenantID, id string) (domain.Delivery, error) {
 	panic("TODO: see chapter 38")
 
 }

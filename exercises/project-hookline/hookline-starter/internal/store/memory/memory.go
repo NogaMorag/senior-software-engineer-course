@@ -21,7 +21,8 @@ type Store struct {
 	endpoints     map[string]domain.Endpoint
 	subscriptions map[string]domain.Subscription
 	events        map[string]domain.Event
-	byIdemKey     map[idemKey]string // (tenant, idempotency key) -> event id: the unique constraint of M2
+	deliveries    map[string]domain.Delivery // only a test or a future in-process dispatcher adds any
+	byIdemKey     map[idemKey]string         // (tenant, idempotency key) -> event id: the unique constraint of M2
 }
 
 type idemKey struct{ tenantID, key string }
@@ -94,6 +95,12 @@ func (s *Store) DeleteSubscription(_ context.Context, tenantID, id string) error
 
 }
 
+// ActiveSubscriptions implements store.Subscriptions.
+func (s *Store) ActiveSubscriptions(_ context.Context, tenantID string) ([]domain.Subscription, error) {
+	panic("TODO: see chapter 38")
+
+}
+
 // IngestEvent implements store.Events. The mutex makes check-and-insert atomic, as the unique
 // constraint on (tenant_id, idempotency_key) does in PostgreSQL.
 func (s *Store) IngestEvent(_ context.Context, e domain.Event) (domain.Event, bool, error) {
@@ -103,6 +110,27 @@ func (s *Store) IngestEvent(_ context.Context, e domain.Event) (domain.Event, bo
 
 // GetEvent implements store.Events.
 func (s *Store) GetEvent(_ context.Context, tenantID, id string) (domain.Event, error) {
+	panic("TODO: see chapter 38")
+
+}
+
+// The memory store has no dispatcher, so in dev mode no deliveries exist: these methods answer
+// truthfully about an empty set. The PostgreSQL store is where deliveries live.
+
+// EventDeliveries implements store.Deliveries.
+func (s *Store) EventDeliveries(_ context.Context, tenantID, eventID string) ([]domain.Delivery, error) {
+	panic("TODO: see chapter 38")
+
+}
+
+// DeadDeliveries implements store.Deliveries.
+func (s *Store) DeadDeliveries(_ context.Context, tenantID string, after *page.Cursor, limit int) ([]domain.Delivery, bool, error) {
+	panic("TODO: see chapter 38")
+
+}
+
+// ReplayDelivery implements store.Deliveries.
+func (s *Store) ReplayDelivery(_ context.Context, tenantID, id string) (domain.Delivery, error) {
 	panic("TODO: see chapter 38")
 
 }

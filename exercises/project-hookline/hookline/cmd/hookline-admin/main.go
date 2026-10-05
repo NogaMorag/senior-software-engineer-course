@@ -16,14 +16,17 @@ import (
 	"time"
 
 	"example.com/hookline/internal/admin"
+	"example.com/hookline/internal/bus"
 	"example.com/hookline/internal/db"
+	"example.com/hookline/internal/outbox"
 	"example.com/hookline/internal/store/postgres"
 )
 
 const usage = `usage:
   hookline-admin migrate [up | down-to <version> | status]
   hookline-admin create-tenant -name <name> [-rate <per second>] [-burst <n>]
-DATABASE_URL names the database.
+  hookline-admin create-topic [-partitions <n>]
+DATABASE_URL names the database; create-topic needs KAFKA_BROKERS instead.
 `
 
 var errUsage = errors.New("unknown or incomplete command")
@@ -41,6 +44,9 @@ func main() {
 func run(args []string) error {
 	if len(args) == 0 {
 		return errUsage
+	}
+	if args[0] == "create-topic" {
+		return createTopic(args[1:])
 	}
 	url := os.Getenv("DATABASE_URL")
 	if url == "" {
@@ -103,4 +109,24 @@ func run(args []string) error {
 	default:
 		return errUsage
 	}
+}
+
+// createTopic creates hookline.events. The partition count caps how many dispatchers share the work.
+func createTopic(args []string) error {
+	fs := flag.NewFlagSet("create-topic", flag.ContinueOnError)
+	partitions := fs.Int("partitions", 6, "partitions of "+outbox.Topic)
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	brokers := bus.ParseBrokers(os.Getenv("KAFKA_BROKERS"))
+	if brokers == nil {
+		return errors.New("KAFKA_BROKERS is not set")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if err := bus.CreateTopic(ctx, brokers, outbox.Topic, int32(*partitions)); err != nil {
+		return err
+	}
+	fmt.Printf("topic %s: %d partitions\n", outbox.Topic, *partitions)
+	return nil
 }

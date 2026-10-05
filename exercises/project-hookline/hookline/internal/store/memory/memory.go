@@ -22,7 +22,8 @@ type Store struct {
 	endpoints     map[string]domain.Endpoint
 	subscriptions map[string]domain.Subscription
 	events        map[string]domain.Event
-	byIdemKey     map[idemKey]string // (tenant, idempotency key) -> event id: the unique constraint of M2
+	deliveries    map[string]domain.Delivery // only a test or a future in-process dispatcher adds any
+	byIdemKey     map[idemKey]string         // (tenant, idempotency key) -> event id: the unique constraint of M2
 }
 
 type idemKey struct{ tenantID, key string }
@@ -37,6 +38,7 @@ func New() *Store {
 		endpoints:     map[string]domain.Endpoint{},
 		subscriptions: map[string]domain.Subscription{},
 		events:        map[string]domain.Event{},
+		deliveries:    map[string]domain.Delivery{},
 		byIdemKey:     map[idemKey]string{},
 	}
 }
@@ -156,6 +158,16 @@ func (s *Store) DeleteSubscription(_ context.Context, tenantID, id string) error
 	return nil
 }
 
+// ActiveSubscriptions implements store.Subscriptions.
+func (s *Store) ActiveSubscriptions(_ context.Context, tenantID string) ([]domain.Subscription, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	items, _ := pageOf(s.subscriptions, func(sub domain.Subscription) bool {
+		return sub.TenantID == tenantID && s.endpoints[sub.EndpointID].Enabled
+	}, func(sub domain.Subscription) page.Cursor { return page.Cursor{CreatedAt: sub.CreatedAt, ID: sub.ID} }, nil, len(s.subscriptions))
+	return items, nil
+}
+
 // IngestEvent implements store.Events. The mutex makes check-and-insert atomic, as the unique
 // constraint on (tenant_id, idempotency_key) does in PostgreSQL.
 func (s *Store) IngestEvent(_ context.Context, e domain.Event) (domain.Event, bool, error) {
@@ -184,6 +196,46 @@ func (s *Store) GetEvent(_ context.Context, tenantID, id string) (domain.Event, 
 		return domain.Event{}, domain.ErrNotFound
 	}
 	return e, nil
+}
+
+// The memory store has no dispatcher, so in dev mode no deliveries exist: these methods answer
+// truthfully about an empty set. The PostgreSQL store is where deliveries live.
+
+// EventDeliveries implements store.Deliveries.
+func (s *Store) EventDeliveries(_ context.Context, tenantID, eventID string) ([]domain.Delivery, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if e, ok := s.events[eventID]; !ok || e.TenantID != tenantID {
+		return nil, domain.ErrNotFound
+	}
+	items, _ := pageOf(s.deliveries, func(d domain.Delivery) bool { return d.EventID == eventID },
+		func(d domain.Delivery) page.Cursor { return page.Cursor{CreatedAt: d.CreatedAt, ID: d.ID} }, nil, len(s.deliveries))
+	return items, nil
+}
+
+// DeadDeliveries implements store.Deliveries.
+func (s *Store) DeadDeliveries(_ context.Context, tenantID string, after *page.Cursor, limit int) ([]domain.Delivery, bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	items, more := pageOf(s.deliveries, func(d domain.Delivery) bool { return d.TenantID == tenantID && d.Status == domain.Dead },
+		func(d domain.Delivery) page.Cursor { return page.Cursor{CreatedAt: d.CreatedAt, ID: d.ID} }, after, limit)
+	return items, more, nil
+}
+
+// ReplayDelivery implements store.Deliveries.
+func (s *Store) ReplayDelivery(_ context.Context, tenantID, id string) (domain.Delivery, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	d, ok := s.deliveries[id]
+	switch {
+	case !ok || d.TenantID != tenantID:
+		return domain.Delivery{}, domain.ErrNotFound
+	case d.Status != domain.Dead:
+		return domain.Delivery{}, domain.ErrNotDead
+	}
+	d.Status, d.AttemptBase, d.LastError = domain.Pending, d.Attempts, ""
+	s.deliveries[id] = d
+	return d, nil
 }
 
 // pageOf selects the values that keep accepts, sorts them newest first by (CreatedAt, ID), and returns
