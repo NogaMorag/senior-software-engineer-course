@@ -52,8 +52,8 @@ Prometheus, Loki, Tempo ו־Grafana עם מקורות נתונים ודשבור�
 
 ```bash
 mkdir -p ~/senior-course/ch24
-cp -r $COURSE/exercises/ch24-telemetry/starter/. ~/senior-course/ch24/
-cp -r $COURSE/exercises/ch24-telemetry/data ~/senior-course/ch24/data
+cp -r "$COURSE/exercises/ch24-telemetry/starter/." ~/senior-course/ch24/
+cp -r "$COURSE/exercises/ch24-telemetry/data" ~/senior-course/ch24/data
 cd ~/senior-course/ch24
 (cd shorty && go build ./... && go test ./... 2>&1 | tail -3)
 (cd receiver && uv sync --frozen && uv run pytest -q 2>&1 | tail -2)
@@ -131,11 +131,14 @@ curl -s -X POST localhost:8080/v1/links -H 'Content-Type: application/json' \
 
 ## יום 73: מדדים, PromQL ודשבורד
 
-**7. תנועה.** הריצי את מחולל התנועה לחמש דקות ברקע; הוא בא באותו image:
+**7. תנועה.** אם הורדת את המחסנית בסוף יום 72, הרימי אותה שוב (הפקודה הראשונה). אחר כך הריצי את מחולל
+התנועה לחמש דקות ברקע; הוא בא באותו image:
 
 <div dir="ltr" align="left">
 
 ```bash
+cd ~/senior-course/ch24
+docker compose -p ch24 -f data/compose.yaml up -d --build --wait
 docker compose -p ch24 -f data/compose.yaml run -d --rm loadgen -rps 20 -d 5m
 ```
 
@@ -163,11 +166,14 @@ docker compose -p ch24 -f data/compose.yaml up -d --build --wait shorty linkwork
 
 ## יום 74: לוגים, מעקבים ו־Kafka
 
-**11. Kafka.** מלאי את `Hooks` ב־`internal/events/events.go` ואת שאר `Handle` (ה־span, השגיאה, התוצאה):
+**11. Kafka.** מלאי את `Hooks` ב־`internal/events/events.go` ואת שאר `Handle` (ה־span, השגיאה, התוצאה).
+הבדיקה השנייה צריכה את Redpanda של המחסנית, ולכן הפקודה הראשונה מרימה אותו אם הורדת את המחסנית אתמול:
 
 <div dir="ltr" align="left">
 
 ```bash
+cd ~/senior-course/ch24
+docker compose -p ch24 -f data/compose.yaml up -d --wait redpanda
 (cd shorty && go test -race ./...)
 (cd shorty && KAFKA_BROKERS=localhost:19092 go test -race -run TestTraceContextThroughRedpanda -v ./internal/events/)
 docker compose -p ch24 -f data/compose.yaml up -d --build --wait

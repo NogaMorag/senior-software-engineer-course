@@ -141,7 +141,17 @@ docker run --rm --read-only -p 127.0.0.1:8081:8081 -e RECEIVER_DEFAULT_SECRET=ch
 
 </div>
 
-בחלון שני, `curl -s localhost:8081/stats`. ב־image הזה יש `id`, ולכן הבדיקה הרגילה עובדת.
+בחלון שני:
+
+<div dir="ltr" align="left">
+
+```bash
+curl -s localhost:8081/stats
+```
+
+</div>
+
+ב־image הזה יש `id`, ולכן הבדיקה הרגילה עובדת.
 
 **7. הגדלים.** הריצי `docker image ls` ומלאי את הטבלה בפתק:
 

@@ -6,7 +6,7 @@ chapter: 23
 # GitHub Actions
 
 - **מבנה:** כל job רץ על מכונה נקייה; צעד הוא פקודה או action.
-- **בין jobs:** רק דרך `needs` ו־`outputs`, מטמון, או registry.
+- **בין jobs:** רק דרך פלטים (`needs` ו־`outputs`), מטמון, או registry.
 - **סינון לפי נתיב:** התיקייה, הקובץ של ה־workflow והקוד המשותף; לא לבדיקה חובה.
 - **‏shell:** ‏`shell: bash` מוסיף `pipefail`; בפעולה מורכבת חובה בכל צעד.
 - **‏service container:** תמיד עם בדיקת בריאות; הכתובת `localhost` כשה־job רץ על המכונה עצמה.

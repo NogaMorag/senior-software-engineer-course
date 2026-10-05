@@ -63,7 +63,8 @@ gh api repos/kubernetes-sigs/kind/releases/tags/v0.33.0 --jq .body | grep 'v1.37
 
 </div>
 
-אם `gh` לא מחובר אצלך, אותו טקסט נמצא בעמוד הגרסה ב־GitHub של `kubernetes-sigs/kind`.
+הפקודה `gh` (GitHub CLI) אינה חלק מההתקנות של פרק 2. אם היא לא מותקנת ומחוברת אצלך, אותו טקסט נמצא
+בעמוד הגרסה של kind ב־GitHub, במאגר `kubernetes-sigs/kind`.
 
 **3. צרי את האשכול**, ובדקי שה־node מוכן ושהגרסה היא 1.37.0:
 
@@ -264,7 +265,7 @@ Deleted nodes: ["ch20-control-plane"]
 - [ ] שני ה־images נטענו ל־node, ואף pod לא היה ב־`ErrImagePull`.
 - [ ] ה־Deployment מדווח `2/2`, ו־pod שנמחק הוחלף ב־pod עם שם אחר.
 - [ ] יצירת קישור ומעקב אחריו דרך `port-forward` מצליחים, וה־`short_url` מגיע מה־ConfigMap.
-- [ ] כיבוי המוכנות הוריד את ה־pod ל־`0/1` ו־`ready=false` עם `RESTARTS` של 0, והדלקה החזירה אותו.
+- [ ] כיבוי המוכנות הוריד את ה־pod ל־`0/1` ול־`ready=false` בלי אף הפעלה מחדש, והדלקה החזירה אותו.
 - [ ] אין קובץ Secret במאגר, וה־sender קיבל 200 מה־receiver לפי שם.
 - [ ] הסקריפט `run_all.sh` מסתיים ב־`PASS` בשתי הבדיקות, ו־`kind get clusters` ריק אחריו.
 
@@ -284,11 +285,11 @@ Deleted nodes: ["ch20-control-plane"]
 
 ## רמזים
 
-- ב־Deployment, `selector.matchLabels` וה־`labels` של `template.metadata` חייבים להיות זהים.
+- ב־Deployment, התוויות ב־`selector.matchLabels` חייבות להיות זהות לאלה שב־`template.metadata.labels`.
 - ב־Service, `targetPort: http` מפנה לשם של פורט הקונטיינר, כך ששינוי מספר הפורט נוגע במקום אחד.
-- ב־ConfigMap, כל הערכים הם מחרוזות. `10s` נשאר מחרוזת, ו־shorty מפרש אותה כמשך זמן.
-- בבדיקות, `port: http` עובד גם כאן, ו־`periodSeconds` קובע כל כמה זמן ה־kubelet שואל.
-- כדי לראות למה pod לא מוכן: `kubectl -n ch20 describe pod <name>`, ובסוף הפלט, האירועים.
+- ב־ConfigMap, כל הערכים הם מחרוזות. הערך `10s` נשאר מחרוזת, ו־shorty מפרש אותה כמשך זמן.
+- בבדיקות, `port: http` עובד גם כאן. השדה `periodSeconds` קובע כל כמה זמן שואלים.
+- כדי לראות למה pod לא מוכן, הריצי עליו `kubectl describe` וקראי את האירועים בסוף הפלט.
 
 ## הפתרון
 

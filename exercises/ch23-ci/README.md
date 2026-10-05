@@ -77,10 +77,16 @@ cp -r "$COURSE/exercises/ch23-ci/starter/tests" .
 cp "$COURSE/exercises/ch23-ci/starter/ch06/Dockerfile" "$COURSE/exercises/ch23-ci/starter/ch06/.dockerignore" ch06/
 cp -r "$COURSE/exercises/ch23-ci/starter/ch06/deploy" ch06/
 sudo apt install -y shellcheck
+shellcheck --version
 ls ch06/go.mod ch08/uv.lock ch11/go.mod ch08/data ch11/data
 ```
 
 </div>
+
+הכלי shellcheck מותקן כאן מ־`apt`, כלומר בגרסה של ההפצה, בלי הצמדה. סקריפט הבדיקה הסטטית ו־actionlint מחפשים
+אותו בנתיב החיפוש של המעטפת, ולכן הוא מותקן על המחשב ולא רץ מקונטיינר. נכון לאוקטובר 2026, הגרסה היציבה היא
+זו שבנספח ג; גרסת ההפצה יכולה להיות ישנה ממנה ולמצוא ממצאים מעט אחרים. רשמי בפתק את הגרסה
+שהודפסה.
 
 הפקודה האחרונה מוודאת ששלושת הפרויקטים נמצאים איפה שה־workflows מחפשים אותם. אם אחד חסר, או שהבדיקות שלו
 לא ירוקות אצלך, העתיקי את הפתרון שלו מהתיקייה `solution/` של התרגיל הזה, למשל:
@@ -125,8 +131,7 @@ tests/lint.sh
 
 </div>
 
- לפני שאת כותבת, ראי בעיניים למה הקלט הזה
-קיים:
+לפני שאת כותבת, ראי בעיניים למה הקלט הזה קיים:
 
 <div dir="ltr" align="left">
 
@@ -270,7 +275,7 @@ every workflow declares its permissions
 
 </div>
 
-הסיכום של ההרצה המקומית עם `--kind`, על הפתרון, אצל המחברת. השורות של Go סופרות שורות `--- PASS`, כולל
+הסיכום של ההרצה המקומית עם `--kind`, על הפתרון, בהרצה שבה נכתב הספר. השורות של Go סופרות שורות `--- PASS`, כולל
 תתי־בדיקות; את המספרים שלך תרשמי בפתק:
 
 <div dir="ltr" align="left">

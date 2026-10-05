@@ -17,12 +17,13 @@ part: "חלק ה: Cloud-native"
 
 ## מה נלמד בפרק
 
-- requests ו־limits, שלוש מחלקות QoS, ומה קורה בחריגה מכל אחד מהם: חניקה במעבד, הריגה בזיכרון.
-- metrics-server על kind ו־HPA שמוסיף עותקים תחת עומס אמיתי ומוריד אותם אחריו.
-- אסטרטגיית rolling update, גרסה שבורה שנתקעת בלי לפגוע במשתמשים, ו־`kubectl rollout undo`.
-- ingress על kind בדרך שהתיעוד של kind ממליץ עליה היום, ולמה ingress-nginx כבר לא ברירת המחדל.
-- סדר בדיקות קבוע לתקלה: describe, logs, events, exec ו־`kubectl debug`, על ארבע תקלות שתולות.
-- chart ראשון של Helm: values, templates, `_helpers.tpl`, סכמת values, lint, install, upgrade ו־rollback.
+- בקשות ותקרות משאבים, שלוש מחלקות QoS, ומה קורה בחריגה מכל אחת מהן: חניקה במעבד, הריגה בזיכרון.
+- הרכיב metrics-server על kind, ו־HPA שמוסיף עותקים תחת עומס אמיתי ומוריד אותם אחריו.
+- אסטרטגיית rolling update, גרסה שבורה שנתקעת בלי לפגוע במשתמשים, וחזרה אחורה.
+- גישה מבחוץ (ingress) על kind בדרך שהתיעוד של kind ממליץ עליה נכון לאוקטובר 2026, ולמה ingress-nginx כבר לא
+  ברירת המחדל.
+- סדר בדיקות קבוע לתקלה, מהסטטוס ועד קונטיינר דיבוג זמני, על ארבע תקלות שתולות.
+- חבילה ראשונה (chart) של Helm: תבניות, ערכים וסכמה שבודקת אותם, ומחזור החיים של התקנה, שדרוג וחזרה אחורה.
 
 ## ידע מקדים
 
@@ -473,11 +474,11 @@ docker run -d --name ch21-cloud-provider --network kind \
 
 הדגל האחרון ממפה את הפורט של ה־gateway לפורט במחשב שלך. ה־README של cloud-provider-kind מסביר למה: ב־Mac
 וב־Windows הקונטיינרים רצים במכונה וירטואלית, וכתובות ה־IP של kind לא נגישות מהמחשב. על WSL2 עם רשת NAT,
-לפי אותו README, הכתובת החיצונית אמורה להיות נגישה ישירות. הכותב בדק רק את הדרך של המיפוי; אם הכתובת לא
-עונה אצלך, השתמשי במיפוי.
+לפי אותו README, הכתובת החיצונית אמורה להיות נגישה ישירות. בהרצה שבה נכתב הספר נבדקה רק הדרך של המיפוי;
+אם הכתובת לא עונה אצלך, השתמשי במיפוי.
 
-> **שימי לב:** הקונטיינר רץ בתוך Linux, ולכן הוא לא יכול לזהות לבד שהוא על Mac. הרצה ראשונה בלי הדגל מיפתה
-> רק את פורט הניהול של envoy, ו־`curl` קיבל את דף הניהול שלו במקום את shorty. אם את רואה רשימה של פקודות
+> **שימי לב:** הקונטיינר רץ בתוך Linux, ולכן הוא לא יכול לזהות לבד שהמארח הוא Mac או Windows. בהרצה שבה נכתב
+> הספר, על Mac, הרצה ראשונה בלי הדגל מיפתה רק את פורט הניהול של envoy, ו־`curl` קיבל את דף הניהול שלו במקום את shorty. אם את רואה רשימה של פקודות
 > ניהול, זה הסימן.
 
 ### 21.4.3 ה־Ingress של shorty
@@ -577,7 +578,7 @@ FAIL  app-d
 
 </div>
 
-הסעיף לא מגלה מה שבור באיזה שירות; זה התרגיל. הוא כן מראה איך נראית כל אחת מארבע סוגי הראיות, כדי שתזהי
+הסעיף לא מגלה מה שבור באיזה שירות; זה התרגיל. הוא כן מראה איך נראה כל אחד מארבעת סוגי הראיות, כדי שתזהי
 אותן כשתגיעי אליהן. לוג של התהליך הקודם, כשהתצורה שגויה, נראה כך:
 
 <div dir="ltr" align="left">
@@ -642,7 +643,7 @@ OCI runtime exec failed: exec failed: unable to start container process: exec: "
 על ה־image הקטן. היא מוסיפה ל־pod הרץ קונטיינר זמני (ephemeral container) עם image משלך, והדגל `--target`
 משתף איתו את מרחב התהליכים של הקונטיינר המקורי. ברשת הם תמיד משתפים, כי זה אותו pod.
 
-הניסיון הראשון, בזמן כתיבת הספר, נתקע. הקונטיינר הזמני לא עלה, והסיבה הופיעה רק בסטטוס שלו:
+הניסיון הראשון, בהרצה שבה נכתב הספר, נתקע. הקונטיינר הזמני לא עלה, והסיבה הופיעה רק בסטטוס שלו:
 
 <div dir="ltr" align="left">
 
@@ -758,9 +759,9 @@ kube-controller-manager Update
 <div dir="ltr" align="left">
 
 ```bash
-helm install shorty solution/chart/shorty -n web --create-namespace -f data/values-kind.yaml --wait --timeout 120s
+helm install shorty chart/shorty -n web --create-namespace -f data/values-kind.yaml --wait --timeout 120s
 helm list -n web
-helm upgrade shorty solution/chart/shorty -n web -f data/values-kind.yaml --set config.logLevel=info --wait
+helm upgrade shorty chart/shorty -n web -f data/values-kind.yaml --set config.logLevel=info --wait
 helm history shorty -n web
 ```
 
@@ -775,7 +776,7 @@ helm history shorty -n web
 <div dir="ltr" align="left">
 
 ```bash
-helm upgrade shorty solution/chart/shorty -n web -f data/values-kind.yaml \
+helm upgrade shorty chart/shorty -n web -f data/values-kind.yaml \
   --set image.tag=ch21-typo --rollback-on-failure --timeout 60s
 ```
 
@@ -964,13 +965,17 @@ shorty:
 | `helm template` | מה בדיוק יישלח לשרת, בלי אשכול | שום דבר; זה הפלט שקוראים |
 | kubeconform | שכל manifest תואם לסכמה של גרסת Kubernetes מסוימת | שה־selector תואם לתוויות, שהפורט נכון |
 
-הסקריפט `tests/check_static.sh` מריץ את שלושתם, ואת kubeconform מתוך ה־image שלו, בתג נעול:
+הסקריפט `tests/check_static.sh` מריץ את שלושתם, ואת kubeconform מתוך ה־image שלו, בתג נעול. אלה השורות
+שמגדירות את kubeconform ומעבירות אליו את פלט התבניות:
 
 <div dir="ltr" align="left">
 
 ```bash
-helm template ch21 "$CHART" --set autoscaling.enabled=true | \
-  docker run --rm -i ghcr.io/yannh/kubeconform:v0.8.0 -strict -summary -kubernetes-version 1.37.0 -
+KUBECONFORM_IMAGE="ghcr.io/yannh/kubeconform:v0.8.0"
+K8S_VERSION="1.37.0"
+kubeconform() { docker run --rm -i -v "$ROOT:/work:ro" "$KUBECONFORM_IMAGE" -strict -summary -kubernetes-version "$K8S_VERSION" "$@"; }
+rendered="$(helm template ch21 "$CHART" --set autoscaling.enabled=true)" || rendered=""
+if [ -n "$rendered" ] && printf '%s\n' "$rendered" | kubeconform -; then pass "helm template | kubeconform"; else fail "helm template | kubeconform"; fi
 ```
 
 </div>
@@ -989,17 +994,17 @@ Summary: 4 resources found parsing stdin - Valid: 4, Invalid: 0, Errors: 0, Skip
 
 ## סיכום
 
-- requests הם הבטחה ל־scheduler ומכנה ל־HPA; limits הם תקרה. חריגה במעבד היא חניקה ואיטיות, חריגה בזיכרון
+- הבקשות (requests) הן הבטחה ל־scheduler ומכנה ל־HPA; התקרות (limits) הן גבול עליון. חריגה במעבד היא חניקה ואיטיות, חריגה בזיכרון
   היא `OOMKilled` וקוד 137.
 - מחלקת QoS נגזרת מהמספרים וקובעת מי מפונה ראשון; shorty הוא `Burstable`.
-- ה־HPA צריך metrics-server ו־request למעבד; על kind צריך `--kubelet-insecure-tls`, לבדיקות בלבד.
-- כשיש HPA, הוא הבעלים של מספר העותקים, וה־manifest לא כותב `replicas`.
-- rolling update עם `maxUnavailable: 0` ובדיקת מוכנות משאיר גרסה שבורה תקועה בלי לפגוע במשתמשים;
-  `ProgressDeadlineExceeded` מודיע על הכישלון, ו־`rollout undo` חוזר אחורה.
-- ingress-nginx פרש במרץ 2026; על kind, cloud-provider-kind מממש Ingress ו־Gateway API בעצמו.
-- דיבוג הוא סדר: get, describe, logs, endpoints, events, ואז `kubectl debug` מבפנים.
-- Helm מפריד values מ־templates, שומר היסטוריית revisions, ובגרסה 4 מתקין ב־server-side apply.
-- סכמת values תופסת טעויות לפני ההתקנה; kubeconform בודק חוקיות, ורק אשכול אמיתי בודק נכונות.
+- ה־HPA צריך את metrics-server ובקשת מעבד; על kind צריך את הדגל `--kubelet-insecure-tls`, לבדיקות בלבד.
+- כשיש HPA, הוא הבעלים של מספר העותקים, וה־manifest לא כותב את השדה `replicas`.
+- עדכון מסוג rolling update, עם `maxUnavailable: 0` ובדיקת מוכנות, משאיר גרסה שבורה תקועה בלי לפגוע
+  במשתמשים. התנאי `ProgressDeadlineExceeded` מודיע על הכישלון, והפקודה `rollout undo` חוזרת אחורה.
+- הפרויקט ingress-nginx פרש במרץ 2026. על kind, הרכיב cloud-provider-kind מממש בעצמו גם Ingress וגם Gateway API.
+- דיבוג הוא סדר קבוע: סטטוס, תיאור, לוג, endpoints ואירועים, ורק בסוף קונטיינר זמני מבפנים.
+- הכלי Helm מפריד ערכים מתבניות ושומר היסטוריה של כל release; בגרסה 4 הוא מתקין ב־server-side apply.
+- סכמה לערכים תופסת טעויות לפני ההתקנה; הכלי kubeconform בודק חוקיות, ורק אשכול אמיתי בודק נכונות.
 
 ## מונחים לזכור
 
@@ -1055,12 +1060,12 @@ Summary: 4 resources found parsing stdin - Valid: 4, Invalid: 0, Errors: 0, Skip
    שבודקת רק שהתהליך חי, המנגנון מחליף pods טובים בשבורים באותו קצב. המחיר: עדכון איטי יותר וצורך במקום
    ל־pod נוסף.
 
-4. **pod לא עובד. מה סדר הבדיקות שלך?** קודם `get` כדי למיין: קורס, לא מוכן, או רץ ולא עונה. ל־קורס, לוג של
-   ההרצה הקודמת; ל־לא מוכן, האירועים ב־describe; ל־רץ ולא עונה, ה־endpoints של ה־Service והפורטים. אחר כך
-   אירועי ה־namespace לפי זמן, ורק בסוף מבפנים, עם `kubectl debug` כשה־image לא מכיל shell. הנימוק: כל צעד
-   זול מהבא ומצמצם את האפשרויות, ובכל שלב אני מחפשת ראיה, לא משנה דברים כדי לראות מה קורה.
+4. **ה־pod לא עובד. מה סדר הבדיקות שלך?** קודם `get` כדי למיין: קורס, לא מוכן, או רץ ולא עונה. אם הוא קורס,
+   לוג של ההרצה הקודמת; אם הוא לא מוכן, האירועים ב־describe; אם הוא רץ ולא עונה, ה־endpoints של ה־Service
+   והפורטים. אחר כך אירועי ה־namespace לפי זמן, ורק בסוף מבפנים, עם `kubectl debug` כשה־image לא מכיל shell.
+   הנימוק: כל צעד זול מהבא ומצמצם את האפשרויות, ובכל שלב אני מחפשת ראיה, לא משנה דברים כדי לראות מה קורה.
 
-   **המשך:** ואם ה־image הוא distroless? `exec` לא יעבוד, ו־`kubectl debug` מוסיף קונטיינר זמני עם כלים.
+   **המשך:** ואם ה־image הוא distroless? הפקודה `exec` לא תעבוד, ו־`kubectl debug` מוסיף קונטיינר זמני עם כלים.
    אם ה־pod דורש משתמש שאינו root, הקונטיינר הזמני צריך לקבל משתמש כזה, אחרת הוא לא יעלה.
 
 5. **מה Helm נותן שאין ב־manifests רגילים, ומה המחיר?** חבילה עם פרמטרים, release עם היסטוריה ו־rollback
@@ -1080,11 +1085,11 @@ Summary: 4 resources found parsing stdin - Valid: 4, Invalid: 0, Errors: 0, Skip
 - **metrics-server על kind:** תעודת kubelet חתומה עצמית; הדגל לבדיקות בלבד.
 - **rollout:** `maxUnavailable: 0` ובדיקת מוכנות משאירים גרסה שבורה תקועה; `ProgressDeadlineExceeded`.
 - **undo:** כפתור חירום; התיקון האמיתי הוא commit.
-- **ingress:** ingress-nginx פרש במרץ 2026; על kind, cloud-provider-kind; ב־Mac מיפוי פורטים.
+- **ingress:** הפרויקט ingress-nginx פרש במרץ 2026; על kind משתמשים ב־cloud-provider-kind, עם מיפוי פורטים.
 - **מצב בזיכרון:** שני עותקים, שני מאגרים; חצי מהבקשות 404.
-- **דיבוג:** get, describe, logs `--previous`, endpointslices, events, debug.
-- **Helm:** values משתנים, templates זהים; revisions ו־rollback; בגרסה 4 server-side apply.
-- **בדיקות:** סכמת values תופסת טעויות כתיב; kubeconform חוקיות; smoke נכונות.
+- **דיבוג:** סדר קבוע מהכללי לפרטני; הפקודות בטבלה שלמטה.
+- **Helm:** ערכים משתנים בין התקנות, תבניות זהות בכולן; היסטוריה וחזרה לגרסה מדויקת.
+- **בדיקות:** סכמה לערכים תופסת טעויות כתיב; בדיקת סכמה מוכיחה חוקיות; רק בדיקת עשן מוכיחה נכונות.
 - **שאלה פתוחה:** ___
 
 <div dir="ltr" align="left">
@@ -1134,8 +1139,8 @@ metrics-server ו־HPA תחת עומס, rollout שבור ו־undo, ingress דר�
 
 - לקרוא את ההכרזה על פרישת ingress-nginx בבלוג של Kubernetes (נובמבר 2025), ואת המדריך למעבר ל־Gateway API
   באתר gateway-api.sigs.k8s.io; ואז לכתוב `Gateway` ו־`HTTPRoute` ל־shorty במקום ה־Ingress.
-- לקרוא את מונה החניקה מתוך ה־node: `docker exec ch21-control-plane` ומציאת הקובץ `cpu.stat` של הקונטיינר
-  תחת `/sys/fs/cgroup`. השדה `nr_throttled` גדל בזמן שאת שולחת בקשות מעבד.
+- לקרוא את מונה החניקה מתוך ה־node, שהוא הקונטיינר `ch21-control-plane`: להיכנס אליו ב־`docker exec`, ולמצוא
+  את הקובץ `cpu.stat` של הקונטיינר תחת `/sys/fs/cgroup`. השדה `nr_throttled` גדל בזמן שאת שולחת בקשות מעבד.
 - להוסיף ל־chart תבנית Ingress אופציונלית, עם `ingress.enabled` בסכמה, ולבדוק אותה ב־`helm template`.
 - לקרוא את עמוד הסקירה של Helm 4 באתר helm.sh, ולנסות `helm install` עם `--server-side=false` כדי לראות
   את ההבדל ב־`managedFields`.

@@ -690,7 +690,7 @@ go version go1.27.1 linux/amd64
 | buf, protoc-gen-go, protoc-gen-go-grpc | יצירת קוד מקובצי protobuf | 9 |
 | goose | מיגרציות לסכמה של PostgreSQL | 11 |
 | actionlint | בדיקת קובצי workflow של GitHub Actions | 23 |
-| govulncheck | סריקת חולשות ידועות בתלויות | 28 |
+| govulncheck | סריקת חולשות ידועות בתלויות | 27 |
 | golangci-lint | מריץ עשרות בודקי קוד בבת אחת; מותקן כקובץ מוכן, לא דרך `go install` | 27 |
 
 <div dir="ltr" align="left">

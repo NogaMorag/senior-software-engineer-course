@@ -174,8 +174,15 @@ kubectl -n shorty rollout status deploy/shorty
 
 </div>
 
-את האשכול משאירים ליום 63. אם את עוצרת כאן ליותר מיום, מחקי אותו (`kind delete cluster --name ch21`) וצעדים
-1, 2 ו־6 מחזירים אותו.
+את האשכול משאירים ליום 63. אם את עוצרת כאן ליותר מיום, מחקי אותו, ומחר צעדים 1, 2 ו־6 יחזירו אותו:
+
+<div dir="ltr" align="left">
+
+```bash
+kind delete cluster --name ch21
+```
+
+</div>
 
 ## יום 63: ingress, תרגיל הדיבוג וה־chart
 
@@ -286,7 +293,7 @@ helm upgrade shorty chart/shorty -n web -f data/values-kind.yaml \
 helm history shorty -n web
 helm rollback shorty 1 -n web --wait
 helm get values shorty -n web
-helm install bad chart/shorty -n web --set replicaCount=two
+helm install bad chart/shorty -n web --set replicaCount=two   # expected to fail: the schema rejects it
 helm uninstall shorty -n web --wait
 ```
 

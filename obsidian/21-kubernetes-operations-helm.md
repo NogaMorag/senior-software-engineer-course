@@ -12,11 +12,11 @@ chapter: 21
 - **metrics-server על kind:** תעודת kubelet חתומה עצמית; הדגל לבדיקות בלבד.
 - **rollout:** `maxUnavailable: 0` ובדיקת מוכנות משאירים גרסה שבורה תקועה; `ProgressDeadlineExceeded`.
 - **undo:** כפתור חירום; התיקון האמיתי הוא commit.
-- **ingress:** ingress-nginx פרש במרץ 2026; על kind, cloud-provider-kind; ב־Mac מיפוי פורטים.
+- **ingress:** הפרויקט ingress-nginx פרש במרץ 2026; על kind משתמשים ב־cloud-provider-kind, עם מיפוי פורטים.
 - **מצב בזיכרון:** שני עותקים, שני מאגרים; חצי מהבקשות 404.
-- **דיבוג:** get, describe, logs `--previous`, endpointslices, events, debug.
-- **Helm:** values משתנים, templates זהים; revisions ו־rollback; בגרסה 4 server-side apply.
-- **בדיקות:** סכמת values תופסת טעויות כתיב; kubeconform חוקיות; smoke נכונות.
+- **דיבוג:** סדר קבוע מהכללי לפרטני; הפקודות בטבלה שלמטה.
+- **Helm:** ערכים משתנים בין התקנות, תבניות זהות בכולן; היסטוריה וחזרה לגרסה מדויקת.
+- **בדיקות:** סכמה לערכים תופסת טעויות כתיב; בדיקת סכמה מוכיחה חוקיות; רק בדיקת עשן מוכיחה נכונות.
 - **שאלה פתוחה:** ___
 
 <div dir="ltr" align="left">
