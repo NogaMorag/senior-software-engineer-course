@@ -4,6 +4,8 @@
 #
 #   scripts/load.sh ingest          # spec N1: loadtest/ingest.js, RATE events per second (default 100)
 #   scripts/load.sh two-tenants     # spec N5: loadtest/two-tenants.js, a noisy tenant and a quiet one
+#   scripts/load.sh overload        # spec N6: loadtest/overload.js, RATE (default 800) against an API
+#                                   # whose in-flight limit is MAX_IN_FLIGHT (default 4)
 #
 # k6 exits non-zero when a threshold fails, and so does this script. Its summary is saved to
 # $OUT/<test>-summary.txt; copy the numbers you got, with the date and the machine, to docs/EVALUATION.md.
@@ -16,9 +18,11 @@ OUT=${OUT:-/tmp/hookline-load}
 
 TEST=${1:-}
 case "$TEST" in
-  ingest | two-tenants) ;;
-  *) echo "usage: scripts/load.sh ingest | two-tenants" >&2; exit 2 ;;
+  ingest | two-tenants | overload) ;;
+  *) echo "usage: scripts/load.sh ingest | two-tenants | overload" >&2; exit 2 ;;
 esac
+# Overload: a small in-flight limit, so a laptop can push the API past it (read by start_hookline's api).
+if [ "$TEST" = overload ]; then export HOOKLINE_MAX_IN_FLIGHT=${MAX_IN_FLIGHT:-4}; fi
 command -v k6 > /dev/null || { echo "k6 is not on PATH (chapter 26 installs it)" >&2; exit 1; }
 
 cleanup() {
@@ -28,7 +32,7 @@ cleanup() {
 trap cleanup EXIT
 
 echo "== stack and binaries (logs in $OUT)"
-$COMPOSE up -d --wait --build > "$OUT/compose.log" 2>&1
+$COMPOSE up -d --wait --build > "$OUT/compose.log" 2>&1 || { echo "compose failed; see $OUT/compose.log" >&2; exit 1; }
 start_hookline
 curl -sf -X POST "$SINK/reset" > /dev/null
 
@@ -36,6 +40,9 @@ echo "== $TEST"
 args=(-e BASE_URL="$API" --summary-export "$OUT/$TEST-summary.json")
 if [ "$TEST" = ingest ]; then
   args+=(-e API_KEY="$(new_tenant load)" -e RATE="${RATE:-100}")
+elif [ "$TEST" = overload ]; then
+  # A limit far above the flood, so every refusal comes from the shedder.
+  args+=(-e API_KEY="$(new_tenant overload 100000)" -e RATE="${RATE:-800}")
 else
   NOISY_RATE=${NOISY_RATE:-100}
   # The noisy tenant's limit is a fifth of what it sends; the quiet one's is far above its rate.

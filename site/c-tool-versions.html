@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>נספח ג: גרסאות כלים</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="top"><a href="index.html">תוכן העניינים</a> · <a href="b-troubleshooting.html">← נספח ב: פתרון תקלות</a> · <a href="d-obsidian-templates.html">נספח ד: תבניות פתקים ל־Obsidian →</a></nav>
+<main class="book">
+<div class="toc"><span class="toctitle">תוכן הפרק</span><ul>
+<li><a href="#_2">איפה הגרסאות חיות</a></li>
+<li><a href="#_3">איך בודקים אם יש גרסה חדשה</a></li>
+<li><a href="#_4">שרשרת הכלים</a></li>
+<li><a href="#57">הכלים של חלק ה (יום 57)</a></li>
+<li><a href="#go">מודולים של Go</a></li>
+<li><a href="#python">חבילות Python</a></li>
+<li><a href="#images">images</a></li>
+<li><a href="#github-actions">GitHub Actions</a></li>
+<li><a href="#_5">שונות</a></li>
+<li><a href="#ietf">טיוטות IETF</a></li>
+<li><a href="#_6">אי־התאמות ידועות</a></li>
+</ul>
+</div>
+
+<h1 id="_1">נספח ג: גרסאות כלים</h1>
+<p>הנספח הזה מרכז את כל הגרסאות שהספר מצמיד, <strong>נכון לאוקטובר 2026</strong>. כל הגרסאות של הכלים, המודולים, החבילות
+וה־images נבדקו ב־5 באוקטובר 2026 מול מקור ראשי. הפרקים עצמם לא כותבים גרסאות בטקסט; הם אומרים „נכון לאוקטובר
+2026” ומפנים לכאן. הגרסה שקובעת בפועל היא זו שבקובץ, והנספח מראה איפה כל אחת יושבת.</p>
+<h2 id="_2">איפה הגרסאות חיות</h2>
+<table>
+<thead>
+<tr>
+<th>סוג</th>
+<th>הקובץ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>כלים שמותקנים בתיקיית הבית שלך</td>
+<td>פקודות ההתקנה בפרק 2, והמינימום שהרופא בודק (<code>exercises/ch02-workbench/solution/doctor.sh</code>)</td>
+</tr>
+<tr>
+<td>מודולים של Go</td>
+<td><code>go.mod</code> של כל מודול, עם <code>go.sum</code> לצידו</td>
+</tr>
+<tr>
+<td>חבילות Python</td>
+<td><code>pyproject.toml</code> עם גרסאות מדויקות, ו־<code>uv.lock</code> שנועל את כל העץ</td>
+</tr>
+<tr>
+<td>images</td>
+<td>קובצי compose בתיקייה <code>data/</code> של כל תרגיל, <code>Dockerfile</code>, קובצי kind, וסקריפטים שמריצים כלי בקונטיינר</td>
+</tr>
+<tr>
+<td>GitHub Actions</td>
+<td>קובצי ה־workflow של תרגיל פרק 23</td>
+</tr>
+<tr>
+<td>Terraform</td>
+<td><code>versions.tf</code> של כל תצורה, ו־<code>.terraform.lock.hcl</code> שנוצר ב־<code>init</code></td>
+</tr>
+<tr>
+<td>Rust</td>
+<td><code>rust-toolchain.toml</code> של תרגיל פרק 33</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_3">איך בודקים אם יש גרסה חדשה</h2>
+<table>
+<thead>
+<tr>
+<th>מה</th>
+<th>הפקודה או המקום</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>מודולים של Go</td>
+<td><code>go list -m -u all</code> בתיקיית המודול: כל שורה עם סוגריים מרובעים היא גרסה חדשה יותר</td>
+</tr>
+<tr>
+<td>חבילת Python אחת</td>
+<td><code>uv lock --upgrade-package &lt;pkg&gt;</code>, ואז <code>uv sync</code></td>
+</tr>
+<tr>
+<td>image</td>
+<td>דף התגיות ב־Docker Hub (או ב־GHCR, לאימג'ים שמתפרסמים שם)</td>
+</tr>
+<tr>
+<td>כלי שורת פקודה ו־actions</td>
+<td>דף ה־Releases של הפרויקט ב־GitHub</td>
+</tr>
+<tr>
+<td>כלי Go שמותקן ב־<code>go install</code></td>
+<td><code>go list -m -versions</code> עם שם המודול של הכלי</td>
+</tr>
+</tbody>
+</table>
+<p>הפקודות, כשהן נכתבות במלואן:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">go list -m -u all
+uv lock --upgrade-package fastapi &amp;&amp; uv sync
+go list -m -versions honnef.co/go/tools
+</code></pre>
+
+
+</div>
+
+<p>הכלל: <strong>משדרגים בכוונה, אחד בכל פעם, ומריצים את הבדיקות מחדש.</strong> שדרוג של כמה דברים יחד הופך כישלון לחידה, כי
+אי אפשר לדעת איזה מהם שבר. גרסה ראשית חדשה (כמו המעבר ל־Helm 4 או ל־k6 2) כמעט תמיד שוברת משהו,
+ושם קוראים קודם את הערות השחרור. ואחרי שדרוג, מעדכנים את הקובץ שבו הגרסה מוצמדת ואת השורה כאן.</p>
+<p>העמודה „נבדק ב” אומרת מתי ומול איזה מקור נבדקה הגרסה:</p>
+<table>
+<thead>
+<tr>
+<th>קיצור</th>
+<th>המקור</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GH</td>
+<td>דף ה־Releases ב־GitHub, דרך ה־API</td>
+</tr>
+<tr>
+<td>proxy</td>
+<td>‏<code>proxy.golang.org</code>, המקור הקובע למודולים של Go</td>
+</tr>
+<tr>
+<td>PyPI</td>
+<td>ה־API של PyPI</td>
+</tr>
+<tr>
+<td>Hub</td>
+<td>ה־API של התגיות ב־Docker Hub</td>
+</tr>
+<tr>
+<td>רשמי</td>
+<td>דף ההורדות או הערות השחרור של היצרן</td>
+</tr>
+<tr>
+<td>קובץ</td>
+<td>הגרסה כפי שנבחרה בקובץ התרגיל; אין לה שורה ברשומת הבדיקה של 5 באוקטובר</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_4">שרשרת הכלים</h2>
+<table>
+<thead>
+<tr>
+<th>כלי</th>
+<th>גרסה</th>
+<th>איפה היא מוצמדת</th>
+<th>נבדק ב</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>WSL</td>
+<td>3.0.1</td>
+<td>פרק 2, סעיף 2.2</td>
+<td>2026-10-05, GH</td>
+</tr>
+<tr>
+<td>Ubuntu ב־WSL</td>
+<td>26.04 LTS (26.04.1)</td>
+<td>ברירת המחדל של <code>wsl --install</code>; פרק 2, סעיף 2.2</td>
+<td>2026-10-05, רשמי</td>
+</tr>
+<tr>
+<td>Docker Desktop</td>
+<td>4.93.0, עם Engine 29.8.1</td>
+<td>פרק 2, סעיף 2.4; הרופא דורש Engine 29.0 ומעלה</td>
+<td>2026-10-05, רשמי</td>
+</tr>
+<tr>
+<td>Docker Compose</td>
+<td>v5.6.0 (הגרסה האחרונה); הרופא דורש 2.20 ומעלה</td>
+<td><code>doctor.sh</code></td>
+<td>2026-10-05, GH</td>
+</tr>
+<tr>
+<td>Git</td>
+<td>גרסת ההפצה; לפחות 2.28</td>
+<td><code>doctor.sh</code></td>
+<td></td>
+</tr>
+<tr>
+<td>VS Code והרחבת WSL</td>
+<td>הגרסה הנוכחית</td>
+<td><code>doctor.sh</code> בודק רק שהפקודה קיימת</td>
+<td></td>
+</tr>
+<tr>
+<td>Go</td>
+<td>1.27.1</td>
+<td>פרק 2, סעיף 2.7; <code>doctor.sh</code>; השורה <code>go 1.27</code> בכל <code>go.mod</code>; ‏<code>golang:1.27.1</code> בכל <code>Dockerfile</code></td>
+<td>2026-10-05, רשמי</td>
+</tr>
+<tr>
+<td>uv</td>
+<td>0.12.23</td>
+<td><code>doctor.sh</code>; ‏<code>uv_build&gt;=0.12.23,&lt;0.13</code> בכל <code>pyproject.toml</code>; ‏<code>ch08-receiver.yml</code> בתרגיל פרק 23</td>
+<td>2026-10-05, PyPI</td>
+</tr>
+<tr>
+<td>Python</td>
+<td>3.14 (3.14.8)</td>
+<td><code>requires-python</code> בכל <code>pyproject.toml</code>; ‏<code>python:3.14.8-slim</code> בכל <code>Dockerfile</code></td>
+<td>2026-10-05, רשמי</td>
+</tr>
+<tr>
+<td>staticcheck</td>
+<td>2026.2.1 (המודול v0.8.1)</td>
+<td>פרק 2, סעיף 2.7.1; <code>doctor.sh</code>; ‏<code>go-checks/action.yml</code> בתרגיל פרק 23</td>
+<td>2026-10-05, GH</td>
+</tr>
+<tr>
+<td>golangci-lint</td>
+<td>v2.14.0</td>
+<td>README של תרגיל פרק 27 (כתובת ההורדה)</td>
+<td>2026-10-05, GH</td>
+</tr>
+<tr>
+<td>govulncheck</td>
+<td>v1.8.0</td>
+<td>פרק 2, סעיף 2.7.1; <code>doctor.sh</code></td>
+<td>2026-10-05, proxy</td>
+</tr>
+<tr>
+<td>goose (הכלי)</td>
+<td>v3.28.0</td>
+<td>פרק 2, סעיף 2.7.1; <code>doctor.sh</code></td>
+<td>2026-10-05, proxy</td>
+</tr>
+<tr>
+<td>buf</td>
+<td>v1.73.0</td>
+<td>פרק 2, סעיף 2.7.1; <code>doctor.sh</code></td>
+<td>2026-10-05, GH</td>
+</tr>
+<tr>
+<td>protoc-gen-go</td>
+<td>v1.36.12</td>
+<td>פרק 2, סעיף 2.7.1; <code>doctor.sh</code></td>
+<td>2026-10-05, proxy</td>
+</tr>
+<tr>
+<td>protoc-gen-go-grpc</td>
+<td>v1.6.2</td>
+<td>פרק 2, סעיף 2.7.1; <code>doctor.sh</code></td>
+<td>2026-10-05, proxy</td>
+</tr>
+<tr>
+<td>protoc</td>
+<td>v36.2</td>
+<td>לא בשימוש בתרגילים: buf מחליף אותו</td>
+<td>2026-10-05, GH</td>
+</tr>
+<tr>
+<td>actionlint</td>
+<td>v1.7.12</td>
+<td>פרק 2, סעיף 2.7.1; <code>doctor.sh</code></td>
+<td>2026-10-05, GH</td>
+</tr>
+</tbody>
+</table>
+<h2 id="57">הכלים של חלק ה (יום 57)</h2>
+<table>
+<thead>
+<tr>
+<th>כלי</th>
+<th>גרסה</th>
+<th>איפה היא מוצמדת</th>
+<th>נבדק ב</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>kind</td>
+<td>v0.33.0</td>
+<td>פרק 2, סעיף 2.10; <code>doctor.sh --part-e</code>; ‏<code>ch06-shorty.yml</code> בתרגיל פרק 23</td>
+<td>2026-10-05, GH</td>
+</tr>
+<tr>
+<td>‏node image של kind</td>
+<td><code>kindest/node:v1.37.0</code>, מוצמד לפי digest</td>
+<td><code>kind-config.yaml</code> בתרגילים 20, 21 ו־22; ‏<code>ch06-shorty.yml</code> בתרגיל פרק 23</td>
+<td>2026-10-05, GH</td>
+</tr>
+<tr>
+<td>kubectl</td>
+<td>v1.37.1</td>
+<td>פרק 2, סעיף 2.10; <code>doctor.sh --part-e</code>; ‏<code>ch06-shorty.yml</code> בתרגיל פרק 23</td>
+<td>2026-10-05, רשמי</td>
+</tr>
+<tr>
+<td>Helm</td>
+<td>v4.3.0</td>
+<td>פרק 2, סעיף 2.10; <code>doctor.sh --part-e</code></td>
+<td>2026-10-05, GH</td>
+</tr>
+<tr>
+<td>Terraform</td>
+<td>1.16.5</td>
+<td>פרק 2, סעיף 2.10; <code>doctor.sh --part-e</code>; ‏<code>versions.tf</code> דורש 1.16.0 ומעלה</td>
+<td>2026-10-05, רשמי</td>
+</tr>
+<tr>
+<td>‏provider ‏<code>hashicorp/kubernetes</code></td>
+<td>3.3.0</td>
+<td><code>versions.tf</code> בתרגיל פרק 22</td>
+<td>2026-10-05, GH</td>
+</tr>
+<tr>
+<td>‏provider ‏<code>hashicorp/helm</code></td>
+<td>3.3.0</td>
+<td><code>versions.tf</code> בתרגיל פרק 22</td>
+<td>2026-10-05, GH</td>
+</tr>
+<tr>
+<td>‏provider ‏<code>hashicorp/aws</code></td>
+<td>6.67.0</td>
+<td><code>optional-aws/versions.tf</code> בתרגיל פרק 22 (אופציונלי, לא הוחל)</td>
+<td>2026-10-05, קובץ</td>
+</tr>
+<tr>
+<td>k6</td>
+<td>v2.3.0</td>
+<td>פרק 2, סעיף 2.10; <code>doctor.sh --part-e</code></td>
+<td>2026-10-05, GH</td>
+</tr>
+<tr>
+<td>Syft</td>
+<td>v1.54.0</td>
+<td><code>tests/scan_images.sh</code> בתרגיל פרק 19; README של תרגיל פרק 28</td>
+<td>2026-10-05, GH</td>
+</tr>
+<tr>
+<td>Grype</td>
+<td>v0.120.0</td>
+<td><code>tests/scan_images.sh</code> בתרגיל פרק 19; README של תרגיל פרק 28</td>
+<td>2026-10-05, GH</td>
+</tr>
+<tr>
+<td>Trivy</td>
+<td>v0.75.0 (התגית של ה־image היא <code>0.75.0</code>, בלי <code>v</code>)</td>
+<td><code>tests/scan_images.sh</code> בתרגיל פרק 19; README של תרגיל פרק 28</td>
+<td>2026-10-05, GH</td>
+</tr>
+</tbody>
+</table>
+<h2 id="go">מודולים של Go</h2>
+<table>
+<thead>
+<tr>
+<th>מודול</th>
+<th>גרסה</th>
+<th>איפה היא מוצמדת</th>
+<th>נבדק ב</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>github.com/jackc/pgx/v5</code></td>
+<td>v5.11.0</td>
+<td>תרגילים 10 עד 14, 17, 18, 26, 30, 35, ‏<code>ch23-ci/solution/ch11</code>, ‏Hookline</td>
+<td>2026-10-05, proxy</td>
+</tr>
+<tr>
+<td><code>github.com/redis/go-redis/v9</code></td>
+<td>v9.22.0</td>
+<td>תרגילים 12, 16, 18, ‏Hookline</td>
+<td>2026-10-05, proxy</td>
+</tr>
+<tr>
+<td><code>github.com/twmb/franz-go</code></td>
+<td>v1.22.1</td>
+<td>תרגילים 13, 24 (<code>shorty</code>), ‏Hookline</td>
+<td>2026-10-05, proxy</td>
+</tr>
+<tr>
+<td><code>github.com/twmb/franz-go/pkg/kmsg</code></td>
+<td>v1.14.0</td>
+<td>תרגיל 13, ‏Hookline</td>
+<td>קובץ</td>
+</tr>
+<tr>
+<td><code>github.com/twmb/franz-go/plugin/kotel</code></td>
+<td>v1.7.1</td>
+<td>תרגיל 24 (<code>shorty</code>)</td>
+<td>קובץ</td>
+</tr>
+<tr>
+<td><code>github.com/pressly/goose/v3</code></td>
+<td>v3.28.0</td>
+<td>תרגילים 11, 30, ‏<code>ch23-ci/solution/ch11</code>, ‏Hookline</td>
+<td>2026-10-05, proxy</td>
+</tr>
+<tr>
+<td><code>google.golang.org/grpc</code></td>
+<td>v1.84.0</td>
+<td>תרגיל 9</td>
+<td>2026-10-05, proxy</td>
+</tr>
+<tr>
+<td><code>google.golang.org/protobuf</code></td>
+<td>v1.36.12</td>
+<td>תרגיל 9</td>
+<td>2026-10-05, proxy</td>
+</tr>
+<tr>
+<td><code>go.opentelemetry.io/otel</code> וחבילות ה־SDK והמייצאים</td>
+<td>v1.47.0</td>
+<td>תרגיל 24 (<code>shorty</code>)</td>
+<td>2026-10-05, proxy</td>
+</tr>
+<tr>
+<td>‏semconv של OpenTelemetry</td>
+<td>החבילה <code>semconv/v1.43.0</code>, בתוך המודול <code>otel</code></td>
+<td>הייבוא בקוד של תרגיל 24</td>
+<td>2026-10-05, GH</td>
+</tr>
+<tr>
+<td><code>go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp</code></td>
+<td>v0.23.0</td>
+<td>תרגיל 24 (<code>shorty</code>)</td>
+<td>קובץ</td>
+</tr>
+<tr>
+<td>‏<code>otelhttp</code> (‏contrib)</td>
+<td>v0.72.0</td>
+<td>תרגיל 24 (<code>shorty</code>)</td>
+<td>2026-10-05, proxy</td>
+</tr>
+<tr>
+<td><code>go.opentelemetry.io/contrib/instrumentation/runtime</code></td>
+<td>v0.72.0</td>
+<td>תרגיל 24 (<code>shorty</code>)</td>
+<td>קובץ</td>
+</tr>
+<tr>
+<td><code>go.opentelemetry.io/contrib/bridges/otelslog</code></td>
+<td>v0.21.0</td>
+<td>תרגיל 24 (<code>shorty</code>)</td>
+<td>קובץ</td>
+</tr>
+<tr>
+<td><code>github.com/testcontainers/testcontainers-go</code></td>
+<td>v0.44.0</td>
+<td>תרגיל 26</td>
+<td>2026-10-05, proxy</td>
+</tr>
+<tr>
+<td><code>github.com/testcontainers/testcontainers-go/modules/postgres</code></td>
+<td>v0.44.0</td>
+<td>תרגיל 26</td>
+<td>קובץ (אותה גרסה כמו המודול הראשי)</td>
+</tr>
+<tr>
+<td><code>pgregory.net/rapid</code></td>
+<td>v1.3.0</td>
+<td>תרגיל 26, ‏Hookline</td>
+<td>2026-10-05, proxy</td>
+</tr>
+<tr>
+<td><code>github.com/santhosh-tekuri/jsonschema/v6</code></td>
+<td>v6.0.3</td>
+<td>תרגיל 26</td>
+<td>קובץ</td>
+</tr>
+<tr>
+<td><code>golang.org/x/time</code></td>
+<td>v0.16.0</td>
+<td>תרגיל 16</td>
+<td>2026-10-05, proxy</td>
+</tr>
+<tr>
+<td><code>golang.org/x/sync</code></td>
+<td>v0.23.0</td>
+<td>תרגילים 5, 6, 12, 19, 20, 21, 24, ‏<code>ch23-ci/solution/ch06</code>, ‏Hookline</td>
+<td>2026-10-05, קובץ (נבדק בכתיבת התרגיל)</td>
+</tr>
+<tr>
+<td><code>golang.org/x/text</code></td>
+<td>v0.40.0 (התיקון), ו־v0.3.7 הפגיע בכוונה</td>
+<td><code>seeded/go.mod</code> בתרגיל פרק 27</td>
+<td>קובץ</td>
+</tr>
+<tr>
+<td><code>github.com/golang-jwt/jwt/v5</code></td>
+<td>v5.3.1</td>
+<td>תרגיל 28</td>
+<td>2026-10-05, proxy</td>
+</tr>
+<tr>
+<td><code>github.com/coreos/go-oidc/v3</code></td>
+<td>v3.21.0</td>
+<td>לא מוצמד בקובץ: פרק 28 מזכיר אותו בלבד</td>
+<td>2026-10-05, proxy</td>
+</tr>
+<tr>
+<td><code>github.com/prometheus/client_golang</code></td>
+<td>v1.24.1</td>
+<td>לא מוצמד בקובץ: התרגילים מייצאים דרך OpenTelemetry</td>
+<td>2026-10-05, proxy</td>
+</tr>
+<tr>
+<td><code>github.com/sony/gobreaker/v2</code></td>
+<td>v2.4.0</td>
+<td>לא מוצמד בקובץ: פרק 15 מזכיר אותו להשוואה בלבד</td>
+<td>2026-10-05, proxy</td>
+</tr>
+<tr>
+<td><code>github.com/golang-migrate/migrate/v4</code></td>
+<td>v4.20.1</td>
+<td>לא בשימוש: הספר משתמש ב־goose</td>
+<td>2026-10-05, proxy</td>
+</tr>
+<tr>
+<td><code>github.com/stretchr/testify</code></td>
+<td>v1.12.1</td>
+<td>לא בשימוש: הבדיקות בספרייה הסטנדרטית</td>
+<td>2026-10-05, proxy</td>
+</tr>
+</tbody>
+</table>
+<h2 id="python">חבילות Python</h2>
+<table>
+<thead>
+<tr>
+<th>חבילה</th>
+<th>גרסה</th>
+<th>איפה היא מוצמדת</th>
+<th>נבדק ב</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>fastapi</td>
+<td>0.142.2</td>
+<td>תרגילים 8, 19, 20, 23 (<code>ch08</code>), 24, ‏Hookline (<code>sink</code>)</td>
+<td>2026-10-05, PyPI</td>
+</tr>
+<tr>
+<td>uvicorn</td>
+<td>0.54.0</td>
+<td>אותם קבצים כמו fastapi</td>
+<td>2026-10-05, PyPI</td>
+</tr>
+<tr>
+<td>pydantic</td>
+<td>2.13.5</td>
+<td>תרגילים 7, 8 ושאר הפרויקטים עם FastAPI</td>
+<td>2026-10-05, PyPI</td>
+</tr>
+<tr>
+<td>httpx</td>
+<td>0.28.1</td>
+<td>קבוצת <code>dev</code> בפרויקטים עם FastAPI</td>
+<td>2026-10-05, PyPI</td>
+</tr>
+<tr>
+<td>pytest</td>
+<td>9.1.1</td>
+<td>קבוצת <code>dev</code> בכל <code>pyproject.toml</code></td>
+<td>2026-10-05, PyPI</td>
+</tr>
+<tr>
+<td>ruff</td>
+<td>0.16.10</td>
+<td>קבוצת <code>dev</code> בכל <code>pyproject.toml</code></td>
+<td>2026-10-05, PyPI</td>
+</tr>
+<tr>
+<td>mypy</td>
+<td>2.4.0</td>
+<td>קבוצת <code>dev</code> בכל <code>pyproject.toml</code></td>
+<td>2026-10-05, PyPI</td>
+</tr>
+<tr>
+<td>‏<code>uv_build</code> (‏build backend)</td>
+<td>0.12.23 ומעלה, מתחת ל־0.13</td>
+<td><code>[build-system]</code> בכל <code>pyproject.toml</code></td>
+<td>קובץ</td>
+</tr>
+<tr>
+<td>opentelemetry-sdk, opentelemetry-api</td>
+<td>1.45.0</td>
+<td><code>receiver/pyproject.toml</code> בתרגיל פרק 24</td>
+<td>2026-10-05, PyPI</td>
+</tr>
+<tr>
+<td>opentelemetry-exporter-otlp-proto-http</td>
+<td>1.45.0</td>
+<td><code>receiver/pyproject.toml</code> בתרגיל פרק 24</td>
+<td>קובץ</td>
+</tr>
+<tr>
+<td>opentelemetry-instrumentation-fastapi, opentelemetry-instrumentation-logging</td>
+<td>0.66b0</td>
+<td><code>receiver/pyproject.toml</code> בתרגיל פרק 24</td>
+<td>קובץ</td>
+</tr>
+<tr>
+<td>jsonschema</td>
+<td>4.26.0</td>
+<td><code>consumer/pyproject.toml</code> בתרגיל פרק 26</td>
+<td>קובץ</td>
+</tr>
+<tr>
+<td>rfc3339-validator</td>
+<td>0.1.4</td>
+<td><code>consumer/pyproject.toml</code> בתרגיל פרק 26</td>
+<td>קובץ</td>
+</tr>
+<tr>
+<td>types-jsonschema</td>
+<td>4.26.0.20260518</td>
+<td><code>consumer/pyproject.toml</code> בתרגיל פרק 26</td>
+<td>קובץ</td>
+</tr>
+<tr>
+<td>hypothesis</td>
+<td>6.168.4</td>
+<td>לא מוצמד בקובץ: מוזכר בהעשרה של פרק 26</td>
+<td>2026-10-05, PyPI</td>
+</tr>
+<tr>
+<td>psycopg</td>
+<td>3.3.6</td>
+<td>לא מוצמד בקובץ</td>
+<td>2026-10-05, PyPI</td>
+</tr>
+<tr>
+<td>redis (‏redis-py)</td>
+<td>8.1.0</td>
+<td>לא מוצמד בקובץ</td>
+<td>2026-10-05, PyPI</td>
+</tr>
+<tr>
+<td>asyncpg, sqlalchemy, alembic, aiokafka, confluent-kafka</td>
+<td>0.31.0, 2.1.3, 1.20.0, 0.14.0, 2.15.1</td>
+<td>לא בשימוש; נבדקו כחלופות</td>
+<td>2026-10-05, PyPI</td>
+</tr>
+</tbody>
+</table>
+<h2 id="images">images</h2>
+<table>
+<thead>
+<tr>
+<th>image</th>
+<th>תגית</th>
+<th>איפה היא מוצמדת</th>
+<th>נבדק ב</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>postgres</code></td>
+<td>18.6</td>
+<td>compose בתרגילים 10 עד 14, 17, 18, 30, 35 ו־Hookline; ‏<code>pgtest.go</code> בתרגיל 26; ה־workflow של <code>ch11</code> בתרגיל 23</td>
+<td>2026-10-05, Hub</td>
+</tr>
+<tr>
+<td><code>redis</code></td>
+<td>8.10.2</td>
+<td>compose בתרגילים 12, 16, 18 ו־Hookline</td>
+<td>2026-10-05, Hub</td>
+</tr>
+<tr>
+<td><code>docker.redpanda.com/redpandadata/redpanda</code></td>
+<td>v26.2.3</td>
+<td>compose בתרגילים 13, 24 ו־Hookline</td>
+<td>2026-10-05, Hub</td>
+</tr>
+<tr>
+<td><code>docker.redpanda.com/redpandadata/console</code></td>
+<td>v3.12.0</td>
+<td>compose בתרגיל 13 וב־Hookline</td>
+<td>2026-10-05, Hub</td>
+</tr>
+<tr>
+<td><code>prom/prometheus</code></td>
+<td>v3.15.0</td>
+<td>compose בתרגיל 24; ‏<code>tests/run_promtool.sh</code> בתרגיל 25</td>
+<td>2026-10-05, Hub</td>
+</tr>
+<tr>
+<td><code>grafana/grafana</code></td>
+<td>13.2.3</td>
+<td>compose בתרגיל 24</td>
+<td>2026-10-05, Hub</td>
+</tr>
+<tr>
+<td><code>grafana/loki</code></td>
+<td>3.7.8</td>
+<td>compose בתרגיל 24</td>
+<td>2026-10-05, GH</td>
+</tr>
+<tr>
+<td><code>grafana/tempo</code></td>
+<td>3.1.0</td>
+<td>compose בתרגיל 24</td>
+<td>2026-10-05, Hub</td>
+</tr>
+<tr>
+<td><code>grafana/alloy</code></td>
+<td>v1.20.1</td>
+<td>לא בשימוש: ה־collector של OpenTelemetry במקומו</td>
+<td>2026-10-05, Hub</td>
+</tr>
+<tr>
+<td>‏collector-contrib של OpenTelemetry</td>
+<td>0.162.0, מ־GHCR</td>
+<td>compose בתרגיל 24</td>
+<td>2026-10-05, GH</td>
+</tr>
+<tr>
+<td><code>gcr.io/distroless/static-debian13</code></td>
+<td><code>nonroot</code></td>
+<td>שלב הריצה בכל <code>Dockerfile</code> של Go</td>
+<td>2026-10-05, רשמי</td>
+</tr>
+<tr>
+<td><code>golang</code></td>
+<td>1.27.1</td>
+<td>שלב הבנייה בכל <code>Dockerfile</code> של Go</td>
+<td>2026-10-05, Hub</td>
+</tr>
+<tr>
+<td><code>python</code></td>
+<td>3.14.8-slim</td>
+<td>כל <code>Dockerfile</code> של Python</td>
+<td>2026-10-05, Hub</td>
+</tr>
+<tr>
+<td><code>redocly/cli</code></td>
+<td>2.57.0</td>
+<td>README של תרגיל פרק 9</td>
+<td>2026-10-05, Hub</td>
+</tr>
+<tr>
+<td><code>anchore/syft</code>, ‏<code>anchore/grype</code>, ‏<code>aquasec/trivy</code></td>
+<td>v1.54.0, ‏v0.120.0, ‏0.75.0</td>
+<td><code>tests/scan_images.sh</code> בתרגיל 19; README של תרגיל 28</td>
+<td>2026-10-05, GH</td>
+</tr>
+<tr>
+<td><code>ghcr.io/yannh/kubeconform</code></td>
+<td>v0.8.0</td>
+<td><code>tests/check_static.sh</code> בתרגיל 21</td>
+<td>2026-10-05, קובץ (נבדק בכתיבת התרגיל)</td>
+</tr>
+<tr>
+<td><code>busybox</code></td>
+<td>1.37.0</td>
+<td><code>tests/drill_check.sh</code> בתרגיל 21; פרק 21, סעיף 21.5.2</td>
+<td>2026-10-05, קובץ (נבדק בכתיבת התרגיל)</td>
+</tr>
+<tr>
+<td>‏cloud-provider-kind (‏<code>cloud-controller-manager</code>)</td>
+<td>v0.12.0</td>
+<td>README של תרגיל פרק 21</td>
+<td>2026-10-05, קובץ (נבדק בכתיבת התרגיל)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="github-actions">GitHub Actions</h2>
+<p>קובצי הבדיקות מצמידים גרסה ראשית. קובץ הפרסום (<code>release.yml</code>) מצמיד SHA מלא, עם התגית כהערה
+(פרק 23, סעיף 23.6).</p>
+<table>
+<thead>
+<tr>
+<th>action</th>
+<th>גרסה</th>
+<th>איפה היא מוצמדת</th>
+<th>נבדק ב</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>actions/checkout</code></td>
+<td>v7; ב־<code>release.yml</code> ה־SHA של v7.0.1</td>
+<td>כל ה־workflows בתרגיל פרק 23</td>
+<td>2026-10-05, GH</td>
+</tr>
+<tr>
+<td><code>actions/setup-go</code></td>
+<td>v7</td>
+<td><code>go-checks/action.yml</code> בתרגיל פרק 23</td>
+<td>2026-10-05, GH</td>
+</tr>
+<tr>
+<td><code>astral-sh/setup-uv</code></td>
+<td>v10</td>
+<td><code>ch08-receiver.yml</code></td>
+<td>2026-10-05, GH</td>
+</tr>
+<tr>
+<td><code>docker/setup-buildx-action</code></td>
+<td>v4; ב־<code>release.yml</code> ה־SHA של v4.4.1</td>
+<td><code>ch06-shorty.yml</code>, ‏<code>release.yml</code></td>
+<td>2026-10-05, GH</td>
+</tr>
+<tr>
+<td><code>docker/build-push-action</code></td>
+<td>v7; ב־<code>release.yml</code> ה־SHA של v7.4.0</td>
+<td><code>ch06-shorty.yml</code>, ‏<code>release.yml</code></td>
+<td>2026-10-05, GH</td>
+</tr>
+<tr>
+<td><code>docker/login-action</code></td>
+<td>v4; ב־<code>release.yml</code> ה־SHA של v4.6.0</td>
+<td><code>ch06-shorty.yml</code>, ‏<code>release.yml</code></td>
+<td>2026-10-05, GH</td>
+</tr>
+<tr>
+<td><code>docker/metadata-action</code></td>
+<td>v6; ב־<code>release.yml</code> ה־SHA של v6.2.0</td>
+<td><code>ch06-shorty.yml</code>, ‏<code>release.yml</code></td>
+<td>2026-10-05, GH</td>
+</tr>
+<tr>
+<td><code>helm/kind-action</code></td>
+<td>v1.15.0</td>
+<td><code>ch06-shorty.yml</code></td>
+<td>2026-10-05, GH</td>
+</tr>
+<tr>
+<td><code>actions/setup-python</code>, ‏<code>actions/cache</code>, ‏<code>actions/upload-artifact</code></td>
+<td>v7, ‏v6, ‏v7</td>
+<td>לא בשימוש בקובצי התרגיל</td>
+<td>2026-10-05, GH</td>
+</tr>
+<tr>
+<td><code>azure/setup-helm</code>, ‏<code>hashicorp/setup-terraform</code></td>
+<td>v5, ‏v4</td>
+<td>לא בשימוש בקובצי התרגיל</td>
+<td>2026-10-05, GH</td>
+</tr>
+<tr>
+<td><code>golangci/golangci-lint-action</code>, ‏<code>grafana/setup-k6-action</code></td>
+<td>v9, ‏v1</td>
+<td>לא בשימוש בקובצי התרגיל</td>
+<td>2026-10-05, GH</td>
+</tr>
+<tr>
+<td><code>softprops/action-gh-release</code></td>
+<td>v3</td>
+<td>מוזכר בפרק 23; התרגיל משתמש ב־<code>gh release create</code></td>
+<td>2026-10-05, קובץ (נבדק בכתיבת התרגיל)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_5">שונות</h2>
+<table>
+<thead>
+<tr>
+<th>כלי</th>
+<th>גרסה</th>
+<th>איפה היא מוצמדת</th>
+<th>נבדק ב</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>metrics-server</td>
+<td>v0.9.0</td>
+<td><code>data/metrics-server/kustomization.yaml</code> בתרגיל פרק 21</td>
+<td>2026-10-05, קובץ (נבדק בכתיבת התרגיל)</td>
+</tr>
+<tr>
+<td>shellcheck</td>
+<td>0.11.0 (הגרסה היציבה)</td>
+<td>README של תרגיל פרק 23 מתקין אותו מ־<code>apt</code>, בגרסת ההפצה</td>
+<td>2026-10-05, קובץ (נבדק בכתיבת התרגיל)</td>
+</tr>
+<tr>
+<td>Rust</td>
+<td>1.99.0, עם rustfmt ו־clippy</td>
+<td><code>rust-toolchain.toml</code> בתרגיל פרק 33 (אופציונלי)</td>
+<td>2026-10-05, רשמי</td>
+</tr>
+</tbody>
+</table>
+<h2 id="ietf">טיוטות IETF</h2>
+<p>שתי כותרות HTTP בספר מגיעות מטיוטות ולא מ־RFC. המצב נבדק באתר datatracker של IETF.</p>
+<table>
+<thead>
+<tr>
+<th>טיוטה</th>
+<th>גרסה ומצב</th>
+<th>איפה בספר</th>
+<th>נבדק ב</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>draft-ietf-httpapi-ratelimit-headers</code></td>
+<td>גרסה 11 (23 במאי 2026), טיוטה פעילה</td>
+<td>פרק 16, סעיף 16.3.5; תרגיל פרק 16</td>
+<td>2026-10-05, רשמי</td>
+</tr>
+<tr>
+<td><code>draft-ietf-httpapi-idempotency-key-header</code></td>
+<td>גרסה 07 (15 באוקטובר 2025), פג תוקפה</td>
+<td>פרק 9, סעיף 9.5; תרגיל פרק 9</td>
+<td>2026-10-05, רשמי</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_6">אי־התאמות ידועות</h2>
+<p>נמצאו בסריקה של קובצי התרגילים מול הטבלאות למעלה, באוקטובר 2026. הן לא שוברות אף בדיקה, אבל כדאי לדעת עליהן
+לפני שמשדרגים:</p>
+<ul>
+<li><strong>‏<code>golang.org/x/sync</code> בשלוש גרסאות.</strong> כל המודולים שמצמידים אותו ישירות, כולל Hookline, מצמידים v0.23.0. אחרים
+  מקבלים אותו כתלות עקיפה: v0.22.0 בתרגילים 11, 26, 30 וב־<code>ch23-ci/solution/ch11</code>, ו־v0.17.0 בתרגילים 10, 13, 14,
+  17, 18 ו־35.</li>
+<li><strong>‏<code>golang.org/x/text</code> כתלות עקיפה</strong> מופיע בארבע גרסאות שונות בין התרגילים (v0.29.0 עד v0.42.0). הוא לא
+  מוצמד במפורש, ו־Go בוחר אותו לפי התלויות. הגרסה הפגיעה v0.3.7 בתרגיל פרק 27 היא בכוונה.</li>
+<li><strong>גבול עליון ל־Python.</strong> בתרגילים 1 ו־2 כתוב <code>&gt;=3.14,&lt;3.15</code>, ובשאר <code>&gt;=3.14</code> בלבד.</li>
+<li><strong>‏shellcheck</strong> מוצמד בגרסה 0.11.0 ברשימת הכלים, אבל התרגיל מתקין את גרסת ההפצה, שיכולה להיות אחרת.</li>
+<li><strong>‏<code>actions/setup-go</code></strong> קורא את הגרסה מהשורה <code>go 1.27</code> שב־<code>go.mod</code>. ב־CI הגרסה נקבעת לפי השורה הזאת, ולא
+  לפי 1.27.1 של שרשרת הכלים המקומית.</li>
+</ul>
+</main>
+<nav class="bottom"><a href="index.html">תוכן העניינים</a> · <a href="b-troubleshooting.html">← נספח ב: פתרון תקלות</a> · <a href="d-obsidian-templates.html">נספח ד: תבניות פתקים ל־Obsidian →</a></nav>
+<script type="module">
+  // Render ```mermaid blocks in the browser (needs internet once; cached afterwards).
+  const blocks = document.querySelectorAll("pre > code.language-mermaid");
+  if (blocks.length) {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs")).default;
+    for (const code of blocks) {
+      const div = document.createElement("div");
+      div.className = "mermaid";
+      div.textContent = code.textContent;
+      code.parentElement.replaceWith(div);
+    }
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run();
+  }
+</script>
+</body>
+</html>

@@ -9,7 +9,7 @@ KAFKA_BROKERS ?= localhost:19438
 SINK_URL      ?= http://localhost:8091
 export DATABASE_URL REDIS_ADDR KAFKA_BROKERS SINK_URL
 
-.PHONY: all build test test-unit lint up down db-up db-down migrate topic tenant run run-dev relay dispatcher worker sink-test lab-n3 images chart-check kind-smoke kind-down tf-check obs-up obs-down promtool check-telemetry stage-incident load-ingest load-two-tenants supply-chain clean
+.PHONY: all build test test-unit lint up down db-up db-down migrate topic tenant run run-dev relay dispatcher worker sink-test lab-n3 images chart-check kind-smoke kind-down tf-check obs-up obs-down promtool check-telemetry stage-incident load-ingest load-two-tenants load-overload chaos verify-delivery supply-chain clean
 
 all: lint test-unit build
 
@@ -119,6 +119,17 @@ load-ingest:
 
 load-two-tenants:
 	scripts/load.sh two-tenants
+
+# Milestone M10: spec N6 (MAX_IN_FLIGHT=, RATE=), and the chaos run of N3 and N4 under load (RATE=,
+# DURATION=, SEED=), which ends with verify-delivery; verify-delivery alone takes SINCE= and WAIT=.
+load-overload:
+	scripts/load.sh overload
+
+chaos:
+	scripts/chaos.sh
+
+verify-delivery:
+	scripts/verify-delivery.sh
 
 supply-chain:
 	scripts/supply-chain.sh

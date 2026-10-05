@@ -7,11 +7,11 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<nav class="top"><a href="index.html">תוכן העניינים</a> · <a href="TERMINOLOGY.html">← Terminology policy (book 2)</a> · <a href="f-daily-schedule.html">נספח ו: לוח הלימוד היומי →</a></nav>
+<nav class="top"><a href="index.html">תוכן העניינים</a> · <a href="TERMINOLOGY.html">← Terminology policy (book 2)</a> · <a href="b-troubleshooting.html">נספח ב: פתרון תקלות →</a></nav>
 <main class="book">
 
 <h1 id="_1">נספח א: מילון מונחים</h1>
-<p>445 מונחים, נאספים אוטומטית מטבלאות „מונחים לזכור” של כל הפרקים (הכלי: <code>tools/make_glossary.py</code>).
+<p>473 מונחים, נאספים אוטומטית מטבלאות „מונחים לזכור” של כל הפרקים (הכלי: <code>tools/make_glossary.py</code>).
 הסדר לפי המונח באנגלית. העמודה האחרונה מפנה לפרק שבו המונח הוגדר לראשונה, ובסוגריים לפרקים שחזרו עליו.</p>
 <table>
 <thead>
@@ -34,6 +34,12 @@
 <td>action</td>
 <td>יחידה לשימוש חוזר שנקראת ב־<code>uses</code></td>
 <td>23</td>
+</tr>
+<tr>
+<td>active series</td>
+<td>סדרה פעילה</td>
+<td>סדרה שקיבלה דגימה לאחרונה, ותופסת זיכרון באינדקס</td>
+<td>36</td>
 </tr>
 <tr>
 <td>active-passive</td>
@@ -61,7 +67,7 @@
 </tr>
 <tr>
 <td>advisory lock</td>
-<td>נעילה מייעצת</td>
+<td>advisory lock</td>
 <td>נעילה על מספר שהיישום בוחר, בלי קשר לשורה; goose משתמש בה</td>
 <td>11 (18, 37)</td>
 </tr>
@@ -142,6 +148,12 @@
 <td>סינון אוטומטי</td>
 <td>מערכת שמסננת קורות חיים לפי מילות מפתח לפני שאדם קורא אותם</td>
 <td>34</td>
+</tr>
+<tr>
+<td>attempt round</td>
+<td>סבב ניסיונות</td>
+<td>הניסיונות מאז ההפעלה החוזרת האחרונה, שמושווים למקסימום</td>
+<td>38</td>
 </tr>
 <tr>
 <td>audience (<code>aud</code>)</td>
@@ -231,7 +243,7 @@
 <td>blast radius</td>
 <td>רדיוס הפגיעה</td>
 <td>כמה משתמשים או מערכות ייפגעו אם השינוי שגוי</td>
-<td>27</td>
+<td>27 (39)</td>
 </tr>
 <tr>
 <td>bounded queue</td>
@@ -321,7 +333,7 @@
 <td>cardinality</td>
 <td>קרדינליות</td>
 <td>מספר הצירופים השונים של labels, כלומר מספר הסדרות</td>
-<td>24</td>
+<td>24 (36)</td>
 </tr>
 <tr>
 <td>causal consistency</td>
@@ -330,10 +342,22 @@
 <td>17</td>
 </tr>
 <tr>
+<td>cause-based alert</td>
+<td>התראה על סיבה</td>
+<td>התראה על אות פנימי, למשל כשלים או outbox תקוע, שה־SLO רואה מאוחר או בכלל לא</td>
+<td>38</td>
+</tr>
+<tr>
 <td>channel</td>
 <td>channel</td>
 <td>צינור עם טיפוס להעברת ערכים בין goroutines</td>
 <td>5</td>
+</tr>
+<tr>
+<td>chaos experiment</td>
+<td>ניסוי כאוס</td>
+<td>הזרקה מכוונת של כשל תחת עומס, עם השערה שנכתבה לפני ההרצה</td>
+<td>38 (39)</td>
 </tr>
 <tr>
 <td>chart</td>
@@ -501,7 +525,7 @@
 <td>contract test</td>
 <td>בדיקת חוזה</td>
 <td>יצרן וצרכן בודקים כל אחד את עצמו מול אותו תיאור של מה שעובר ביניהם</td>
-<td>26</td>
+<td>26 (38)</td>
 </tr>
 <tr>
 <td>controller</td>
@@ -532,6 +556,12 @@
 <td>coroutine</td>
 <td>מה ש־<code>async def</code> מחזירה; לא רצה עד שמחכים לה</td>
 <td>8</td>
+</tr>
+<tr>
+<td>cost per million events</td>
+<td>עלות למיליון אירועים</td>
+<td>המחיר החודשי של המכונה, חלקי מספר האירועים בחודש, כפול מיליון</td>
+<td>39</td>
 </tr>
 <tr>
 <td>covering index</td>
@@ -612,6 +642,12 @@
 <td>32</td>
 </tr>
 <tr>
+<td>delivery lag</td>
+<td>פיגור מסירה</td>
+<td>הזמן מקליטת האירוע ועד שהמקבל אישר אותו; היעד של N2</td>
+<td>38</td>
+</tr>
+<tr>
 <td>dependency</td>
 <td>תלות</td>
 <td>פונקציה ש־FastAPI מריצה ומעבירה את התוצאה לנקודת הקצה</td>
@@ -658,6 +694,12 @@
 <td>מצב רצוי</td>
 <td>מה שכתבת ב־API שצריך לרוץ, ולא הפקודה להריץ אותו</td>
 <td>20</td>
+</tr>
+<tr>
+<td>dial-time check</td>
+<td>בדיקה בזמן החיבור</td>
+<td>בדיקה של הכתובת שמתחברים אליה בפועל, אחרי הפענוח; רק היא עומדת מול DNS rebinding</td>
+<td>38</td>
 </tr>
 <tr>
 <td>digest</td>
@@ -828,6 +870,12 @@
 <td>30</td>
 </tr>
 <tr>
+<td>expected set</td>
+<td>סט צפוי</td>
+<td>מה שחייב להגיע, שנבנה בנפרד מהקוד שנבדק, כדי שהבדיקה לא תבדוק את עצמה</td>
+<td>38 (39)</td>
+</tr>
+<tr>
 <td>exporter</td>
 <td>מייצא</td>
 <td>הרכיב ששולח טלמטריה החוצה</td>
@@ -843,13 +891,19 @@
 <td>fail open</td>
 <td>פתוח בכשל</td>
 <td>כשהמנגנון לא זמין, הבקשה עוברת</td>
-<td>16</td>
+<td>16 (38)</td>
 </tr>
 <tr>
 <td>Fake clock</td>
 <td>שעון מזויף</td>
 <td>שעון שזז רק כשהבדיקה מזיזה אותו, ויורה טיימרים שהגיע זמנם</td>
 <td>35</td>
+</tr>
+<tr>
+<td>fan-out</td>
+<td>פיזור</td>
+<td>הפיכת אירוע אחד לשורת מסירה לכל יעד מתאים, בפקודה אחת</td>
+<td>38</td>
 </tr>
 <tr>
 <td>fan-out, fan-in</td>
@@ -873,7 +927,7 @@
 <td>fencing token</td>
 <td>אסימון גידור</td>
 <td>מספר שעולה בכל לקיחה, ומונע ממחזיק ישן לכתוב</td>
-<td>14 (18)</td>
+<td>14 (18, 38)</td>
 </tr>
 <tr>
 <td>FFI</td>
@@ -1032,6 +1086,12 @@
 <td>18</td>
 </tr>
 <tr>
+<td>Helm hook</td>
+<td>‏hook של Helm</td>
+<td>משאב שרץ בנקודה במחזור של release, למשל Job לפני כל התקנה</td>
+<td>38</td>
+</tr>
+<tr>
 <td>hit ratio</td>
 <td>יחס פגיעות</td>
 <td>פגיעות חלקי כל הבדיקות; המספר שמצדיק מטמון</td>
@@ -1042,6 +1102,12 @@
 <td>פגיעה ופספוס</td>
 <td>הערך נמצא במטמון, או שצריך לטעון אותו מהמקור</td>
 <td>12</td>
+</tr>
+<tr>
+<td>hold</td>
+<td>שמירה זמנית</td>
+<td>מושב שמור למשתמשת לזמן קצוב, עד שתשלם</td>
+<td>36</td>
 </tr>
 <tr>
 <td>Home assignment</td>
@@ -1152,6 +1218,12 @@
 <td>22</td>
 </tr>
 <tr>
+<td>ingester</td>
+<td>‏ingester</td>
+<td>תהליך שמחזיק את הנתונים האחרונים בזיכרון וכותב אותם לבלוקים</td>
+<td>36</td>
+</tr>
+<tr>
 <td>Ingress</td>
 <td>Ingress</td>
 <td>אובייקט שמתאר ניתוב HTTP מבחוץ לשירותים</td>
@@ -1204,6 +1276,12 @@
 <td>תהליך גיוס</td>
 <td>רצף השלבים מהגשה ועד הצעה: היכרות, קוד, תכנון, פרויקט, התנהגות</td>
 <td>34</td>
+</tr>
+<tr>
+<td>invalidate after commit</td>
+<td>אי־תוקף אחרי שמירה</td>
+<td>מחיקת רשומת מטמון רק אחרי שהשינוי נשמר, כדי שקורא לא יחזיר ערך ישן</td>
+<td>38</td>
 </tr>
 <tr>
 <td>invalidation</td>
@@ -1410,6 +1488,12 @@
 <td>18</td>
 </tr>
 <tr>
+<td>log scan</td>
+<td>סריקת לוגים</td>
+<td>בדיקה שמריצה את הקוד עם ה־logger האמיתי, ומוודאת שסוד ידוע לא מופיע בפלט</td>
+<td>38</td>
+</tr>
+<tr>
 <td>lost update</td>
 <td>עדכון אבוד</td>
 <td>שתי טרנזקציות קוראות ערך, שתיהן כותבות, ואחת הכתיבות נדרסת</td>
@@ -1468,6 +1552,12 @@
 <td>אבן דרך</td>
 <td>שלב בפרויקט שנגמר כשקבוצת בדיקות מוגדרת ירוקה</td>
 <td>38</td>
+</tr>
+<tr>
+<td>mock interview</td>
+<td>ראיון מדומה</td>
+<td>תרגול בתנאי ראיון, עם שעון וציון עצמי אחריו</td>
+<td>36</td>
 </tr>
 <tr>
 <td>module</td>
@@ -1536,6 +1626,12 @@
 <td>34</td>
 </tr>
 <tr>
+<td>object storage</td>
+<td>אחסון אובייקטים</td>
+<td>אחסון זול של קבצים גדולים לפי מפתח, כמו בלוקים של מדדים</td>
+<td>36</td>
+</tr>
+<tr>
 <td>observability</td>
 <td>תצפיתיות</td>
 <td>היכולת לענות על שאלות על מערכת רצה בלי לשנות אותה</td>
@@ -1591,7 +1687,7 @@
 </tr>
 <tr>
 <td>output</td>
-<td>output</td>
+<td>ערך פלט</td>
 <td>פלט של תצורה או מודול</td>
 <td>22</td>
 </tr>
@@ -1704,10 +1800,22 @@
 <td>20</td>
 </tr>
 <tr>
+<td>poison message</td>
+<td>הודעה רעילה</td>
+<td>רשומה שאי אפשר לעבד לעולם; מדלגים עליה כדי לא לחסום את המחיצה</td>
+<td>38</td>
+</tr>
+<tr>
 <td>postmortem</td>
 <td>תחקיר</td>
 <td>מסמך שאחרי תקרית: מה קרה, למה, ומה משנים</td>
 <td>25</td>
+</tr>
+<tr>
+<td>postpone</td>
+<td>דחייה</td>
+<td>החזרת מסירה לתור בלי לשלוח ובלי לספור ניסיון, כשהמפסק פתוח או המחיצה מלאה</td>
+<td>38</td>
 </tr>
 <tr>
 <td>problem details</td>
@@ -1792,6 +1900,12 @@
 <td>נגישות של חולשה</td>
 <td>האם יש מסלול קריאה מהקוד שלך לפונקציה הפגיעה</td>
 <td>27</td>
+</tr>
+<tr>
+<td>read path</td>
+<td>מסלול קריאה</td>
+<td>איך נתון שמור מגיע חזרה לבקשה</td>
+<td>36</td>
 </tr>
 <tr>
 <td>read-your-writes</td>
@@ -1930,6 +2044,12 @@
 <td>RSU</td>
 <td>יחידות שהופכות למניות כשהן מבשילות; נפוצות בחברות ציבוריות</td>
 <td>34</td>
+</tr>
+<tr>
+<td>retrospective</td>
+<td>רטרוספקטיבה</td>
+<td>סיכום כתוב של מה נבנה, מה נמדד, ומה היית עושה אחרת</td>
+<td>39</td>
 </tr>
 <tr>
 <td>retry</td>
@@ -2160,6 +2280,12 @@
 <td>17</td>
 </tr>
 <tr>
+<td>session timeout</td>
+<td>זמן סשן</td>
+<td>כמה זמן חבר בקבוצת צרכנים יכול לשתוק לפני שמוציאים אותו ומחלקים את המחיצות שלו</td>
+<td>39</td>
+</tr>
+<tr>
 <td>session-level lock</td>
 <td>נעילת סשן</td>
 <td>נעילה שחיה עד שחרור מפורש או סוף הסשן</td>
@@ -2247,7 +2373,7 @@
 <td>Smoke test</td>
 <td>בדיקת עשן</td>
 <td>בדיקה קטנה שמוכיחה שהשרשרת כולה עובדת</td>
-<td>2 (23)</td>
+<td>2 (23, 38)</td>
 </tr>
 <tr>
 <td>snapshot</td>
@@ -2259,7 +2385,7 @@
 <td>Software Bill of Materials</td>
 <td>SBOM</td>
 <td>רשימת כל הרכיבים והגרסאות שנכנסו לתוכנה</td>
-<td>28</td>
+<td>28 (38)</td>
 </tr>
 <tr>
 <td>span</td>
@@ -2298,6 +2424,12 @@
 <td>21</td>
 </tr>
 <tr>
+<td>stage breakdown</td>
+<td>פירוק לשלבים</td>
+<td>חלוקה של פיגור כולל לפיגור של כל שלב בצינור, כדי לדעת איפה הזמן הלך</td>
+<td>39</td>
+</tr>
+<tr>
 <td>startup probe</td>
 <td>בדיקת הפעלה</td>
 <td>מגינה על שירות שעולה לאט עד שסיים לעלות</td>
@@ -2320,6 +2452,12 @@
 <td>עדכון סטטוס</td>
 <td>טקסט קצר שמתחיל במצב, בתאריך ובסיכון</td>
 <td>31</td>
+</tr>
+<tr>
+<td>steady state</td>
+<td>מצב יציב</td>
+<td>ההתנהגות הרגילה שמולה משווים את מה שקרה בזמן הניסוי</td>
+<td>39</td>
 </tr>
 <tr>
 <td>step</td>
@@ -2388,6 +2526,12 @@
 <td>1</td>
 </tr>
 <tr>
+<td>system design interview</td>
+<td>ראיון תכנון מערכות</td>
+<td>סבב שבו מתכננים מערכת פתוחה בקול, מול מראיינת</td>
+<td>36</td>
+</tr>
+<tr>
 <td>Table-driven test</td>
 <td>בדיקה טבלאית</td>
 <td>טבלה של קלטים ופלטים צפויים, ולולאה שמריצה כל שורה כתת־בדיקה</td>
@@ -2426,14 +2570,14 @@
 <tr>
 <td>tenant</td>
 <td>דיירת</td>
-<td>לקוחה של המערכת שמשאביה מבודדים משל לקוחות אחרות</td>
-<td>37</td>
+<td>חשבון לקוח בשירות משותף, שהמגבלה נמדדת לפיו</td>
+<td>16 (37)</td>
 </tr>
 <tr>
 <td>term</td>
 <td>תקופה</td>
 <td>מספר של כהונת מנהיג; עולה בכל בחירה</td>
-<td>18</td>
+<td>18 (38)</td>
 </tr>
 <tr>
 <td>test data builder</td>
@@ -2502,10 +2646,22 @@
 <td>16 (35)</td>
 </tr>
 <tr>
+<td>token lease</td>
+<td>חכירת אסימונים</td>
+<td>עותק לוקח מנה של אסימונים בבת אחת, ומוותר על דיוק</td>
+<td>36</td>
+</tr>
+<tr>
 <td>tolerant reader</td>
 <td>קורא סובלני</td>
 <td>לקוח שמתעלם משדות שהוא לא מכיר</td>
 <td>9 (30)</td>
+</tr>
+<tr>
+<td>top-of-the-hour spike</td>
+<td>התפרצות בראש השעה</td>
+<td>הרבה עבודות שנקבעו לאותו מועד עגול, ורצות יחד</td>
+<td>36</td>
 </tr>
 <tr>
 <td>topic</td>
@@ -2529,7 +2685,7 @@
 <td>trace context</td>
 <td>הקשר מעקב</td>
 <td>מזהה המעקב וה־span הנוכחי, שעוברים בין שירותים</td>
-<td>24</td>
+<td>24 (38)</td>
 </tr>
 <tr>
 <td>trace ID</td>
@@ -2634,6 +2790,12 @@
 <td>19</td>
 </tr>
 <tr>
+<td>waiting room</td>
+<td>חדר המתנה</td>
+<td>תור לפני נתיב עמוס, שמכניס בקצב שהמערכת עומדת בו</td>
+<td>36</td>
+</tr>
+<tr>
 <td>warm-up</td>
 <td>חימום</td>
 <td>פרק זמן בתחילת בדיקה שאינו נכלל בספים</td>
@@ -2676,6 +2838,12 @@
 <td>4</td>
 </tr>
 <tr>
+<td>write path</td>
+<td>מסלול כתיבה</td>
+<td>מה קורה מהבקשה ועד שהנתון שמור, צעד אחרי צעד</td>
+<td>36</td>
+</tr>
+<tr>
 <td>write skew</td>
 <td>הטיית כתיבה, write skew</td>
 <td>שתי טרנזקציות בודקות כלל על אותן שורות וכותבות לשורות שונות, והכלל נשבר</td>
@@ -2696,7 +2864,7 @@
 </tbody>
 </table>
 </main>
-<nav class="bottom"><a href="index.html">תוכן העניינים</a> · <a href="TERMINOLOGY.html">← Terminology policy (book 2)</a> · <a href="f-daily-schedule.html">נספח ו: לוח הלימוד היומי →</a></nav>
+<nav class="bottom"><a href="index.html">תוכן העניינים</a> · <a href="TERMINOLOGY.html">← Terminology policy (book 2)</a> · <a href="b-troubleshooting.html">נספח ב: פתרון תקלות →</a></nav>
 <script type="module">
   // Render ```mermaid blocks in the browser (needs internet once; cached afterwards).
   const blocks = document.querySelectorAll("pre > code.language-mermaid");

@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<nav class="top"><a href="index.html">תוכן העניינים</a> · <a href="35-coding-drills.html">← פרק 35: תרגילי קוד מעשיים</a> · <a href="38-hookline-milestones.html">פרק 38: אבני הדרך →</a></nav>
+<nav class="top"><a href="index.html">תוכן העניינים</a> · <a href="36-system-design-interviews.html">← פרק 36: תכנון מערכות בראיון ומאגר השאלות</a> · <a href="38-hookline-milestones.html">פרק 38: אבני הדרך →</a></nav>
 <main class="book">
 <div class="toc"><span class="toctitle">תוכן הפרק</span><ul>
 <li><a href="#_1">מה נלמד בפרק</a></li>
@@ -315,7 +315,7 @@ Hookline-Signature     t=&lt;unix seconds&gt;,v1=&lt;hex HMAC-SHA256(secret, &qu
 <tr>
 <td>dispatcher</td>
 <td><code>cmd/dispatcher</code></td>
-<td>צרכן ב־consumer group; פורש כל אירוע לשורת מסירה לכל מנוי מתאים</td>
+<td>צרכן ב־consumer group; מפזר כל אירוע לשורת מסירה לכל מנוי מתאים</td>
 <td>M4</td>
 </tr>
 <tr>
@@ -378,7 +378,7 @@ Hookline-Signature     t=&lt;unix seconds&gt;,v1=&lt;hex HMAC-SHA256(secret, &qu
 <ol>
 <li>הדיירת שולחת <code>POST /v1/events</code> עם מפתח אידמפוטנטיות. ה־API בודק את המפתח, ובטרנזקציה אחת כותב את שורת
    האירוע ואת שורת ה־outbox שלו. רק אחרי ה־<code>COMMIT</code> הוא מחזיר 202.</li>
-<li>ה־relay הוא המופע היחיד שמחזיק נעילה מייעצת (advisory lock). הוא קורא שורות outbox שלא פורסמו, ומפרסם
+<li>ה־relay הוא המופע היחיד שמחזיק advisory lock (נעילה ב־PostgreSQL על מספר שהיישום בוחר). הוא קורא שורות outbox שלא פורסמו, ומפרסם
    אותן ל־topic בשם <code>hookline.events</code> עם מפתח לפי דיירת. אחר כך הוא מסמן אותן כמפורסמות.</li>
 <li>ה־dispatcher צורך את ה־topic, מוצא את המנויים שמתאימים לסוג האירוע, ומכניס שורת מסירה לכל אחד. אילוץ ייחודיות
    על הזוג אירוע ו־endpoint הופך עיבוד חוזר של אותה הודעה לחסר נזק. רק אחר כך הוא מאשר את ה־offset.</li>
@@ -473,6 +473,8 @@ CREATE INDEX outbox_unpublished_idx ON outbox (id) WHERE published_at IS NULL;
 
 </div>
 
+<p>אבן הדרך החמישית מוסיפה לטבלה <code>deliveries</code> עמודה אחת, <code>attempt_base</code>, במיגרציה <code>00005</code>. היא מאפשרת להפעיל שוב
+מסירה מתה בלי לאפס את מונה הניסיונות (פרק 38, סעיף 38.5). זה השינוי היחיד בסכמה אחרי אבן הדרך השנייה.</p>
 <p>שלוש החלטות קטנות במודל שכדאי לדעת לנמק:</p>
 <ul>
 <li><strong>מזהים הם UUID גרסה 7.</strong> ‏48 הביטים הראשונים הם זמן במילישניות, ולכן מזהה חדש נכנס בקצה הימני של אינדקס
@@ -508,7 +510,7 @@ CREATE INDEX outbox_unpublished_idx ON outbox (id) WHERE published_at IS NULL;
 <td>נפח מסירות שמסד אחד לא מאנדקס ומנקה בנוחות</td>
 </tr>
 <tr>
-<td>‏relay פעיל יחיד בנעילה מייעצת</td>
+<td>‏relay פעיל יחיד עם advisory lock</td>
 <td>הרבה relays עם <code>SKIP LOCKED</code></td>
 <td>שומר על סדר פרסום לכל דיירת בפשטות</td>
 <td>ה־relay נעשה צוואר בקבוק; אז מחלקים את ה־outbox לפי דיירת</td>
@@ -591,7 +593,7 @@ func NewAPIKey() (string, APIKeyHash) {
 <tr>
 <td>שני relays עולים</td>
 <td>פרסום כפול או לא לפי הסדר</td>
-<td>נעילה מייעצת: רק אחד מחזיק, השני מחכה</td>
+<td>‏advisory lock: רק אחד מחזיק, השני מחכה</td>
 <td>בדיקת המנהיג: הורגים אחד</td>
 </tr>
 <tr>
@@ -756,7 +758,7 @@ ok      example.com/hookline/internal/domain    2.991s
 <li>‏Hookline מוסר webhooks חתומים „לפחות פעם אחת” לכל מקבל מנוי, עם בידוד בין מקבלים והרצה מחדש של כשלים.</li>
 <li>כל דרישה פונקציונלית באה עם בדיקה, וכל דרישה לא פונקציונלית היא יעד שאת מודדת ורושמת בעצמך.</li>
 <li>ארבעה תהליכים ב־Go ושירות אחד ב־Python, מעל מסד אחד, מתווך הודעות אחד ומטמון אחד.</li>
-<li>המסלול: קליטה בטרנזקציה עם outbox, פרסום, פריסה לשורות מסירה, ושליחה חתומה.</li>
+<li>המסלול: קליטה בטרנזקציה עם outbox, פרסום, פיזור לשורות מסירה, ושליחה חתומה.</li>
 <li>שבע טבלאות. אילוצי ייחודיות הם שמחליטים על כפילויות, ומפתח זר מורכב אוכף בעלות של דיירת.</li>
 <li>לכל החלטה יש חלופה פשוטה ותנאי שהיה משנה אותה. זו צורת התשובה שמראיינים מחפשים.</li>
 <li>לכל כשל יש טיפול ובדיקה. „0 חסרות” אחרי כאוס היא ההוכחה של ההבטחה המרכזית.</li>
@@ -798,7 +800,7 @@ ok      example.com/hookline/internal/domain    2.991s
 <td>כתיבת ההודעה לטבלה באותה טרנזקציה של השינוי, ופרסום שלה אחר כך</td>
 </tr>
 <tr>
-<td>נעילה מייעצת</td>
+<td>‏advisory lock</td>
 <td>advisory lock</td>
 <td>נעילה ב־PostgreSQL על מספר שהיישום בוחר; כאן היא בוחרת relay פעיל יחיד</td>
 </tr>
@@ -856,7 +858,7 @@ ok      example.com/hookline/internal/domain    2.991s
 <li>
 <p><strong>ספרי לי על המסלול של אירוע אחד במערכת שבנית.</strong> הדיירת שולחת אירוע עם מפתח אידמפוטנטיות, וה־API כותב את
    האירוע ואת שורת ה־outbox בטרנזקציה אחת, ורק אז מחזיר 202. תהליך relay יחיד מפרסם את שורות ה־outbox, עם מפתח
-   לפי דיירת. ה־dispatcher פורש כל אירוע לשורת מסירה לכל מנוי, עם אילוץ ייחודיות שהופך עיבוד חוזר לחסר נזק.
+   לפי דיירת. ה־dispatcher מפזר כל אירוע לשורת מסירה לכל מנוי, עם אילוץ ייחודיות שהופך עיבוד חוזר לחסר נזק.
    ‏Workers תופסים מסירות עם <code>SKIP LOCKED</code> וחכירה, שולחים חתום, ורושמים כל ניסיון. בכל שלב אומרים מה קורה אם
    הוא נופל, כי זה מה שהמראיין ישאל אחר כך.
    <strong>המשך:</strong> למה לא לפרסם ל־Kafka ישירות מה־API? כי אז יש שתי כתיבות לשתי מערכות בלי טרנזקציה משותפת, וקריסה
@@ -891,7 +893,7 @@ ok      example.com/hookline/internal/domain    2.991s
 <ul>
 <li><strong>ההבטחה:</strong> כל אירוע נמסר חתום, „לפחות פעם אחת”, לכל endpoint מנוי ופעיל; המקבל מסנן לפי מזהה האירוע.</li>
 <li><strong>שחקנים:</strong> דיירת שולחת, מקבל מקבל, מפעילה מפעילה.</li>
-<li><strong>מסלול:</strong> קליטה עם outbox, פרסום, פריסה למסירות, שליחה חתומה, וספירה ב־sink.</li>
+<li><strong>מסלול:</strong> קליטה עם outbox, פרסום, פיזור למסירות, שליחה חתומה, וספירה ב־sink.</li>
 <li><strong>דרישה מול יעד:</strong> דרישה נבדקת בבדיקה; יעד נמדד על המחשב שלי ונרשם עם תאריך.</li>
 <li><strong>כפילויות:</strong> אילוצי ייחודיות במסד מחליטים, לא קוד שבודק לפני הכנסה.</li>
 <li><strong>בידוד:</strong> הדיירת מגיעה מהמפתח בלבד; משאב של אחרת הוא 404; מפתח זר מורכב במסד.</li>
@@ -942,7 +944,7 @@ my path   ingest -&gt; ___ -&gt; ___ -&gt; ___ -&gt; receiver
   תוכיח אותו.</li>
 </ul>
 </main>
-<nav class="bottom"><a href="index.html">תוכן העניינים</a> · <a href="35-coding-drills.html">← פרק 35: תרגילי קוד מעשיים</a> · <a href="38-hookline-milestones.html">פרק 38: אבני הדרך →</a></nav>
+<nav class="bottom"><a href="index.html">תוכן העניינים</a> · <a href="36-system-design-interviews.html">← פרק 36: תכנון מערכות בראיון ומאגר השאלות</a> · <a href="38-hookline-milestones.html">פרק 38: אבני הדרך →</a></nav>
 <script type="module">
   // Render ```mermaid blocks in the browser (needs internet once; cached afterwards).
   const blocks = document.querySelectorAll("pre > code.language-mermaid");

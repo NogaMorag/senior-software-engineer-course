@@ -51,26 +51,26 @@
 „איפה בכלל להסתכל”, והתשובה תלויה במה שהשירות פולט: מדדים, לוגים ומעקבים. מודעות לתפקידי SRE ופלטפורמה
 מבקשות במפורש בעלות על ניטור ותורנות (ראי <code>01-market-research.md</code>, סעיפים 1.3 ו־1.4), וראיון בכיר בודק אם את יודעת
 לחבר את שלושת האותות לסיפור אחד.</p>
-<p>בפרק תכשירי את <code>shorty</code> מפרק 6 ואת המקבל מפרק 8 ב־OpenTelemetry, תריצי מחסנית מלאה של collector,
-Prometheus, Loki, Tempo ו־Grafana, ותעבירי מעקב אחד דרך הודעת Kafka. אותה מחסנית, אותו דשבורד ואותו דפוס
-של חוקים ישמשו את פרק 25 ואת Hookline באבן הדרך M8.</p>
+<p>בפרק תכשירי את <code>shorty</code> מפרק 6 ואת המקבל מפרק 8 ב־OpenTelemetry. תריצי מחסנית מלאה של חמישה רכיבים
+(הם מפורטים בסעיף 24.1.2), ותעבירי מעקב אחד דרך הודעת Kafka. אותה מחסנית, אותו דשבורד ואותו
+דפוס של חוקים ישמשו את פרק 25 ואת Hookline באבן הדרך M8.</p>
 <h2 id="_1">מה נלמד בפרק</h2>
 <ul>
 <li>מה כל אחד משלושת האותות עונה, ואיך מזהה מעקב (trace ID) קושר ביניהם.</li>
-<li>הגדרת OpenTelemetry ב־Go: resource, ספקים, מייצאים ו־propagator, ו־<code>otelhttp</code> כ־middleware.</li>
+<li>הגדרת OpenTelemetry ב־Go: ספקים, מייצאים והפצת הקשר, ו־<code>otelhttp</code> כשכבת middleware.</li>
 <li>אותו דבר ב־Python עם FastAPI, ולמה שם מעבירים ספקים במפורש.</li>
-<li>המודל של Prometheus: סדרות, labels, counter מול histogram, ו־PromQL שמריצים בעצמך.</li>
+<li>המודל של Prometheus: סדרות, סוגי מדדים, ושאילתות PromQL שמריצים בעצמך.</li>
 <li>RED לשירות ו־USE למשאב, ודשבורד Grafana שנטען מקובץ.</li>
 <li>לוגים ב־Loki ומעקבים ב־Tempo, עם קפיצה מלוג למעקב ובחזרה.</li>
-<li>הפצת הקשר המעקב (trace context) דרך headers של רשומת Kafka.</li>
+<li>הפצת הקשר המעקב (trace context) דרך הכותרות של רשומה ב־Kafka.</li>
 </ul>
 <h2 id="_2">ידע מקדים</h2>
 <ul>
-<li>פרק 6: <code>shorty</code>, ה־middleware שלו, <code>slog</code> ומזהה הבקשה (סעיפים 6.2 ו־6.4).</li>
+<li>פרק 6: <code>shorty</code>, ה־middleware שלו, הלוגר ומזהה הבקשה (סעיפים 6.2 ו־6.4), והכיבוי המסודר (סעיף 6.5).</li>
 <li>פרק 8: המקבל ב־FastAPI, ה־lifespan והחתימה (סעיפים 8.4 עד 8.7).</li>
-<li>פרק 13: Redpanda, producer ו־consumer group עם franz-go.</li>
+<li>פרק 13: Redpanda והכתיבה והקריאה של רשומות עם franz-go.</li>
 <li>פרק 19: בניית image רב־שלבית ו־compose עם healthcheck. התרגיל מעתיק את ה־Dockerfiles משם.</li>
-<li>פרק 2: Docker Desktop, Go ו־uv מותקנים, ו־<code>python3</code> זמין ב־WSL2.</li>
+<li>פרק 2: כל הכלים מותקנים, וגם <code>python3</code> זמין ב־WSL2.</li>
 </ul>
 <h2 id="241">24.1 שלושת האותות</h2>
 <p>תצפיתיות (observability) היא היכולת לענות על שאלות על מערכת רצה בלי לשנות אותה. היא נשענת על שלושה סוגי
@@ -151,8 +151,8 @@ Prometheus, Loki, Tempo ו־Grafana, ותעבירי מעקב אחד דרך הו�
 <li><strong>השירות לא מחכה לאחסון.</strong> כש־Loki איטי, ה־collector סופג את זה, ולא כל שירות בנפרד.</li>
 </ul>
 <blockquote>
-<p><strong>שימי לב:</strong> נכון לאוקטובר 2026, את ה־collector לוקחים מ־GHCR ולא מ־Docker Hub, כי הגרסה הרב־ארכיטקטורית
-של המהדורה המוצמדת פורסמה רק שם. הפרטים בנספח ג.</p>
+<p><strong>שימי לב:</strong> נכון לאוקטובר 2026, את ה־image של ה־collector לוקחים מ־GHCR. בגרסה המוצמדת, התג
+הרב־ארכיטקטורי פורסם רק שם, ולא ב־Docker Hub. הפרטים בנספח ג.</p>
 </blockquote>
 <h2 id="242-opentelemetry-go">24.2 OpenTelemetry ב־Go</h2>
 <p>ל־OpenTelemetry ב־Go יש שתי שכבות, וההפרדה ביניהן היא העיקר:</p>
@@ -243,7 +243,7 @@ Prometheus, Loki, Tempo ו־Grafana, ותעבירי מעקב אחד דרך הו�
 </tr>
 </tbody>
 </table>
-<p>אין בקוד אף כתובת: המייצאים קוראים את משתני הסביבה הסטנדרטיים. הפונקציה <code>newResource</code> בונה את ה־resource
+<p>אין בקוד אף כתובת: המייצאים קוראים את משתני הסביבה הסטנדרטיים. הפונקציה <code>newResource</code> בונה את תיאור התהליך
 מקבוצת המוסכמות (semantic conventions: שמות התכונות שכל מימושי OpenTelemetry מסכימים עליהם). החבילה היא
 <code>semconv/v1.43.0</code>, אותה גרסה שה־SDK עצמו מייבא, וכדאי לא לערבב גרסאות. אחרי הספקים באה ההתקנה:</p>
 <div dir="ltr" align="left">
@@ -264,8 +264,8 @@ Prometheus, Loki, Tempo ו־Grafana, ותעבירי מעקב אחד דרך הו�
 <p>ה־propagator הוא מה שכותב את הקשר המעקב לכותרות של בקשה יוצאת וקורא אותו מבקשה נכנסת. <code>TraceContext</code>
 מממש את התקן של W3C, ובו הכותרת <code>traceparent</code>. בלי השורה הזאת כל שירות פותח מעקב חדש, והשרשרת נשברת בכל
 קפיצה.</p>
-<p>ו־<code>Setup</code> מחזירה פונקציית כיבוי. ב־<code>main</code> היא רצה ב־<code>defer</code>, עם context חדש של חמש שניות, כי ה־context
-הראשי כבר בוטל כשמגיעים לשם (בדיוק כמו בכיבוי המסודר של סעיף 6.6):</p>
+<p>ו־<code>Setup</code> מחזירה פונקציית כיבוי. ב־<code>main</code> היא רצה בסוף, עם context חדש של חמש שניות. הסיבה: ה־context
+הראשי כבר בוטל כשמגיעים לשם, בדיוק כמו בכיבוי המסודר של סעיף 6.5:</p>
 <div dir="ltr" align="left">
 
 
@@ -290,13 +290,13 @@ Prometheus, Loki, Tempo ו־Grafana, ותעבירי מעקב אחד דרך הו�
 <p>בלי הכיבוי, ה־spans האחרונים שבמנה שעוד לא נשלחה פשוט אובדים, ודווקא הם מתעדים את מה שקרה לפני שהתהליך
 נעצר.</p>
 <blockquote>
-<p><strong>איך Rust עושה את זה:</strong> ב־Rust ה־crate <code>opentelemetry</code> מחולק באותה צורה ל־API ול־SDK, ובדרך כלל
-מחברים אותו ל־<code>tracing</code> דרך <code>tracing-opentelemetry</code>, כך שכל <code>#[instrument]</code> הופך ל־span. ב־Go אין שכבת
-<code>tracing</code> משותפת: ה־spans באים מספריות מכושרות כמו <code>otelhttp</code>, או מקריאה מפורשת ל־<code>tracer.Start</code>.</p>
+<p><strong>איך Rust עושה את זה:</strong> ב־Rust ה־crate <code>opentelemetry</code> מחולק באותה צורה לשתי שכבות. בדרך כלל מחברים
+אותו ל־<code>tracing</code>, כך שכל פונקציה מסומנת הופכת ל־span. ב־Go אין שכבת מעקב משותפת כזאת: ה־spans באים
+מספריות מכושרות, או מקריאה מפורשת ל־<code>tracer.Start</code>.</p>
 </blockquote>
 <h3 id="2422-middleware-otelhttp">24.2.2 ה־middleware של <code>otelhttp</code></h3>
-<p>הספרייה <code>otelhttp</code> יוצרת span של שרת לכל בקשה, ממשיכה מעקב שהגיע בכותרת <code>traceparent</code>, ומקליטה את המדד
-<code>http.server.request.duration</code>. הנה שרשרת ה־middleware החדשה (הקובץ <code>internal/app/app.go</code>):</p>
+<p>הספרייה <code>otelhttp</code> יוצרת span של שרת לכל בקשה, וממשיכה מעקב שהגיע בכותרת <code>traceparent</code>. היא גם מקליטה
+מדד של משך הבקשות, <code>http.server.request.duration</code>. הנה שרשרת ה־middleware החדשה (הקובץ <code>internal/app/app.go</code>):</p>
 <div dir="ltr" align="left">
 
 
@@ -338,7 +338,7 @@ Prometheus, Loki, Tempo ו־Grafana, ותעבירי מעקב אחד דרך הו�
 
 <p>למה זה כל כך חשוב? כי התבנית הופכת ל־label בשם <code>http_route</code> במדד. התבנית <code>/{code}</code> היא ערך אחד; הנתיב
 עצמו, <code>/abc123</code>, הוא ערך חדש לכל קוד מקוצר, וכל ערך הוא סדרה חדשה ב־Prometheus. זו בעיית הקרדינליות
-(cardinality: מספר הצירופים השונים של labels), והיא הדרך הנפוצה ביותר להפיל מערכת מדדים.</p>
+(cardinality: מספר הצירופים השונים של labels), והיא דרך נפוצה להפיל מערכת מדדים.</p>
 <h3 id="2423">24.2.3 לוגים עם מזהה המעקב</h3>
 <p>הלוגר של פרק 6 הוסיף את מזהה הבקשה מה־context. עכשיו הוא מוסיף גם את מזהה המעקב ואת מזהה ה־span (הקובץ
 <code>internal/platform/logging.go</code>):</p>
@@ -368,8 +368,8 @@ Prometheus, Loki, Tempo ו־Grafana, ותעבירי מעקב אחד דרך הו�
 </div>
 
 <p>הלוגים צריכים להגיע גם ל־Loki. יש שתי דרכים: לקרוא את ה־stdout של הקונטיינרים, או לשלוח כל רשומה ב־OTLP.
-התרגיל בוחר ב־OTLP, דרך הגשר <code>otelslog</code>, שהופך רשומת <code>slog</code> לרשומת לוג של OpenTelemetry ולוקח את מזהה המעקב
-מה־context בעצמו. <code>NewLogger</code> מקבלת handlers נוספים ומפצלת אליהם עם <code>slog.NewMultiHandler</code>:</p>
+התרגיל בוחר ב־OTLP, דרך הגשר <code>otelslog</code>. הגשר הופך כל רשומת לוג לרשומה של OpenTelemetry, ולוקח את מזהה
+המעקב מה־context בעצמו. הפונקציה <code>NewLogger</code> מקבלת handlers נוספים ומפצלת אליהם:</p>
 <div dir="ltr" align="left">
 
 
@@ -386,8 +386,8 @@ Prometheus, Loki, Tempo ו־Grafana, ותעבירי מעקב אחד דרך הו�
 </div>
 
 <p>שני פרטים. ה־<code>contextHandler</code> עוטף רק את ה־JSON, כי הגשר כבר מכניס את המעקב לשדות הייעודיים של רשומת
-OTLP, ושדה כפול רק מבלבל. ו־<code>minLevel</code> מחיל את הרמה על כל ה־handlers, כי לגשר אין אפשרות רמה משלו, ובלעדיו
-שורות debug היו מגיעות ל־Loki. ב־<code>main</code> הקריאה היא:</p>
+OTLP, ושדה כפול רק מבלבל. ו־<code>minLevel</code> מחיל את הרמה על כל ה־handlers, כי לגשר אין אפשרות רמה משלו. בלעדיו
+גם שורות הניפוי היו מגיעות ל־Loki. ב־<code>main</code> הקריאה היא:</p>
 <div dir="ltr" align="left">
 
 
@@ -418,9 +418,15 @@ func TestMain(m *testing.M) {
 
 </div>
 
-<p>הבדיקות בודקות שה־span נקרא לפי התבנית, שלמדד יש <code>http.route</code> וסטטוס, ששורת לוג הגישה נושאת את מזהה
-המעקב של ה־span, ושכשל בפרסום נותן 503 ו־span עם סטטוס שגיאה. התחליף הגלובלי הוא פשרה: הבדיקות בחבילה הזאת
-לא רצות במקביל. החלופה היא להעביר ספקים לכל רכיב במפורש, וב־Python זו באמת הדרך (סעיף 24.3).</p>
+<p>ארבע הבדיקות בקובץ בודקות:</p>
+<ul>
+<li>שה־span נקרא לפי התבנית, ולא לפי הנתיב.</li>
+<li>שלנתוני המדד יש תבנית וקוד סטטוס.</li>
+<li>ששורת לוג הגישה נושאת את מזהה המעקב של ה־span.</li>
+<li>שכשל בפרסום נותן 503, וה־span שלו מסומן כשגיאה.</li>
+</ul>
+<p>התחליף הגלובלי הוא פשרה: הבדיקות בחבילה הזאת לא רצות במקביל. החלופה היא להעביר ספקים לכל רכיב
+במפורש, וב־Python זו באמת הדרך (סעיף 24.3).</p>
 <h2 id="243-opentelemetry-python">24.3 OpenTelemetry ב־Python</h2>
 <p>ב־Python אותם מושגים בדיוק: resource, ספק לכל אות, מייצא OTLP ב־HTTP. ההבדל הוא שהמודול <code>receiver.telemetry</code>
 לא מתקין את הספקים כגלובליים, ובכוונה: ה־API של Python מרשה להגדיר את ספק המעקבים הגלובלי פעם אחת בלבד
@@ -457,9 +463,9 @@ func TestMain(m *testing.M) {
 
 </div>
 
-<p>הכישור של FastAPI הוא חבילה נפרדת, <code>opentelemetry-instrumentation-fastapi</code>, שמוסיפה middleware של ASGI
-ליישום. הגרסאות של חבילות הכישור הן בטא, ממוספרות בנפרד מה־SDK (נכון לאוקטובר 2026, ה־SDK 1.45.0 הולך עם
-כישור 0.66b0), והן מוצמדות ב־<code>pyproject.toml</code> בדיוק, כי בטא יכולה להשתנות בין גרסאות. החיבור עצמו:</p>
+<p>הכישור של FastAPI הוא חבילה נפרדת, <code>opentelemetry-instrumentation-fastapi</code>, שמוסיפה שכבה ליישום. חבילות
+הכישור הן בגרסאות בטא, ממוספרות בנפרד מה־SDK. לכן הן מוצמדות בדיוק ב־<code>pyproject.toml</code>, כי בטא יכולה
+להשתנות בין גרסאות (הצמדות נכון לאוקטובר 2026 בנספח ג). החיבור עצמו:</p>
 <div dir="ltr" align="left">
 
 
@@ -473,6 +479,7 @@ func TestMain(m *testing.M) {
         tracer_provider=telemetry.tracer_provider,
         meter_provider=telemetry.meter_provider,
         excluded_urls=&quot;stats,control,receipts,reset&quot;,
+        exclude_spans=[&quot;receive&quot;, &quot;send&quot;],  # no extra spans per ASGI message
     )
 </code></pre>
 
@@ -484,8 +491,9 @@ func TestMain(m *testing.M) {
 <code>http.server.duration</code>, באלפיות שנייה, ושירות Python לא מופיע בדשבורד שבנוי על השם היציב ובשניות. כשמערבבים
 שפות, המוסכמות צריכות להיות אותן מוסכמות.</p>
 </blockquote>
-<p>ללוגים יש שני מסלולים, כמו ב־Go. ה־handler של OTLP (מהחבילה <code>opentelemetry-instrumentation-logging</code>; זה
-שב־SDK מסומן כמיושן) לוקח את המעקב מה־span הנוכחי. לשורות הטקסט ב־stderr יש מסנן קטן שמוסיף את המזהים:</p>
+<p>ללוגים יש שני מסלולים, כמו ב־Go. ה־handler ששולח ב־OTLP לוקח את המעקב מה־span הנוכחי. הוא בא מהחבילה
+<code>opentelemetry-instrumentation-logging</code>, כי זה שב־SDK מסומן כמיושן. לשורות הטקסט ב־stderr יש מסנן קטן
+שמוסיף את המזהים:</p>
 <div dir="ltr" align="left">
 
 
@@ -505,7 +513,7 @@ func TestMain(m *testing.M) {
 
 <p>הפורמט <code>032x</code> חשוב: מזהה מעקב הוא מספר בן 128 ביט, וההצגה הסטנדרטית היא 32 ספרות הקסדצימליות עם אפסים
 מובילים. בלעדיו, מזהה שמתחיל באפס לא יימצא בחיפוש. בקובץ <code>main.py</code> הסדר הוא טלמטריה, לוגים, יישום,
-כישור, ו־<code>uvicorn.run</code> עם <code>log_config=None</code>, כדי ש־uvicorn לא ידרוס את הגדרת הלוגים.</p>
+כישור והרצה. ההרצה מקבלת <code>log_config=None</code>, כדי שהשרת לא ידרוס את הגדרת הלוגים.</p>
 <h2 id="244-prometheus-promql">24.4 Prometheus: מדדים ו־PromQL</h2>
 <p>Prometheus שומר סדרות זמן (time series). סדרה היא שם מדד ועוד קבוצת labels, ולכל סדרה רשימה של זוגות זמן
 וערך. כל צירוף חדש של labels הוא סדרה חדשה. הנה שתיים מהמחסנית, עם חלק מה־labels בלבד:</p>
@@ -581,8 +589,8 @@ http_server_request_duration_seconds_count{job=&quot;shorty&quot;, http_route=&q
 </tbody>
 </table>
 <p>התרגיל בוחר בדחיפה: הקולט של OTLP ב־Prometheus 3, מאחורי ה־collector. כך יש לשלושת האותות צינור אחד וכתובת
-אחת, ושם המדד ב־Prometheus יוצא מהמוסכמות של OpenTelemetry. החלופה, ה־exporter של Prometheus ב־collector
-שממנו Prometheus מגרד, עובדת גם היא ומוסיפה קפיצה. הדגלים מהקובץ <code>data/compose.yaml</code>:</p>
+אחת, ושם המדד ב־Prometheus יוצא מהמוסכמות של OpenTelemetry. החלופה, מייצא ב־collector
+ש־Prometheus מגרד ממנו, עובדת גם היא ומוסיפה קפיצה. הדגלים מהקובץ <code>data/compose.yaml</code>:</p>
 <div dir="ltr" align="left">
 
 
@@ -689,8 +697,8 @@ storage:
 </tr>
 </tbody>
 </table>
-<p>שני כללים שחוסכים שעות. <strong>קודם <code>rate</code>, אחר כך <code>sum</code>:</strong> <code>rate</code> יודע לטפל באיפוס של counter כשתהליך עולה
-מחדש, אבל רק על סדרה אחת. סכום של counters גולמיים מאבד את המידע הזה. ו־<strong>ל־<code>histogram_quantile</code> חייבים
+<p>שני כללים שחוסכים שעות. <strong>קודם <code>rate</code>, אחר כך <code>sum</code>:</strong> הפונקציה הראשונה יודעת לטפל באיפוס של counter כשתהליך
+עולה מחדש, אבל רק על סדרה אחת. סכום של counters גולמיים מאבד את המידע הזה. ו־<strong>ל־<code>histogram_quantile</code> חייבים
 להשאיר את <code>le</code>:</strong></p>
 <div dir="ltr" align="left">
 
@@ -806,9 +814,9 @@ storage:
 
 </div>
 
-<p>ה־<code>$$</code> בקובץ, למשל ב־<code>$${__trace.traceId}</code>, הוא בריחה: Grafana מחליפה <code>$NAME</code> במשתני סביבה בקבצי
-provisioning, ו־<code>$$</code> אומר „דולר אמיתי”.</p>
-<p>הדשבורד עצמו הוא JSON בקובץ <code>data/grafana/dashboards/red.json</code>, ושמו „RED overview”. בראשו משתנה בשם <code>job</code>
+<p>ה־<code>$$</code> בקובץ, למשל ב־<code>$${__trace.traceId}</code>, הוא בריחה: Grafana מחליפה <code>$NAME</code> במשתני סביבה בקבצים
+שהיא טוענת, ו־<code>$$</code> אומר „דולר אמיתי”.</p>
+<p>הדשבורד עצמו הוא קובץ JSON בשם „RED overview”, בתיקייה של הדשבורדים: <code>data/grafana/dashboards/red.json</code>. בראשו משתנה בשם <code>job</code>
 שהאפשרויות שלו נשלפות מ־Prometheus, וכל השאילתות משתמשות בו. כך אותו דשבורד משמש את <code>shorty</code>, את
 <code>receiver</code> ואת השירותים של Hookline. הנה הפאנל של השגיאות, כפי שהוא ב־JSON:</p>
 <div dir="ltr" align="left">
@@ -834,7 +842,8 @@ provisioning, ו־<code>$$</code> אומר „דולר אמיתי”.</p>
 הדגל <code>exemplar</code> דולק: הנקודות על הקו הן דוגמאות, ולחיצה עליהן פותחת את המעקב ב־Tempo.</p>
 <blockquote>
 <p><strong>שימי לב:</strong> הספק של הדשבורדים מוגדר עם <code>allowUiUpdates</code>, אז אפשר לערוך בממשק. אבל מה שנשמר בממשק לא חוזר
-לקובץ. אחרי עריכה, ייצאי את ה־JSON (Share, Export) והחליפי את הקובץ, אחרת השינוי ייעלם ב־<code>down -v</code> הבא.</p>
+לקובץ. אחרי עריכה, ייצאי את הדשבורד (בתפריט השיתוף) והחליפי את הקובץ. אחרת השינוי ייעלם בהורדה הבאה של
+המחסנית.</p>
 </blockquote>
 <h2 id="247-loki">24.7 Loki ולוגים</h2>
 <p>Loki שומר לוגים בגישה שונה ממנוע חיפוש. הוא לא מאנדקס את תוכן השורות, רק כמה labels לכל זרם (stream), ובזמן
@@ -866,8 +875,8 @@ provisioning, ו־<code>$$</code> אומר „דולר אמיתי”.</p>
 </tr>
 </tbody>
 </table>
-<p>זו בדיוק ההפרדה הנכונה. אילו <code>trace_id</code> היה label, כל בקשה הייתה זרם חדש, ו־Loki היה קורס תחת הקרדינליות
-כמו Prometheus. כמטא־נתונים, אפשר לסנן לפיו בזול בתוך זרם. שאילתת LogQL (שפת השאילתות של Loki) שמחזירה את
+<p>זו בדיוק ההפרדה הנכונה. אילו מזהה המעקב היה label, כל בקשה הייתה זרם חדש, ו־Loki היה קורס תחת
+הקרדינליות. כמטא־נתונים, אפשר לסנן לפיו בזול בתוך זרם. שאילתת LogQL (שפת השאילתות של Loki) שמחזירה את
 כל השורות של מעקב אחד, משלושת השירותים:</p>
 <div dir="ltr" align="left">
 
@@ -879,8 +888,8 @@ provisioning, ו־<code>$$</code> אומר „דולר אמיתי”.</p>
 </div>
 
 <p>החלק בסוגריים המסולסלים בוחר זרמים לפי labels, וחייב להיות בו לפחות תנאי אחד שאינו ריק. מה שאחרי הקו
-האנכי מסנן שורות. ב־Grafana, השדה <code>trace_id</code> של כל שורה הופך לקישור „Open trace”, בזכות שדה נגזר במקור
-הנתונים של Loki:</p>
+האנכי מסנן שורות. ב־Grafana, השדה <code>trace_id</code> של כל שורה הופך לקישור למעקב. זה שדה נגזר (derived field)
+במקור הנתונים של Loki:</p>
 <div dir="ltr" align="left">
 
 
@@ -896,7 +905,7 @@ provisioning, ו־<code>$$</code> אומר „דולר אמיתי”.</p>
 
 </div>
 
-<p><strong>למה ה־collector ולא Grafana Alloy.</strong> Alloy הוא ההפצה של Grafana ל־collector, עם שפת תצורה משלה, והוא יודע
+<p><strong>למה ה־collector ולא Alloy.</strong> ‏Alloy הוא ההפצה של ה־collector מבית Grafana, עם שפת תצורה משלה. הוא יודע
 גם לקרוא קבצי לוג של קונטיינרים. התרגיל צריך רק OTLP פנימה ושלושה יעדים החוצה, וה־collector עושה את זה
 בתצורת YAML שהיא אותה תצורה בכל ספק, כולל ספקים מסחריים. Alloy היה מנצח אילו היינו צריכים לגרד קבצי לוג
 של תהליכים שאינם מכושרים. הצינורות (הקובץ <code>data/otel-collector.yaml</code>):</p>
@@ -925,7 +934,8 @@ provisioning, ו־<code>$$</code> אומר „דולר אמיתי”.</p>
 
 <blockquote>
 <p><strong>טעות נפוצה:</strong> להעתיק תצורת collector ישנה עם המייצאים <code>otlp</code> ו־<code>otlphttp</code>. בגרסה המוצמדת שמותיהם
-<code>otlp_grpc</code> ו־<code>otlp_http</code>. את רשימת הרכיבים של image מסוים אפשר לבקש מהקובץ עצמו, בפקודה <code>components</code>.</p>
+<code>otlp_grpc</code> ו־<code>otlp_http</code>. את רשימת הרכיבים של image מסוים אפשר לבקש מהקובץ
+הבינארי שבו, בפקודה <code>components</code>.</p>
 </blockquote>
 <h2 id="248-tempo">24.8 Tempo ומעקבים</h2>
 <p>Tempo שומר מעקבים ומחזיר אותם לפי מזהה, או לפי חיפוש. נכון לאוקטובר 2026 Tempo בגרסה 3, ובמצב החד־תהליכי
@@ -983,7 +993,7 @@ receiver              POST /hooks/{name}   server
 
 </div>
 
-<p>את מעקב לפי מזהה מבקשים ב־API של Tempo, וזה מה שבדיקת המחסנית עושה:</p>
+<p>מעקב לפי מזהה מבקשים ב־API של Tempo, וזה מה שבדיקת המחסנית עושה:</p>
 <div dir="ltr" align="left">
 
 
@@ -993,7 +1003,7 @@ receiver              POST /hooks/{name}   server
 
 </div>
 
-<p>וב־Grafana, Explore עם Tempo, אפשר לחפש ב־TraceQL. השאילתה הבאה מוצאת מעקבים שבהם span של <code>shorty</code> נכשל:</p>
+<p>במסך Explore של Grafana אפשר לחפש מעקבים בשפה TraceQL. השאילתה הבאה מוצאת מעקבים שבהם span של <code>shorty</code> נכשל:</p>
 <div dir="ltr" align="left">
 
 
@@ -1005,9 +1015,12 @@ receiver              POST /hooks/{name}   server
 
 <p>מכל span, הכפתור של הלוגים פותח ב־Loki את השורות של אותו מעקב. זו ההגדרה <code>tracesToLogsV2</code> במקור הנתונים
 של Tempo.</p>
-<p><strong>דגימה.</strong> התרגיל שומר כל מעקב. במערכת עמוסה זה יקר, ודוגמים: בתחילת הבקשה (head sampling, למשל אחוז אחד
-מהמעקבים, החלטה שעוברת הלאה ב־<code>traceparent</code>) או בסופה, ב־collector (tail sampling, שומר את כל המעקבים עם
-שגיאה או איטיים). הדגימה בסוף מדויקת יותר, והיא דורשת להחזיק מעקבים שלמים בזיכרון עד שהם נגמרים.</p>
+<p><strong>דגימה.</strong> התרגיל שומר כל מעקב. במערכת עמוסה זה יקר, ולכן דוגמים, באחת משתי נקודות:</p>
+<ul>
+<li><strong>בתחילת הבקשה</strong> (head sampling): למשל אחוז אחד מהמעקבים. ההחלטה עוברת הלאה בכותרת.</li>
+<li><strong>בסופה, ב־collector</strong> (tail sampling): שומרים את כל המעקבים עם שגיאה או האיטיים.</li>
+</ul>
+<p>הדגימה בסוף מדויקת יותר, והיא דורשת להחזיק מעקבים שלמים בזיכרון עד שהם נגמרים.</p>
 <h2 id="249-kafka">24.9 הפצת הקשר דרך Kafka</h2>
 <p>ב־HTTP, הקשר המעקב עובר בכותרת <code>traceparent</code>. גם לרשומת Kafka יש headers (זוגות של מפתח וערך, ליד המפתח
 והערך של הרשומה), ובהם הוא עובר באותה צורה בדיוק:</p>
@@ -1022,8 +1035,8 @@ receiver              POST /hooks/{name}   server
 
 </div>
 
-<p>ל־franz-go יש תוסף רשמי ל־OpenTelemetry, <code>kotel</code>, שהוא מודול נפרד באותו מאגר (הגרסה המוצמדת ב־<code>go.mod</code>
-ובנספח ג). הוא מתחבר כ־hooks של הלקוח (הקובץ <code>internal/events/events.go</code>):</p>
+<p>ל־franz-go יש תוסף רשמי ל־OpenTelemetry בשם <code>kotel</code>, מודול נפרד באותו מאגר. הגרסה המוצמדת מופיעה בנספח
+ג. הוא מתחבר כ־hooks של הלקוח (הקובץ <code>internal/events/events.go</code>):</p>
 <div dir="ltr" align="left">
 
 
@@ -1049,7 +1062,7 @@ receiver              POST /hooks/{name}   server
 <tr>
 <td>כתיבה</td>
 <td>כשרשומה נכנסת למאגר של הלקוח</td>
-<td>span של <code>publish</code> נפתח כילד של ה־context של הרשומה, ו־<code>traceparent</code> נכתב ל־headers</td>
+<td>נפתח span של <code>publish</code>, כילד של ההקשר שהרשומה נושאת; הכותרת <code>traceparent</code> נכתבת לרשומה</td>
 </tr>
 <tr>
 <td>כתיבה</td>
@@ -1099,21 +1112,21 @@ receiver              POST /hooks/{name}   server
 
 </div>
 
-<p>הקריאה למקבל עוברת דרך <code>otelhttp.NewTransport</code>, שפותח span של client וכותב <code>traceparent</code> לבקשה, והמקבל
+<p>הקריאה למקבל עוברת דרך <code>otelhttp.NewTransport</code>, שפותח span של לקוח וכותב את הכותרת לבקשה. המקבל
 ב־Python ממשיך משם. ארבעה תהליכים, שתי שפות, broker אחד, מעקב אחד.</p>
 <p>שתי הערות של בכירה. <strong>הורה או קישור:</strong> כאן ה־span של הצרכן הוא ילד של ה־span של הכותב, וזה טבעי כשכל רשומה
 היא תוצאה של בקשה אחת. כשצרכן מעבד מנה של רשומות מבקשות שונות, או כשהטיפול מתעכב בשעות, נכון יותר מעקב חדש
-עם קישור (span link) לכותב; ב־<code>kotel</code> זו האפשרות <code>LinkSpans</code>. <strong>מוסכמות ישנות:</strong> <code>kotel</code> כותב תכונות לפי
+עם קישור (span link) לכותב. ב־<code>kotel</code> זו האפשרות <code>LinkSpans</code>. <strong>מוסכמות ישנות:</strong> <code>kotel</code> כותב תכונות לפי
 גרסה ישנה של המוסכמות, למשל <code>messaging.source.name</code>, בזמן ש־<code>otelhttp</code> כותב לפי החדשות. זה לא שובר את
 המעקב, אבל חיפוש לפי שם תכונה צריך לדעת איזו גרסה כתבה אותה.</p>
-<p>והבדיקה של הקפיצה לא צריכה broker. היא מפעילה את ה־hooks ביד: hook הכתיבה על רשומה, ואז רשומה חדשה שיש לה
-רק את ה־headers של הראשונה, כמו שהצרכן מקבל מה־broker, דרך hook הקריאה והעובד. הבדיקה בודקת שכל ה־spans
-באותו מעקב, וש־<code>traceparent</code> הגיע למקבל (הקובץ <code>internal/linkworker/worker_test.go</code>). בדיקה נוספת,
+<p>והבדיקה של הקפיצה לא צריכה broker. היא מפעילה את ה־hooks ביד. קודם את זה של הכתיבה, על רשומה אחת. אחר כך
+רשומה חדשה, שיש לה רק את הכותרות של הראשונה, כמו שהצרכן מקבל אותה, עוברת בצד הקורא ובעובד. הבדיקה
+בודקת שכל ה־spans באותו מעקב, וש־<code>traceparent</code> הגיע למקבל (הקובץ <code>internal/linkworker/worker_test.go</code>). בדיקה נוספת,
 ב־<code>internal/events</code>, עושה את אותו דבר מול Redpanda אמיתי כשמוגדר <code>KAFKA_BROKERS</code>.</p>
 <h2 id="_3">סיכום</h2>
 <ul>
 <li>שלושה אותות: מדד אומר שיש בעיה, מעקב אומר איפה, לוג אומר למה. מזהה המעקב ודוגמאות קושרים ביניהם.</li>
-<li>השירותים שולחים OTLP ל־collector אחד, והוא מפצל ל־Prometheus, ל־Loki ול־Tempo.</li>
+<li>השירותים שולחים OTLP ל־collector אחד, והוא מפצל לשלושה אחסונים.</li>
 <li>ב־Go: ספרייה תלויה ב־API, ו־<code>main</code> מתקין SDK: resource, ספק ומייצא לכל אות, propagator, וכיבוי שמרוקן.</li>
 <li>ה־middleware של <code>otelhttp</code> מחוץ ללוג הגישה ולהתאוששות; התבנית ולא הנתיב, כדי לשמור על קרדינליות.</li>
 <li>ב־Python מעבירים ספקים במפורש, ומבקשים את המוסכמות היציבות של HTTP.</li>
@@ -1226,9 +1239,9 @@ receiver              POST /hooks/{name}   server
 </table>
 <h2 id="_5">טעויות נפוצות</h2>
 <ul>
-<li><strong>נתיב גולמי כ־label.</strong> <code>/abc123</code> במקום <code>/{code}</code> יוצר סדרה לכל קוד ומפיל את Prometheus. labels רק עם מעט
-  ערכים אפשריים.</li>
-<li><strong><code>otelhttp</code> בתוך שכבה שמעתיקה את הבקשה.</strong> ה־span נקרא <code>GET</code> בלי תבנית, ולמדד אין <code>http_route</code>. התבנית
+<li><strong>נתיב גולמי כ־label.</strong> הנתיב <code>/abc123</code> במקום התבנית יוצר סדרה לכל קוד ומפיל את Prometheus. ל־labels
+  נותנים רק ערכים מקבוצה קטנה.</li>
+<li><strong>‏<code>otelhttp</code> בתוך שכבה שמעתיקה את הבקשה.</strong> ה־span נקרא <code>GET</code> בלי תבנית, ולמדד אין תבנית נתיב. התבנית
   צריכה להגיע לכל השכבות.</li>
 <li><strong>לשכוח את ה־propagator.</strong> כל שירות פותח מעקב חדש, ובמקום מעקב אחד יש ארבעה חתוכים.</li>
 <li><strong>לא לקרוא לכיבוי של הטלמטריה.</strong> המנה האחרונה של spans ולוגים, זו שמתעדת את הקריסה, לא נשלחת.</li>
@@ -1283,7 +1296,7 @@ receiver              POST /hooks/{name}   server
 <li><strong>שלושה אותות:</strong> מדד אומר שיש בעיה, מעקב איפה, לוג למה.</li>
 <li><strong>הקשר:</strong> מזהה המעקב בכל שורת לוג, ודוגמאות על ה־histogram.</li>
 <li><strong>collector:</strong> כתובת אחת לשירותים, עיבוד במקום אחד, שלושה יעדים.</li>
-<li><strong>Go:</strong> ספריות תלויות ב־API; <code>main</code> מתקין SDK; propagator של W3C; כיבוי שמרוקן.</li>
+<li><strong>Go:</strong> ספריות תלויות ב־API, ו־<code>main</code> מתקין SDK; הפצת הקשר של W3C; כיבוי שמרוקן.</li>
 <li><strong>otelhttp:</strong> מחוץ ללוג ולהתאוששות; התבנית צריכה להגיע אליו.</li>
 <li><strong>Python:</strong> ספקים במפורש; המוסכמות היציבות של HTTP בבקשה מפורשת.</li>
 <li><strong>PromQL:</strong> <code>rate</code> ואז <code>sum</code>; ב־<code>histogram_quantile</code> משאירים <code>le</code>.</li>
@@ -1313,25 +1326,25 @@ my p99 for shorty: ___ ms at ___ req/s   my trace id: ___
 </div>
 
 <h2 id="_7">תרגיל</h2>
-<p><strong>מטרה:</strong> לכשר את <code>shorty</code>, את <code>linkworker</code> ואת המקבל ב־OpenTelemetry, להריץ את המחסנית עם collector,
-Prometheus, Loki, Tempo ו־Grafana, לבנות דשבורד RED מקובץ, ולהעביר מעקב אחד דרך Kafka.
+<p><strong>מטרה:</strong> לכשר את שלושת השירותים ב־OpenTelemetry, להריץ את מחסנית הטלמטריה המלאה, לבנות דשבורד RED מקובץ,
+ולהעביר מעקב אחד דרך Kafka.
 <strong>זמן:</strong> שלושה ימי לימוד, ימים 72 עד 74, כ־60, 60 ו־65 דקות בנייה.
 <strong>ידע מקדים:</strong> הפרק, פרקים 6, 8, 13 ו־19, ו־Docker Desktop עם כ־4 GB פנויים.</p>
 <p>הצעדים, קוד ההתחלה, הרמזים והפתרון נמצאים
 ב־<a href="../exercises/ch24-telemetry/README.md"><code>exercises/ch24-telemetry/README.md</code></a>.</p>
 <p><strong>קריטריון סיום:</strong></p>
 <ul>
-<li>בקשה אחת ל־<code>shorty</code> נותנת מעקב שנראה ב־Tempo דרך Grafana, עם ה־spans של ה־handler.</li>
+<li>בקשה אחת ל־<code>shorty</code> נותנת מעקב שנראה ב־Grafana, עם ה־spans של ה־handler.</li>
 <li>הדשבורד „RED overview” נטען מהקובץ, והפאנלים שלו זזים כשהתנועה רצה.</li>
 <li>שורת לוג ב־Loki מובילה בלחיצה למעקב שלה, ומ־span אפשר להגיע לשורות.</li>
-<li>מעקב אחד ב־Tempo מכיל את ה־span של הכתיבה ל־Kafka, את ה־span של הצרכן ואת ה־span של המקבל.</li>
+<li>מעקב אחד מכיל את הכתיבה ל־Kafka, את הטיפול בצרכן ואת הבקשה למקבל.</li>
 <li>הבדיקות של שני המודולים ירוקות, והסקריפט <code>tests/check_stack.sh</code> מסתיים ב־<code>ALL CHECKS PASSED</code>.</li>
 </ul>
 <h2 id="_8">העשרה אופציונלית</h2>
 <ul>
-<li>המסמך „Semantic Conventions for HTTP” באתר של OpenTelemetry מפרט את כל התכונות והמדדים של HTTP, כולל
+<li>המסמך „Semantic Conventions for HTTP” באתר של OpenTelemetry מפרט את כל התכונות והמדדים של בקשות, כולל
   הגבולות המומלצים של הדליים. השווי אותו למה ש־<code>otelhttp</code> פולט.</li>
-<li>הוסיפי ל־collector מעבד tail sampling ששומר רק מעקבים עם שגיאה או ארוכים מ־500 אלפיות, ובדקי ב־Tempo
+<li>הוסיפי ל־collector מעבד של דגימה בסוף (tail sampling) ששומר רק מעקבים עם שגיאה או ארוכים מ־500 אלפיות, ובדקי ב־Tempo
   כמה מעקבים נשארו.</li>
 <li>בפרק 6 בדקת ביצועים עם pprof. הוסיפי ל־<code>shorty</code> אפשרות להעביר פרופילים ל־Grafana Pyroscope, האות הרביעי
   שנקרא פרופיילינג רציף, וחשבי מתי הוא שווה את המחיר.</li>

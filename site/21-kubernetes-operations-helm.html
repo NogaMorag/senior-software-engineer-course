@@ -71,12 +71,13 @@
 שואל אחרי „מה זה pod”.</p>
 <h2 id="_1">מה נלמד בפרק</h2>
 <ul>
-<li>requests ו־limits, שלוש מחלקות QoS, ומה קורה בחריגה מכל אחד מהם: חניקה במעבד, הריגה בזיכרון.</li>
-<li>metrics-server על kind ו־HPA שמוסיף עותקים תחת עומס אמיתי ומוריד אותם אחריו.</li>
-<li>אסטרטגיית rolling update, גרסה שבורה שנתקעת בלי לפגוע במשתמשים, ו־<code>kubectl rollout undo</code>.</li>
-<li>ingress על kind בדרך שהתיעוד של kind ממליץ עליה היום, ולמה ingress-nginx כבר לא ברירת המחדל.</li>
-<li>סדר בדיקות קבוע לתקלה: describe, logs, events, exec ו־<code>kubectl debug</code>, על ארבע תקלות שתולות.</li>
-<li>chart ראשון של Helm: values, templates, <code>_helpers.tpl</code>, סכמת values, lint, install, upgrade ו־rollback.</li>
+<li>בקשות ותקרות משאבים, שלוש מחלקות QoS, ומה קורה בחריגה מכל אחת מהן: חניקה במעבד, הריגה בזיכרון.</li>
+<li>הרכיב metrics-server על kind, ו־HPA שמוסיף עותקים תחת עומס אמיתי ומוריד אותם אחריו.</li>
+<li>אסטרטגיית rolling update, גרסה שבורה שנתקעת בלי לפגוע במשתמשים, וחזרה אחורה.</li>
+<li>גישה מבחוץ (ingress) על kind בדרך שהתיעוד של kind ממליץ עליה נכון לאוקטובר 2026, ולמה ingress-nginx כבר לא
+  ברירת המחדל.</li>
+<li>סדר בדיקות קבוע לתקלה, מהסטטוס ועד קונטיינר דיבוג זמני, על ארבע תקלות שתולות.</li>
+<li>חבילה ראשונה (chart) של Helm: תבניות, ערכים וסכמה שבודקת אותם, ומחזור החיים של התקנה, שדרוג וחזרה אחורה.</li>
 </ul>
 <h2 id="_2">ידע מקדים</h2>
 <ul>
@@ -571,11 +572,11 @@ kind:</p>
 
 <p>הדגל האחרון ממפה את הפורט של ה־gateway לפורט במחשב שלך. ה־README של cloud-provider-kind מסביר למה: ב־Mac
 וב־Windows הקונטיינרים רצים במכונה וירטואלית, וכתובות ה־IP של kind לא נגישות מהמחשב. על WSL2 עם רשת NAT,
-לפי אותו README, הכתובת החיצונית אמורה להיות נגישה ישירות. הכותב בדק רק את הדרך של המיפוי; אם הכתובת לא
-עונה אצלך, השתמשי במיפוי.</p>
+לפי אותו README, הכתובת החיצונית אמורה להיות נגישה ישירות. בהרצה שבה נכתב הספר נבדקה רק הדרך של המיפוי;
+אם הכתובת לא עונה אצלך, השתמשי במיפוי.</p>
 <blockquote>
-<p><strong>שימי לב:</strong> הקונטיינר רץ בתוך Linux, ולכן הוא לא יכול לזהות לבד שהוא על Mac. הרצה ראשונה בלי הדגל מיפתה
-רק את פורט הניהול של envoy, ו־<code>curl</code> קיבל את דף הניהול שלו במקום את shorty. אם את רואה רשימה של פקודות
+<p><strong>שימי לב:</strong> הקונטיינר רץ בתוך Linux, ולכן הוא לא יכול לזהות לבד שהמארח הוא Mac או Windows. בהרצה שבה נכתב
+הספר, על Mac, הרצה ראשונה בלי הדגל מיפתה רק את פורט הניהול של envoy, ו־<code>curl</code> קיבל את דף הניהול שלו במקום את shorty. אם את רואה רשימה של פקודות
 ניהול, זה הסימן.</p>
 </blockquote>
 <h3 id="2143-ingress-shorty">21.4.3 ה־Ingress של shorty</h3>
@@ -722,7 +723,7 @@ FAIL  app-d
 
 </div>
 
-<p>הסעיף לא מגלה מה שבור באיזה שירות; זה התרגיל. הוא כן מראה איך נראית כל אחת מארבע סוגי הראיות, כדי שתזהי
+<p>הסעיף לא מגלה מה שבור באיזה שירות; זה התרגיל. הוא כן מראה איך נראה כל אחד מארבעת סוגי הראיות, כדי שתזהי
 אותן כשתגיעי אליהן. לוג של התהליך הקודם, כשהתצורה שגויה, נראה כך:</p>
 <div dir="ltr" align="left">
 
@@ -785,7 +786,7 @@ kubectl -n drill get pods -l app=app-a --show-labels
 <p>זו לא תקלה, זו הצלחה של פרק 19: לתוקף שנכנס לקונטיינר אין כלים. הפקודה <code>kubectl debug</code> פותרת את זה בלי לוותר
 על ה־image הקטן. היא מוסיפה ל־pod הרץ קונטיינר זמני (ephemeral container) עם image משלך, והדגל <code>--target</code>
 משתף איתו את מרחב התהליכים של הקונטיינר המקורי. ברשת הם תמיד משתפים, כי זה אותו pod.</p>
-<p>הניסיון הראשון של הכותב נתקע. הקונטיינר הזמני לא עלה, והסיבה הופיעה רק בסטטוס שלו:</p>
+<p>הניסיון הראשון, בהרצה שבה נכתב הספר, נתקע. הקונטיינר הזמני לא עלה, והסיבה הופיעה רק בסטטוס שלו:</p>
 <div dir="ltr" align="left">
 
 
@@ -935,9 +936,9 @@ kube-controller-manager Update
 <div dir="ltr" align="left">
 
 
-<pre><code class="language-bash">helm install shorty solution/chart/shorty -n web --create-namespace -f data/values-kind.yaml --wait --timeout 120s
+<pre><code class="language-bash">helm install shorty chart/shorty -n web --create-namespace -f data/values-kind.yaml --wait --timeout 120s
 helm list -n web
-helm upgrade shorty solution/chart/shorty -n web -f data/values-kind.yaml --set config.logLevel=info --wait
+helm upgrade shorty chart/shorty -n web -f data/values-kind.yaml --set config.logLevel=info --wait
 helm history shorty -n web
 </code></pre>
 
@@ -951,7 +952,7 @@ helm history shorty -n web
 <div dir="ltr" align="left">
 
 
-<pre><code class="language-bash">helm upgrade shorty solution/chart/shorty -n web -f data/values-kind.yaml \
+<pre><code class="language-bash">helm upgrade shorty chart/shorty -n web -f data/values-kind.yaml \
   --set image.tag=ch21-typo --rollback-on-failure --timeout 60s
 </code></pre>
 
@@ -1156,12 +1157,16 @@ shorty:
 </tr>
 </tbody>
 </table>
-<p>הסקריפט <code>tests/check_static.sh</code> מריץ את שלושתם, ואת kubeconform מתוך ה־image שלו, בתג נעול:</p>
+<p>הסקריפט <code>tests/check_static.sh</code> מריץ את שלושתם, ואת kubeconform מתוך ה־image שלו, בתג נעול. אלה השורות
+שמגדירות את kubeconform ומעבירות אליו את פלט התבניות:</p>
 <div dir="ltr" align="left">
 
 
-<pre><code class="language-bash">helm template ch21 &quot;$CHART&quot; --set autoscaling.enabled=true | \
-  docker run --rm -i ghcr.io/yannh/kubeconform:v0.8.0 -strict -summary -kubernetes-version 1.37.0 -
+<pre><code class="language-bash">KUBECONFORM_IMAGE=&quot;ghcr.io/yannh/kubeconform:v0.8.0&quot;
+K8S_VERSION=&quot;1.37.0&quot;
+kubeconform() { docker run --rm -i -v &quot;$ROOT:/work:ro&quot; &quot;$KUBECONFORM_IMAGE&quot; -strict -summary -kubernetes-version &quot;$K8S_VERSION&quot; &quot;$@&quot;; }
+rendered=&quot;$(helm template ch21 &quot;$CHART&quot; --set autoscaling.enabled=true)&quot; || rendered=&quot;&quot;
+if [ -n &quot;$rendered&quot; ] &amp;&amp; printf '%s\n' &quot;$rendered&quot; | kubeconform -; then pass &quot;helm template | kubeconform&quot;; else fail &quot;helm template | kubeconform&quot;; fi
 </code></pre>
 
 
@@ -1181,17 +1186,17 @@ shorty:
 מתקין את ה־chart, יוצר קישור ופותר אותו, משדרג, חוזר אחורה ומסיר.</p>
 <h2 id="_3">סיכום</h2>
 <ul>
-<li>requests הם הבטחה ל־scheduler ומכנה ל־HPA; limits הם תקרה. חריגה במעבד היא חניקה ואיטיות, חריגה בזיכרון
+<li>הבקשות (requests) הן הבטחה ל־scheduler ומכנה ל־HPA; התקרות (limits) הן גבול עליון. חריגה במעבד היא חניקה ואיטיות, חריגה בזיכרון
   היא <code>OOMKilled</code> וקוד 137.</li>
 <li>מחלקת QoS נגזרת מהמספרים וקובעת מי מפונה ראשון; shorty הוא <code>Burstable</code>.</li>
-<li>ה־HPA צריך metrics-server ו־request למעבד; על kind צריך <code>--kubelet-insecure-tls</code>, לבדיקות בלבד.</li>
-<li>כשיש HPA, הוא הבעלים של מספר העותקים, וה־manifest לא כותב <code>replicas</code>.</li>
-<li>rolling update עם <code>maxUnavailable: 0</code> ובדיקת מוכנות משאיר גרסה שבורה תקועה בלי לפגוע במשתמשים;
-  <code>ProgressDeadlineExceeded</code> מודיע על הכישלון, ו־<code>rollout undo</code> חוזר אחורה.</li>
-<li>ingress-nginx פרש במרץ 2026; על kind, cloud-provider-kind מממש Ingress ו־Gateway API בעצמו.</li>
-<li>דיבוג הוא סדר: get, describe, logs, endpoints, events, ואז <code>kubectl debug</code> מבפנים.</li>
-<li>Helm מפריד values מ־templates, שומר היסטוריית revisions, ובגרסה 4 מתקין ב־server-side apply.</li>
-<li>סכמת values תופסת טעויות לפני ההתקנה; kubeconform בודק חוקיות, ורק אשכול אמיתי בודק נכונות.</li>
+<li>ה־HPA צריך את metrics-server ובקשת מעבד; על kind צריך את הדגל <code>--kubelet-insecure-tls</code>, לבדיקות בלבד.</li>
+<li>כשיש HPA, הוא הבעלים של מספר העותקים, וה־manifest לא כותב את השדה <code>replicas</code>.</li>
+<li>עדכון מסוג rolling update, עם <code>maxUnavailable: 0</code> ובדיקת מוכנות, משאיר גרסה שבורה תקועה בלי לפגוע
+  במשתמשים. התנאי <code>ProgressDeadlineExceeded</code> מודיע על הכישלון, והפקודה <code>rollout undo</code> חוזרת אחורה.</li>
+<li>הפרויקט ingress-nginx פרש במרץ 2026. על kind, הרכיב cloud-provider-kind מממש בעצמו גם Ingress וגם Gateway API.</li>
+<li>דיבוג הוא סדר קבוע: סטטוס, תיאור, לוג, endpoints ואירועים, ורק בסוף קונטיינר זמני מבפנים.</li>
+<li>הכלי Helm מפריד ערכים מתבניות ושומר היסטוריה של כל release; בגרסה 4 הוא מתקין ב־server-side apply.</li>
+<li>סכמה לערכים תופסת טעויות לפני ההתקנה; הכלי kubeconform בודק חוקיות, ורק אשכול אמיתי בודק נכונות.</li>
 </ul>
 <h2 id="_4">מונחים לזכור</h2>
 <table>
@@ -1327,13 +1332,13 @@ shorty:
    ל־pod נוסף.</p>
 </li>
 <li>
-<p><strong>pod לא עובד. מה סדר הבדיקות שלך?</strong> קודם <code>get</code> כדי למיין: קורס, לא מוכן, או רץ ולא עונה. ל־קורס, לוג של
-   ההרצה הקודמת; ל־לא מוכן, האירועים ב־describe; ל־רץ ולא עונה, ה־endpoints של ה־Service והפורטים. אחר כך
-   אירועי ה־namespace לפי זמן, ורק בסוף מבפנים, עם <code>kubectl debug</code> כשה־image לא מכיל shell. הנימוק: כל צעד
-   זול מהבא ומצמצם את האפשרויות, ובכל שלב אני מחפשת ראיה, לא משנה דברים כדי לראות מה קורה.</p>
+<p><strong>ה־pod לא עובד. מה סדר הבדיקות שלך?</strong> קודם <code>get</code> כדי למיין: קורס, לא מוכן, או רץ ולא עונה. אם הוא קורס,
+   לוג של ההרצה הקודמת; אם הוא לא מוכן, האירועים ב־describe; אם הוא רץ ולא עונה, ה־endpoints של ה־Service
+   והפורטים. אחר כך אירועי ה־namespace לפי זמן, ורק בסוף מבפנים, עם <code>kubectl debug</code> כשה־image לא מכיל shell.
+   הנימוק: כל צעד זול מהבא ומצמצם את האפשרויות, ובכל שלב אני מחפשת ראיה, לא משנה דברים כדי לראות מה קורה.</p>
 </li>
 </ol>
-<p><strong>המשך:</strong> ואם ה־image הוא distroless? <code>exec</code> לא יעבוד, ו־<code>kubectl debug</code> מוסיף קונטיינר זמני עם כלים.
+<p><strong>המשך:</strong> ואם ה־image הוא distroless? הפקודה <code>exec</code> לא תעבוד, ו־<code>kubectl debug</code> מוסיף קונטיינר זמני עם כלים.
    אם ה־pod דורש משתמש שאינו root, הקונטיינר הזמני צריך לקבל משתמש כזה, אחרת הוא לא יעלה.</p>
 <ol start="5">
 <li><strong>מה Helm נותן שאין ב־manifests רגילים, ומה המחיר?</strong> חבילה עם פרמטרים, release עם היסטוריה ו־rollback
@@ -1352,11 +1357,11 @@ shorty:
 <li><strong>metrics-server על kind:</strong> תעודת kubelet חתומה עצמית; הדגל לבדיקות בלבד.</li>
 <li><strong>rollout:</strong> <code>maxUnavailable: 0</code> ובדיקת מוכנות משאירים גרסה שבורה תקועה; <code>ProgressDeadlineExceeded</code>.</li>
 <li><strong>undo:</strong> כפתור חירום; התיקון האמיתי הוא commit.</li>
-<li><strong>ingress:</strong> ingress-nginx פרש במרץ 2026; על kind, cloud-provider-kind; ב־Mac מיפוי פורטים.</li>
+<li><strong>ingress:</strong> הפרויקט ingress-nginx פרש במרץ 2026; על kind משתמשים ב־cloud-provider-kind, עם מיפוי פורטים.</li>
 <li><strong>מצב בזיכרון:</strong> שני עותקים, שני מאגרים; חצי מהבקשות 404.</li>
-<li><strong>דיבוג:</strong> get, describe, logs <code>--previous</code>, endpointslices, events, debug.</li>
-<li><strong>Helm:</strong> values משתנים, templates זהים; revisions ו־rollback; בגרסה 4 server-side apply.</li>
-<li><strong>בדיקות:</strong> סכמת values תופסת טעויות כתיב; kubeconform חוקיות; smoke נכונות.</li>
+<li><strong>דיבוג:</strong> סדר קבוע מהכללי לפרטני; הפקודות בטבלה שלמטה.</li>
+<li><strong>Helm:</strong> ערכים משתנים בין התקנות, תבניות זהות בכולן; היסטוריה וחזרה לגרסה מדויקת.</li>
+<li><strong>בדיקות:</strong> סכמה לערכים תופסת טעויות כתיב; בדיקת סכמה מוכיחה חוקיות; רק בדיקת עשן מוכיחה נכונות.</li>
 <li><strong>שאלה פתוחה:</strong> ___</li>
 </ul>
 <div dir="ltr" align="left">
@@ -1404,8 +1409,8 @@ metrics-server ו־HPA תחת עומס, rollout שבור ו־undo, ingress דר�
 <ul>
 <li>לקרוא את ההכרזה על פרישת ingress-nginx בבלוג של Kubernetes (נובמבר 2025), ואת המדריך למעבר ל־Gateway API
   באתר gateway-api.sigs.k8s.io; ואז לכתוב <code>Gateway</code> ו־<code>HTTPRoute</code> ל־shorty במקום ה־Ingress.</li>
-<li>לקרוא את מונה החניקה מתוך ה־node: <code>docker exec ch21-control-plane</code> ומציאת הקובץ <code>cpu.stat</code> של הקונטיינר
-  תחת <code>/sys/fs/cgroup</code>. השדה <code>nr_throttled</code> גדל בזמן שאת שולחת בקשות מעבד.</li>
+<li>לקרוא את מונה החניקה מתוך ה־node, שהוא הקונטיינר <code>ch21-control-plane</code>: להיכנס אליו ב־<code>docker exec</code>, ולמצוא
+  את הקובץ <code>cpu.stat</code> של הקונטיינר תחת <code>/sys/fs/cgroup</code>. השדה <code>nr_throttled</code> גדל בזמן שאת שולחת בקשות מעבד.</li>
 <li>להוסיף ל־chart תבנית Ingress אופציונלית, עם <code>ingress.enabled</code> בסכמה, ולבדוק אותה ב־<code>helm template</code>.</li>
 <li>לקרוא את עמוד הסקירה של Helm 4 באתר helm.sh, ולנסות <code>helm install</code> עם <code>--server-side=false</code> כדי לראות
   את ההבדל ב־<code>managedFields</code>.</li>

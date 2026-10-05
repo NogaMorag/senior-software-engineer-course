@@ -116,8 +116,8 @@ title: "תוכן העניינים הראשי"
 | פרק | קובץ | מצב |
 | --- | --- | --- |
 | פרק 37: Hookline: מפרט וארכיטקטורה | [`37-hookline-spec.md`](37-hookline-spec.md) | ✅ |
-| פרק 38: אבני הדרך | [`38-hookline-milestones.md`](38-hookline-milestones.md) | ⏳ |
-| פרק 39: הערכה, הדגמה וראיון על הפרויקט | [`39-hookline-evaluation.md`](39-hookline-evaluation.md) | ⏳ |
+| פרק 38: אבני הדרך | [`38-hookline-milestones.md`](38-hookline-milestones.md) | ✅ |
+| פרק 39: הערכה, הדגמה וראיון על הפרויקט | [`39-hookline-evaluation.md`](39-hookline-evaluation.md) | ✅ |
 
 ## נספחים
 

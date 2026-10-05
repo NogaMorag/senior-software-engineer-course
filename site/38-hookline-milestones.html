@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<nav class="top"><a href="index.html">תוכן העניינים</a> · <a href="37-hookline-spec.html">← פרק 37: Hookline: מפרט וארכיטקטורה</a> · <a href="TERMINOLOGY.html">Terminology policy (book 2) →</a></nav>
+<nav class="top"><a href="index.html">תוכן העניינים</a> · <a href="37-hookline-spec.html">← פרק 37: Hookline: מפרט וארכיטקטורה</a> · <a href="39-hookline-evaluation.html">פרק 39: הערכה, הדגמה וראיון על הפרויקט →</a></nav>
 <main class="book">
 <div class="toc"><span class="toctitle">תוכן הפרק</span><ul>
 <li><a href="#_1">מה נלמד בפרק</a></li>
@@ -36,14 +36,102 @@
 <li><a href="#3829">38.2.9 הרחבה</a></li>
 </ul>
 </li>
-<li><a href="#383-m3">38.3 M3: מטמון והמקבל המדומה</a></li>
-<li><a href="#384-m4-outbox-redpanda">38.4 M4: outbox ו־Redpanda</a></li>
-<li><a href="#385-m5">38.5 M5: מסירה, חתימה וניסיונות חוזרים</a></li>
-<li><a href="#386-m6">38.6 M6: חוסן ועומס</a></li>
-<li><a href="#387-m7-kubernetes-ci">38.7 M7: קונטיינרים, Kubernetes ו־CI</a></li>
-<li><a href="#388-m8-slo">38.8 M8: תצפיתיות ו־SLO</a></li>
-<li><a href="#389-m9">38.9 M9: בדיקות ואבטחה</a></li>
-<li><a href="#3810-m10">38.10 M10: הערכה והדגמה</a></li>
+<li><a href="#383-m3">38.3 M3: מטמון והמקבל המדומה</a><ul>
+<li><a href="#3831">38.3.1 המטרה</a></li>
+<li><a href="#3832">38.3.2 המושגים, והיכן נלמדו</a></li>
+<li><a href="#3833">38.3.3 הקבצים</a></li>
+<li><a href="#3834">38.3.4 הצעדים</a></li>
+<li><a href="#3835">38.3.5 הבדיקות שצריכות להוריק</a></li>
+<li><a href="#3836">38.3.6 הפלט הצפוי</a></li>
+<li><a href="#3837">38.3.7 קריטריון סיום</a></li>
+<li><a href="#3838">38.3.8 טעויות נפוצות</a></li>
+<li><a href="#3839">38.3.9 הרחבה</a></li>
+</ul>
+</li>
+<li><a href="#384-m4-outbox-redpanda">38.4 M4: outbox ו־Redpanda</a><ul>
+<li><a href="#3841">38.4.1 המטרה</a></li>
+<li><a href="#3842">38.4.2 המושגים, והיכן נלמדו</a></li>
+<li><a href="#3843">38.4.3 הקבצים</a></li>
+<li><a href="#3844">38.4.4 הצעדים</a></li>
+<li><a href="#3845">38.4.5 הבדיקות שצריכות להוריק</a></li>
+<li><a href="#3846">38.4.6 הפלט הצפוי</a></li>
+<li><a href="#3847">38.4.7 קריטריון סיום</a></li>
+<li><a href="#3848">38.4.8 טעויות נפוצות</a></li>
+<li><a href="#3849">38.4.9 הרחבה</a></li>
+</ul>
+</li>
+<li><a href="#385-m5">38.5 M5: מסירה, חתימה וניסיונות חוזרים</a><ul>
+<li><a href="#3851">38.5.1 המטרה</a></li>
+<li><a href="#3852">38.5.2 המושגים, והיכן נלמדו</a></li>
+<li><a href="#3853">38.5.3 הקבצים</a></li>
+<li><a href="#3854">38.5.4 הצעדים</a></li>
+<li><a href="#3855">38.5.5 הבדיקות שצריכות להוריק</a></li>
+<li><a href="#3856">38.5.6 הפלט הצפוי</a></li>
+<li><a href="#3857">38.5.7 קריטריון סיום</a></li>
+<li><a href="#3858">38.5.8 טעויות נפוצות</a></li>
+<li><a href="#3859">38.5.9 הרחבה</a></li>
+</ul>
+</li>
+<li><a href="#386-m6">38.6 M6: חוסן ועומס</a><ul>
+<li><a href="#3861">38.6.1 המטרה</a></li>
+<li><a href="#3862">38.6.2 המושגים, והיכן נלמדו</a></li>
+<li><a href="#3863">38.6.3 הקבצים</a></li>
+<li><a href="#3864">38.6.4 הצעדים</a></li>
+<li><a href="#3865">38.6.5 הבדיקות שצריכות להוריק</a></li>
+<li><a href="#3866">38.6.6 הפלט הצפוי</a></li>
+<li><a href="#3867">38.6.7 קריטריון סיום</a></li>
+<li><a href="#3868">38.6.8 טעויות נפוצות</a></li>
+<li><a href="#3869">38.6.9 הרחבה</a></li>
+</ul>
+</li>
+<li><a href="#387-m7-kubernetes-ci">38.7 M7: קונטיינרים, Kubernetes ו־CI</a><ul>
+<li><a href="#3871">38.7.1 המטרה</a></li>
+<li><a href="#3872">38.7.2 המושגים, והיכן נלמדו</a></li>
+<li><a href="#3873">38.7.3 הקבצים</a></li>
+<li><a href="#3874">38.7.4 הצעדים</a></li>
+<li><a href="#3875">38.7.5 הבדיקות שצריכות להוריק</a></li>
+<li><a href="#3876">38.7.6 הפלט הצפוי</a></li>
+<li><a href="#3877">38.7.7 קריטריון סיום</a></li>
+<li><a href="#3878">38.7.8 טעויות נפוצות</a></li>
+<li><a href="#3879">38.7.9 הרחבה</a></li>
+</ul>
+</li>
+<li><a href="#388-m8-slo">38.8 M8: תצפיתיות ו־SLO</a><ul>
+<li><a href="#3881">38.8.1 המטרה</a></li>
+<li><a href="#3882">38.8.2 המושגים, והיכן נלמדו</a></li>
+<li><a href="#3883">38.8.3 הקבצים</a></li>
+<li><a href="#3884">38.8.4 הצעדים</a></li>
+<li><a href="#3885">38.8.5 הבדיקות שצריכות להוריק</a></li>
+<li><a href="#3886">38.8.6 הפלט הצפוי</a></li>
+<li><a href="#3887">38.8.7 קריטריון סיום</a></li>
+<li><a href="#3888">38.8.8 טעויות נפוצות</a></li>
+<li><a href="#3889">38.8.9 הרחבה</a></li>
+</ul>
+</li>
+<li><a href="#389-m9">38.9 M9: בדיקות ואבטחה</a><ul>
+<li><a href="#3891">38.9.1 המטרה</a></li>
+<li><a href="#3892">38.9.2 המושגים, והיכן נלמדו</a></li>
+<li><a href="#3893">38.9.3 הקבצים</a></li>
+<li><a href="#3894">38.9.4 הצעדים</a></li>
+<li><a href="#3895">38.9.5 הבדיקות שצריכות להוריק</a></li>
+<li><a href="#3896">38.9.6 הפלט הצפוי</a></li>
+<li><a href="#3897">38.9.7 קריטריון סיום</a></li>
+<li><a href="#3898">38.9.8 טעויות נפוצות</a></li>
+<li><a href="#3899">38.9.9 הרחבה</a></li>
+</ul>
+</li>
+<li><a href="#3810-m10">38.10 M10: הערכה והדגמה</a><ul>
+<li><a href="#38101">38.10.1 המטרה</a></li>
+<li><a href="#38102">38.10.2 המושגים, והיכן נלמדו</a></li>
+<li><a href="#38103">38.10.3 הקבצים</a></li>
+<li><a href="#38104">38.10.4 הצעדים</a></li>
+<li><a href="#38105">38.10.5 הבדיקות שצריכות להוריק</a></li>
+<li><a href="#38106">38.10.6 הפלט הצפוי</a></li>
+<li><a href="#38107">38.10.7 קריטריון סיום</a></li>
+<li><a href="#38108">38.10.8 טעויות נפוצות</a></li>
+<li><a href="#38109">38.10.9 הרחבה</a></li>
+</ul>
+</li>
 <li><a href="#_3">סיכום</a></li>
 <li><a href="#_4">מונחים לזכור</a></li>
 <li><a href="#_5">טעויות נפוצות</a></li>
@@ -404,13 +492,16 @@ curl -s -i localhost:8080/v1/events -H &quot;Authorization: Bearer $KEY&quot; -H
 <div dir="ltr" align="left">
 
 
-<pre><code class="language-bash">DATABASE_URL= go test -race ./internal/api/ ./internal/store/... ./internal/admin/
+<pre><code class="language-bash">DATABASE_URL= go test -race -skip 'Invalidat|Deliver|Replay|ActiveSubscriptions|RateLimit|OverItsLimit|LimiterFailure|Shed|Trace|PrivateAddress' ./internal/api/ ./internal/store/... ./internal/admin/
 </code></pre>
 
 
 </div>
 
-<p>ההשמה הריקה של <code>DATABASE_URL</code> מבטיחה שבדיקות ה־API רצות על המאגר בזיכרון, גם אם הגדרת את המשתנה בחלון אחר.</p>
+<p>ההשמה הריקה של <code>DATABASE_URL</code> מבטיחה שבדיקות ה־API רצות על המאגר בזיכרון, גם אם הגדרת את המשתנה בחלון אחר.
+הדגל <code>-skip</code> מדלג על הבדיקות של אבני דרך מאוחרות שכבר נמצאות באותן חבילות: המטמון של אבן הדרך השלישית
+(<code>Invalidat</code>, ‏<code>ActiveSubscriptions</code>), המסירות של החמישית (<code>Deliver</code>, ‏<code>Replay</code>), ההגנות של השישית (<code>RateLimit</code>, ‏<code>Shed</code> ועוד שתיים), והמעקב של השמינית (<code>Trace</code>).
+כל אבן דרך מורידה ממנו את מה שהיא מממשת.</p>
 <h3 id="3816">38.1.6 הפלט הצפוי</h3>
 <div dir="ltr" align="left">
 
@@ -641,7 +732,7 @@ schema version: 4
 
 
 <pre><code class="language-bash">go test -race -count=1 -run 'TestConformance/(Tenant|Endpoint|Subscription)' ./internal/store/postgres/
-go test -race -count=1 ./internal/api/
+go test -race -count=1 -skip 'Invalidat|Deliver|Replay|ActiveSubscriptions|RateLimit|OverItsLimit|LimiterFailure|Shed|Trace|PrivateAddress' ./internal/api/
 </code></pre>
 
 
@@ -656,11 +747,11 @@ go test -race -count=1 ./internal/api/
 
 <pre><code class="language-go">    err := pgx.BeginTxFunc(ctx, s.pool, pgx.TxOptions{IsoLevel: pgx.ReadCommitted}, func(tx pgx.Tx) error {
         row := tx.QueryRow(ctx, `
-            INSERT INTO events (id, tenant_id, type, payload, idempotency_key, body_hash, created_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            INSERT INTO events (id, tenant_id, type, payload, idempotency_key, body_hash, created_at, trace_context)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, NULLIF($8, ''))
             ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
             RETURNING `+eventColumns,
-            e.ID, e.TenantID, e.Type, []byte(e.Payload), e.IdempotencyKey, e.BodyHash[:], e.CreatedAt)
+            e.ID, e.TenantID, e.Type, []byte(e.Payload), e.IdempotencyKey, e.BodyHash[:], e.CreatedAt, e.TraceContext)
         got, err := scanEvent(row)
         if err == nil {
             stored = got
@@ -687,6 +778,7 @@ go test -race -count=1 ./internal/api/
 
 </div>
 
+<p>העמודה <code>trace_context</code> בקוד הזה נוספת רק באבן הדרך השמינית (סעיף 38.8). באבן הדרך השנייה ההכנסה כוללת שבע עמודות.</p>
 <p>כך זה עובד כששתי בקשות עם אותו מפתח מגיעות יחד:</p>
 <table>
 <thead>
@@ -767,7 +859,7 @@ The key is shown once and only its hash is stored. Keep it now.
 
 <pre><code class="language-bash">make db-up
 export DATABASE_URL=postgres://hookline:change-me@localhost:5438/hookline
-go test -race -count=1 ./...
+go test -race -count=1 -skip 'Invalidat|Deliver|Replay|ActiveSubscriptions|RateLimit|OverItsLimit|LimiterFailure|Shed|Trace|PrivateAddress' ./internal/api/ ./internal/store/... ./internal/admin/ ./internal/db/ ./migrations/
 </code></pre>
 
 
@@ -777,25 +869,20 @@ go test -race -count=1 ./...
 <div dir="ltr" align="left">
 
 
-<pre><code class="language-text">ok      example.com/hookline/internal/admin 1.352s
-ok      example.com/hookline/internal/api   2.177s
-ok      example.com/hookline/internal/config    2.713s
-ok      example.com/hookline/internal/db    3.995s
-ok      example.com/hookline/internal/domain    1.727s
-ok      example.com/hookline/internal/page  2.376s
-ok      example.com/hookline/internal/platform  3.285s
-ok      example.com/hookline/internal/problem   4.484s
-ok      example.com/hookline/internal/store 4.788s
-ok      example.com/hookline/internal/store/memory  2.058s
-ok      example.com/hookline/internal/store/postgres    3.889s
-ok      example.com/hookline/internal/store/storetest   4.147s
-ok      example.com/hookline/migrations 4.469s
+<pre><code class="language-text">ok      example.com/hookline/internal/admin 1.534s
+ok      example.com/hookline/internal/api   2.040s
+ok      example.com/hookline/internal/db    2.815s
+ok      example.com/hookline/internal/store 3.395s
+ok      example.com/hookline/internal/store/memory  3.646s
+ok      example.com/hookline/internal/store/postgres    4.074s
+ok      example.com/hookline/internal/store/storetest   3.183s
+ok      example.com/hookline/migrations 3.585s
 </code></pre>
 
 
 </div>
 
-<p>בהרצה עם <code>-v</code> אף בדיקה לא מדלגת: כל הבדיקות שדילגו באבן הדרך הראשונה רצות עכשיו מול המסד.</p>
+<p>בהרצה עם <code>-v</code>, אף בדיקה של אבן הדרך לא מדלגת: כל מה שדילג באבן הדרך הראשונה רץ עכשיו מול המסד.</p>
 <h3 id="3827">38.2.7 קריטריון סיום</h3>
 <ul>
 <li>המיגרציות עולות על מסד ריק, יורדות עד גרסה 0 ועולות שוב (<code>TestMigrationsRoundTrip</code>).</li>
@@ -831,26 +918,2854 @@ ok      example.com/hookline/migrations 4.469s
   הזמנים שמדדת.</li>
 </ul>
 <h2 id="383-m3">38.3 M3: מטמון והמקבל המדומה</h2>
-<p>יושלם עם אבן הדרך.</p>
+<h3 id="3831">38.3.1 המטרה</h3>
+<p>להוסיף לפרויקט את שני הרכיבים שהמסירה תצטרך: מטמון של מנויים ב־Redis, שה־dispatcher ישאל דרכו „מי מקבל את
+האירוע הזה?”, וה־sink, המקבל המדומה מפרק 8, שרץ ב־compose ומקבל את ה־webhooks. בסוף אבן הדרך כל התשתית
+המקומית עולה בפקודה אחת, וה־API מודיע למטמון על כל שינוי במנויים.</p>
+<h3 id="3832">38.3.2 המושגים, והיכן נלמדו</h3>
+<table>
+<thead>
+<tr>
+<th>מושג</th>
+<th>איפה בספר</th>
+<th>איפה בפרויקט</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>‏cache-aside</td>
+<td>פרק 12, סעיף 12.2</td>
+<td><code>internal/cache/cache.go</code></td>
+</tr>
+<tr>
+<td>זמן חיים עם פיזור אקראי, ואי־תוקף אחרי כתיבה</td>
+<td>פרק 12, סעיף 12.3</td>
+<td><code>internal/cache/ttl.go</code>, ‏<code>subcache.Invalidate</code></td>
+</tr>
+<tr>
+<td>התפרצות מטמון ו־singleflight</td>
+<td>פרק 12, סעיף 12.4</td>
+<td><code>cache.Get</code>, ‏<code>TestStampedeLoadsOnce</code></td>
+</tr>
+<tr>
+<td>מתי לא לשים מטמון</td>
+<td>פרק 12, סעיף 12.6</td>
+<td>ה־API לא קורא מהמטמון, רק מוחק ממנו</td>
+</tr>
+<tr>
+<td>המקבל המדומה: חתימה, סינון כפילויות, תקלות לפי פקודה</td>
+<td>פרק 8, סעיף 8.8</td>
+<td><code>sink/</code></td>
+</tr>
+<tr>
+<td>‏worker אחד, כי המצב בזיכרון</td>
+<td>פרק 8, סעיף 8.7</td>
+<td><code>sink/Dockerfile</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="3833">38.3.3 הקבצים</h3>
+<table>
+<thead>
+<tr>
+<th>קובץ</th>
+<th>מצב ב־starter</th>
+<th>מה עושים</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>internal/cache/*.go</code></td>
+<td>גופים ריקים</td>
+<td>להעביר מהפתרון שלך לפרק 12, עם שם המודול של הפרויקט</td>
+</tr>
+<tr>
+<td><code>internal/subcache/subcache.go</code></td>
+<td>גופים ריקים</td>
+<td>‏<code>Endpoints</code>, ‏<code>Invalidate</code>, ‏<code>Key</code> ו־<code>Disabled</code></td>
+</tr>
+<tr>
+<td><code>internal/store/*</code></td>
+<td>גופים ריקים</td>
+<td>‏<code>ActiveSubscriptions</code> בשני המאגרים</td>
+</tr>
+<tr>
+<td><code>internal/api/server.go</code></td>
+<td>שלם</td>
+<td>לקרוא: האפשרות <code>Subscriptions</code> והפונקציה <code>changed</code></td>
+</tr>
+<tr>
+<td><code>internal/wire/wire.go</code></td>
+<td>שלם</td>
+<td>בונה את המטמון מעל Redis, או בלי מטמון כשאין <code>REDIS_ADDR</code></td>
+</tr>
+<tr>
+<td><code>sink/</code></td>
+<td>גופים ריקים ב־Python</td>
+<td>להעביר מהפתרון שלך לפרק 8; ‏<code>settings.py</code> שלם</td>
+</tr>
+<tr>
+<td><code>sink/Dockerfile</code>, ‏<code>deploy/compose.yaml</code></td>
+<td>שלמים</td>
+<td>לקרוא ולהריץ</td>
+</tr>
+</tbody>
+</table>
+<h3 id="3834">38.3.4 הצעדים</h3>
+<p><strong>יום 33: המטמון.</strong> התחילי מהחבילה <code>internal/cache</code>: העתיקי את ארבעת הקבצים מהתרגיל של פרק 12, והחליפי את
+שם המודול:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">cd ~/senior-course/hookline
+cp ~/senior-course/ch12/internal/cache/*.go internal/cache/
+sed -i 's#example.com/ch12-cache-aside#example.com/hookline#g' internal/cache/*.go
+DATABASE_URL= REDIS_ADDR= go test -race ./internal/cache/
+</code></pre>
+
+
+</div>
+
+<blockquote>
+<p><strong>ב־Mac:</strong> ‏<code>sed -i</code> דורש שם קובץ גיבוי. כתבי <code>sed -i ''</code> במקום <code>sed -i</code>.</p>
+</blockquote>
+<p>הבדיקות שצריכות Redis מדלגות עכשיו, ושתי בדיקות היחידה (הפיזור האקראי, ו־Redis שנפל) עוברות.</p>
+<p>עכשיו ההחלטה החשובה של אבן הדרך: <strong>מה המפתח של המטמון.</strong> ה־dispatcher שואל על זוג של דיירת וסוג אירוע. הצעה
+טבעית היא רשומה לכל זוג כזה. הבעיה היא אי־התוקף: מנוי לכל הסוגים (<code>*</code>) משנה את התשובה של כל סוג, ואין דרך לדעת
+אילו רשומות למחוק. לכן הפרויקט שומר <strong>רשומה אחת לכל דיירת</strong>, עם כל המנויים הפעילים שלה, ומסנן לפי הסוג ב־Go.
+אי־התוקף נעשה פשוט: כל שינוי מוחק רשומה אחת. זו הפונקציה מהקובץ <code>internal/subcache/subcache.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func (c *Cache) Endpoints(ctx context.Context, tenantID, eventType string) ([]string, error) {
+    subs, err := c.c.Get(ctx, Key(tenantID), func(ctx context.Context) ([]domain.Subscription, error) {
+        return c.loader.ActiveSubscriptions(ctx, tenantID)
+    })
+    if err != nil {
+        return nil, err
+    }
+    var ids []string
+    for _, s := range subs {
+        if s.EventType == eventType || s.EventType == domain.AllTypes {
+            ids = append(ids, s.EndpointID)
+        }
+    }
+    slices.Sort(ids)
+    return slices.Compact(ids), nil
+}
+</code></pre>
+
+
+</div>
+
+<p>שלושה דברים בקוד הזה:</p>
+<ul>
+<li><strong>רק endpoints פעילים.</strong> ‏<code>ActiveSubscriptions</code> מצטרפת לטבלת ה־endpoints ומשאירה רק את אלה שלא הושבתו, ולכן
+  השבתה היא גם שינוי שמוחק את הרשומה.</li>
+<li><strong>כל endpoint פעם אחת.</strong> endpoint שמנוי גם לסוג מדויק וגם ל־<code>*</code> צריך מסירה אחת, ולא שתיים. המיון וההסרה של
+  כפילויות עושים את זה.</li>
+<li><strong>מטמון שנפל לא מפיל את ה־dispatcher.</strong> ‏<code>cache.Get</code> מפרק 12 חוזר למקור כשהקריאה מהמטמון נכשלת. זו החלטה
+  מהמפרט (פרק 37, סעיף 37.6): המטמון חוזר ל־PostgreSQL.</li>
+</ul>
+<p>הוסיפי את <code>ActiveSubscriptions</code> לשני המאגרים, ובדקי מול בדיקות ההתאמה ובדיקות המטמון:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">DATABASE_URL= REDIS_ADDR= go test -race -run 'TestConformance/ActiveSubscriptions' ./internal/store/memory/
+DATABASE_URL= REDIS_ADDR= go test -race ./internal/subcache/
+</code></pre>
+
+
+</div>
+
+<p>אחר כך חברי את ה־API. המטמון לא נקרא ב־API בכלל; ה־API רק מודיע לו, <strong>אחרי</strong> שהשינוי נשמר. זה הקוד מהקובץ
+<code>internal/api/server.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func (s *server) changed(r *http.Request, tenantID string) {
+    if s.subs == nil {
+        return
+    }
+    if err := s.subs.Invalidate(r.Context(), tenantID); err != nil {
+        s.log.WarnContext(r.Context(), &quot;subscription cache invalidation failed; the entry expires by TTL&quot;,
+            slog.String(&quot;tenant_id&quot;, tenantID), slog.String(&quot;error&quot;, err.Error()))
+    }
+}
+</code></pre>
+
+
+</div>
+
+<p>הסדר חשוב, וזה המרוץ מפרק 12, סעיף 12.3. אם מוחקים לפני ה־<code>COMMIT</code>, קורא שמגיע ביניהם טוען את הערך הישן ומחזיר
+אותו למטמון. ואם המחיקה נכשלת, הבקשה עדיין מצליחה, כי השינוי כבר נשמר. זמן החיים, דקה ועוד עד עשר שניות של
+פיזור, הוא הגבול לכמה זמן ה־dispatcher עלול לפעול לפי רשימה ישנה. קראי לפונקציה בשלושה מקומות: אחרי מנוי חדש,
+אחרי מחיקת מנוי, ואחרי השבתת endpoint. הבדיקה <code>TestChangesInvalidateTheSubscriptionCache</code> סופרת אותם.</p>
+<p><strong>יום 34: ה־sink וה־compose.</strong> העתיקי את המקבל מהפתרון שלך לפרק 8 לתיקייה <code>sink/</code>, ואת קובץ וקטורי החתימה
+לתיקייה <code>sink/data/</code>. ה־Go signer של אבן הדרך החמישית יקרא את אותו קובץ:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">cp -r ~/senior-course/ch08/src/receiver/. sink/src/receiver/
+cp $COURSE/exercises/ch08-receiver/data/signature-vectors.json sink/data/
+cd sink &amp;&amp; uv sync &amp;&amp; uv run pytest -q &amp;&amp; cd ..
+</code></pre>
+
+
+</div>
+
+<p>עכשיו קראי את <code>sink/Dockerfile</code> ואת <code>deploy/compose.yaml</code>, והעלי את כל הסביבה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">make up
+docker compose -p hookline -f deploy/compose.yaml ps
+curl -s localhost:8091/stats
+</code></pre>
+
+
+</div>
+
+<p>הפקודה <code>make up</code> בונה את ה־image של ה־sink ומעלה חמישה שירותים:</p>
+<table>
+<thead>
+<tr>
+<th>שירות</th>
+<th>פורט מקומי</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PostgreSQL</td>
+<td>5438</td>
+</tr>
+<tr>
+<td>Redis</td>
+<td>6438</td>
+</tr>
+<tr>
+<td>Redpanda</td>
+<td>19438</td>
+</tr>
+<tr>
+<td>הקונסולה של Redpanda</td>
+<td>8098</td>
+</tr>
+<tr>
+<td>ה־sink</td>
+<td>8091</td>
+</tr>
+</tbody>
+</table>
+<p>‏Redpanda נכנס כבר עכשיו כדי שה־compose לא ישתנה באבן הדרך הבאה. שתי החלטות בקובץ:</p>
+<ul>
+<li><strong>ה־sink מקבל סוד אחד לכל ה־hooks</strong> (<code>RECEIVER_DEFAULT_SECRET</code>). בבדיקות, כל endpoint מקבל את הסוד הזה, כדי
+  שה־sink יוכל לאמת. מקבל אמיתי מחזיק סוד לכל endpoint.</li>
+<li><strong>‏Redis הוא מטמון ולא מסד.</strong> אין שמירה לדיסק, יש מגבלת זיכרון ומדיניות פינוי, בדיוק כמו בפרק 12, סעיף 12.1.</li>
+</ul>
+<h3 id="3835">38.3.5 הבדיקות שצריכות להוריק</h3>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">make up
+go test -race -count=1 -skip 'Deliver|Replay|RateLimit|OverItsLimit|LimiterFailure|Shed|Trace|PrivateAddress' ./internal/cache/ ./internal/subcache/ ./internal/api/ ./internal/store/...
+make sink-test
+</code></pre>
+
+
+</div>
+
+<h3 id="3836">38.3.6 הפלט הצפוי</h3>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">ok      example.com/hookline/internal/api   2.040s
+ok      example.com/hookline/internal/cache 3.612s
+ok      example.com/hookline/internal/store 3.395s
+ok      example.com/hookline/internal/store/memory  3.646s
+ok      example.com/hookline/internal/store/postgres    4.074s
+ok      example.com/hookline/internal/store/storetest   3.183s
+ok      example.com/hookline/internal/subcache  3.270s
+...
+62 passed in 1.63s
+</code></pre>
+
+
+</div>
+
+<h3 id="3837">38.3.7 קריטריון סיום</h3>
+<ul>
+<li>בדיקות המטמון עוברות מול Redis, כולל ההתפרצות: ארבעים קריאות מקבילות טוענות מהמקור פעם אחת.</li>
+<li>‏<code>TestChangesInvalidateTheSubscriptionCache</code> עוברת: שלושה שינויים, שלוש מחיקות, ואף מחיקה על קריאה או על כתיבה שנכשלה.</li>
+<li>‏<code>make sink-test</code> נקי, כולל הבדיקה הסטטית של הטיפוסים.</li>
+<li>‏<code>make up</code> מעלה את כל השירותים במצב בריא, ו־<code>curl localhost:8091/stats</code> מחזיר מונים באפס.</li>
+<li>קומיט של אבן הדרך, ו־<code>make down</code> בסוף היום.</li>
+</ul>
+<h3 id="3838">38.3.8 טעויות נפוצות</h3>
+<ul>
+<li><strong>רשומה לכל סוג אירוע.</strong> אז מנוי ל־<code>*</code> לא יודע אילו רשומות למחוק, והמסירה ממשיכה לפי רשימה ישנה עד שהזמן נגמר.</li>
+<li><strong>מחיקה לפני השמירה.</strong> קורא שמגיע בין המחיקה ל־<code>COMMIT</code> מחזיר את הערך הישן למטמון, ושום דבר לא מוחק אותו שוב.</li>
+<li><strong>להחזיר שגיאה כשהמחיקה נכשלת.</strong> הלקוח ינסה שוב שינוי שכבר נשמר, ויקבל 409. השינוי נשמר; המחיקה רק מקצרת את ההמתנה.</li>
+<li><strong>שני workers ל־sink.</strong> כל תהליך סופר בנפרד, והמונים ב־<code>/stats</code> יחצו לשניים. ה־Dockerfile מריץ worker אחד.</li>
+<li><strong>להשכיח את <code>-count=1</code>.</strong> כמו באבן הדרך השנייה: Go לא יודע ש־Redis השתנה, ומחזיר תוצאה שמורה.</li>
+</ul>
+<h3 id="3839">38.3.9 הרחבה</h3>
+<ul>
+<li>הוסיפי מטמון שלילי (פרק 12, סעיף 12.3): לדיירת בלי מנויים בכלל, שמרי רשימה ריקה עם זמן חיים קצר יותר.</li>
+<li>חשבי מה היה קורה עם שני API replicas ושני dispatchers: האם המחיקה מגיעה לכולם? (כן, כי Redis משותף. ומה עם
+  מטמון בזיכרון של כל תהליך?)</li>
+</ul>
 <h2 id="384-m4-outbox-redpanda">38.4 M4: outbox ו־Redpanda</h2>
-<p>יושלם עם אבן הדרך.</p>
+<h3 id="3841">38.4.1 המטרה</h3>
+<p>לקחת כל אירוע שנקלט אל שורות מסירה, דרך Redpanda. ה־relay מפרסם את שורות ה־outbox, שה־API כותב מאז אבן הדרך
+השנייה, ל־topic בשם <code>hookline.events</code>. ה־dispatcher צורך אותו, ויוצר שורת מסירה לכל יעד מתאים. קריסה בכל
+נקודה לא מאבדת אירוע, וגם לא יוצרת מסירה כפולה.</p>
+<h3 id="3842">38.4.2 המושגים, והיכן נלמדו</h3>
+<table>
+<thead>
+<tr>
+<th>מושג</th>
+<th>איפה בספר</th>
+<th>איפה בפרויקט</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>‏Redpanda בקונטיינר</td>
+<td>פרק 13, סעיף 13.2</td>
+<td><code>deploy/compose.yaml</code></td>
+</tr>
+<tr>
+<td>מחיצות ומפתח לפי דיירת</td>
+<td>פרק 13, סעיפים 13.3 ו־13.4</td>
+<td><code>bus.KafkaPublisher</code></td>
+</tr>
+<tr>
+<td>‏consumer group ו־offsets</td>
+<td>פרק 13, סעיף 13.5</td>
+<td><code>bus.NewGroupConsumer</code></td>
+</tr>
+<tr>
+<td>אישור offset רק אחרי עיבוד</td>
+<td>פרק 13, סעיף 13.6</td>
+<td><code>dispatch.Run</code></td>
+</tr>
+<tr>
+<td>תבנית ה־outbox ונקודת הקריסה</td>
+<td>פרק 13, סעיף 13.7</td>
+<td><code>outbox.Relay</code>, ‏<code>AfterPublish</code></td>
+</tr>
+<tr>
+<td>למה „בדיוק פעם אחת” הוא חוזה</td>
+<td>פרק 13, סעיף 13.8</td>
+<td>האילוץ <code>UNIQUE (event_id, endpoint_id)</code></td>
+</tr>
+<tr>
+<td>‏franz-go</td>
+<td>פרק 13, סעיף 13.9</td>
+<td><code>internal/bus</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="3843">38.4.3 הקבצים</h3>
+<table>
+<thead>
+<tr>
+<th>קובץ</th>
+<th>מצב ב־starter</th>
+<th>מה עושים</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>internal/bus/bus.go</code></td>
+<td>שלם</td>
+<td>מפרק 13: ה־producer, הצרכן ו־<code>KafkaPublisher</code>, ועכשיו גם <code>CreateTopic</code></td>
+</tr>
+<tr>
+<td><code>internal/outbox/outbox.go</code></td>
+<td>גופים ריקים</td>
+<td>‏<code>Message</code>, ‏<code>RunOnce</code>, ‏<code>Run</code>, ‏<code>Pending</code></td>
+</tr>
+<tr>
+<td><code>internal/dispatch/dispatch.go</code></td>
+<td>גופים ריקים</td>
+<td>‏<code>Fanout</code>, ‏<code>Handle</code>, ‏<code>Run</code></td>
+</tr>
+<tr>
+<td><code>cmd/relay</code>, ‏<code>cmd/dispatcher</code></td>
+<td>שלמים</td>
+<td>לקרוא: החיווט</td>
+</tr>
+<tr>
+<td><code>internal/testenv</code></td>
+<td>שלם</td>
+<td>‏topic פרטי לכל בדיקה, ונתוני בדיקה</td>
+</tr>
+</tbody>
+</table>
+<h3 id="3844">38.4.4 הצעדים</h3>
+<p><strong>יום 39: ה־relay.</strong> ה־outbox של Hookline שונה מזה של פרק 13 בפרט אחד: השורה לא מחזיקה את ההודעה, רק את מזהה
+האירוע. ה־relay מצרף את טבלת האירועים ומפרסם הודעה קטנה: מזהה, דיירת וסוג. את הגוף ה־worker יקרא מהמסד כשישלח.
+כך ה־topic נשאר קטן, ואין שני עותקים של הגוף שעלולים להיות שונים. זו הקריאה מהקובץ <code>internal/outbox/outbox.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">        rows, err := tx.Query(ctx, `
+            SELECT o.id, e.id, e.tenant_id, e.type
+            FROM outbox o JOIN events e ON e.id = o.event_id
+            WHERE o.published_at IS NULL
+            ORDER BY o.id
+            LIMIT $1
+            FOR UPDATE OF o`, r.batch())
+</code></pre>
+
+
+</div>
+
+<p>‏<code>FOR UPDATE OF o</code> נועל רק את שורות ה־outbox, ולא את האירועים. שאר <code>RunOnce</code> הוא הקוד של פרק 13 כמעט כמו שהוא:
+פרסום, הנקודה <code>AfterPublish</code> שבה הבדיקות „הורגות” את ה־relay, ואז סימון באותה טרנזקציה. הלולאה <code>Run</code> מוסיפה
+דבר אחד: כשהפרסום נכשל, כי Redpanda למטה, היא מחכה זמן שמכפיל את עצמו, והקליטה ממשיכה לעבוד. האירועים מחכים
+ב־outbox. זו בדיוק השורה האחרונה בטבלת הכשלים בפרק 37, סעיף 37.6.</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">go test -race -count=1 -skip 'StaleRelay|Trace|PrivateAddress' ./internal/outbox/
+</code></pre>
+
+
+</div>
+
+<p><strong>יום 40: ה־dispatcher.</strong> ה־dispatcher עושה שני דברים לכל רשומה: שואל את המטמון של אבן הדרך הקודמת מי מקבל, ומכניס
+שורת מסירה לכל אחד. זה הקוד מהקובץ <code>internal/dispatch/dispatch.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    tag, err := db.Exec(ctx, `
+        INSERT INTO deliveries (id, tenant_id, event_id, endpoint_id)
+        SELECT uuidv7(), $1, $2, endpoint_id FROM unnest($3::uuid[]) AS endpoint_id
+        ON CONFLICT (event_id, endpoint_id) DO NOTHING`, m.TenantID, m.EventID, endpointIDs)
+</code></pre>
+
+
+</div>
+
+<ul>
+<li><strong>פקודה אחת לכל האירוע.</strong> כל השורות של אירוע נכנסות יחד, או אף אחת. אין מצב של חצי פיזור.</li>
+<li><strong>‏<code>ON CONFLICT DO NOTHING</code>.</strong> פרסום כפול מה־relay, או רשומה שחוזרת אחרי קריסה לפני אישור ה־offset, לא מוסיפים
+  שורה. זו ההגנה של שתי שורות בטבלת הכשלים.</li>
+<li><strong>הפונקציה <code>uuidv7()</code> מובנית ב־PostgreSQL 18.</strong> היא נותנת את אותו סוג מזהים ש־<code>domain.NewID</code> נותן.</li>
+</ul>
+<p>הלולאה <code>dispatch.Run</code> היא <code>consumer.Run</code> מפרק 13 עם שינוי אחד: כשהטיפול ברשומה נכשל (המסד למטה), היא מנסה שוב
+<strong>במקום</strong>, עם המתנה גדלה, ולא מדלגת. דילוג היה מאשר offset של אירוע שלא נפרש, ומאבד אותו. רשומה שאי אפשר לפענח
+היא היוצא מן הכלל: היא נרשמת בלוג ומדולגת, כי ניסיון חוזר לא יתקן אותה, והוא היה חוסם את המחיצה לתמיד.</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">go test -race -count=1 ./internal/dispatch/ ./internal/bus/
+</code></pre>
+
+
+</div>
+
+<p>הבדיקה <code>TestRelayToDispatcherThroughRedpanda</code> היא לב אבן הדרך. היא קולטת עשרה אירועים, „הורגת” את ה־relay אחרי
+הפרסום ולפני הסימון, ומריצה relay שני, כך שכל אירוע נמצא ב־topic פעמיים. אחר כך היא מריצה dispatcher ובודקת
+שבסוף יש בדיוק שתי מסירות לכל אירוע: אחת לכל endpoint מתאים.</p>
+<p>לסיום, הריצי את שני הבינאריים האמיתיים:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">go run ./cmd/hookline-admin create-topic -partitions 6
+make relay        # in a second terminal
+make dispatcher   # in a third terminal
+</code></pre>
+
+
+</div>
+
+<p>שלחי אירוע עם curl, ופתחי את הקונסולה של Redpanda בכתובת <code>http://localhost:8098</code>. ההודעה מופיעה ב־topic בשם
+<code>hookline.events</code>, והמפתח שלה הוא מזהה הדיירת. ב־psql תראי שורה חדשה בטבלה <code>deliveries</code> במצב <code>pending</code>.</p>
+<h3 id="3845">38.4.5 הבדיקות שצריכות להוריק</h3>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">make up
+go test -race -count=1 -skip 'StaleRelay|Trace|PrivateAddress' ./internal/outbox/ ./internal/dispatch/ ./internal/bus/
+</code></pre>
+
+
+</div>
+
+<h3 id="3846">38.4.6 הפלט הצפוי</h3>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">ok      example.com/hookline/internal/bus   2.656s
+ok      example.com/hookline/internal/dispatch  4.349s
+ok      example.com/hookline/internal/outbox    4.776s
+</code></pre>
+
+
+</div>
+
+<h3 id="3847">38.4.7 קריטריון סיום</h3>
+<ul>
+<li>בדיקת נקודת הקריסה עוברת: אחרי קריסה בין פרסום לסימון, כל אירוע מתפרסם שוב, ובכל זאת יש מסירה אחת לכל endpoint.</li>
+<li>כישלון בפרסום לא מסמן אף שורה, וה־relay ממשיך מעצמו כשה־broker חוזר.</li>
+<li>אירועים של דיירת אחת יוצאים לאותה מחיצה, לפי הסדר.</li>
+<li>‏endpoint מושבת, או כזה שמנוי לסוג אחר, לא מקבל שורת מסירה.</li>
+<li>קומיט של אבן הדרך.</li>
+</ul>
+<h3 id="3848">38.4.8 טעויות נפוצות</h3>
+<ul>
+<li><strong>לסמן לפני שה־broker אישר.</strong> אם הסימון קודם לאישור, קריסה ביניהם מאבדת את ההודעה. מפרסמים, מחכים לאישור,
+  ורק אז מסמנים.</li>
+<li><strong>לאשר offset לפני ההכנסה.</strong> קריסה אחרי האישור ולפני ההכנסה מאבדת את האירוע. ההכנסה קודמת, האישור אחריה.</li>
+<li><strong>לדלג על רשומה כשהמסד למטה.</strong> אז ה־offset שאחריה מאושר, והאירוע נעלם. מנסים שוב במקום.</li>
+<li><strong>מפתח הודעה ריק.</strong> בלי מפתח, ה־partitioner מפזר, ואירועים של אותה דיירת יוצאים מסדר. המפתח הוא מזהה הדיירת.</li>
+<li><strong>ה־relay בלי <code>FOR UPDATE</code>.</strong> שני relays יפרסמו את אותן שורות. גם עם הנעילה, אבן הדרך השישית משאירה רק אחד פעיל.</li>
+</ul>
+<h3 id="3849">38.4.9 הרחבה</h3>
+<ul>
+<li>הוסיפי מדד של גיל השורה הוותיקה ב־outbox, הבסיס של ההתראה באבן הדרך השמינית.</li>
+<li>נסי להריץ שני dispatchers עם אותה קבוצה, ולראות ב־<code>rpk group describe</code> איך המחיצות מתחלקות ביניהם.</li>
+</ul>
 <h2 id="385-m5">38.5 M5: מסירה, חתימה וניסיונות חוזרים</h2>
-<p>יושלם עם אבן הדרך.</p>
+<h3 id="3851">38.5.1 המטרה</h3>
+<p>להשלים את ההבטחה המרכזית של Hookline: כל שורת מסירה נשלחת למקבל כבקשת POST חתומה, עם ארבע הכותרות. כשל זמני
+מנוסה שוב עם המתנה גדלה. כשל סופי, או סוף הניסיונות, הופכים את המסירה למתה. מסירה מתה אפשר להריץ שוב דרך ה־API,
+וכל ניסיון גלוי בהיסטוריה. בסוף, בדיקה מקצה לקצה עוברת מול ה־sink: כל אירוע מגיע לכל מקבל מתאים.</p>
+<h3 id="3852">38.5.2 המושגים, והיכן נלמדו</h3>
+<table>
+<thead>
+<tr>
+<th>מושג</th>
+<th>איפה בספר</th>
+<th>איפה בפרויקט</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>תור על PostgreSQL עם <code>SKIP LOCKED</code> וחכירה</td>
+<td>פרק 14, סעיף 14.2</td>
+<td><code>delivery.Claim</code></td>
+</tr>
+<tr>
+<td>המתנה גדלה מעריכית עם פיזור אקראי</td>
+<td>פרק 14, סעיף 14.3</td>
+<td><code>internal/backoff</code></td>
+</tr>
+<tr>
+<td>אידמפוטנטיות אצל הצרכן</td>
+<td>פרק 14, סעיף 14.4</td>
+<td>ה־sink מסנן לפי <code>Hookline-Event-Id</code></td>
+</tr>
+<tr>
+<td>תור מתים והפעלה חוזרת</td>
+<td>פרק 14, סעיף 14.5</td>
+<td><code>ReplayDelivery</code>, ‏<code>POST /v1/deliveries/{id}/replay</code></td>
+</tr>
+<tr>
+<td>כיבוי מסודר של workers</td>
+<td>פרק 14, סעיף 14.7</td>
+<td><code>delivery.Pool.RunOne</code></td>
+</tr>
+<tr>
+<td>חתימת HMAC ווקטורי בדיקה משותפים</td>
+<td>פרק 8, סעיף 8.8</td>
+<td><code>delivery.Sign</code>, ‏<code>sink/data/signature-vectors.json</code></td>
+</tr>
+<tr>
+<td>מספור ניסיונות אחרי הפעלה חוזרת</td>
+<td>פרק 29, סעיף 29.5</td>
+<td>העמודה <code>attempt_base</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="3853">38.5.3 הקבצים</h3>
+<table>
+<thead>
+<tr>
+<th>קובץ</th>
+<th>מצב ב־starter</th>
+<th>מה עושים</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>internal/backoff/backoff.go</code></td>
+<td>גופים ריקים</td>
+<td>להעביר מהפתרון שלך לפרק 14</td>
+</tr>
+<tr>
+<td><code>internal/delivery/signer.go</code></td>
+<td>גוף ריק</td>
+<td>‏<code>Sign</code></td>
+</tr>
+<tr>
+<td><code>internal/delivery/send.go</code></td>
+<td>גופים ריקים</td>
+<td>‏<code>Body</code>, ‏<code>Send</code>, ‏<code>Classify</code></td>
+</tr>
+<tr>
+<td><code>internal/delivery/queue.go</code></td>
+<td>גופים ריקים</td>
+<td>‏<code>Claim</code>, ‏<code>Complete</code>, ‏<code>Fail</code></td>
+</tr>
+<tr>
+<td><code>internal/delivery/worker.go</code></td>
+<td>גופים ריקים</td>
+<td>‏<code>Pool.Run</code> ו־<code>RunOne</code></td>
+</tr>
+<tr>
+<td><code>migrations/00005_deliveries_attempt_base.sql</code></td>
+<td>שלם</td>
+<td>לקרוא: העמודה היחידה שנוספה מאז אבן הדרך השנייה</td>
+</tr>
+<tr>
+<td><code>internal/api/deliveries.go</code>, ‏<code>internal/store/*</code></td>
+<td>גופים ריקים</td>
+<td>שלושת הנתיבים, ומתודות המסירות במאגרים</td>
+</tr>
+<tr>
+<td><code>internal/e2e/e2e_test.go</code></td>
+<td>שלם</td>
+<td>הבדיקה מקצה לקצה</td>
+</tr>
+</tbody>
+</table>
+<h3 id="3854">38.5.4 הצעדים</h3>
+<p><strong>יום 43: חתימה, שליחה ותור.</strong> התחילי מהחתימה, כי יש לה מפרט מדויק בקובץ: הבדיקה <code>TestSignMatchesSharedVectors</code>
+קוראת את אותם וקטורים שה־sink ב־Python בודק. זו הפונקציה מהקובץ <code>internal/delivery/signer.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func Sign(secret string, ts int64, body []byte) string {
+    mac := hmac.New(sha256.New, []byte(secret))
+    t := strconv.FormatInt(ts, 10)
+    mac.Write([]byte(t))
+    mac.Write([]byte{'.'})
+    mac.Write(body)
+    return &quot;t=&quot; + t + &quot;,v1=&quot; + hex.EncodeToString(mac.Sum(nil))
+}
+</code></pre>
+
+
+</div>
+
+<p>עכשיו השליחה והסיווג. ‏<code>Classify</code> היא המדיניות של דרישה F6 בשש שורות:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func Classify(status int) (retryable bool, err error) {
+    switch {
+    case status &gt;= 200 &amp;&amp; status &lt; 300:
+        return false, nil
+    case status == http.StatusRequestTimeout || status == http.StatusTooManyRequests || status &gt;= 500:
+        return true, fmt.Errorf(&quot;receiver answered %d&quot;, status)
+    default:
+        return false, fmt.Errorf(&quot;receiver answered %d; not retried&quot;, status)
+    }
+}
+</code></pre>
+
+
+</div>
+
+<ul>
+<li><strong>‏4xx הוא תשובה סופית</strong>, חוץ מ־408 ו־429. מקבל שאומר 400 או 404 לא ישנה את דעתו בניסיון הבא.</li>
+<li><strong>‏3xx הוא גם תשובה סופית.</strong> הלקוח של <code>NewClient</code> לא עוקב אחרי הפניות, כי הפניה הייתה שולחת את הגוף החתום
+  לכתובת שהדיירת לא רשמה.</li>
+<li><strong>שגיאת רשת וזמן קצוב הם זמניים.</strong> המקבל עלול לחזור.</li>
+</ul>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">DATABASE_URL= go test -race -run 'Vectors|Classify|Send' -skip 'PrivateAddress' ./internal/delivery/
+go test -race ./internal/backoff/
+</code></pre>
+
+
+</div>
+
+<p>הבדיקה <code>TestPolicyProperties</code> היא בדיקת תכונה עם הספרייה rapid, כמו שדרישה F6 מבקשת: לכל מדיניות ולכל
+מספר ניסיון, ההמתנה בטווח, התקרה לא עוברת את הגבול, והיא לא קטנה כשהניסיונות גדלים.</p>
+<p>התור הוא החבילה <code>queue</code> מפרק 14, ממופה לטבלה <code>deliveries</code>:</p>
+<table>
+<thead>
+<tr>
+<th>בפרק 14</th>
+<th>ב־Hookline</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>running</code></td>
+<td><code>in_flight</code></td>
+</tr>
+<tr>
+<td><code>run_at</code></td>
+<td><code>next_attempt_at</code></td>
+</tr>
+<tr>
+<td><code>locked_until</code></td>
+<td><code>lease_until</code></td>
+</tr>
+<tr>
+<td><code>max_attempts</code> בשורה</td>
+<td><code>HOOKLINE_MAX_ATTEMPTS</code>, לסבב</td>
+</tr>
+</tbody>
+</table>
+<p>הפונקציה <code>Claim</code> מחזירה גם את מה שהשליחה צריכה
+(כתובת, סוד, האם ה־endpoint פעיל, והאירוע), בשאילתה אחת שמצטרפת לשתי הטבלאות. ‏<code>attempts</code> הוא אסימון הגידור:
+‏<code>record</code> מעדכן רק שורה שעדיין במצב <code>in_flight</code> עם אותו מספר ניסיון.</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">go test -race -count=1 -run 'TestClaim|TestRetry|TestPermanent|TestExpiredLease|TestConcurrentClaims' ./internal/delivery/
+</code></pre>
+
+
+</div>
+
+<p><strong>יום 44: הפעלה חוזרת, ה־pool והבדיקה מקצה לקצה.</strong> ההפעלה החוזרת נראית פשוטה: להחזיר מסירה מתה ל־<code>pending</code>.
+הפרט שמסבך אותה הוא המספור. בטבלה <code>attempts</code> יש מפתח ייחודי על הזוג מסירה ומספר. אם מאפסים את <code>attempts</code> לאפס,
+הניסיון הבא נרשם עם מספר 1 ומתנגש בניסיון 1 הישן. אם לא מאפסים, המסירה כבר הגיעה למקסימום ומתה אחרי כישלון אחד.</p>
+<p>הפתרון הוא העמודה <code>attempt_base</code> מהמיגרציה <code>00005</code>, שמסמך התכנון בפרק 29, סעיף 29.5 מציע. ההפעלה החוזרת שומרת בה
+את מספר הניסיונות עד עכשיו, וה־worker משווה למקסימום את ההפרש. זה הקוד מהקובץ <code>internal/store/postgres/postgres.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">        UPDATE deliveries SET status = 'pending', attempt_base = attempts, next_attempt_at = now(),
+               lease_until = NULL, last_error = NULL
+        WHERE tenant_id = $1 AND id = $2 AND status = 'dead'
+        RETURNING `+deliveryColumns, tenantID, id))
+</code></pre>
+
+
+</div>
+
+<ul>
+<li><strong>היומן נשאר רציף.</strong> המספר בטבלת הניסיונות ממשיך לעלות, וכך גם הכותרת <code>Hookline-Attempt</code>. המקבלת רואה שזה ניסיון חוזר.</li>
+<li><strong>התנאי <code>status = 'dead'</code> בתוך הפקודה.</strong> שתי לחיצות במקביל מזיזות את המסירה פעם אחת. השנייה מקבלת 409, והבדיקה
+  <code>TestConcurrentReplaysMoveTheDeliveryOnce</code> שולחת שמונה כאלה במקביל.</li>
+<li><strong>רק הפעלה של מסירה אחת.</strong> הפעלה המונית אחרי תקלה ארוכה, עם קצב ובקרה, היא ההרחבה שמסמך התכנון בפרק 29 מתאר.</li>
+</ul>
+<p>ה־pool הוא ה־worker של פרק 14, עם שני שינויים. ‏endpoint שהושבת אחרי שהמסירה נוצרה לא נשלח: המסירה מתה עם הסיבה
+„endpoint disabled”. ומקבל ששולח <code>Retry-After</code> מקבל את ההמתנה שביקש, עד התקרה של המדיניות. זה הקוד מהקובץ
+<code>internal/delivery/worker.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    delay := p.Backoff.Delay(j.Round, p.rand())
+    if res.RetryAfter &gt; delay { // the receiver asked for more time; honour it up to the cap
+        delay = min(res.RetryAfter, p.Backoff.Cap)
+    }
+    status, err := Fail(rec, p.DB, j, res, p.MaxAttempts, delay)
+</code></pre>
+
+
+</div>
+
+<p>הוסיפי את שלושת הנתיבים לחוזה ול־handlers, ואז הריצי את הכול, כולל הבדיקה מקצה לקצה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">make up
+go test -race -count=1 -skip 'RateLimit|OverItsLimit|LimiterFailure|Shed|Breaker|Bulkhead|Trace|PrivateAddress' ./internal/backoff/ ./internal/delivery/ ./internal/api/ ./internal/store/... ./internal/e2e/
+</code></pre>
+
+
+</div>
+
+<p>הבדיקה <code>TestPipelineEndToEnd</code> מריצה בתוך תהליך הבדיקה את כל הרכיבים. ה־API עונה מעל HTTP, וכל השאר רצים
+לצידו: ה־relay, ה־dispatcher עם המטמון, וארבעה workers. היא שולחת אירועים ל־sink שב־compose, ובודקת שלושה תרחישים:</p>
+<table>
+<thead>
+<tr>
+<th>תרחיש</th>
+<th>מה הבדיקה עושה</th>
+<th>מה היא מצפה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>מסירה רגילה</td>
+<td>25 אירועים, שלושה endpoints, ושלושה ניסיונות חוזרים של לקוח</td>
+<td>‏20, 25 ו־5 אירועים ייחודיים, ואף חתימה לא נדחתה</td>
+</tr>
+<tr>
+<td>מקבל שנכשל ומתאושש</td>
+<td>ה־sink מחזיר 503, ואחרי שני ניסיונות חוזר לעבוד</td>
+<td>המסירה נמסרת, עם שלושה ניסיונות או יותר</td>
+</tr>
+<tr>
+<td>כשל סופי והפעלה חוזרת</td>
+<td>ה־sink מחזיר 422</td>
+<td>שתי מסירות מתות אחרי ניסיון אחד; אחרי ההפעלה, נמסרות בניסיון 2</td>
+</tr>
+</tbody>
+</table>
+<p>לבסוף, הריצי את ארבעת הבינאריים, כל אחד בחלון משלו:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">make run          # terminal 1: the API
+make relay        # terminal 2
+make dispatcher   # terminal 3
+make worker       # terminal 4
+</code></pre>
+
+
+</div>
+
+<p>צרי endpoint שמצביע על הכתובת <code>http://localhost:8091/hooks/demo</code>, ושלחי אירועים. כדי שה־sink יאמת את החתימה,
+ה־endpoint צריך את הסוד שה־sink מכיר. ה־API יצר לו סוד אחר, ולכן בתרגול מחליפים אותו ישירות במסד:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">docker compose -p hookline -f deploy/compose.yaml exec postgres psql -U hookline -d hookline \
+  -c &quot;UPDATE endpoints SET secret = 'whsec_change-me' WHERE url LIKE '%/hooks/demo'&quot;
+</code></pre>
+
+
+</div>
+
+<p>זה הפלט של הרצה כזאת, עם חמישה אירועים:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">$ curl -s localhost:8091/stats
+{&quot;received&quot;:5,&quot;unique&quot;:5,&quot;duplicates&quot;:0,&quot;rejected&quot;:0,&quot;failed&quot;:0,&quot;hooks&quot;:{&quot;smoke&quot;:{&quot;received&quot;:5,&quot;unique&quot;:5,&quot;duplicates&quot;:0,&quot;rejected&quot;:0,&quot;failed&quot;:0}}}
+</code></pre>
+
+
+</div>
+
+<h3 id="3855">38.5.5 הבדיקות שצריכות להוריק</h3>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">make up
+go test -race -count=1 -skip 'RateLimit|OverItsLimit|LimiterFailure|Shed|Breaker|Bulkhead|Trace|PrivateAddress' ./internal/backoff/ ./internal/delivery/ ./internal/api/ ./internal/store/... ./internal/e2e/
+go test -race -count=1 -skip 'StaleRelay|Trace|PrivateAddress' ./internal/outbox/ ./internal/dispatch/ ./internal/bus/ ./internal/cache/ ./internal/subcache/
+make sink-test
+make down
+</code></pre>
+
+
+</div>
+
+<h3 id="3856">38.5.6 הפלט הצפוי</h3>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">ok      example.com/hookline/internal/backoff   1.817s
+ok      example.com/hookline/internal/delivery  4.267s
+ok      example.com/hookline/internal/api   2.040s
+ok      example.com/hookline/internal/store 3.395s
+ok      example.com/hookline/internal/store/memory  3.646s
+ok      example.com/hookline/internal/store/postgres    4.074s
+ok      example.com/hookline/internal/store/storetest   3.183s
+ok      example.com/hookline/internal/e2e   5.467s
+ok      example.com/hookline/internal/outbox    4.776s
+ok      example.com/hookline/internal/dispatch  4.349s
+ok      example.com/hookline/internal/bus   2.656s
+ok      example.com/hookline/internal/cache 3.612s
+ok      example.com/hookline/internal/subcache  3.270s
+</code></pre>
+
+
+</div>
+
+<h3 id="3857">38.5.7 קריטריון סיום</h3>
+<ul>
+<li>‏<code>TestPipelineEndToEnd</code> עוברת: כל אירוע מגיע חתום לכל מקבל מתאים, מסירה מתה מופעלת שוב ונמסרת.</li>
+<li>‏<code>TestSignMatchesSharedVectors</code> בגו ובדיקות החתימה ב־Python עוברות על אותו קובץ.</li>
+<li>בדיקת החכירה עוברת: ‏worker שנתקע מאבד את המסירה, והתוצאה המאוחרת שלו נדחית.</li>
+<li>‏<code>TestPoolDrainsOnShutdown</code> עוברת: ביטול באמצע בקשה מחכה לה ורושם את התוצאה.</li>
+<li>כל המודול נקי ב־<code>make lint</code>, וכל הבדיקות ירוקות עם <code>-race</code> מול ה־compose.</li>
+<li>קומיט של אבן הדרך, ו־<code>make down</code>.</li>
+</ul>
+<h3 id="3858">38.5.8 טעויות נפוצות</h3>
+<ul>
+<li><strong>לחתום על גוף אחד ולשלוח אחר.</strong> אם הגוף נבנה פעמיים, או עובר קידוד מחדש, החתימה לא תתאים. חותמים על הבתים
+  שנשלחים בדיוק.</li>
+<li><strong>לאפס את <code>attempts</code> בהפעלה חוזרת.</strong> הניסיון הבא מתנגש במספר ניסיון קיים, וההכנסה לטבלת הניסיונות נכשלת.</li>
+<li><strong>לנסות שוב 400.</strong> המקבל לא ישנה את התשובה, וה־worker מבזבז את הניסיונות ואת התור על מסירה שלא תצליח.</li>
+<li><strong>חכירה קצרה מהזמן הקצוב.</strong> ‏worker שני תופס את המסירה בזמן שהראשון עוד מחכה לתשובה, ושניהם שולחים. ההגדרות
+  דוחות חכירה שאינה ארוכה מהזמן הקצוב.</li>
+<li><strong>להקשיב ל־<code>ctx</code> של הכיבוי באמצע בקשה.</strong> הבקשה נקטעת, התוצאה לא נרשמת, והמסירה נשלחת שוב אחרי שהחכירה פגה.
+  הבקשה רצה עם context מנותק, מוגבל בחכירה.</li>
+</ul>
+<h3 id="3859">38.5.9 הרחבה</h3>
+<ul>
+<li>הוסיפי <code>POST /v1/endpoints/{id}/replays</code>, ההפעלה ההמונית של פרק 29, סעיף 29.5, עם הטבלה <code>replays</code> והקצב שהמסמך מציע.</li>
+<li>רשמי בהיסטוריה גם את הכותרת <code>Retry-After</code> שהמקבל שלח, ובדקי שה־API מחזיר אותה.</li>
+</ul>
 <h2 id="386-m6">38.6 M6: חוסן ועומס</h2>
-<p>יושלם עם אבן הדרך.</p>
+<h3 id="3861">38.6.1 המטרה</h3>
+<p>לגרום ל־Hookline להתנהג טוב כשמשהו מסביבו מתנהג רע. מקבל שנתקע לא יתפוס את כל ה־workers, ומקבל שנכשל שוב
+ושוב לא יקבל עוד בקשות. דיירת ששולחת יותר מדי תקבל 429, ושאר הדיירות לא ירגישו. ‏API עמוס יענה 503 מיד, ולא יצבור
+תור בלי גבול. וה־relay ירוץ בכמה עותקים, עם אחד פעיל. בסוף אבן הדרך את מריצה את ניסוי הבידוד של דרישה N3 ורושמת
+את המספרים שלך.</p>
+<h3 id="3862">38.6.2 המושגים, והיכן נלמדו</h3>
+<table>
+<thead>
+<tr>
+<th>מושג</th>
+<th>איפה בספר</th>
+<th>איפה בפרויקט</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>מפסק זרם</td>
+<td>פרק 15, סעיף 15.5</td>
+<td><code>internal/breaker</code>, ‏<code>delivery.Guards</code></td>
+</tr>
+<tr>
+<td>מחיצה אטומה</td>
+<td>פרק 15, סעיף 15.6</td>
+<td><code>internal/bulkhead</code>, ‏<code>delivery.Guards</code></td>
+</tr>
+<tr>
+<td>‏token bucket, ו־Redis משותף</td>
+<td>פרק 16, סעיפים 16.2 ו־16.3</td>
+<td><code>internal/ratelimit</code>, ‏<code>api/limit.go</code></td>
+</tr>
+<tr>
+<td>השלת עומס לפני כל עבודה</td>
+<td>פרק 16, סעיף 16.5</td>
+<td><code>internal/shed</code>, ‏<code>shedV1</code></td>
+</tr>
+<tr>
+<td>‏advisory lock כמנהיג</td>
+<td>פרק 18, סעיפים 18.2 ו־18.5</td>
+<td><code>internal/leader</code>, ‏<code>cmd/relay</code></td>
+</tr>
+<tr>
+<td>‏fencing token</td>
+<td>פרק 18, סעיף 18.4</td>
+<td><code>Relay.Term</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="3863">38.6.3 הקבצים</h3>
+<table>
+<thead>
+<tr>
+<th>קובץ</th>
+<th>מצב ב־starter</th>
+<th>מה עושים</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>internal/breaker</code>, ‏<code>internal/bulkhead</code></td>
+<td>גופים ריקים</td>
+<td>להעביר מהפתרון שלך לפרק 15</td>
+</tr>
+<tr>
+<td><code>internal/ratelimit</code></td>
+<td>גופים ריקים</td>
+<td>מפרק 16, עם קצב ופרץ לכל קריאה במקום לכל מגביל</td>
+</tr>
+<tr>
+<td><code>internal/shed</code></td>
+<td>גופים ריקים</td>
+<td>מפרק 16, עם תשובה בפרטי בעיה</td>
+</tr>
+<tr>
+<td><code>internal/leader</code></td>
+<td>גופים ריקים</td>
+<td>מפרק 18</td>
+</tr>
+<tr>
+<td><code>internal/delivery/guards.go</code></td>
+<td>גופים ריקים</td>
+<td>מפסק ומחיצה לכל endpoint, ו־<code>Postpone</code></td>
+</tr>
+<tr>
+<td><code>internal/api/limit.go</code></td>
+<td>גוף ריק</td>
+<td>הגבלת הקצב לפי הדיירת</td>
+</tr>
+<tr>
+<td><code>migrations/00006_leader_terms.sql</code></td>
+<td>שלם</td>
+<td>הטבלה של הקדנציות</td>
+</tr>
+<tr>
+<td><code>deploy/compose.yaml</code>, ‏<code>scripts/lab-n3.sh</code></td>
+<td>שלמים</td>
+<td>‏sink שני, וניסוי הבידוד</td>
+</tr>
+</tbody>
+</table>
+<h3 id="3864">38.6.4 הצעדים</h3>
+<p><strong>יום 54: הגנות לכל endpoint.</strong> העתיקי את שתי החבילות, <code>breaker</code> ו־<code>bulkhead</code>, מהתרגיל של פרק 15, והחליפי את שם
+המודול. הבדיקות
+שלהן עוברות מיד, כי הן לא תלויות בשום דבר בפרויקט.</p>
+<p>השאלה המעניינת היא איפה הן יושבות. כל worker מחזיק מפסק ומחיצה <strong>לכל endpoint</strong>, בזיכרון של התהליך. זו ההחלטה
+מטבלת ההחלטות בפרק 37, סעיף 37.5: מצב מקומי פשוט יותר ונכשל בבטחה. המחיר הוא שכל תהליך לומד לבד שה־endpoint מת.
+זה הקוד מהקובץ <code>internal/delivery/worker.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    g := p.Guards.get(j.EndpointID)
+    if g.bulkhead != nil {
+        if err := g.bulkhead.Acquire(ctx); err != nil {
+            p.postpone(ctx, j, busyWait(), &quot;bulkhead&quot;, err)
+            return Result{}, false
+        }
+        defer g.bulkhead.Release()
+    }
+    done, err := g.breaker.Allow()
+    if err != nil {
+        p.postpone(ctx, j, p.Guards.openWait(), &quot;breaker&quot;, err)
+        return Result{}, false
+    }
+    res = attempt()
+    done(breakerError(res))
+    return res, true
+</code></pre>
+
+
+</div>
+
+<p>שלוש החלטות בקוד:</p>
+<ul>
+<li><strong>מחיצה בלי המתנה.</strong> כשה־endpoint כבר מחזיק את כל המקומות שלו, ה־worker לא מחכה. הוא מחזיר את המסירה לתור
+  ותופס אחרת. אחרת, ה־worker עצמו היה נתקע, וזה בדיוק מה שהמחיצה נועדה למנוע.</li>
+<li><strong>דחייה בלי ניסיון.</strong> ‏<code>Postpone</code> מחזירה את <code>attempts</code> לערך שלפני התפיסה, ולא רושמת כלום בהיסטוריה. אף בקשה לא
+  נשלחה, ולכן אסור שזה יקצר את הניסיונות של המסירה.</li>
+<li><strong>רק כשל זמני פוגע במפסק.</strong> תשובת 400 היא תשובה של מקבל שעובד. ‏<code>breakerError</code> מחזירה שגיאה רק למה שמנוסה שוב:
+  זמן קצוב, חיבור, 408, 429 ו־5xx.</li>
+</ul>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">go test -race ./internal/breaker/ ./internal/bulkhead/
+go test -race -count=1 -run 'Breaker|Bulkhead' ./internal/delivery/
+</code></pre>
+
+
+</div>
+
+<p>הבדיקה <code>TestBulkheadKeepsASlowEndpointFromStarvingOthers</code> היא דרישה N3 בתוך תהליך אחד: מקבל אחד לא עונה לעולם,
+והמסירות של מקבל בריא יוצאות בכל זאת, כשהמקבל התקוע לא מחזיק יותר ממקום אחד.</p>
+<p><strong>יום 54, המשך: הגבלת קצב והשלת עומס.</strong> הגבלת הקצב של פרק 16 קבעה קצב אחד לכל המגביל. ב־Hookline לכל דיירת יש קצב
+משלה, בעמודות <code>rate_per_sec</code> ו־<code>burst</code>. לכן <code>Allow</code> מקבלת אותם בכל קריאה, והסקריפט ב־Lua לא משתנה בכלל: הוא כבר קיבל
+אותם כפרמטרים. זה הקוד מהקובץ <code>internal/api/limit.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">        t := tenantFrom(r.Context())
+        d, err := s.limiter.Allow(r.Context(), t.ID, float64(t.RatePerSec), t.Burst)
+        if err != nil {
+            if s.onLimit != nil {
+                s.onLimit(err)
+            }
+            s.log.WarnContext(r.Context(), &quot;rate limiter unavailable; serving without a limit&quot;,
+                slog.String(&quot;tenant_id&quot;, t.ID), slog.String(&quot;error&quot;, err.Error()))
+            next.ServeHTTP(w, r)
+            return
+        }
+</code></pre>
+
+
+</div>
+
+<ul>
+<li><strong>אחרי האימות.</strong> המגביל צריך את הדיירת, ולכן הוא יושב בתוך ה־middleware של האימות, על נתיב הקליטה בלבד.</li>
+<li><strong>נכשל פתוח.</strong> כש־Redis למטה, הבקשה עוברת ונרשמת בלוג. זו השורה של Redis בטבלת הכשלים בפרק 37, סעיף 37.6. באבן
+  הדרך השמינית הקריאה ל־<code>OnLimiterError</code> תהפוך למדד.</li>
+</ul>
+<p>השלת העומס יושבת בצד השני: <strong>לפני</strong> האימות ולפני המגביל, כך שבקשה שנזרקת לא עולה קריאה למסד או ל־Redis (פרק 16, סעיף
+16.5). היא עוטפת את כל הנתיבים שמתחילים ב־<code>/v1/</code>, ולא את <code>/healthz</code>: בדיקת חיים חייבת לענות, ובמיוחד כשהשירות עמוס.</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">go test -race ./internal/ratelimit/ ./internal/shed/
+DATABASE_URL= go test -race -run 'RateLimited|OverItsLimit|OnlyIngest|FailsOpen|Sheds' ./internal/api/
+</code></pre>
+
+
+</div>
+
+<p><strong>יום 55: relay אחד פעיל, וניסוי הבידוד.</strong> העתיקי את <code>leader</code> מפרק 18. הטבלה <code>leader_terms</code> נוצרת עכשיו במיגרציה
+<code>00006</code>, ולא ב־<code>EnsureSchema</code>. ה־relay עוטף את הלולאה שלו בבחירה: מי שמחזיק את ה־advisory lock מפרסם, והשאר מחכים.</p>
+<p>הקדנציה של המנהיג היא גם fencing token, כמו בפרק 18, סעיף 18.4. ‏relay שאיבד את המנהיגות ולא יודע עדיין, למשל אחרי
+עצירה ארוכה, יכול עוד לפרסם. זו כפילות, וה־dispatcher סופג אותה. אבל הסימון שלו נדחה, כי הוא בודק את הקדנציה. זה
+הקוד מהקובץ <code>internal/outbox/outbox.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">        tag, err := tx.Exec(ctx, `
+            UPDATE outbox SET published_at = now()
+            WHERE id = ANY($1)
+              AND ($2::bigint = 0 OR (SELECT term FROM leader_terms WHERE lock_key = $3) = $2)`,
+            seqs, r.Term, RelayLockKey)
+</code></pre>
+
+
+</div>
+
+<p>כשהסימון נדחה, <code>Run</code> מחזירה <code>ErrNotLeader</code>, וה־relay יורד מהמנהיגות ומתמודד מחדש.</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">go test -race -count=1 ./internal/leader/ ./internal/outbox/
+</code></pre>
+
+
+</div>
+
+<p>עכשיו ניסוי הבידוד. ל־compose נוסף מקבל מדומה שני, <code>sink-slow</code>, בפורט 8092. הסקריפט <code>scripts/lab-n3.sh</code> עושה
+ארבעה דברים:</p>
+<ul>
+<li>מעלה את הסביבה ואת ארבעת הבינאריים;</li>
+<li>יוצר שני endpoints, אחד לכל מקבל, ומנה את שניהם לכל האירועים;</li>
+<li>מעביר את המקבל השני למצב <code>timeout_mode</code>, שבו כל בקשה נתקעת עד שה־worker מוותר;</li>
+<li>שולח 300 אירועים, ומדפיס את פיגור המסירה של המקבל הבריא, מהקליטה ועד המסירה.</li>
+</ul>
+<p>כך מריצים אותו, עם ההגנות ובלעדיהן:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">make lab-n3
+GUARDS=off make lab-n3
+</code></pre>
+
+
+</div>
+
+<p>ההרצה השנייה מכבה את ההגנות: מחיצה ברוחב כל ה־pool, ומפסק שלא נפתח לעולם. ההשוואה בין שתי ההרצות היא כל העניין.
+הפלט נראה כך; את המספרים את מודדת ורושמת:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">== delivery lag of the healthy endpoint, seconds from ingest to delivery
+delivered=300  p50=___  p95=___  p99=___  max=___
+== the slow endpoint: deliveries by status, attempts spent
+pending=___ (attempts ___)
+== breaker transitions in the worker log
+___
+</code></pre>
+
+
+</div>
+
+<blockquote>
+<p><strong>שימי לב:</strong> אל תכתבי ב־<code>docs/EVALUATION.md</code> מספר שלא מדדת, וכתבי ליד כל מספר את התאריך, המחשב ואת הפקודה. היעד
+של N2 הוא 30 שניות ל־p99. האם הוא מתקיים עם ההגנות, והאם הוא מתקיים בלעדיהן? זו השאלה שהניסוי עונה עליה, על
+המחשב שלך.</p>
+</blockquote>
+<h3 id="3865">38.6.5 הבדיקות שצריכות להוריק</h3>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">make up
+go test -race -count=1 -skip 'Trace' ./internal/breaker/ ./internal/bulkhead/ ./internal/ratelimit/ ./internal/shed/ \
+  ./internal/leader/ ./internal/outbox/ ./internal/delivery/ ./internal/api/ ./internal/e2e/ ./migrations/
+make lab-n3
+</code></pre>
+
+
+</div>
+
+<h3 id="3866">38.6.6 הפלט הצפוי</h3>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">ok      example.com/hookline/internal/breaker   2.193s
+ok      example.com/hookline/internal/bulkhead  2.577s
+ok      example.com/hookline/internal/ratelimit 4.968s
+ok      example.com/hookline/internal/shed  4.894s
+ok      example.com/hookline/internal/leader    6.315s
+ok      example.com/hookline/internal/outbox    6.058s
+ok      example.com/hookline/internal/delivery  8.614s
+ok      example.com/hookline/internal/api   4.493s
+ok      example.com/hookline/internal/e2e   7.583s
+ok      example.com/hookline/migrations 2.740s
+</code></pre>
+
+
+</div>
+
+<h3 id="3867">38.6.7 קריטריון סיום</h3>
+<ul>
+<li>המפסק נפתח אחרי מספר הכשלים שהוגדר, ובזמן שהוא פתוח אף בקשה לא מגיעה ל־endpoint, ואף ניסיון לא מתבזבז.</li>
+<li>מקבל תקוע לא מחזיק יותר מקומות מהמחיצה שלו, ומקבל בריא ממשיך לקבל.</li>
+<li>דיירת מעל המגבלה מקבלת 429 עם <code>Retry-After</code>, ודיירת אחרת באותו רגע מקבלת 202.</li>
+<li>‏API עמוס עונה 503 עם <code>Retry-After</code> על נתיבי <code>/v1</code>, ו־<code>/healthz</code> ממשיך לענות.</li>
+<li>שני relays רצים: אחד מוביל, והשני לוקח את המנהיגות כשהראשון נהרג. ‏relay עם קדנציה ישנה לא מסמן.</li>
+<li>‏<code>make lab-n3</code> רץ בשתי הגרסאות, והמספרים שלך רשומים ב־<code>docs/EVALUATION.md</code>, עם תאריך ומחשב.</li>
+<li>קומיט של אבן הדרך, ו־<code>make down</code>.</li>
+</ul>
+<h3 id="3868">38.6.8 טעויות נפוצות</h3>
+<ul>
+<li><strong>מחיצה שמחכה.</strong> ‏worker שמחכה למקום פנוי ב־endpoint תקוע נתקע בעצמו, ואחרי כמה כאלה כל ה־pool מחכה. בלי המתנה,
+  ודחייה של המסירה.</li>
+<li><strong>דחייה שמבזבזת ניסיון.</strong> אם <code>Postpone</code> לא מחזירה את <code>attempts</code>, מפסק פתוח שורף את הניסיונות של כל המסירות של
+  ה־endpoint, והן מתות בלי שנשלחה בקשה.</li>
+<li><strong>לספור 4xx ככשל של המפסק.</strong> ‏endpoint שמחזיר 400 על גוף מסוים ייסגר לגמרי, גם לאירועים תקינים.</li>
+<li><strong>מגביל בזיכרון עם כמה עותקים.</strong> שלושה עותקים של ה־API נותנים לכל דיירת פי שלושה מהמגבלה. בלי Redis, המגביל
+  המקומי הוא רק למצב פיתוח.</li>
+<li><strong>השלת עומס אחרי האימות.</strong> אז כל בקשה שנזרקת עולה קריאה למסד, והעומס שנחסך חוזר דרך הדלת האחורית.</li>
+<li><strong>לפרסם מספרים שלא מדדת.</strong> פלט הדוגמה כאן ריק בכוונה. המספרים שלך תלויים במחשב שלך.</li>
+</ul>
+<h3 id="3869">38.6.9 הרחבה</h3>
+<ul>
+<li>הוסיפי ל־sink שליטה לכל hook, במקום sink שני, ובדקי שהבדיקות שלו נשארות ירוקות.</li>
+<li>נסי מפסק משותף ב־Redis לכל ה־workers (פרק 15, סעיף 15.5), ומדדי אם המקבל התקוע מקבל פחות בקשות מאשר עם מפסקים מקומיים.</li>
+<li>הוסיפי עדיפות גבוהה להשלת העומס לנתיב <code>GET /v1/events/{id}</code>, כדי שהדיירות יוכלו לבדוק מצב גם בזמן עומס.</li>
+</ul>
 <h2 id="387-m7-kubernetes-ci">38.7 M7: קונטיינרים, Kubernetes ו־CI</h2>
-<p>יושלם עם אבן הדרך.</p>
+<h3 id="3871">38.7.1 המטרה</h3>
+<p>להוציא את Hookline מהמחשב שלך אל אשכול. בסוף אבן הדרך יש לך ארבעה דברים:</p>
+<ul>
+<li>שני images קטנים, שרצים כמשתמש שאינו root;</li>
+<li>‏chart של Helm שמתקין את ארבעת הבינאריים, עם מיגרציות לפני כל התקנה;</li>
+<li>תצורת Terraform שמתקינה את אותו chart;</li>
+<li>‏workflow שבודק את הכול, כולל התקנה אמיתית על kind. בדיקת העשן היא אירוע אחד שנשלח ל־API באשכול ומגיע
+ל־sink באשכול, חתום.</li>
+</ul>
+<h3 id="3872">38.7.2 המושגים, והיכן נלמדו</h3>
+<table>
+<thead>
+<tr>
+<th>מושג</th>
+<th>איפה בספר</th>
+<th>איפה בפרויקט</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>‏Dockerfile רב־שלבי ל־Go</td>
+<td>פרק 19, סעיף 19.2</td>
+<td><code>Dockerfile</code></td>
+</tr>
+<tr>
+<td>‏distroless ומשתמש מספרי</td>
+<td>פרק 19, סעיף 19.3</td>
+<td><code>USER 65532:65532</code>, ‏<code>api healthcheck</code></td>
+</tr>
+<tr>
+<td>‏image ל־Python עם uv</td>
+<td>פרק 19, סעיף 19.4</td>
+<td><code>sink/Dockerfile</code></td>
+</tr>
+<tr>
+<td>‏kind, ‏Deployments ו־Services</td>
+<td>פרק 20, סעיפים 20.2 עד 20.5</td>
+<td><code>deploy/kind/</code></td>
+</tr>
+<tr>
+<td>‏Secrets ו־probes</td>
+<td>פרק 20, סעיפים 20.6 ו־20.7</td>
+<td>‏<code>hookline-database</code>, ה־probes של ה־API</td>
+</tr>
+<tr>
+<td>‏requests, ‏limits ו־HPA</td>
+<td>פרק 21, סעיפים 21.1 ו־21.2</td>
+<td><code>values.yaml</code>, ‏<code>hpa.yaml</code></td>
+</tr>
+<tr>
+<td>‏chart, ‏values ו־templates</td>
+<td>פרק 21, סעיפים 21.6 ו־21.7</td>
+<td><code>deploy/helm/hookline</code></td>
+</tr>
+<tr>
+<td>‏Terraform עם ה־provider של Helm</td>
+<td>פרק 22, סעיפים 22.3, 22.4 ו־22.6</td>
+<td><code>deploy/terraform</code></td>
+</tr>
+<tr>
+<td>‏workflow, ‏images ופריסה ל־kind ב־CI</td>
+<td>פרק 23, סעיפים 23.2 עד 23.5</td>
+<td><code>.github/workflows/hookline.yml</code></td>
+</tr>
+<tr>
+<td>‏actionlint</td>
+<td>פרק 23, סעיף 23.8</td>
+<td>אותו קובץ</td>
+</tr>
+</tbody>
+</table>
+<h3 id="3873">38.7.3 הקבצים</h3>
+<p>כל הקבצים של אבן הדרך הזאת שלמים ב־starter: אין בהם קוד Go לכתוב. העבודה היא לקרוא כל קובץ, להבין כל שורה, להריץ,
+ולתקן את מה שלא עובד אצלך.</p>
+<table>
+<thead>
+<tr>
+<th>קובץ</th>
+<th>תפקיד</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Dockerfile</code>, ‏<code>.dockerignore</code></td>
+<td>‏image אחד עם חמשת הבינאריים</td>
+</tr>
+<tr>
+<td><code>cmd/api/healthcheck.go</code></td>
+<td>‏<code>api healthcheck</code>, כי ב־distroless אין curl</td>
+</tr>
+<tr>
+<td><code>sink/Dockerfile</code>, ‏<code>sink/.dockerignore</code></td>
+<td>ה־sink כמו המקבל של פרק 19</td>
+</tr>
+<tr>
+<td><code>deploy/kind/kind-config.yaml</code></td>
+<td>אשכול של צומת אחד, image מוצמד לפי digest</td>
+</tr>
+<tr>
+<td><code>deploy/kind/infra.yaml</code></td>
+<td>‏PostgreSQL, ‏Redis, ‏Redpanda וה־sink, עותק אחד לכל אחד</td>
+</tr>
+<tr>
+<td><code>deploy/helm/hookline/</code></td>
+<td>ה־chart: ‏Deployments, ‏Service, ‏ConfigMap, ‏HPA, וה־Job של המיגרציות</td>
+</tr>
+<tr>
+<td><code>deploy/terraform/</code></td>
+<td>‏namespace, ‏Secret ו־<code>helm_release</code>, עם מודול מקומי</td>
+</tr>
+<tr>
+<td><code>.github/workflows/hookline.yml</code></td>
+<td>שישה jobs, מבדיקות היחידה ועד פרסום ל־GHCR</td>
+</tr>
+<tr>
+<td><code>scripts/check-chart.sh</code>, ‏<code>scripts/kind-smoke.sh</code></td>
+<td>הבדיקות הסטטיות, ובדיקת העשן מקצה לקצה</td>
+</tr>
+</tbody>
+</table>
+<h3 id="3874">38.7.4 הצעדים</h3>
+<p><strong>יום 68: ה־images.</strong> קראי את <code>Dockerfile</code>. זה ה־Dockerfile של פרק 19, סעיף 19.2, עם הבדל אחד: הוא בונה את כל
+חמשת הבינאריים לאותו image. כל Deployment ב־chart מריץ אחד מהם כפקודה. זה הקטע של הבנייה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-dockerfile">RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /out/ \
+      ./cmd/api ./cmd/relay ./cmd/dispatcher ./cmd/worker ./cmd/hookline-admin
+</code></pre>
+
+
+</div>
+
+<p>‏image אחד לכל הבינאריים הוא בחירה. החלופה, image לכל בינארי, נותנת images קטנים יותר ופריסה נפרדת לכל רכיב. כאן
+הבינאריים חולקים כמעט את כל הקוד, משתחררים יחד, וכך יש image אחד לסרוק, לתייג ולטעון ל־kind.</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">make images
+docker image ls | grep -E '^hookline'
+docker run --rm --entrypoint id hookline-sink:dev
+</code></pre>
+
+
+</div>
+
+<p>הפקודה האחרונה צריכה להראות <code>uid=10001</code>. ‏image של Go רץ כ־65532, המשתמש <code>nonroot</code> של distroless.</p>
+<p><strong>יום 69: kind, ה־chart והמיגרציות.</strong> קראי את <code>deploy/kind/infra.yaml</code>. התשתית לא נכנסה ל־chart בכוונה: באשכול
+אמיתי היא שירות מנוהל, וה־chart רק מקבל את הכתובות שלה. כאן היא קבצי YAML פשוטים, עותק אחד לכל רכיב, והנתונים
+ב־<code>emptyDir</code>, שנעלם עם ה־pod. זה אשכול תרגול.</p>
+<p>עכשיו ה־chart. שלוש החלטות שכדאי לזהות בו:</p>
+<ul>
+<li><strong>הסוד לא ב־values.</strong> כתובת המסד מגיעה מ־Secret שקיים לפני ההתקנה, כי ערכי ה־chart נשמרים בהיסטוריה של
+  ה־release. ה־chart מכיר רק את שם ה־Secret ואת המפתח.</li>
+<li><strong>מיגרציות ב־hook.</strong> ‏Job שרץ לפני כל התקנה ועדכון מריץ את המיגרציות ואז יוצר את ה־topic, לפני שאף Deployment
+  משתנה. שתי הפקודות אידמפוטנטיות, כך שהרצה חוזרת לא מזיקה.</li>
+<li><strong>‏<code>enableServiceLinks: false</code> בכל pod.</strong> אחרת ה־kubelet מוסיף משתני סביבה לכל Service, למשל <code>HOOKLINE_API_PORT</code>,
+  וזה המלכודת של פרק 20 עם המשתנה של הפורט של המקבל.</li>
+</ul>
+<p>זה הקטע של ה־hook, מהקובץ <code>deploy/helm/hookline/templates/job-migrate.yaml</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-yaml">  annotations:
+    &quot;helm.sh/hook&quot;: pre-install,pre-upgrade
+    &quot;helm.sh/hook-weight&quot;: &quot;0&quot;
+    &quot;helm.sh/hook-delete-policy&quot;: before-hook-creation,hook-succeeded
+</code></pre>
+
+
+</div>
+
+<p>ה־hook לא רואה את ה־ConfigMap של ה־chart, כי בזמן <code>pre-install</code> הוא עוד לא קיים. לכן ה־Job מחזיק את ההגדרות שלו
+בעצמו. הריצי את הבדיקות הסטטיות, ואחר כך את בדיקת העשן:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">make chart-check
+KEEP=1 make kind-smoke
+</code></pre>
+
+
+</div>
+
+<p>‏<code>scripts/kind-smoke.sh</code> עובד עם קובץ kubeconfig משלו, ולא נוגע בשום הקשר אחר שלך. הוא יוצר את האשכול, בונה וטוען
+את שני ה־images, מחיל את התשתית, יוצר את ה־Secret ומתקין את ה־chart. אחר כך הוא יוצר דיירת דרך
+<code>kubectl exec</code>, ‏endpoint שמצביע על ה־sink באשכול, ושולח אירוע אחד. עם <code>KEEP=1</code> האשכול נשאר, למחר.</p>
+<p><strong>יום 70: Terraform ו־CI.</strong> ‏Terraform מתקין את אותו chart, מהנתיב המקומי שלו ולא מעותק, למרחב שמות משלו. הוא
+יוצר את ה־namespace ואת ה־Secret, ומתקין את ה־release ליד התשתית שכבר רצה. זה המשאב העיקרי, מהקובץ
+<code>deploy/terraform/modules/hookline/main.tf</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-hcl">resource &quot;helm_release&quot; &quot;hookline&quot; {
+  name      = var.release_name
+  namespace = kubernetes_namespace_v1.this.metadata[0].name
+  chart     = &quot;${path.module}/../../../helm/hookline&quot;
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">cd deploy/terraform
+cp terraform.tfvars.example terraform.tfvars
+terraform init
+terraform plan -out plan.out
+terraform apply plan.out
+terraform plan -var worker_replicas=2
+terraform destroy
+cd ../..
+make kind-down
+</code></pre>
+
+
+</div>
+
+<p>‏<code>terraform.tfvars</code> מוחזק מחוץ ל־Git, כי בו כתובת המסד. גם קובץ ה־state יכול להחזיק אותה, ולכן גם הוא מחוץ ל־Git.
+הקובץ <code>.terraform.lock.hcl</code> כן נכנס, עם ארבע פלטפורמות, כדי שה־CI ומחשבים אחרים יקבלו בדיוק אותם providers.</p>
+<p>לסיום, ה־workflow. הוא שייך לשורש המאגר שלך, ליד ה־action של פרק 23:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">cp -r ~/senior-course/hookline/.github/. ~/senior-course/.github/
+cd ~/senior-course &amp;&amp; actionlint
+</code></pre>
+
+
+</div>
+
+<p>שישה jobs:</p>
+<table>
+<thead>
+<tr>
+<th>job</th>
+<th>מה הוא עושה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>unit</code></td>
+<td>ה־action של פרק 23: ‏gofmt, ‏vet, ‏staticcheck ו־<code>go test -race</code></td>
+</tr>
+<tr>
+<td><code>integration</code></td>
+<td>ה־compose כולו, ואז אותו action עם <code>fail-on-skip</code>: כל בדיקת אינטגרציה חייבת לרוץ</td>
+</tr>
+<tr>
+<td><code>sink</code></td>
+<td>‏uv, ‏ruff, ‏mypy ו־pytest</td>
+</tr>
+<tr>
+<td><code>deploy-config</code></td>
+<td>בדיקות ה־chart, ו־Terraform בלי אשכול</td>
+</tr>
+<tr>
+<td><code>kind-smoke</code></td>
+<td>אשכול kind ב־CI, ואותו סקריפט עשן</td>
+</tr>
+<tr>
+<td><code>images</code></td>
+<td>שני images ל־GHCR, רק מ־main ורק אחרי שהכול עבר</td>
+</tr>
+</tbody>
+</table>
+<p>‏Redpanda צריך שורת פקודה, ושירות צמוד של GitHub Actions לא מקבל כזאת. לכן ה־job של האינטגרציה מריץ את
+קובץ ה־compose, ולא services (פרק 23, סעיף 23.3). הצד הטוב: ה־CI והמחשב שלך מריצים בדיוק אותה סביבה.</p>
+<blockquote>
+<p><strong>שימי לב:</strong> ה־workflow נבדק כאן ב־actionlint בלבד. הוא ירוץ באמת רק במאגר שלך ב־GitHub, וההרצה הראשונה שלו
+היא חלק מאבן הדרך: אם job נכשל שם, קראי את הלוג שלו ותקני.</p>
+</blockquote>
+<h3 id="3875">38.7.5 הבדיקות שצריכות להוריק</h3>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">make chart-check
+make kind-smoke
+make tf-check
+cd ~/senior-course &amp;&amp; actionlint
+</code></pre>
+
+
+</div>
+
+<h3 id="3876">38.7.6 הפלט הצפוי</h3>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">$ make chart-check
+...
+PASS  &quot;helm.sh/hook&quot;: pre-install,pre-upgrade
+...
+all chart checks passed
+$ make kind-smoke
+...
+== smoke: one event to the in-cluster sink
+event 01a10c1d-c2ea-7846-b280-8f3878a0be35
+sink: {&quot;received&quot;:1,&quot;unique&quot;:1,&quot;duplicates&quot;:0,&quot;rejected&quot;:0,&quot;failed&quot;:0,&quot;hooks&quot;:{&quot;smoke&quot;:{&quot;received&quot;:1,&quot;unique&quot;:1,&quot;duplicates&quot;:0,&quot;rejected&quot;:0,&quot;failed&quot;:0}}}
+deliveries: [('delivered', 1)]
+PASS: the event reached the in-cluster sink, signed
+$ terraform apply plan.out
+Apply complete! Resources: 3 added, 0 changed, 0 destroyed.
+$ terraform plan -var worker_replicas=2
+  # module.hookline.helm_release.hookline will be updated in-place
+$ terraform destroy
+Destroy complete! Resources: 3 destroyed.
+</code></pre>
+
+
+</div>
+
+<h3 id="3877">38.7.7 קריטריון סיום</h3>
+<ul>
+<li>שני ה־images נבנים ורצים כמשתמש שאינו root, וב־image של Go אין shell.</li>
+<li>‏<code>make chart-check</code> עובר: ‏kubeconform, ‏<code>helm lint --strict</code>, ורשימת הבדיקות על הפלט.</li>
+<li>‏<code>make kind-smoke</code> מסתיים ב־PASS: האירוע הגיע ל־sink באשכול, חתום.</li>
+<li>‏<code>terraform apply</code> מתקין, ‏<code>plan</code> אחרי שינוי מראה שינוי אחד, ו־<code>destroy</code> מנקה.</li>
+<li>‏actionlint נקי על ה־workflow, וה־workflow רץ במאגר שלך ב־GitHub.</li>
+<li>קומיט של אבן הדרך, ו־<code>make kind-down</code>.</li>
+</ul>
+<h3 id="3878">38.7.8 טעויות נפוצות</h3>
+<ul>
+<li><strong>‏<code>localhost</code> בתוך האשכול.</strong> כתובת כזאת מצביעה על ה־pod של ה־worker עצמו, ולא על ה־sink. באשכול מצביעים על
+  ה־Service: ‏<code>sink.hookline.svc.cluster.local</code>.</li>
+<li><strong>‏Job של מיגרציות שמחכה ל־ConfigMap של ה־chart.</strong> לפני ההתקנה הוא עוד לא קיים, וה־Job נתקע. ב־<code>kubectl describe</code>
+  רואים <code>CreateContainerConfigError</code>.</li>
+<li><strong>‏image בלי תג, או עם <code>latest</code>.</strong> עם התג הזה Kubernetes מנסה למשוך מה־registry, ולא מוצא את ה־image שטענת ל־kind.
+  תג מפורש, כמו <code>dev</code>, פותר את זה.</li>
+<li><strong>‏<code>DATABASE_URL</code> ב־values.</strong> הוא נשמר בהיסטוריה של ה־release, ונראה ב־<code>helm get values</code>. רק דרך Secret.</li>
+<li><strong>הקשר kubectl לא נכון.</strong> פקודה שרצה על האשכול הלא נכון יכולה למחוק דברים אחרים. הסקריפט משתמש בקובץ kubeconfig משלו.</li>
+</ul>
+<h3 id="3879">38.7.9 הרחבה</h3>
+<ul>
+<li>הוסיפי NetworkPolicy שמגבילה את ה־workers ל־DNS, למסד וליציאה החוצה. חשבי מה זה עושה להגנת ה־SSRF של אבן
+  הדרך התשיעית.</li>
+<li>הריצי את Trivy או את Grype על שני ה־images (פרק 19, סעיף 19.6), ורשמי מה מצאו.</li>
+<li>הוסיפי workflow של שחרור על תג, עם actions מוצמדים לפי SHA, כמו בקובץ <code>release.yml</code> של פרק 23.</li>
+</ul>
 <h2 id="388-m8-slo">38.8 M8: תצפיתיות ו־SLO</h2>
-<p>יושלם עם אבן הדרך.</p>
+<h3 id="3881">38.8.1 המטרה</h3>
+<p>לראות את Hookline מבפנים, ולדעת מתי הוא שובר הבטחה. בסוף אבן הדרך, מעקב אחד עובר מבקשת הקליטה, דרך ה־relay,
+‏Redpanda, ה־dispatcher וה־worker, ועד ה־sink. יש מדדים שאומרים מה שה־HTTP לא יודע להגיד, כמו פיגור המסירה וגיל
+ה־outbox. יש יעד רמת שירות (SLO) למסירה עם התראות קצב שריפה, ו־runbook לכל התראה. ויש תחקיר על גרסה ששברת בכוונה,
+עם המספרים שמדדת.</p>
+<h3 id="3882">38.8.2 המושגים, והיכן נלמדו</h3>
+<table>
+<thead>
+<tr>
+<th>מושג</th>
+<th>איפה בספר</th>
+<th>איפה בפרויקט</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>שלושת האותות ו־OTLP דרך collector</td>
+<td>פרק 24</td>
+<td><code>internal/telemetry</code>, ‏<code>deploy/compose.observability.yaml</code></td>
+</tr>
+<tr>
+<td>‏otelhttp ו־<code>RoutePattern</code></td>
+<td>פרק 24</td>
+<td><code>internal/api/server.go</code></td>
+</tr>
+<tr>
+<td>מעקב דרך Kafka עם kotel</td>
+<td>פרק 24</td>
+<td><code>bus.Tracing</code>, ‏<code>dispatch.Handle</code></td>
+</tr>
+<tr>
+<td>לוגים עם מזהה המעקב, ל־Loki</td>
+<td>פרק 24</td>
+<td><code>wire.Telemetry</code>, ‏<code>platform.NewLogger</code></td>
+</tr>
+<tr>
+<td>‏RED ו־USE</td>
+<td>פרק 24</td>
+<td>שני לוחות הבקרה</td>
+</tr>
+<tr>
+<td>‏SLI, ‏SLO ותקציב שגיאות</td>
+<td>פרק 25</td>
+<td><code>deploy/observability/rules/</code></td>
+</tr>
+<tr>
+<td>התראות קצב שריפה בכמה חלונות</td>
+<td>פרק 25</td>
+<td><code>slo-alerts.yml</code>, ‏<code>delivery-slo.yml</code></td>
+</tr>
+<tr>
+<td>בדיקות לכללים עם promtool</td>
+<td>פרק 25</td>
+<td><code>deploy/observability/tests/rules_test.yml</code></td>
+</tr>
+<tr>
+<td>‏runbook ותחקיר ללא האשמה</td>
+<td>פרק 25</td>
+<td><code>docs/runbooks/</code>, ‏<code>docs/postmortem-*.md</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="3883">38.8.3 הקבצים</h3>
+<table>
+<thead>
+<tr>
+<th>קובץ</th>
+<th>מצב ב־starter</th>
+<th>מה עושים</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>internal/telemetry/telemetry.go</code>, ‏<code>start.go</code></td>
+<td>שלמים</td>
+<td>ה־<code>Setup</code> של פרק 24, ו־<code>Start</code> שלא עושה כלום בלי collector</td>
+</tr>
+<tr>
+<td><code>internal/metrics/metrics.go</code></td>
+<td>גופים ריקים</td>
+<td>המכשירים של Hookline</td>
+</tr>
+<tr>
+<td><code>migrations/00007_events_trace_context.sql</code></td>
+<td>שלם</td>
+<td>העמודה שמחזיקה את המעקב של הקליטה</td>
+</tr>
+<tr>
+<td><code>internal/api</code>, ‏<code>internal/bus</code>, ‏<code>internal/dispatch</code>, ‏<code>internal/delivery</code></td>
+<td>גופים ריקים</td>
+<td>העברת ההקשר של המעקב בכל קפיצה</td>
+</tr>
+<tr>
+<td><code>deploy/compose.observability.yaml</code>, ‏<code>deploy/observability/</code></td>
+<td>שלמים</td>
+<td>ה־collector, ‏Prometheus, ‏Loki, ‏Tempo ו־Grafana</td>
+</tr>
+<tr>
+<td><code>deploy/observability/rules/</code>, ‏<code>tests/</code></td>
+<td>שלמים</td>
+<td>הכללים והבדיקות שלהם</td>
+</tr>
+<tr>
+<td><code>docs/runbooks/</code></td>
+<td>שלמים</td>
+<td>‏runbook לכל התראה; לקרוא, ולעדכן אחרי התקרית שלך</td>
+</tr>
+<tr>
+<td><code>scripts/check-telemetry.sh</code>, ‏<code>scripts/stage-incident.sh</code></td>
+<td>שלמים</td>
+<td>הבדיקה מקצה לקצה, והתקרית המבוימת</td>
+</tr>
+</tbody>
+</table>
+<h3 id="3884">38.8.4 הצעדים</h3>
+<p><strong>יום 77: מעקב אחד לכל אירוע.</strong> הקושי של Hookline הוא שהאירוע עובר בין תהליכים <strong>לא באותו זמן</strong>. ה־API מחזיר
+202 ומסיים, וה־relay מפרסם רק אחר כך, בטרנזקציה אחרת. ההקשר של המעקב לא יכול לעבור בזיכרון, ולכן הוא נשמר עם
+האירוע: עמודה חדשה, <code>events.trace_context</code>, מחזיקה את הכותרת <code>traceparent</code> של בקשת הקליטה. זו הפונקציה מהקובץ
+<code>internal/api/ingest.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func traceparent(ctx context.Context) string {
+    carrier := propagation.MapCarrier{}
+    otel.GetTextMapPropagator().Inject(ctx, carrier)
+    return carrier.Get(&quot;traceparent&quot;)
+}
+</code></pre>
+
+
+</div>
+
+<p>מכאן כל קפיצה ממשיכה את אותו מעקב:</p>
+<table>
+<thead>
+<tr>
+<th>קפיצה</th>
+<th>איך ההקשר עובר</th>
+<th>ה־span</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>‏API</td>
+<td>‏otelhttp, ו־<code>RoutePattern</code> לפניו כדי שהנתיב יופיע</td>
+<td><code>POST /v1/events</code></td>
+</tr>
+<tr>
+<td>‏relay</td>
+<td>‏<code>traceparent</code> מהשורה, ואז kotel כותב אותו לכותרות של הרשומה</td>
+<td><code>hookline.events publish</code></td>
+</tr>
+<tr>
+<td>‏dispatcher</td>
+<td>‏kotel קורא את הכותרות; ‏<code>WithProcessSpan</code></td>
+<td><code>hookline.events receive</code>, ‏<code>process</code></td>
+</tr>
+<tr>
+<td>‏worker</td>
+<td>‏<code>traceparent</code> מהשורה של האירוע, ו־otelhttp בלקוח שולח אותו הלאה</td>
+<td><code>hookline.deliver</code>, ‏<code>HTTP POST</code></td>
+</tr>
+<tr>
+<td>‏sink</td>
+<td>ה־instrumentation של FastAPI מפרק 24</td>
+<td><code>POST /hooks/{name}</code></td>
+</tr>
+</tbody>
+</table>
+<p>ה־span של ה־worker הוא ילד של ה־span של הקליטה, ולא של ה־dispatcher. הסיבה: ה־worker קורא את ההקשר מהאירוע. זו
+פשרה: ניסיון חוזר אחרי עשר דקות עדיין שייך לאותו מעקב, ונראה בו בדיוק מתי ניסו. זה הקוד מהקובץ
+<code>internal/delivery/worker.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    ctx, span := otel.Tracer(metrics.Scope).Start(withTraceparent(ctx, j.TraceContext), &quot;hookline.deliver&quot;,
+        trace.WithAttributes(attribute.String(&quot;hookline.delivery.id&quot;, j.DeliveryID),
+            attribute.String(&quot;hookline.event.id&quot;, j.EventID), attribute.String(&quot;hookline.endpoint.id&quot;, j.EndpointID),
+            attribute.Int(&quot;hookline.attempt&quot;, j.Attempt)))
+    defer span.End()
+</code></pre>
+
+
+</div>
+
+<p>בלי collector, <code>telemetry.Start</code> לא עושה כלום, וכל המכשירים הם no-op. כך הבדיקות, ה־compose של אבני הדרך הקודמות
+והניסויים רצים כמו קודם, בלי שגיאות ייצוא בלוג.</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">DATABASE_URL= go test -race -run 'Trace|Health' ./internal/api/ ./internal/telemetry/
+go test -race -count=1 -run 'TestDeliveryContinuesTheIngestTrace' ./internal/delivery/
+</code></pre>
+
+
+</div>
+
+<p><strong>יום 78: מדדים, כללים ולוחות.</strong> המדדים של HTTP אומרים אם ה־API עונה. הם לא אומרים אם webhooks מגיעים. אלה
+המכשירים שהחבילה <code>internal/metrics</code> מוסיפה:</p>
+<table>
+<thead>
+<tr>
+<th>מדד ב־Prometheus</th>
+<th>סוג</th>
+<th>מה הוא אומר</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>hookline_delivery_lag_seconds</code></td>
+<td>histogram</td>
+<td>מקליטה ועד 2xx, לכל מסירה שנמסרה; ה־SLI של N2</td>
+</tr>
+<tr>
+<td><code>hookline_delivery_attempts_total</code></td>
+<td>counter, לפי תוצאה</td>
+<td>‏delivered, ‏retry או dead</td>
+</tr>
+<tr>
+<td><code>hookline_delivery_postponed_total</code></td>
+<td>counter, לפי סיבה</td>
+<td>דחיות של מפסק פתוח או מחיצה מלאה</td>
+</tr>
+<tr>
+<td><code>hookline_breaker_transitions_total</code></td>
+<td>counter</td>
+<td>מעברי מצב של מפסקים, בלי endpoint כ־label</td>
+</tr>
+<tr>
+<td><code>hookline_ingest_events_total</code></td>
+<td>counter, לפי תוצאה</td>
+<td>אירועים חדשים, וחזרות עם אותו מפתח</td>
+</tr>
+<tr>
+<td><code>hookline_ratelimit_errors_total</code></td>
+<td>counter</td>
+<td>בקשות שעברו בלי מגבלה כי Redis לא ענה</td>
+</tr>
+<tr>
+<td><code>hookline_dispatch_deliveries_total</code></td>
+<td>counter</td>
+<td>שורות מסירה שה־dispatcher יצר</td>
+</tr>
+<tr>
+<td><code>hookline_outbox_pending</code>, ‏<code>hookline_outbox_oldest_age_seconds</code></td>
+<td>gauge</td>
+<td>כמה מחכים ב־outbox, וכמה זמן הוותיק מחכה</td>
+</tr>
+</tbody>
+</table>
+<p>שתי החלטות בטבלה. <strong>‏30 הוא גבול של דלי</strong> בהיסטוגרמה של הפיגור, כי ה־SLI סופר מסירות בתוך 30 שניות, ואת זה אפשר
+לחשב בדיוק רק על גבול (פרק 25). ו<strong>אין endpoint כ־label</strong> במעברי המפסק, כי סדרה לכל endpoint גדלה בלי גבול. המזהה
+נמצא בשורת הלוג.</p>
+<p>המדדים נדחפים אל ה־collector, ומשם ל־Prometheus, כמו בפרק 24, ואין נקודת <code>/metrics</code> לגירוד. לשלושת הבינאריים
+שאינם ה־API יש עכשיו מאזין קטן עם <code>/healthz</code>, בשביל ה־probes של ה־chart.</p>
+<p>עכשיו ה־SLO של המסירה, מהקובץ <code>deploy/observability/rules/delivery-slo.yml</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-yaml">      - record: job:slo_late_deliveries:ratio_rate5m
+        expr: |
+          1 - (
+            sum by (job) (rate(hookline_delivery_lag_seconds_bucket{le=&quot;30&quot;}[5m]))
+            / sum by (job) (rate(hookline_delivery_lag_seconds_count[5m]))
+          )
+</code></pre>
+
+
+</div>
+
+<p>שימי לב למה שה־SLI הזה <strong>לא</strong> רואה: הוא סופר רק מסירות שהגיעו. כשאף מסירה לא מגיעה, אין לו נתונים, וההתראה שלו
+שותקת בדיוק כשהמצב הכי גרוע. לכן יש התראה שנייה, <code>DeliveryAttemptsFailing</code>: יותר מחצי מהניסיונות נכשלים במשך
+שלוש דקות. מקבל אחד לא יכול לגרום לזה. כשרובם נכשלים יחד, כנראה הבעיה אצלנו. ויש <code>OutboxStalled</code>: אירועים
+מתקבלים, אבל לא יוצאים מה־outbox.</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">make promtool
+</code></pre>
+
+
+</div>
+
+<p>הבדיקות ב־<code>deploy/observability/tests/rules_test.yml</code> מריצות שישה תרחישים, וכל אחד מוכיח שהתראה נדלקת בזמן הנכון
+ושותקת לפניו. התרחיש הרביעי הוא הלב: כל הניסיונות נכשלים, ה־SLO של הפיגור שותק, ו־<code>DeliveryAttemptsFailing</code> נדלקת.
+אחרי הבדיקות, הסקריפט בודק שלכל <code>runbook_url</code> יש קובץ.</p>
+<p>לבסוף, העלי את הסביבה עם הטלמטריה, והריצי את הבדיקה מקצה לקצה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">make obs-up
+make check-telemetry
+</code></pre>
+
+
+</div>
+
+<p>‏<code>scripts/check-telemetry.sh</code> מריץ את ארבעת הבינאריים עם ייצוא ל־collector, שולח אירוע עם מזהה מעקב שהוא בחר, ושואל
+כל מערכת את השאלה שלה:</p>
+<table>
+<thead>
+<tr>
+<th>מערכת</th>
+<th>השאלה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Tempo</td>
+<td>האם המעקב עובר דרך כל הקפיצות?</td>
+</tr>
+<tr>
+<td>Prometheus</td>
+<td>האם כל הסדרות של הטבלה קיימות, וגם כללי ה־SLO?</td>
+</tr>
+<tr>
+<td>Loki</td>
+<td>האם יש שורות לוג עם מזהה המעקב?</td>
+</tr>
+<tr>
+<td>Grafana</td>
+<td>האם שני הלוחות נטענו?</td>
+</tr>
+<tr>
+<td>בכתובת <code>http://localhost:3000</code>, בתיקייה Hookline.</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong>יום 79: הגרסה השבורה והתחקיר.</strong> הריצי את התקרית המבוימת:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">make stage-incident
+</code></pre>
+
+
+</div>
+
+<p>הסקריפט שולח בערך חמישה אירועים בשנייה, ואחרי שתי דקות „משחרר” worker שבו <code>HOOKLINE_ATTEMPT_TIMEOUT=1ms</code>, טעות של
+יחידה במקום <code>1s</code>. כל ניסיון נגמר בזמן קצוב. הקליטה נשארת ירוקה, וה־API עונה 202 לכל אירוע. הסקריפט מחכה ש־<code>DeliveryAttemptsFailing</code>
+תידלק, מחזיר את הגרסה הקודמת, ומדפיס ציר זמן ומספרים: כמה מסירות, כמה הגיעו מאוחר מ־30 שניות, ומה הפיגור המרבי.</p>
+<p>עם הפלט הזה, כתבי את התחקיר בקובץ <code>docs/postmortem-&lt;date&gt;.md</code>, לפי התבנית <code>docs/postmortem-TEMPLATE.md</code>. בקובץ
+שבמימוש המלא יש סעיף מסומן „Author's run”, עם הריצה של כותב הפרויקט, ומקומות ריקים לריצה שלך. המספרים שלך יהיו אחרים,
+ורק הם נכנסים לתחקיר שלך.</p>
+<h3 id="3885">38.8.5 הבדיקות שצריכות להוריק</h3>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">make promtool
+make up
+go test -race -count=1 -skip 'PrivateAddress' ./internal/metrics/ ./internal/telemetry/ ./internal/api/ ./internal/delivery/ ./migrations/
+make down
+make obs-up
+make check-telemetry
+make stage-incident
+make obs-down
+</code></pre>
+
+
+</div>
+
+<h3 id="3886">38.8.6 הפלט הצפוי</h3>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">$ make promtool
+Checking rules/delivery-slo.yml
+  SUCCESS: 8 rules found
+...
+  SUCCESS
+runbook ok: docs/runbooks/delivery-attempts-failing.md
+...
+$ make check-telemetry
+...
+PASS  Tempo: trace 0cfe9befa3c7a3acd4b02b3ac7e97adb has 7 spans:
+        1 hookline-api:POST /v1/events
+        1 hookline-dispatcher:hookline.events process
+        1 hookline-dispatcher:hookline.events receive
+        1 hookline-relay:hookline.events publish
+        1 hookline-sink:POST /hooks/{name}
+        1 hookline-worker:HTTP POST
+        1 hookline-worker:hookline.deliver
+...
+PASS  Loki: 3 lines carry trace_id=0cfe9befa3c7a3acd4b02b3ac7e97adb
+PASS  dashboard hookline-api
+PASS  dashboard hookline-pipeline
+
+ALL CHECKS PASSED
+$ make stage-incident
+hh:mm:ss  CHANGE: worker redeployed with HOOKLINE_ATTEMPT_TIMEOUT=1ms
+hh:mm:ss  DeliveryAttemptsFailing=pending ...
+hh:mm:ss  PAGE: DeliveryAttemptsFailing is firing
+hh:mm:ss  MITIGATION: worker rolled back to the default attempt timeout
+...
+deliveries=___ delivered=___ dead=___ late_over_30s=___ max_lag_s=___ attempts=___
+</code></pre>
+
+
+</div>
+
+<h3 id="3887">38.8.7 קריטריון סיום</h3>
+<ul>
+<li>המעקב של אירוע אחד עובר ב־Tempo דרך כל הקפיצות, מהקליטה ועד המקבל.</li>
+<li>‏Prometheus מקבל את כל המדדים של הטבלה, ו־Loki את השורות עם מזהה המעקב.</li>
+<li>שני הלוחות נטענים ב־Grafana, ומראים את הקליטה ואת המסירה.</li>
+<li>‏<code>make promtool</code> ירוק: כל התרחישים, וכל ה־runbooks קיימים.</li>
+<li>התקרית המבוימת רצה, ההתראה נדלקה, והתחקיר שלך כתוב עם המספרים שמדדת.</li>
+<li>קומיט של אבן הדרך, ו־<code>make obs-down</code>.</li>
+</ul>
+<h3 id="3888">38.8.8 טעויות נפוצות</h3>
+<ul>
+<li><strong>להעביר את ההקשר רק בזיכרון.</strong> ‏<code>context</code> לא שורד את ה־outbox. בלי <code>events.trace_context</code>, ה־relay מתחיל מעקב חדש,
+  והמסלול נשבר לשניים.</li>
+<li><strong>‏SLI שרואה רק הצלחות.</strong> כשאף מסירה לא מגיעה, אין לו נתונים, ושום SLO לא נדלק. צריך גם אות על כשלים.</li>
+<li><strong>‏label עם מזהה של endpoint או דיירת.</strong> כל ערך הוא סדרה חדשה, ו־Prometheus נחנק.</li>
+<li><strong>לגבול של SLI שאינו גבול של דלי.</strong> אי אפשר לחשב „בתוך 200 מילישניות” מהיסטוגרמה שהגבולות שלה 0.1 ו־0.25.</li>
+<li><strong>להעתיק לתחקיר את מספרי הדוגמה.</strong> התחקיר מתעד את מה שקרה אצלך, עם השעות והמספרים שלך.</li>
+</ul>
+<h3 id="3889">38.8.9 הרחבה</h3>
+<ul>
+<li>הוסיפי מדד של גיל המסירה הוותיקה שעוד מחכה, והגדירי ממנו SLI שרואה גם מסירות שלא הגיעו.</li>
+<li>העבירי את המדדים גם ל־exemplars, וקשרי מנקודה בגרף הפיגור אל המעקב שלה ב־Tempo.</li>
+<li>כתבי בדיקת promtool לתרחיש שבו מקבל אחד בלבד נכשל, והראי ש־<code>DeliveryAttemptsFailing</code> לא נדלקת.</li>
+</ul>
 <h2 id="389-m9">38.9 M9: בדיקות ואבטחה</h2>
-<p>יושלם עם אבן הדרך.</p>
+<h3 id="3891">38.9.1 המטרה</h3>
+<p>להוכיח את מה שהמפרט מבטיח, ולסגור את הדלתות שדיירת עוינת יכולה לפתוח. בסוף אבן הדרך, ה־worker לא מתחבר לכתובת
+פרטית, גם כששם המארח מחליף כתובת בין הרישום לשליחה. מפתחות API וסודות חתימה לא מופיעים באף שורת לוג. גוף
+ה־webhook מתואר בסכמה, ושני הצדדים נבדקים מולה. בדיקות עומס מודדות את N1 ואת N5. סורקי חולשות בודקים את הקוד ואת
+ה־images, ומודל איומים מחבר כל איום לבדיקה שמוכיחה את ההגנה עליו.</p>
+<h3 id="3892">38.9.2 המושגים, והיכן נלמדו</h3>
+<table>
+<thead>
+<tr>
+<th>מושג</th>
+<th>איפה בספר</th>
+<th>איפה בפרויקט</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>‏SSRF, ובדיקה של הכתובת בזמן החיבור</td>
+<td>פרק 28</td>
+<td><code>internal/ssrf</code>, ‏<code>delivery.NewClient</code></td>
+</tr>
+<tr>
+<td>‏DNS rebinding</td>
+<td>פרק 28</td>
+<td><code>Policy.Control</code></td>
+</tr>
+<tr>
+<td>הסתרת סודות בלוג, והטיפוס <code>Secret</code></td>
+<td>פרק 28</td>
+<td><code>internal/redact</code>, ‏<code>platform.NewLogger</code></td>
+</tr>
+<tr>
+<td>מפתח API שנשמר כגיבוב</td>
+<td>פרק 28</td>
+<td><code>internal/domain/apikey.go</code>, מאבן הדרך הראשונה</td>
+</tr>
+<tr>
+<td>‏STRIDE ומודל איומים</td>
+<td>פרק 28</td>
+<td><code>docs/threat-model.md</code></td>
+</tr>
+<tr>
+<td>בדיקות חוזה עם JSON Schema</td>
+<td>פרק 26</td>
+<td><code>contract/</code>, ‏<code>sink/tests/test_contract.py</code></td>
+</tr>
+<tr>
+<td>בדיקות תכונה עם rapid</td>
+<td>פרק 26</td>
+<td><code>internal/page</code>, ‏<code>contract</code></td>
+</tr>
+<tr>
+<td>בדיקות עומס עם k6, במודל פתוח</td>
+<td>פרק 26</td>
+<td><code>loadtest/</code>, ‏<code>scripts/load.sh</code></td>
+</tr>
+<tr>
+<td>‏govulncheck</td>
+<td>פרק 27</td>
+<td><code>scripts/supply-chain.sh</code>, ה־workflow</td>
+</tr>
+<tr>
+<td>‏SBOM עם Syft, וסריקה עם Grype</td>
+<td>פרקים 19 ו־28</td>
+<td><code>scripts/supply-chain.sh</code>, ה־workflow</td>
+</tr>
+</tbody>
+</table>
+<h3 id="3893">38.9.3 הקבצים</h3>
+<table>
+<thead>
+<tr>
+<th>קובץ</th>
+<th>מצב ב־starter</th>
+<th>מה עושים</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>internal/ssrf/ssrf.go</code></td>
+<td>שלם</td>
+<td>המדיניות של פרק 28, ועוד <code>Transport</code></td>
+</tr>
+<tr>
+<td><code>internal/ssrf/hookline.go</code></td>
+<td>שלם</td>
+<td>המדיניות של Hookline לפי מצב הפיתוח, והבדיקה אחרי פענוח השם</td>
+</tr>
+<tr>
+<td><code>internal/api/endpoints.go</code></td>
+<td>המימוש שלך מאבן הדרך הראשונה</td>
+<td>בדיקת הכתובת ביצירת endpoint</td>
+</tr>
+<tr>
+<td><code>internal/delivery/send.go</code></td>
+<td>המימוש שלך מאבן הדרך החמישית</td>
+<td>לקוח עם החיבור המוגן, וחסימה שהיא תשובה סופית</td>
+</tr>
+<tr>
+<td><code>internal/redact/redact.go</code></td>
+<td>שלם</td>
+<td>הכלים של פרק 28, ועוד <code>Handler</code> לפני כל פלט</td>
+</tr>
+<tr>
+<td><code>contract/</code></td>
+<td>שלם</td>
+<td>הסכמה, הדוגמאות והבדיקות בצד של Go</td>
+</tr>
+<tr>
+<td><code>sink/tests/test_contract.py</code></td>
+<td>שלם</td>
+<td>אותן דוגמאות, בצד של המקבל</td>
+</tr>
+<tr>
+<td><code>loadtest/*.js</code>, ‏<code>scripts/load.sh</code></td>
+<td>שלמים</td>
+<td>שני תרחישי k6, והסקריפט שמכין דיירות</td>
+</tr>
+<tr>
+<td><code>scripts/supply-chain.sh</code></td>
+<td>שלם</td>
+<td>‏govulncheck, ‏SBOM לכל image וסריקה</td>
+</tr>
+<tr>
+<td><code>docs/threat-model.md</code></td>
+<td>מלא</td>
+<td>לקרוא, להוסיף שורה משלך, ולמלא את הכותרת</td>
+</tr>
+</tbody>
+</table>
+<p>ה־logger מאבן הדרך הראשונה כבר עובר דרך <code>redact.Handler</code>. לכן החבילה שלמה ב־starter, ואת ההוכחה שלה תריצי היום.</p>
+<h3 id="3894">38.9.4 הצעדים</h3>
+<p><strong>יום 85: כתובות, סודות ואיומים.</strong> דיירת רושמת URL, ו־Hookline שולח אליו בקשה מתוך הרשת שלנו. זו בדיוק ההגדרה
+של SSRF מפרק 28. הכתובת <code>https://169.254.169.254/</code> מגיעה לשירות המטא־דאטה של הענן, ושם שמצביע על 10.0.0.5 מגיע
+למסד.
+ההגנה של Hookline בודקת פעמיים, ומכל פעם מצפה לדבר אחר:</p>
+<table>
+<thead>
+<tr>
+<th>מתי</th>
+<th>מה נבדק</th>
+<th>למה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ביצירת endpoint</td>
+<td>ה־URL, וכל כתובת שהשם מתפענח אליה</td>
+<td>תשובה ברורה מוקדם, לטעות תמימה ולהתקפה גלויה</td>
+</tr>
+<tr>
+<td>בכל חיבור של ה־worker</td>
+<td>הכתובת שמתחברים אליה בפועל</td>
+<td>השם יכול להתפענח אחרת בזמן השליחה, וזה ה־DNS rebinding</td>
+</tr>
+</tbody>
+</table>
+<p>הבדיקה הראשונה היא <code>CheckResolved</code>, מהקובץ <code>internal/ssrf/hookline.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    addrs, err := lookup(ctx, u.Hostname())
+    if err != nil || len(addrs) == 0 {
+        return fmt.Errorf(&quot;%w: %s&quot;, ErrUnresolvable, u.Hostname())
+    }
+    for _, a := range addrs {
+        if err := p.CheckAddr(a); err != nil {
+            return err
+        }
+    }
+    return nil
+</code></pre>
+
+
+</div>
+
+<p>כל כתובת צריכה לעבור, ולא רק הראשונה. שם עם שתי כתובות, אחת ציבורית ואחת פרטית, נדחה. ה־handler מחזיר לדיירת
+תשובה כללית, ואת הסיבה כותב רק ללוג שלנו. זה הקוד מהקובץ <code>internal/api/endpoints.go</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">    if s.vetURL != nil {
+        if err := s.vetURL(r.Context(), url); err != nil {
+            // The reason stays in our log: telling the tenant which internal address a name resolves to
+            // would make this endpoint a scanner of our network.
+            s.log.InfoContext(r.Context(), &quot;endpoint URL refused&quot;, slog.String(&quot;error&quot;, err.Error()))
+            validation(w, r, []problem.FieldError{{Detail: &quot;must resolve to a public address&quot;, Pointer: &quot;#/url&quot;}})
+            return
+        }
+    }
+</code></pre>
+
+
+</div>
+
+<p>הבדיקה השנייה יושבת ב־dialer. הפונקציה <code>Control</code> רצה אחרי הפענוח ולפני החיבור, עם הכתובת של החיבור הזה. לכן אין
+רווח בין הבדיקה לשימוש. כך בונה ה־worker את הלקוח שלו:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func NewClient(policy *ssrf.Policy) *http.Client {
+    var base http.RoundTripper = http.DefaultTransport
+    if policy != nil {
+        base = policy.Transport()
+    }
+    return &amp;http.Client{
+        Transport:     otelhttp.NewTransport(base),
+        CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+    }
+}
+</code></pre>
+
+
+</div>
+
+<p>ב־<code>Transport</code> אין proxy. עם שרת ביניים, הבדיקה הייתה רואה את הכתובת שלו ולא את היעד. חיבור שנחסם הוא תשובה
+סופית, בלי ניסיון חוזר: ניסיון נוסף לא יהפוך כתובת פרטית לציבורית.</p>
+<p>ומה עם הפיתוח? ה־sink רץ על המחשב שלך, וזו בדיוק כתובת פרטית. במצב פיתוח, <code>ForMode</code> מתיר גם http, ורק את
+הטווחים שבאמת צריך:</p>
+<ul>
+<li>כתובות ה־loopback, בשביל המקבלים שעל המחשב שלך.</li>
+<li>הטווחים של Docker, בשביל שירותי ה־compose.</li>
+<li>שני הטווחים של kind, בשביל ה־sink שבתוך האשכול.</li>
+</ul>
+<p>בייצור לא מותר אף טווח פרטי, ורק https. כל הסקריפטים המקומיים מגדירים <code>HOOKLINE_DEV_MODE=true</code>. באשכול של kind,
+הערך <code>devMode</code> עושה אותו דבר.</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">go test -race ./internal/ssrf/
+DATABASE_URL= go test -race -run 'PrivateAddress' ./internal/api/ ./internal/delivery/
+</code></pre>
+
+
+</div>
+
+<p>עכשיו הסודות. הפונקציה <code>ReplaceAttr</code> של פרק 28 היא אפשרות של ה־handlers המובנים. הגשר ל־Loki מאבן הדרך
+השמינית לא מכיר אותה. לכן <code>redact.Handler</code> עוטף את כל הפלטים יחד, לפני שהם מתפצלים:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-go">func (h handler) Handle(ctx context.Context, r slog.Record) error {
+    out := slog.NewRecord(r.Time, r.Level, secretShapes.ReplaceAllString(r.Message, Redacted), r.PC)
+    r.Attrs(func(a slog.Attr) bool {
+        out.AddAttrs(redactAttr(a))
+        return true
+    })
+    return h.next.Handle(ctx, out)
+}
+</code></pre>
+
+
+</div>
+
+<p>הוא מסתיר לפי שלושה סימנים:</p>
+<ul>
+<li>שם המפתח, למשל <code>secret</code> או <code>api_key</code>.</li>
+<li>צורת הערך: ‏<code>hk_</code> או <code>whsec_</code> עם 43 תווים אחריהם. גם אסימון אחרי המילה Bearer נתפס. הצורה תופסת גם הודעה
+  שמישהו הדביק לתוכה מפתח.</li>
+<li>הצורה המודפסת של map או struct, כי הפונקציה של פרק 28 לא נכנסת לתוכם.</li>
+</ul>
+<p>ההוכחה היא סריקת לוגים, הבדיקה של N7. הבדיקה <code>TestLogsNeverContainKeysOrSecrets</code> מריצה את ה־API עם רישום
+הלוגים האמיתי, ברמה הכי מפורטת. היא יוצרת endpoint, קוראת עם המפתח, קולטת, ונכשלת בכוונה כמה פעמים. בסוף היא
+כותבת שורה רשלנית שמכילה את המפתח ואת הסוד. אף אחד מהם לא מופיע בפלט. בדיקה תאומה עושה אותו דבר ל־worker, עם
+ניסיון שנכשל וניסיון שמצליח.</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">DATABASE_URL= go test -race -run 'Redact|LogsNever' ./internal/redact/ ./internal/api/
+</code></pre>
+
+
+</div>
+
+<p>שני דברים לא השתנו, וזו החלטה. המפתחות נשארים בפורמט של אבן הדרך הראשונה: ‏<code>hk_</code> ועוד 256 ביטים אקראיים, שמורים
+כגיבוב ונמצאים לפי הגיבוב. החבילה <code>apikey</code> של פרק 28 מוסיפה מזהה מפתח והשוואה בזמן קבוע. כאן לא משווים בקוד שום
+דבר סודי, ולכן אין צורך בה. אין מיגרציה, וכל דיירת קיימת ממשיכה לעבוד. גם החבילה <code>jwtauth</code> לא נכנסה, כי אין
+ממשק של מנהלים. המפעילים עובדים עם <code>hookline-admin</code>, ישר מול המסד.</p>
+<p>לבסוף, מודל האיומים. הקובץ <code>docs/threat-model.md</code> בנוי מהתבנית של פרק 28. יש בו תרשים זרימה עם גבולות האמון, טבלת נכסים,
+ואחד־עשר איומים לפי STRIDE. לכל איום יש הגנה, הבדיקה שמוכיחה אותה, והסיכון שנשאר:</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>האיום</th>
+<th>ההגנה</th>
+<th>ההוכחה</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T1</td>
+<td>‏SSRF</td>
+<td>בדיקה ביצירה ובחיבור, ושגיאה כללית</td>
+<td>ארבע בדיקות <code>ssrf</code>, ‏<code>api</code> ו־<code>delivery</code></td>
+</tr>
+<tr>
+<td>T2</td>
+<td>‏BOLA</td>
+<td>הדיירת בכל שאילתה, ו־404 אחד</td>
+<td><code>TestTenantIsolation</code>, ‏<code>TestReplayIsTenantScoped</code></td>
+</tr>
+<tr>
+<td>T3</td>
+<td>שליחה חוזרת של webhook חתום</td>
+<td>חותמת זמן, 300 שניות, וסינון לפי מזהה האירוע</td>
+<td>וקטורי החתימה, ובדיקות ה־sink</td>
+</tr>
+<tr>
+<td>T4</td>
+<td>סודות בלוג</td>
+<td><code>redact.Handler</code> לפני כל פלט</td>
+<td>שתי סריקות הלוגים</td>
+</tr>
+<tr>
+<td>T5</td>
+<td>שכנה רועשת</td>
+<td>הגבלת קצב, השלת עומס, מחיצה לכל endpoint</td>
+<td><code>TestTenantOverItsLimitGets429OthersDoNot</code>, ו־k6</td>
+</tr>
+<tr>
+<td>T6</td>
+<td>הרעלת ה־broker</td>
+<td>רשומה שלא מתפענחת נרשמת ומדולגת</td>
+<td><code>TestPoisonRecordIsSkipped</code></td>
+</tr>
+</tbody>
+</table>
+<p>השאר הם גניבת מפתח, שרשרת האספקה, הכחשה, גופים ענקיים, וגיבוי של המסד. האחרון הוא הסיכון הגבוה שנשאר: סודות
+החתימה שמורים בטקסט גלוי, כי ה־worker צריך אותם לחישוב ה־HMAC. הוא רשום עם ההחלטות, ובמשימות ההמשך. קראי את
+המודל, ומלאי את הכותרת. אחר כך הוסיפי איום אחד שלא חשבנו עליו, עם הבדיקה שלו.</p>
+<p><strong>יום 86: חוזה, תכונות, עומס ושרשרת אספקה.</strong> הגוף של ה־webhook הוא חוזה עם קוד שלא כתבת. הקובץ
+<code>contract/webhook-event.schema.json</code> הוא הסכמה של פרק 26, מותאמת לגוף של Hookline:</p>
+<table>
+<thead>
+<tr>
+<th>שדה</th>
+<th>הכלל</th>
+<th>השינוי מפרק 26</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td>‏uuid</td>
+<td>אותו דבר; ה־uuidv7 של Hookline הוא uuid רגיל</td>
+</tr>
+<tr>
+<td><code>type</code></td>
+<td>מילים קטנות עם נקודות, עד 128 תווים</td>
+<td>מילה אחת מותרת, כמו בקליטה</td>
+</tr>
+<tr>
+<td><code>created_at</code></td>
+<td>‏RFC 3339</td>
+<td>אותו דבר</td>
+</tr>
+<tr>
+<td><code>payload</code></td>
+<td>אובייקט</td>
+<td>השם <code>data</code> הפך ל־<code>payload</code>, כמו ב־API</td>
+</tr>
+</tbody>
+</table>
+<p>שני הצדדים בודקים את אותן דוגמאות, ואף צד לא מייבא את השני:</p>
+<table>
+<thead>
+<tr>
+<th>צד</th>
+<th>מה נבדק</th>
+<th>הפרט שחשוב</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>‏Go</td>
+<td>כל הדוגמאות, וגם הגוף ש־<code>Job.Body</code> מייצר</td>
+<td>בלי <code>AssertFormat</code>, ‏<code>evt_123</code> עובר כ־uuid</td>
+</tr>
+<tr>
+<td>‏Python</td>
+<td>אותן דוגמאות, וה־sink מקבל כל דוגמה תקינה כשהיא חתומה</td>
+<td>בלי <code>format_checker</code>, אותה בעיה</td>
+</tr>
+</tbody>
+</table>
+<p>הקבצים הם כל ההסכם.</p>
+<p>שתי בדיקות התכונה החדשות הולכות בדרך של פרק 26:</p>
+<ul>
+<li><strong>הקליטה והסכמה מסכימות.</strong> לכל מחרוזת סוג, הקליטה מקבלת אותה בדיוק כשהסכמה מקבלת גוף איתה. חצי מההגרלות תואמות
+  את התבנית, וחצי הן מחרוזות שרירותיות.</li>
+<li><strong>סמן העימוד חוזר לאותו מקום.</strong> כל סמן שה־API מחזיר מתפענח לאותו פריט. כאן מצאה הספרייה rapid, בהרצה הראשונה,
+  את תחילת שנת 1970: הפענוח קורא זמן אפס כזמן חסר. אף פריט לא נוצר אז, ולכן התחום מתחיל שנייה אחרי, עם הערה.</li>
+</ul>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">go test -race ./contract/ ./internal/page/
+make sink-test
+</code></pre>
+
+
+</div>
+
+<p>עכשיו העומס. שני התרחישים בנויים כמו <code>shorty.js</code> של פרק 26: ‏constant-arrival-rate, חימום מתויג שאף סף לא קורא,
+וספים שהופכים את ההרצה לבדיקה:</p>
+<table>
+<thead>
+<tr>
+<th>תרחיש</th>
+<th>פרופיל</th>
+<th>הספים</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>loadtest/ingest.js</code></td>
+<td>‏<code>RATE</code> אירועים בשנייה (ברירת מחדל 100), דקה אחרי עשר שניות חימום</td>
+<td>‏p99 מתחת ל־200 מילישניות, פחות מ־1% כשלים, אפס איטרציות שנפלו</td>
+</tr>
+<tr>
+<td><code>loadtest/two-tenants.js</code></td>
+<td>רועשת שולחת פי חמישה מהמגבלה שלה, ושקטה שולחת 20 בשנייה</td>
+<td>לרועשת יש 429 עם <code>Retry-After</code>; לשקטה אין אף 429, וה־p99 שלה מתחת ל־200</td>
+</tr>
+</tbody>
+</table>
+<p>זה גוש הספים של התרחיש השני, מהקובץ <code>loadtest/two-tenants.js</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-js">  thresholds: {
+    // The noisy tenant is limited, and every limited answer says when to come back.
+    'ingest_429{tenant:noisy}': ['count&gt;0'],
+    'checks{tenant:noisy}': ['rate==1'],
+    // The quiet tenant is not affected: never limited, every event accepted, and as fast as N1 asks.
+    'ingest_429{tenant:quiet}': ['count==0'],
+    'checks{tenant:quiet}': ['rate==1'],
+    'http_req_duration{tenant:quiet}': ['p(99)&lt;200'],
+    'dropped_iterations': ['count==0'],
+  },
+</code></pre>
+
+
+</div>
+
+<p>כל דגימה מתויגת בשם הדיירת שלה, ולכן כל סף שופט דיירת אחת. האפשרות <code>responseCallback</code> מסמנת 429 כתשובה צפויה,
+ולא ככשל. הסקריפט <code>scripts/load.sh</code> מעלה את כל הסביבה, כולל הטלמטריה. הוא יוצר דיירות עם מגבלות ידועות, ומריץ את
+התרחיש מולן. כך אפשר לראות את לוח ה־RED בזמן ההרצה.</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">make load-ingest
+make load-two-tenants
+</code></pre>
+
+
+</div>
+
+<p>שימי לב ל־<code>preAllocatedVUs</code>. מספר הבקשות באוויר הוא הקצב כפול זמן התגובה: 100 בשנייה ב־200 מילישניות הן 20.
+אם הקצאת בדיוק 20, עיכוב קצר אחד גורם ל־k6 להפיל איטרציות, ואת זה ה־API בכלל לא ראה. התרחישים מקצים חצי שנייה של
+בקשות. ועוד דבר: על מחשב עמוס, עיכובים כאלה הם של המחשב ולא של Hookline. אם סף נכשל, בדקי את העומס על המחשב,
+והריצי שוב כשהוא שקט. את המספרים, עם התאריך והמחשב, רשמי ב־<code>docs/EVALUATION.md</code>.</p>
+<p>ולסיום, שרשרת האספקה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">make images
+make supply-chain
+</code></pre>
+
+
+</div>
+
+<p>הסקריפט <code>scripts/supply-chain.sh</code> עושה שלושה דברים:</p>
+<ol>
+<li>מריץ את govulncheck על המודול, שנכשל רק על חולשה שהקוד באמת קורא לה.</li>
+<li>שומר כל image לקובץ, ומפיק ממנו רשימת חבילות עם Syft.</li>
+<li>סורק את ה־SBOM עם Grype, ונכשל על ממצא בחומרה גבוהה ומעלה שיש לו תיקון.</li>
+</ol>
+<p>ממצאים בלי תיקון מופיעים בטבלה, ולא מכשילים. זו המדיניות של פרק 19: שער שנכשל על מה שאי אפשר לתקן נכשל כל הזמן,
+והצוות לומד לעקוף אותו. ממצא עם תיקון בחבילה של תמונת הבסיס אומר שצריך בסיס חדש יותר, ולא סף נמוך יותר.</p>
+<p>הסורקים רצים בקונטיינרים, בלי גישה לשקע של Docker. גם ה־workflow השתנה:</p>
+<table>
+<thead>
+<tr>
+<th>‏job</th>
+<th>הצעד החדש</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>‏unit</td>
+<td>‏govulncheck על המודול</td>
+</tr>
+<tr>
+<td>‏images</td>
+<td>אחרי הדחיפה, ‏Syft קורא את ה־image לפי ה־digest, וה־SBOM נשמר כ־artifact</td>
+</tr>
+</tbody>
+</table>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">cp -r hookline/.github/. .github/ &amp;&amp; actionlint
+</code></pre>
+
+
+</div>
+
+<p>שתי החלטות נוספות, שגם אותן כדאי לנמק. הספרייה testcontainers לא נכנסה. החבילה <code>testdb</code> מתחברת למסד של
+ה־compose. גם ה־CI מריץ את אותו קובץ, כמו המחשב שלך. כך יש סביבה אחת ולא שתיים. גם Trivy לא נכנס לסקריפט, כי
+סורק כללי אחד מספיק כאן. כדעה שנייה, הוא הרחבה טובה.</p>
+<h3 id="3895">38.9.5 הבדיקות שצריכות להוריק</h3>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">DATABASE_URL= go test -race ./internal/ssrf/ ./internal/redact/ ./internal/page/ ./contract/ ./internal/api/
+make up
+go test -race -count=1 ./...
+make sink-test
+make load-ingest
+make load-two-tenants
+make down
+make images
+make supply-chain
+</code></pre>
+
+
+</div>
+
+<h3 id="3896">38.9.6 הפלט הצפוי</h3>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">$ go test -race ./internal/ssrf/ ./internal/redact/ ./internal/page/ ./contract/
+ok      example.com/hookline/internal/ssrf  ...
+ok      example.com/hookline/internal/redact    ...
+ok      example.com/hookline/internal/page  ...
+ok      example.com/hookline/contract   ...
+$ make load-two-tenants
+...
+  █ THRESHOLDS
+    checks{tenant:noisy}
+    ✓ 'rate==1' rate=100.00%
+    checks{tenant:quiet}
+    ✓ 'rate==1' rate=100.00%
+    dropped_iterations
+    ✓ 'count==0' count=___
+    http_req_duration{tenant:quiet}
+    ✓ 'p(99)&lt;200' p(99)=___
+    ingest_429{tenant:noisy}
+    ✓ 'count&gt;0' count=___
+    ingest_429{tenant:quiet}
+    ✓ 'count==0' count=0
+...
+$ make supply-chain
+== govulncheck (the module's code, only what it calls)
+...
+No vulnerabilities found.
+== hookline:dev
+sbom   /tmp/hookline-supply-chain/hookline.spdx.json (___ SPDX elements)
+grype  /tmp/hookline-supply-chain/hookline.grype.txt
+== hookline-sink:dev
+...
+</code></pre>
+
+
+</div>
+
+<p>המספרים במקום הקווים הם שלך. השורה <code>No vulnerabilities found</code> נכונה ליום שבו הספר נכתב. המאגר מתעדכן, ומחר אולי תהיה
+שורה. אז מעדכנים את התלות, ולא את הסף.</p>
+<p>בהרצה שבה נכתב הספר, ה־image של Hookline יצא נקי. בתמונת הבסיס של ה־sink נמצא ממצא אחד בחומרה גבוהה שיש לו
+תיקון ב־Debian, והשער נכשל עליו. התיקון עוד לא הגיע לתמונת הבסיס. הצעד הנכון הוא לחכות לבנייה החדשה שלה, ואז לבנות
+מחדש עם <code>docker build --pull</code>. רשמי מה מצאת אצלך, ומה החלטת.</p>
+<h3 id="3897">38.9.7 קריטריון סיום</h3>
+<ul>
+<li>endpoint שהשם שלו מתפענח לכתובת פרטית נדחה ביצירה, וחיבור לכתובת כזו נחסם גם בזמן השליחה.</li>
+<li>שתי סריקות הלוגים ירוקות, ואין מפתח או סוד באף פלט.</li>
+<li>הסכמה נבדקת משני הצדדים, ובדיקות התכונה ירוקות.</li>
+<li>שני תרחישי k6 רצו, והמספרים שלך רשומים ב־<code>docs/EVALUATION.md</code>, עם תאריך ומחשב.</li>
+<li>הסריקה של govulncheck נקייה, ולכל image יש רשימת חבילות וסריקה.</li>
+<li>מודל האיומים כולל את השורה שלך, וה־workflow עובר actionlint. קומיט של אבן הדרך, ו־<code>make down</code>.</li>
+</ul>
+<h3 id="3898">38.9.8 טעויות נפוצות</h3>
+<ul>
+<li><strong>לבדוק את הכתובת רק ביצירה.</strong> השם יכול להתפענח לכתובת אחרת בזמן השליחה. רק הבדיקה ב־dialer רואה את הכתובת
+  שמתחברים אליה.</li>
+<li><strong>לספר לדיירת למה הכתובת נדחתה.</strong> תשובה מפורטת הופכת את ה־endpoint לסורק של הרשת שלנו.</li>
+<li><strong>לקבל proxy מהסביבה.</strong> עם <code>HTTPS_PROXY</code>, הבדיקה רואה את שרת הביניים, והיעד עובר בלי בדיקה.</li>
+<li><strong>מצב פיתוח רחב מדי.</strong> להתיר את כל 10.0.0.0/8 נוח, ופותח בייצור את המסד. מתירים רק את הטווחים שצריך.</li>
+<li><strong>הסתרה רק בפלט של JSON.</strong> פלט שני, כמו הגשר ל־Loki, עוקף אותה. ההסתרה עוטפת את כולם.</li>
+<li><strong>סכמה בלי בדיקת פורמט.</strong> בלי <code>AssertFormat</code> בצד של Go, כל מחרוזת עוברת. ב־Python זה <code>format_checker</code>.</li>
+<li><strong>להוריד את הסף כשהסריקה נכשלת.</strong> ממצא עם תיקון דורש עדכון של התלות או של תמונת הבסיס.</li>
+<li><strong>מעט מדי VUs מוקצים.</strong> הכלי מפיל איטרציות, וההרצה מחמיאה ל־API שלא ראה אותן.</li>
+</ul>
+<h3 id="3899">38.9.9 הרחבה</h3>
+<ul>
+<li>החלפת מפתח API בלי השבתה: שני גיבובים תקפים בחלון זמן, ופקודה ב־<code>hookline-admin</code>.</li>
+<li>החלפת סוד חתימה: חתימה בשני הסודות בחלון זמן, עם שני ערכי <code>v1=</code> בכותרת.</li>
+<li>תרחיש k6 מעל הקיבולת, שמראה את N6: תשובות 503 מההשלה, בלי תור שגדל בלי גבול.</li>
+<li>סריקה שנייה עם Trivy, והשוואה בין הממצאים של שני הסורקים.</li>
+</ul>
 <h2 id="3810-m10">38.10 M10: הערכה והדגמה</h2>
-<p>יושלם עם אבן הדרך.</p>
+<h3 id="38101">38.10.1 המטרה</h3>
+<p>להוכיח את המפרט במספרים שלך, ולהכין את Hookline להצגה. בסוף אבן הדרך, ניסוי כאוס הורג תהליכים תחת עומס, והבדיקה
+שאחריו מראה 0 מסירות חסרות. כל יעד של המפרט, מ־N1 ועד N9, רשום ב־<code>docs/EVALUATION.md</code> עם המספר שמדדת או עם ההסבר
+למה אין מספר. יש תסריט הדגמה של עשר דקות שתרגלת, והמאגר פומבי ב־GitHub. פרק 39 מלווה את שני הימים האלה, ואבן הדרך
+הזאת היא רשימת העבודה שלהם.</p>
+<h3 id="38102">38.10.2 המושגים, והיכן נלמדו</h3>
+<table>
+<thead>
+<tr>
+<th>מושג</th>
+<th>איפה בספר</th>
+<th>איפה בפרויקט</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ניסוי כאוס: השערה, מצב יציב, היקף פגיעה</td>
+<td>פרק 39, סעיף 39.2</td>
+<td><code>scripts/chaos.sh</code></td>
+</tr>
+<tr>
+<td>הוכחה של „לפחות פעם אחת” מול סט צפוי</td>
+<td>פרק 37, סעיף 37.7; פרק 39, סעיף 39.3</td>
+<td><code>scripts/verify-delivery.sh</code></td>
+</tr>
+<tr>
+<td>‏rebalance וזמן הסשן של קבוצת צרכנים</td>
+<td>פרק 13, סעיף 13.6</td>
+<td><code>bus.NewGroupConsumer</code></td>
+</tr>
+<tr>
+<td>חכירה שפגה</td>
+<td>פרק 14</td>
+<td>‏<code>HOOKLINE_LEASE</code> בניסוי</td>
+</tr>
+<tr>
+<td>בחירת מנהיג</td>
+<td>פרק 18, סעיף 18.5</td>
+<td>שני ה־relays בניסוי</td>
+</tr>
+<tr>
+<td>השלת עומס</td>
+<td>פרק 16</td>
+<td><code>loadtest/overload.js</code></td>
+</tr>
+<tr>
+<td>‏SLO ופיגור מסירה</td>
+<td>פרק 25</td>
+<td>עמודת הפיגור של <code>verify-delivery.sh</code></td>
+</tr>
+<tr>
+<td>נעילת תמונת בסיס לפי digest</td>
+<td>פרק 19, סעיף 19.7</td>
+<td><code>sink/Dockerfile</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="38103">38.10.3 הקבצים</h3>
+<table>
+<thead>
+<tr>
+<th>קובץ</th>
+<th>מצב ב־starter</th>
+<th>מה עושים</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>scripts/chaos.sh</code></td>
+<td>שלם</td>
+<td>עומס, הריגות אקראיות, ‏sink שמתנהג רע, ובסוף בדיקת המסירה</td>
+</tr>
+<tr>
+<td><code>scripts/verify-delivery.sh</code></td>
+<td>שלם</td>
+<td>הסט הצפוי מהמסד מול מה שה־sinks קיבלו</td>
+</tr>
+<tr>
+<td><code>loadtest/overload.js</code>, ‏<code>scripts/load.sh overload</code></td>
+<td>שלמים</td>
+<td>התרחיש של N6</td>
+</tr>
+<tr>
+<td><code>internal/bus/bus.go</code></td>
+<td>שלם</td>
+<td>זמן הסשן של הצרכנים; לקרוא את ההערה ולהבין למה</td>
+</tr>
+<tr>
+<td><code>docs/EVALUATION.md</code></td>
+<td>טבלאות ריקות</td>
+<td>למלא כל שורה מ־N1 עד N9</td>
+</tr>
+<tr>
+<td><code>docs/DEMO.md</code></td>
+<td>שלם</td>
+<td>התסריט; להתאים אותו לעצמך ולתרגל</td>
+</tr>
+<tr>
+<td><code>sink/Dockerfile</code></td>
+<td>שלם</td>
+<td>תמונת הבסיס נעולה לפי digest</td>
+</tr>
+</tbody>
+</table>
+<h3 id="38104">38.10.4 הצעדים</h3>
+<p><strong>יום 98: עומס, כאוס והוכחה.</strong> לפני הכאוס, ודאי שהבדיקה עצמה עובדת על ריצה שקטה. העלי את הסביבה, הריצי את
+העומס של N1, ואז את הבדיקה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">make load-ingest
+make verify-delivery
+</code></pre>
+
+
+</div>
+
+<p>הבדיקה לא סומכת על טבלת המסירות. היא בונה את הסט הצפוי בעצמה, מהאירועים ומהמנויים שהיו קיימים כשכל אירוע נקלט.
+כך גם אירוע שה־dispatcher איבד, ולא יצר לו שורת מסירה, יופיע כחסר. זו השאילתה, מהקובץ <code>scripts/verify-delivery.sh</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-sql">    SELECT DISTINCT e.id, ep.id, ep.url, extract(epoch FROM e.created_at), coalesce(d.status, 'none')
+    FROM events e
+    JOIN subscriptions s ON s.tenant_id = e.tenant_id AND s.event_type IN (e.type, '*')
+                        AND s.created_at &lt;= e.created_at
+    JOIN endpoints ep ON ep.id = s.endpoint_id AND ep.enabled
+    LEFT JOIN deliveries d ON d.event_id = e.id AND d.endpoint_id = ep.id
+</code></pre>
+
+
+</div>
+
+<p>הצד השני הוא <code>/receipts</code> של כל sink, שסופר זוגות ייחודיים של נקודת קבלה ואירוע. זוג שחסר נכשל, וכפילות רק נספרת. לכל
+endpoint הבדיקה מדפיסה גם את הפיגור מהקליטה ועד הקבלה הראשונה, וזה המספר של N2 ושל N3.</p>
+<p>עכשיו הכאוס:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">make chaos
+</code></pre>
+
+
+</div>
+
+<p>הסקריפט מריץ שני מופעים של כל אחד משלושת התהליכים של הצינור, ושולח 50 אירועים בשנייה במשך שתי דקות. כל כמה
+שניות הוא הורג אחד מהם ב־SIGKILL, ומעלה אותו שוב. זה הלב שלו, מהקובץ <code>scripts/chaos.sh</code>:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">  v=${VICTIMS[RANDOM % ${#VICTIMS[@]}]}
+  kill -9 &quot;${PIDS[$v]}&quot; 2&gt; /dev/null
+  wait &quot;${PIDS[$v]}&quot; 2&gt; /dev/null
+  log &quot;KILL  $v&quot;
+  kills=$((kills + 1))
+  sleep $((RANDOM % 4 + 1))
+  spawn &quot;$v&quot;
+  log &quot;START $v&quot;
+</code></pre>
+
+
+</div>
+
+<p>‏SIGKILL ולא SIGTERM, כי כיבוי מסודר הוא לא המקרה הקשה. במקביל, ה־sink השני נכשל בחצי מהבקשות, אחר כך נתקע, ואחר
+כך נכשל בחמישית מהן. אחרי העומס הסקריפט מחכה שהתור יתרוקן, ומריץ את הבדיקה. ‏<code>SEED</code> קובע את סדר ההריגות, ולכן
+ריצה שמצאה בעיה ניתנת לחזרה.</p>
+<p>קראי את הפלט כמו שקוראים ניסוי. אפס חסרות מוכיח את N4. הפיגור של <code>chaos-healthy</code> הוא N3: הוא אמור להישאר נמוך,
+כי המקבל התקוע שייך ליעד אחר. אם הפיגור גבוה, בדקי באיזה שלב הוא נוצר. פרק 39, סעיף 39.2, מראה שאילתה שמפרקת
+אותו לשלבים, ואת מה שהיא מצאה בהרצה שבה נכתב הספר.</p>
+<p>ולבסוף N6, עומס מעל הקיבולת:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">make load-overload
+</code></pre>
+
+
+</div>
+
+<p>ה־API עולה עם מגבלה של ארבע בקשות באוויר, ו־k6 שולח 800 בשנייה. התרחיש עובר כשחלק מהבקשות נענות ב־503 עם
+<code>Retry-After</code>, כשהתשובות נשארות מהירות, וכשבדיקת הבריאות עונה 200 לאורך כל הדרך. תור שגדל בלי גבול היה נראה
+כזמני תגובה שגדלים, ולא כתשובות 503 מהירות.</p>
+<p><strong>יום 99: הדגמה ופרסום.</strong> מלאי את <code>docs/EVALUATION.md</code>, שורה לכל יעד, עם התאריך והמחשב. איפה שאין לך מספר, כתבי
+למה. אחר כך עברי על <code>docs/DEMO.md</code>: עשר דקות, עם מה מראים, איזו פקודה, ומה אומרים. התאימי אותו לעצמך, ותרגלי אותו
+פעמיים עם שעון. פרק 39 מפרט את התסריט, את הפרסום ב־GitHub, ואת עשרים השאלות שכדאי לענות עליהן בקול.</p>
+<p>תמונת הבסיס של ה־sink נעולה עכשיו לפי digest. ההערה בקובץ <code>sink/Dockerfile</code> מסבירה איך מעדכנים אותה. כך כל בנייה
+מקבלת בדיוק את מה שנסרק, ועדכון אבטחה נכנס בשינוי שעובר סקירה ובדיקות.</p>
+<h3 id="38105">38.10.5 הבדיקות שצריכות להוריק</h3>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">make up
+go test -race -count=1 ./...
+make down
+make chaos
+make load-overload
+make load-ingest
+make load-two-tenants
+make obs-down
+</code></pre>
+
+
+</div>
+
+<h3 id="38106">38.10.6 הפלט הצפוי</h3>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">$ make chaos
+hh:mm:ss  seed ___, rate 50/s for 120s, a kill every 3 to 12 s
+hh:mm:ss  load starts
+hh:mm:ss  KILL  worker-2
+hh:mm:ss  START worker-2
+hh:mm:ss  SINK  chaos-flaky fails 50%
+...
+hh:mm:ss  load done (k6 exit 0, ___ kills); chaos-flaky healthy again; waiting up to 300s
+endpoint                                     expected received missing  dups  lag p50     p99     max
+http://localhost:8091/hooks/chaos-healthy        ___      ___       0   ___    ___s    ___s    ___s
+http://localhost:8092/hooks/chaos-flaky          ___      ___       0   ___    ___s    ___s    ___s
+TOTAL expected=___ missing=0 duplicates=___
+PASS: 0 missing; every expected (event, endpoint) pair reached its sink at least once
+</code></pre>
+
+
+</div>
+
+<p>עמודת החסרות חייבת להיות 0. כל שאר המספרים שלך.</p>
+<h3 id="38107">38.10.7 קריטריון סיום</h3>
+<ul>
+<li>‏<code>make chaos</code> מסתיים ב־PASS, עם 0 חסרות, ואת יודעת להסביר את הפיגור שהוא מדפיס.</li>
+<li>שלושת תרחישי k6 רצו, והמספרים שלך רשומים עם תאריך ומחשב.</li>
+<li>‏<code>docs/EVALUATION.md</code> מכסה את N1 עד N9, ואין בו מספר שלא מדדת.</li>
+<li>תרגלת את <code>docs/DEMO.md</code> עם שעון, והוא נכנס בעשר דקות.</li>
+<li>המאגר פומבי, ה־CI ירוק בו, ואין בו סודות (פרק 39, סעיף 39.6).</li>
+</ul>
+<h3 id="38108">38.10.8 טעויות נפוצות</h3>
+<ul>
+<li><strong>לבנות את הסט הצפוי מטבלת המסירות.</strong> אירוע שה־dispatcher איבד לא נמצא שם, והבדיקה תעבור בדיוק כשהיא צריכה
+  להיכשל.</li>
+<li><strong>להרוג רק עם SIGTERM.</strong> כיבוי מסודר משחרר נעילות ועוזב את קבוצת הצרכנים. הקריסה היא המקרה שבודקים.</li>
+<li><strong>להריץ את הבדיקה לפני שהתור התרוקן.</strong> מסירה שעוד מחכה לניסיון חוזר נראית חסרה. הסקריפט מחכה, ומדפיס את המצב של
+  כל זוג חסר.</li>
+<li><strong>לספור כפילויות ככישלון.</strong> הן המחיר של „לפחות פעם אחת”. מספר גבוה שלהן הוא סימן, למשל לחכירה קצרה מדי.</li>
+<li><strong>להסתפק ב„אפס חסרות”.</strong> גם פיגור של דקה הוא תוצאה של הניסוי, והוא שובר את N2.</li>
+</ul>
+<h3 id="38109">38.10.9 הרחבה</h3>
+<ul>
+<li>כאוס על kind: אותו עומס דרך port-forward, והריגה של pods עם <code>kubectl delete pod</code>. ה־chart מסמן כל רכיב
+  בתווית <code>app.kubernetes.io/component</code>, וכך בוחרים את הקורבן.</li>
+<li>ניסוי עם Redis עצור ועם Redpanda עצור, לפי שתי השורות האחרונות של טבלת מצבי הכשל בפרק 37.</li>
+<li>להוסיף את ה־API לרשימת הקורבנות, ולהראות שאירוע שלא קיבל 202 גם לא נכלל בסט הצפוי.</li>
+</ul>
 <h2 id="_3">סיכום</h2>
 <ul>
 <li>אבן הדרך הראשונה: ‏API מלא מעל מאגר בזיכרון, מאחורי ממשקים, עם אימות, עימוד, פרטי בעיה ובדיקות בידוד.</li>
 <li>אבן הדרך השנייה: אותם ממשקים מעל PostgreSQL, עם מיגרציות לכל מודל הנתונים וקליטה שהאילוץ מכריע בה.</li>
-<li>הסיכום יושלם עם אבני הדרך הבאות.</li>
+<li>אבן הדרך השלישית: מטמון של מנויים, רשומה אחת לכל דיירת, שה־API מוחק אחרי כל שינוי; וה־sink ב־compose.</li>
+<li>אבן הדרך הרביעית: ‏relay שמפרסם את ה־outbox לפי הסדר, ו־dispatcher שמפזר כל אירוע לשורות מסירה בלי כפילויות.</li>
+<li>אבן הדרך החמישית: ‏workers שתופסים מסירות בחכירה, שולחים חתום, מנסים שוב רק כשזה הגיוני, ומתים כשצריך.</li>
+<li>הפעלה חוזרת לא מאפסת את מספר הניסיונות; העמודה <code>attempt_base</code> מסמנת איפה הסבב החדש מתחיל.</li>
+<li>אבן הדרך השישית: מפסק ומחיצה לכל endpoint שדוחים מסירה בלי לבזבז ניסיון, הגבלת קצב לכל דיירת שנכשלת פתוח,
+  השלת עומס לפני האימות, ו־relay יחיד פעיל שהקדנציה שלו מגדרת את הסימון.</li>
+<li>אבן הדרך השביעית: ‏image אחד לחמשת הבינאריים ו־image ל־sink, ‏chart עם מיגרציות ב־hook ו־Secret מבחוץ, ‏Terraform
+  שמתקין את אותו chart, ו־workflow שמריץ את הכול, כולל kind.</li>
+<li>אבן הדרך השמינית: מעקב אחד מהקליטה ועד המקבל דרך עמודה במסד, מדדים של מסירה, ‏SLO של פיגור עם התראה שנייה
+  על כשלים, ‏runbook לכל התראה, ותחקיר על גרסה ששברת בכוונה.</li>
+<li>אבן הדרך התשיעית: כתובת שנבדקת ביצירה ושוב בכל חיבור, הסתרת סודות לפני כל פלט עם סריקת לוגים שמוכיחה אותה, חוזה
+  לגוף ה־webhook שנבדק משני הצדדים, בדיקות תכונה ועומס, סריקה של שרשרת האספקה, ומודל איומים.</li>
+<li>אבן הדרך העשירית: ניסוי כאוס שהורג תהליכים תחת עומס, ובדיקה של סט צפוי מול מה שהמקבלים קיבלו, עם 0 חסרות; עומס
+  מעל הקיבולת; כל היעדים רשומים עם המספרים שלך; הדגמה של עשר דקות, ומאגר פומבי.</li>
 </ul>
 <h2 id="_4">מונחים לזכור</h2>
 <table>
@@ -877,32 +3792,198 @@ ok      example.com/hookline/migrations 4.469s
 <td>keyset pagination</td>
 <td>עימוד לפי ערכי המיון של הפריט האחרון במקום לפי היסט</td>
 </tr>
+<tr>
+<td>אי־תוקף אחרי שמירה</td>
+<td>invalidate after commit</td>
+<td>מחיקת רשומת מטמון רק אחרי שהשינוי נשמר, כדי שקורא לא יחזיר ערך ישן</td>
+</tr>
+<tr>
+<td>פיזור</td>
+<td>fan-out</td>
+<td>הפיכת אירוע אחד לשורת מסירה לכל יעד מתאים, בפקודה אחת</td>
+</tr>
+<tr>
+<td>הודעה רעילה</td>
+<td>poison message</td>
+<td>רשומה שאי אפשר לעבד לעולם; מדלגים עליה כדי לא לחסום את המחיצה</td>
+</tr>
+<tr>
+<td>אסימון גידור</td>
+<td>fencing token</td>
+<td>מספר שעולה בכל תפיסה, כך שתוצאה של מחזיק ישן נדחית</td>
+</tr>
+<tr>
+<td>סבב ניסיונות</td>
+<td>attempt round</td>
+<td>הניסיונות מאז ההפעלה החוזרת האחרונה, שמושווים למקסימום</td>
+</tr>
+<tr>
+<td>דחייה</td>
+<td>postpone</td>
+<td>החזרת מסירה לתור בלי לשלוח ובלי לספור ניסיון, כשהמפסק פתוח או המחיצה מלאה</td>
+</tr>
+<tr>
+<td>כשל פתוח</td>
+<td>fail open</td>
+<td>כשהמגביל עצמו לא זמין, הבקשה עוברת; ההחלטה ההפוכה הייתה מפילה את הקליטה</td>
+</tr>
+<tr>
+<td>קדנציה</td>
+<td>term</td>
+<td>מספר שעולה בכל בחירת מנהיג, ומשמש כ־fencing token</td>
+</tr>
+<tr>
+<td>פיגור מסירה</td>
+<td>delivery lag</td>
+<td>הזמן מקליטת האירוע ועד שהמקבל אישר אותו; היעד של N2</td>
+</tr>
+<tr>
+<td>‏hook של Helm</td>
+<td>Helm hook</td>
+<td>משאב שרץ בנקודה במחזור של release, למשל Job לפני כל התקנה</td>
+</tr>
+<tr>
+<td>בדיקת עשן</td>
+<td>smoke test</td>
+<td>בדיקה קצרה מקצה לקצה שמראה שהמערכת בכלל עובדת אחרי פריסה</td>
+</tr>
+<tr>
+<td>הקשר מעקב</td>
+<td>trace context</td>
+<td>מזהה המעקב וה־span שעוברים בין תהליכים, כאן בכותרת <code>traceparent</code></td>
+</tr>
+<tr>
+<td>התראה על סיבה</td>
+<td>cause-based alert</td>
+<td>התראה על אות פנימי, למשל כשלים או outbox תקוע, שה־SLO רואה מאוחר או בכלל לא</td>
+</tr>
+<tr>
+<td>בדיקה בזמן החיבור</td>
+<td>dial-time check</td>
+<td>בדיקה של הכתובת שמתחברים אליה בפועל, אחרי הפענוח; רק היא עומדת מול DNS rebinding</td>
+</tr>
+<tr>
+<td>סריקת לוגים</td>
+<td>log scan</td>
+<td>בדיקה שמריצה את הקוד עם ה־logger האמיתי, ומוודאת שסוד ידוע לא מופיע בפלט</td>
+</tr>
+<tr>
+<td>בדיקת חוזה</td>
+<td>contract test</td>
+<td>בדיקה של שני צדדים מול אותה סכמה ואותן דוגמאות, בלי שאחד מייבא את השני</td>
+</tr>
+<tr>
+<td>‏SBOM</td>
+<td>software bill of materials</td>
+<td>רשימת כל החבילות ב־image, שסורקים אותה גם אחרי שה־image כבר נדחף</td>
+</tr>
+<tr>
+<td>ניסוי כאוס</td>
+<td>chaos experiment</td>
+<td>הזרקה מכוונת של כשל תחת עומס, עם השערה שנכתבה לפני ההרצה</td>
+</tr>
+<tr>
+<td>סט צפוי</td>
+<td>expected set</td>
+<td>מה שחייב להגיע, שנבנה בנפרד מהקוד שנבדק, כדי שהבדיקה לא תבדוק את עצמה</td>
+</tr>
 </tbody>
 </table>
-<p>הטבלה תושלם עם אבני הדרך הבאות.</p>
 <h2 id="_5">טעויות נפוצות</h2>
 <ul>
 <li><strong>לסמן אבן דרך כגמורה כשרק חלק מהבדיקות שלה ירוקות.</strong> הקריטריון הוא כל הפקודה של הסעיף, עם <code>-race</code>.</li>
-<li>הרשימה תושלם עם אבני הדרך הבאות.</li>
+<li><strong>לבדוק את הצינור רק ברכיבים בודדים.</strong> כל רכיב יכול לעבור לבד, והחיבור ביניהם עדיין שבור. הבדיקה מקצה לקצה של
+  אבן הדרך החמישית היא שמוכיחה את ההבטחה.</li>
+<li><strong>לסמוך על Kafka לסינון כפילויות.</strong> ה־offset של פרסום כפול שונה. הכפילות נעצרת באילוץ במסד, ובמקבל לפי מזהה האירוע.</li>
+<li><strong>לנסות שוב כל כישלון.</strong> תשובת 4xx סופית; ניסיון חוזר שלה רק מאריך את התור של כולם.</li>
+<li><strong>‏SLO שבנוי רק מהצלחות.</strong> כשאף דבר לא מצליח אין לו נתונים, והוא שותק בדיוק בזמן התקלה.</li>
+<li><strong>סוד ב־values של chart.</strong> הוא נשמר בהיסטוריה של ה־release; ה־chart מקבל שם של Secret, לא את הערך.</li>
+<li><strong>הגנה שעולה יותר ממה שהיא חוסכת.</strong> מחיצה שמחכה, או השלת עומס אחרי קריאה למסד, מחזירות את העומס מהדלת האחורית.</li>
+<li><strong>הגנה בלי בדיקה שמוכיחה אותה.</strong> שורה במודל האיומים בלי שם של בדיקה היא תקווה, ולא הגנה.</li>
+<li><strong>„אפס חסרות” בלי לקרוא את הפיגור.</strong> הניסוי של אבן הדרך העשירית מצא באג אמיתי בדיוק שם, כשלא אבדה אף מסירה.</li>
 </ul>
 <h2 id="_6">שאלות ראיון</h2>
 <ol>
-<li><strong>למה המאגר יושב מאחורי ממשק כבר באבן הדרך הראשונה, כשהוא עוד בזיכרון?</strong> יושלם עם אבני הדרך הבאות.</li>
+<li>
+<p><strong>למה המאגר יושב מאחורי ממשק כבר באבן הדרך הראשונה, כשהוא עוד בזיכרון?</strong> כי ההחלפה ל־PostgreSQL באבן הדרך
+   השנייה נעשית בלי לגעת ב־handler, ואותן בדיקות API רצות על שני המאגרים. הממשק גם מכריח להחליט מוקדם מה
+   החוזה: מי מסנן לפי דיירת, מה השגיאות. המחיר הוא שכבה אחת נוספת, וזה זול לעומת שכתוב של כל ה־handlers.</p>
+</li>
+<li>
+<p><strong>איך מבטיחים שקריסה של ה־relay לא תיצור מסירה כפולה?</strong> לא מבטיחים שהיא לא תפרסם פעמיים; היא כן תפרסם, כי
+   קריסה בין הפרסום לסימון משאירה את השורה לא מסומנת. מבטיחים שהפרסום הכפול לא משנה כלום: ה־dispatcher מכניס
+   עם <code>ON CONFLICT DO NOTHING</code> על הזוג אירוע ו־endpoint. ומול המקבל, שבו אין אילוץ משותף, החוזה הוא „לפחות פעם
+   אחת” וסינון לפי <code>Hookline-Event-Id</code>.
+   <strong>המשך:</strong> ולמה לא לסמן לפני הפרסום? כי אז קריסה בין הסימון לפרסום מאבדת את האירוע לגמרי; עדיף כפילות שמסננים
+   על פני אובדן שאי אפשר לגלות.</p>
+</li>
+<li>
+<p><strong>מה קורה כש־worker נתקע באמצע מסירה?</strong> החכירה שלו פגה, ו־worker אחר תופס את המסירה עם מספר ניסיון גבוה יותר.
+   הניסיון התקוע נרשם כ„חכירה פגה”. אם הראשון מתעורר ומנסה לרשום תוצאה, הרישום בודק את מספר הניסיון ונדחה. המחיר
+   האפשרי הוא שהמקבל קיבל שתי בקשות, וזה בסדר בחוזה „לפחות פעם אחת”. לכן החכירה חייבת להיות ארוכה מהזמן הקצוב של
+   ניסיון.</p>
+</li>
+<li>
+<p><strong>מקבל אחד של דיירת אחת תקוע. איך שאר המקבלים לא מרגישים?</strong> שתי הגנות בכל worker. מחיצה אטומה מגבילה כמה workers
+   endpoint אחד יכול להחזיק, וכשהיא מלאה המסירה נדחית בלי לחכות. מפסק זרם מפסיק לשלוח אחרי כמה כשלים רצופים, ובודק
+   שוב אחרי זמן. בשני המקרים הדחייה לא סופרת ניסיון. ההגנות מקומיות לכל תהליך: פשוט יותר ונכשל בבטחה, במחיר
+   שכל worker לומד לבד. את המחיר הזה מודדים בניסוי N3, עם ההגנות ובלעדיהן.
+   <strong>המשך:</strong> למה לא מפסק משותף ב־Redis? כי אז Redis נעשה תלות של כל שליחה, ותקלה בו משפיעה על כל המקבלים; הייתי
+   עוברת אליו רק אם המדידה מראה שהרבה workers מכים endpoint מת לפני שהמפסקים המקומיים נפתחים.</p>
+</li>
+<li>
+<p><strong>איך את מריצה מיגרציות בפריסה ל־Kubernetes, ומה יכול להשתבש?</strong> ‏Job של Helm ב־<code>pre-install</code> ו־<code>pre-upgrade</code>, כך
+   שהסכמה מוכנה לפני שאף pod חדש עולה, עם פקודה אידמפוטנטית. שני דברים לשים לב אליהם: ה־Job לא רואה משאבים
+   שה־chart עוד לא התקין, והמיגרציה חייבת להתאים גם לגרסה הישנה שעוד רצה, כי בעדכון מתגלגל שתיהן חיות יחד
+   (פרק 30). לכן מיגרציה שמוחקת עמודה נכנסת רק אחרי שאף גרסה לא קוראת אותה.</p>
+</li>
+<li>
+<p><strong>השירות שלך שולח בקשות לכתובות שהלקוחות בוחרים. איך את מגינה עליו?</strong> בודקת פעמיים. ביצירה, את ה־URL ואת כל
+   הכתובות שהשם מתפענח אליהן, עם תשובה כללית ללקוח. ובכל חיבור, ב־<code>Control</code> של ה־dialer, את הכתובת שמתחברים אליה
+   בפועל. השנייה היא שעומדת מול DNS rebinding, כי בין הרישום לשליחה השם יכול להצביע למקום אחר. בנוסף, אין proxy
+   מהסביבה, אין הפניות, ומצב הפיתוח מתיר רק טווחים מוגדרים. ורשימה של כתובות מותרות לא אפשרית כאן, כי היעדים הם
+   של הלקוחות: לכן חוסמים את מה שמסוכן, ובודקים בחיבור עצמו.</p>
+</li>
 </ol>
 <h2 id="obsidian">פתק Obsidian</h2>
 <p>הפתק המוכן נמצא גם כקובץ: <code>obsidian/38-hookline-milestones.md</code>. זה תוכנו:</p>
 <ul>
 <li><strong>‏M1:</strong> ממשקי מאגר; מימוש בזיכרון; אימות לפי גיבוב; 404 לכל משאב של דיירת אחרת.</li>
 <li><strong>‏M2:</strong> מיגרציות לכל המודל; ‏<code>ON CONFLICT DO NOTHING</code> ואז <code>SELECT</code>; אירוע ו־outbox בטרנזקציה אחת.</li>
+<li><strong>‏M3:</strong> מטמון לכל דיירת; מוחקים אחרי השמירה; זמן החיים הוא הגבול לרשימה ישנה; ה־sink עם worker אחד.</li>
+<li><strong>‏M4:</strong> פרסום, אישור, ואז סימון; ‏offset אחרי ההכנסה; ‏<code>ON CONFLICT DO NOTHING</code> על אירוע ו־endpoint.</li>
+<li><strong>‏M5:</strong> ‏<code>SKIP LOCKED</code> וחכירה; 408, 429 ו־5xx מנוסים שוב, שאר 4xx לא; ‏<code>attempt_base</code> בהפעלה חוזרת.</li>
+<li><strong>‏M6:</strong> מחיצה בלי המתנה ומפסק לכל endpoint; דחייה בלי ניסיון; מגבלה לכל דיירת, נכשלת פתוח; השלה לפני האימות.</li>
+<li><strong>‏M7:</strong> ‏image אחד עם כל הבינאריים; משתמש מספרי; מיגרציות ב־hook; ‏Secret מבחוץ; ‏compose גם ב־CI.</li>
+<li><strong>‏M8:</strong> ‏<code>traceparent</code> בשורת האירוע; ‏SLI של פיגור על גבול 30; התראה על כשלים כי ה־SLI שותק; תחקיר עם מספרים שלי.</li>
+<li><strong>‏M9:</strong> ‏SSRF נבדק ביצירה ובחיבור; הסתרה לפני כל פלט, וסריקה; סכמה משני הצדדים; ‏VUs לפי קצב כפול זמן תגובה.</li>
+<li><strong>‏M10:</strong> הורגים ב־SIGKILL; סט צפוי מהמסד ולא משורות המסירה; פירוק הפיגור לשלבים; זמן סשן קצר לצרכנים.</li>
 <li><strong>שאלה פתוחה:</strong> ___</li>
 </ul>
 <div dir="ltr" align="left">
 
 
-<pre><code class="language-text">M1 tests  DATABASE_URL= go test -race ./internal/api/ ./internal/store/... ./internal/admin/
+<pre><code class="language-text">M1 tests  DATABASE_URL= go test -race -skip 'Invalidat|Deliver|Replay|ActiveSubscriptions|RateLimit|OverItsLimit|LimiterFailure|Shed|Trace|PrivateAddress' ./internal/api/ ./internal/store/... ./internal/admin/
 M2 db     make db-up &amp;&amp; export DATABASE_URL=postgres://hookline:change-me@localhost:5438/hookline
-M2 tests  go test -race -count=1 ./...
-admin     go run ./cmd/hookline-admin migrate up | create-tenant -name &lt;name&gt;
+M2 tests  go test -race -count=1 -skip 'Invalidat|Deliver|Replay|ActiveSubscriptions|RateLimit|OverItsLimit|LimiterFailure|Shed|Trace|PrivateAddress' ./internal/api/ ./internal/store/... ./internal/admin/ ./internal/db/ ./migrations/
+admin     go run ./cmd/hookline-admin migrate up | create-tenant -name &lt;name&gt; | create-topic -partitions 6
+stack     make up   (postgres, redis, redpanda, console :8098, sink :8091)   make down
+env       REDIS_ADDR=localhost:6438 KAFKA_BROKERS=localhost:19438 SINK_URL=http://localhost:8091
+run       make run | make relay | make dispatcher | make worker
+sink      curl -s localhost:8091/stats    curl -s -X POST localhost:8091/control -d '{&quot;failure_rate&quot;:1}'
+retry     408 429 5xx timeout refused -&gt; retry      other 4xx 3xx -&gt; dead      replay: dead -&gt; pending
+m7        make images | make chart-check | KEEP=1 make kind-smoke | make tf-check | make kind-down
+kube      export KUBECONFIG=/tmp/hookline-kind.kubeconfig; kubectl -n hookline get pods
+ci        cp -r hookline/.github/. .github/ &amp;&amp; actionlint
+m8        make obs-up | make promtool | make check-telemetry | make stage-incident | make obs-down
+grafana   http://localhost:3000 (folder Hookline)   prometheus :9090   tempo :3200   loki :3100
+m9        make load-ingest | make load-two-tenants | make images &amp;&amp; make supply-chain   (RATE= NOISY_RATE= QUIET_RATE=)
+m9 tests  DATABASE_URL= go test -race ./internal/ssrf/ ./internal/redact/ ./internal/page/ ./contract/ ./internal/api/
+m10       make chaos (SEED= RATE= DURATION=) | make verify-delivery (SINCE= WAIT=) | make load-overload | scripts/stage-lag.sh
+lab       make lab-n3      GUARDS=off make lab-n3      (record your p50/p99, date, machine)
+guards    HOOKLINE_ENDPOINT_CONCURRENCY=2 HOOKLINE_BREAKER_FAILURES=5 HOOKLINE_BREAKER_OPEN=30s HOOKLINE_MAX_IN_FLIGHT=256
+m5 tests  go test -race -count=1 -skip 'RateLimit|OverItsLimit|LimiterFailure|Shed|Breaker|Bulkhead|Trace|PrivateAddress' ./internal/backoff/ ./internal/delivery/ ./internal/api/ ./internal/store/... ./internal/e2e/
+skip      -skip drops later milestones' tests: Invalidat ActiveSubscriptions (M3), Deliver Replay (M5), StaleRelay RateLimit OverItsLimit LimiterFailure Shed Breaker Bulkhead (M6), Trace (M8), PrivateAddress (M9)
 </code></pre>
 
 
@@ -917,14 +3998,23 @@ admin     go run ./cmd/hookline-admin migrate up | create-tenant -name &lt;name&
 <p><strong>קריטריון סיום:</strong></p>
 <ul>
 <li>כל אבן דרך: הפקודה של סעיף הבדיקות שלה ירוקה, וקומיט עם שם אבן הדרך.</li>
-<li>הרשימה המלאה תושלם עם אבני הדרך הבאות.</li>
+<li>אחרי אבן הדרך החמישית: ‏<code>TestPipelineEndToEnd</code> עוברת מול ה־compose, וארבעת הבינאריים מוסרים אירועים ל־sink.</li>
+<li>אחרי אבן הדרך השישית: ניסוי N3 רץ בשתי הגרסאות, והמספרים שמדדת רשומים, עם תאריך ומחשב.</li>
+<li>אחרי אבן הדרך השביעית: ‏<code>make kind-smoke</code> מסתיים ב־PASS, וה־workflow ירוק במאגר שלך ב־GitHub.</li>
+<li>אחרי אבן הדרך השמינית: מעקב שלם ב־Tempo, ‏promtool ירוק, והתחקיר שלך כתוב עם המספרים שמדדת.</li>
+<li>אחרי אבן הדרך התשיעית: סריקות הלוגים והחוזה ירוקות, שני תרחישי k6 רשומים, ו־govulncheck נקי.</li>
+<li>אחרי אבן הדרך העשירית: ניסוי הכאוס מסתיים באפס חסרות, וקובץ ההערכה מכסה את N1 עד N9. ההדגמה תורגלה, והמאגר
+  פומבי עם CI ירוק.</li>
 </ul>
 <h2 id="_8">העשרה אופציונלית</h2>
 <ul>
-<li>יושלם עם אבני הדרך הבאות.</li>
+<li>המסמך של Standard Webhooks על ניסיונות חוזרים ועל קודי תשובה: השווי את המדיניות שלו ל־<code>Classify</code>.</li>
+<li>המאמר של Marc Brooker מ־2015 על המתנה גדלה ופיזור אקראי: המקור של „full jitter” שה־backoff מממש.</li>
+<li>‏OWASP על SSRF: רשימת ההגנות, והשוואה לשתי הבדיקות של אבן הדרך התשיעית.</li>
+<li>„Principles of Chaos Engineering”: המבנה של ניסוי, ולמה מתחילים מהשערה ומהיקף פגיעה קטן.</li>
 </ul>
 </main>
-<nav class="bottom"><a href="index.html">תוכן העניינים</a> · <a href="37-hookline-spec.html">← פרק 37: Hookline: מפרט וארכיטקטורה</a> · <a href="TERMINOLOGY.html">Terminology policy (book 2) →</a></nav>
+<nav class="bottom"><a href="index.html">תוכן העניינים</a> · <a href="37-hookline-spec.html">← פרק 37: Hookline: מפרט וארכיטקטורה</a> · <a href="39-hookline-evaluation.html">פרק 39: הערכה, הדגמה וראיון על הפרויקט →</a></nav>
 <script type="module">
   // Render ```mermaid blocks in the browser (needs internet once; cached afterwards).
   const blocks = document.querySelectorAll("pre > code.language-mermaid");

@@ -54,7 +54,12 @@ func NewProducer(brokers []string, opts ...kgo.Opt) (*kgo.Client, error) {
 //   - BlockRebalanceOnPoll: a rebalance waits until the caller calls AllowRebalance, so a commit never
 //     lands on a partition that has moved to another member;
 //   - CooperativeStickyBalancer: in a rebalance only the partitions that move are revoked;
-//   - a new group starts at the beginning of the topic, not at its end.
+//   - a new group starts at the beginning of the topic, not at its end;
+//   - a 10 s session (milestone M10): a member that dies without leaving (SIGKILL, a lost node) keeps
+//     its partitions until its session times out, and the rebalance that a restarted member starts
+//     waits for it too. With franz-go's default of 45 s, the chaos run stalled fan-out for over a
+//     minute across a few dispatcher kills. Heartbeats run in their own goroutine, so slow processing
+//     does not end a session; only a silent process does. Callers can still override both.
 func NewGroupConsumer(brokers []string, group, topic string, opts ...kgo.Opt) (*kgo.Client, error) {
 	base := []kgo.Opt{
 		kgo.SeedBrokers(brokers...),
@@ -64,6 +69,8 @@ func NewGroupConsumer(brokers []string, group, topic string, opts ...kgo.Opt) (*
 		kgo.BlockRebalanceOnPoll(),
 		kgo.Balancers(kgo.CooperativeStickyBalancer()),
 		kgo.ConsumeResetOffset(kgo.NewOffset().AtStart()),
+		kgo.SessionTimeout(10 * time.Second),
+		kgo.HeartbeatInterval(time.Second),
 	}
 	cl, err := kgo.NewClient(append(base, opts...)...)
 	if err != nil {

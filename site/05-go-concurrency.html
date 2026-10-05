@@ -59,8 +59,8 @@
 <p>ה־goroutine (פונקציה שרצה במקביל לשאר התוכנית, בניהול ה־runtime של Go) מתחילה במילה <code>go</code> לפני קריאה. אין
 ערך חזרה ואין handle: הקריאה חוזרת מיד, והפונקציה רצה ברקע.</p>
 <p>ה־runtime מריץ הרבה goroutines על מעט threads של מערכת ההפעלה. כל אחת מתחילה עם מחסנית קטנה שגדלה לפי
-הצורך, ולכן מאות אלפים בתהליך אחד הם מצב רגיל. מספר ה־threads שמריצים קוד Go בו־זמנית נקבע
-ב־<code>GOMAXPROCS</code>, וברירת המחדל היא מספר הליבות.</p>
+הצורך, ולכן מאות אלפים בתהליך אחד הם מצב רגיל. מספר ה־threads שמריצים קוד בו־זמנית נקבע
+בהגדרה <code>GOMAXPROCS</code>. ברירת המחדל היא מספר הליבות הזמינות לתהליך, ובקונטיינר עם מגבלת מעבד גם לפי המגבלה.</p>
 <p>ההבדל החשוב מול async ב־Rust: אין ב־Go „צבע” לפונקציות. כל פונקציה רשאית לחסום, וכשהיא מחכה לרשת,
 ה־runtime מחנה אותה ומריץ goroutine אחרת על אותו thread. אין <code>async</code>, אין <code>.await</code>, ואין צורך בגרסה
 אסינכרונית של כל ספרייה.</p>
@@ -109,8 +109,8 @@
 <p>מקביליות (concurrency) היא מבנה שבו כמה משימות מתקדמות בתקופות חופפות; ביצוע מקבילי (parallelism) הוא
 ריצה בו־זמנית ממש, על כמה ליבות. תוכנית עם ליבה אחת עדיין יכולה להיות מקבילית במבנה שלה.</p>
 <blockquote>
-<p><strong>איך Rust עושה את זה:</strong> ב־tokio, <code>tokio::spawn</code> דורש future שהוא <code>Send</code> ו־<code>'static</code>, וזה מה שמונע ממך
-לשתף בטעות <code>Vec</code> בין משימות. ב־Go אין דרישה כזאת: <code>go f()</code> מקבל סגור (closure) שנוגע בכל משתנה בטווח,
+<p><strong>איך Rust עושה את זה:</strong> ב־tokio, הפונקציה <code>tokio::spawn</code> דורשת future שהוא <code>Send</code> ו־<code>'static</code>. הדרישה
+הזאת מונעת ממך לשתף בטעות וקטור מקומי בין משימות. ב־Go אין דרישה כזאת: <code>go f()</code> מקבל סגור (closure) שנוגע בכל משתנה בטווח,
 והקומפיילר שותק. החופש הזה הוא הסיבה לסעיפים 5.8 ו־5.9.</p>
 </blockquote>
 <p>הצורה הבסיסית, מתוך תוכנית ההדגמה של התרגיל (הקובץ <code>data/racedemo/main.go</code>): שמונה goroutines, והמתנה
@@ -195,8 +195,7 @@ go func() {
 והקומפיילר אוכף.</p>
 <h2 id="53-select">5.3 select וזמנים קצובים</h2>
 <p>הפקודה <code>select</code> ממתינה על כמה פעולות channel ומבצעת את הראשונה שמוכנה; כשכמה מוכנות יחד, הבחירה אקראית.
-ענף
-<code>default</code> הופך אותה ללא חוסמת. השימוש הנפוץ הוא „שלחי, אלא אם בוטלנו”, כמו במחולל שבתחילת <code>CheckPool</code>
+ענף <code>default</code> הופך אותה ללא חוסמת. השימוש הנפוץ הוא „שלחי, אלא אם בוטלנו”, כמו במחולל שבתחילת <code>CheckPool</code>
 (הקובץ <code>pool.go</code>):</p>
 <div dir="ltr" align="left">
 
@@ -267,8 +266,7 @@ mux.HandleFunc(&quot;GET /slow&quot;, func(w http.ResponseWriter, r *http.Reques
 </tbody>
 </table>
 <p>ערכי context יוצרים עץ: כל פונקציה בטבלה הבאה מקבלת הורה ומחזירה ילד, וביטול הורה מבטל את כל צאצאיו, אבל
-לא
-להפך.</p>
+לא להפך.</p>
 <table>
 <thead>
 <tr>
@@ -296,7 +294,7 @@ mux.HandleFunc(&quot;GET /slow&quot;, func(w http.ResponseWriter, r *http.Reques
 </tbody>
 </table>
 <p>את <code>cancel</code> קוראים תמיד, בדרך כלל עם <code>defer</code>, גם כשהכול הצליח: היא משחררת טיימר ורישום אצל ההורה.
-<code>go vet</code> מתריע כשהיא הולכת לאיבוד.</p>
+הכלי <code>go vet</code> מתריע כשהיא הולכת לאיבוד.</p>
 <p>הביטול <strong>שיתופי</strong>. שום דבר לא נהרג: ביטול רק סוגר channel. קוד שלא בודק את <code>ctx.Done()</code>, ולא מעביר את
 <code>ctx</code> הלאה, ימשיך לרוץ. הספרייה הסטנדרטית מכבדת context בכל מקום שחשוב, ובראשם <code>net/http</code>.</p>
 <blockquote>
@@ -338,7 +336,7 @@ mux.HandleFunc(&quot;GET /slow&quot;, func(w http.ResponseWriter, r *http.Reques
 <p>לכל בקשה יש זמן קצוב משלה, וביטול של ההורה, כלומר של כל הריצה, מגיע אליה גם כן. הלקוח של <code>net/http</code> עוקב
 אחרי ה־context: כשהזמן עובר, הוא סוגר את החיבור ו־<code>Do</code> חוזרת עם שגיאה. בצד השרת, <code>r.Context()</code> מתבטל
 כשהלקוח ניתק, ולכן ה־handler האיטי של סעיף 5.3 משתחרר מיד.</p>
-<p>ההערה בקוד מסמנת מלכודת אמיתית, שהבדיקות של התרגיל נתקלו בה. כשה־context בוטל עם סיבה (ו־<code>errgroup</code> עושה
+<p>ההערה בקוד מסמנת מלכודת אמיתית, שבדיקות התרגיל חשפו. כשה־context בוטל עם סיבה (ו־<code>errgroup</code> עושה
 בדיוק את זה), הלקוח מחזיר את <strong>הסיבה</strong>, ו־<code>errors.Is</code> מול <code>context.Canceled</code> נכשלת. לכן שואלים את
 <code>ctx.Err()</code>:</p>
 <table>
@@ -565,8 +563,7 @@ func (p *progress) addLocked() {
 </tbody>
 </table>
 <p>הפונקציה <code>CheckPool</code> עושה את העבודה של <code>Check</code> בשלושה שלבים. את המחולל ראית בסעיף 5.3. השלב השני,
-ה־workers (הקובץ
-<code>pool.go</code>):</p>
+ה־workers (הקובץ <code>pool.go</code>):</p>
 <div dir="ltr" align="left">
 
 
@@ -633,8 +630,7 @@ for d := range out {
 </div>
 
 <p>השורה <code>p.racy++</code> היא שלוש פעולות: קריאה, הוספה וכתיבה. שתי goroutines קוראות אותו ערך, וכתיבה אחת הולכת
-לאיבוד.
-הריצי את התוכנית בלי גלאי המרוצים (race detector) ואיתו:</p>
+לאיבוד. הריצי את התוכנית בלי גלאי המרוצים (race detector) ואיתו:</p>
 <div dir="ltr" align="left">
 
 
@@ -733,7 +729,7 @@ exit status 66
 <p>הפונקציה חוזרת מהר יותר, והתוצאות נראות תקינות. אבל כל worker שמחזיק תוצאה חוסם על שליחה ל־<code>out</code>,
 וה־goroutine שמחכה להם ב־<code>wg.Wait()</code> חוסמת גם היא, לנצח.</p>
 <p>הדרך הוותיקה לתפוס את זה בבדיקה היא לספור את <code>runtime.NumGoroutine()</code> לפני ואחרי. היא רועשת, כי
-goroutines של חיבורי HTTP פתוחים נספרות גם הן. נכון לאוקטובר 2026, ב־Go 1.27 יש דרך מדויקת יותר: הפרופיל
+goroutines של חיבורי HTTP פתוחים נספרות גם הן. נכון לאוקטובר 2026, ב־Go 1.27 (ראי נספח ג) יש דרך מדויקת יותר: הפרופיל
 <code>goroutineleak</code> של <code>runtime/pprof</code>. כשכותבים אותו, ה־runtime מריץ איסוף זבל (GC) שמוצא goroutines שחוסמות
 על channel או נעילה שאף goroutine חיה לא מגיעה אליהם. הן, בהגדרה, לא יתעוררו. כך זה בבדיקות של התרגיל
 (הקובץ <code>linkcheck_test.go</code>):</p>
@@ -763,7 +759,8 @@ func checkNoLeaks(t *testing.T) {
 
 </div>
 
-<p>כל בדיקה של <code>linkcheck</code> קוראת לה בסוף. עם הקטע השתול, בדיקת fail-fast נכשלת ומראה איפה הן תקועות (מקוצר):</p>
+<p>כל בדיקה של <code>linkcheck</code> קוראת לה בסוף. עם הקטע השתול, בדיקת fail-fast נכשלת ומראה איפה הן תקועות. כך זה נראה בהרצה שבה נכתב הספר (מקוצר; הכתובות
+אצלך יהיו אחרות):</p>
 <div dir="ltr" align="left">
 
 
@@ -850,8 +847,14 @@ channel שמשתנה גלובלי מחזיק, על קריאה מהרשת, או �
 </tr>
 </tbody>
 </table>
-<p>הבדיקות לא נוגעות באינטרנט. הן מרימות שרת מקומי עם <code>httptest.NewServer</code>, עם נתיבים בהתנהגות ידועה: <code>/ok</code>,
-<code>/missing</code>, <code>/slow</code>, ו־<code>/work</code>, שסופר כמה בקשות בטיפול בבת אחת. כל בדיקה רצה פעם לכל מימוש, ומסתיימת
+<p>הבדיקות לא נוגעות באינטרנט. הן מרימות שרת מקומי עם <code>httptest.NewServer</code>, עם ארבעה נתיבים בהתנהגות ידועה:</p>
+<ul>
+<li>הנתיב <code>/ok</code> עונה מיד.</li>
+<li>הנתיב <code>/missing</code> עונה 404.</li>
+<li>הנתיב <code>/slow</code> משתהה עשר שניות (סעיף 5.3).</li>
+<li>הנתיב <code>/work</code> סופר כמה בקשות בטיפול בבת אחת.</li>
+</ul>
+<p>כל בדיקה רצה פעם לכל מימוש, ומסתיימת
 בבדיקת הדליפות. אחרי שהכול ירוק, הריצי את התוכנית על הקובץ לדוגמה:</p>
 <div dir="ltr" align="left">
 
@@ -888,8 +891,7 @@ checked 6, ok 2, not ok 4
 <li>ה־context הוא ביטול שיתופי וגבול זמן כולל לאורך השרשרת. <code>Err</code> אומרת מה קרה, <code>Cause</code> אומרת למה.</li>
 <li>נעילה (Mutex) למבנה משותף, <code>atomic</code> למספר אחד, channel לזרימה.</li>
 <li>החבילה <code>errgroup</code> עם <code>SetLimit</code> היא הדרך הקצרה למקביליות חסומה עם ביטול; worker pool נותן מספר
-  goroutines
-  קבוע.</li>
+  goroutines קבוע.</li>
 <li>הדגל <code>-race</code> מוצא מרוצים שקרו; <code>goroutineleak</code> מוצא goroutines תקועות לנצח. שניהם בכל הבדיקות.</li>
 </ul>
 <h2 id="_4">מונחים לזכור</h2>

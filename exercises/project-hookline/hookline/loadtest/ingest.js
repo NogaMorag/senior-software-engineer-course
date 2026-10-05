@@ -4,8 +4,8 @@
 //   k6 run -e BASE_URL=http://127.0.0.1:18080 -e API_KEY=hk_... -e RATE=100 loadtest/ingest.js
 //
 // The load profile: RATE events per second (default 100) from one tenant whose own limit is far above
-// it, each with a new Idempotency-Key, for 60 s after a 10 s warm-up at a quarter of the rate. The tenant
-// has an endpoint, so relay, dispatcher and workers run behind the API the whole time, as they would.
+// it, each with a new Idempotency-Key, for 60 s (DURATION) after a 10 s warm-up at a quarter of the rate.
+// The tenant has an endpoint, so relay, dispatcher and workers run behind the API the whole time.
 //
 // Open model: constant-arrival-rate starts RATE iterations per second whether or not the previous ones
 // finished. A slow API then shows up as latency and dropped iterations, not as a quietly lower rate.
@@ -16,6 +16,7 @@ import exec from 'k6/execution';
 const BASE_URL = __ENV.BASE_URL || 'http://127.0.0.1:18080';
 const API_KEY = __ENV.API_KEY;
 const RATE = Number(__ENV.RATE || 100);
+const DURATION = __ENV.DURATION || '60s'; // the measured phase; scripts/chaos.sh makes it longer
 const RUN = `${Date.now()}`; // makes every Idempotency-Key of this run new
 
 export const options = {
@@ -36,7 +37,7 @@ export const options = {
       startTime: '10s',
       rate: RATE,
       timeUnit: '1s',
-      duration: '60s',
+      duration: DURATION,
       // In-flight requests are rate times latency: 100 per second at 200 ms is 20 busy VUs. Allocate for
       // half a second, so a short stall is measured as latency instead of dropped while k6 adds VUs.
       preAllocatedVUs: Math.max(20, Math.ceil(RATE / 2)),

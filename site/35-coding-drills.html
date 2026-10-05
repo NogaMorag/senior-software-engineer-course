@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<nav class="top"><a href="index.html">תוכן העניינים</a> · <a href="34-senior-interview-loop.html">← פרק 34: תהליך הגיוס הבכיר</a> · <a href="37-hookline-spec.html">פרק 37: Hookline: מפרט וארכיטקטורה →</a></nav>
+<nav class="top"><a href="index.html">תוכן העניינים</a> · <a href="34-senior-interview-loop.html">← פרק 34: תהליך הגיוס הבכיר</a> · <a href="36-system-design-interviews.html">פרק 36: תכנון מערכות בראיון ומאגר השאלות →</a></nav>
 <main class="book">
 <div class="toc"><span class="toctitle">תוכן הפרק</span><ul>
 <li><a href="#_1">מה נלמד בפרק</a></li>
@@ -128,7 +128,7 @@
 <tbody>
 <tr>
 <td>הבהרה</td>
-<td>שואלים על הדרישות, על הקנה מידה, על מה שקורה בקצוות; כותבים את התשובות כהערה</td>
+<td>שואלים על הדרישות, על קנה המידה, על מה שקורה בקצוות; כותבים את התשובות כהערה</td>
 <td>5</td>
 </tr>
 <tr>
@@ -237,6 +237,15 @@ type Decision struct {
     Allowed    bool
     RetryAfter time.Duration // when refused: how long until one token has accrued
 }
+
+// Limiter gives every key its own bucket of burst tokens that refills at rate tokens per
+// second. It must be safe for concurrent use.
+type Limiter struct {
+    // TODO: your fields. Hint: what does one bucket need to remember between calls?
+}
+
+// ErrConfig is returned by New for a rate or burst that cannot work.
+var ErrConfig = errors.New(&quot;ratelimit: rate must be &gt; 0 and burst &gt;= 1&quot;)
 
 // New returns a limiter. now is the clock: time.Now in production, a fake in tests.
 func New(rate float64, burst int, now func() time.Time) (*Limiter, error) {
@@ -372,7 +381,7 @@ func (l *Limiter) refill(b *bucket, now time.Time) {
 <td>כל אחד נותן את המגבלה, וביחד פי שלושה. מגבלה משותפת צריכה מאגר משותף, למשל סקריפט Lua ב־Redis, כמו בפרק 16</td>
 </tr>
 <tr>
-<td>ומה אם Redis למטה?</td>
+<td>ומה אם Redis לא זמין?</td>
 <td>החלטה מתועדת: לפתוח (לאפשר) עם מדד והתראה, או לסגור. ב־Hookline המגביל נפתח, ראי פרק 37</td>
 </tr>
 </tbody>
@@ -579,7 +588,7 @@ func (s *Scheduler) startDue(ctx context.Context, wg *sync.WaitGroup) clock.Time
 <tbody>
 <tr>
 <td>למה מיון בכל התעוררות?</td>
-<td>‏O(n log n) לכל שינוי, וזה בסדר לאלפי משימות. ערימה (<code>container/heap</code>) הופכת את זה ל־O(log n), במחיר קוד מסובך יותר</td>
+<td>‏O(n log n) לכל התעוררות, וזה בסדר לאלפי משימות. ערימה (<code>container/heap</code>) הופכת את זה ל־O(log n), במחיר קוד מסובך יותר</td>
 </tr>
 <tr>
 <td>מה משמעות השהיה?</td>
@@ -1037,7 +1046,7 @@ CREATE TABLE IF NOT EXISTS bookings (
 <td>נכון, אבל צריך לנסות שוב טרנזקציות שנכשלו, והשגיאות פחות ספציפיות (פרק 11)</td>
 </tr>
 <tr>
-<td>נעילה מייעצת</td>
+<td>advisory lock</td>
 <td><code>pg_advisory_xact_lock</code> על גיבוב של המשאב</td>
 <td>עובדת בין תהליכים, ושוב תלויה בכך שכל קוד זוכר (פרק 18)</td>
 </tr>
@@ -1049,9 +1058,9 @@ CREATE TABLE IF NOT EXISTS bookings (
 </tbody>
 </table>
 <blockquote>
-<p><strong>איך Rust עושה את זה:</strong> הצורה של המאגר בזיכרון הייתה <code>Mutex&lt;HashMap&lt;String, Arc&lt;Mutex&lt;Vec&lt;Booking&gt;&gt;&gt;&gt;&gt;</code>,
-והקומפיילר היה מכריח אותך לשחרר את הנעילה החיצונית לפני שאת מחזיקה את הפנימית לאורך זמן. ב־Go אותו מבנה כתוב
-בשני שדות <code>sync.Mutex</code>, וסדר הנעילות הוא משמעת שלך, לא של הקומפיילר.</p>
+<p><strong>איך Rust עושה את זה:</strong> הצורה של המאגר בזיכרון הייתה <code>Mutex&lt;HashMap&lt;String, Arc&lt;Mutex&lt;Vec&lt;Booking&gt;&gt;&gt;&gt;&gt;</code>.
+הקומפיילר מבטיח שאי אפשר לגעת ברשימת ההזמנות בלי להחזיק את הנעילה שלה, אבל גם הוא לא אוכף סדר נעילות.
+ב־Go אותו מבנה כתוב בשני שדות <code>sync.Mutex</code>, בלי אף אחת מההבטחות, וסדר הנעילות הוא משמעת שלך בשתי השפות.</p>
 </blockquote>
 <h3 id="3565-postgresql">35.6.5 להריץ את הגרסה של PostgreSQL</h3>
 <p>הבדיקות של PostgreSQL קוראות את <code>DATABASE_URL</code>, ומדלגות כשהוא לא מוגדר. כדי להריץ אותן, מפעילים את המסד של הפרק
@@ -1088,7 +1097,7 @@ docker compose -p ch35 -f data/compose.yaml down -v
 <tbody>
 <tr>
 <td><code>data/review-drill-pr.md</code></td>
-<td>התיאור של ה־PR, כפי שהכותב שלח אותו</td>
+<td>התיאור של ה־PR, כפי שמגיש ה־PR שלח אותו</td>
 </tr>
 <tr>
 <td><code>data/review-drill.diff</code></td>
@@ -1108,7 +1117,7 @@ docker compose -p ch35 -f data/compose.yaml down -v
 <ol>
 <li>קראי את התיאור. רשמי מה ה־PR טוען שהוא עושה, ומה צריך להיות נכון כדי שזה יהיה נכון.</li>
 <li>סדרי את הקבצים לפי סיכון לפני שאת קוראת שורה: מה משנה מתי השולח חושב שסיימנו? מה מצב משותף?</li>
-<li>קראי לפי הסדר הזה. לכל בעיה: קובץ ושורה, חומרה, ומה היית כותבת לכותב, כולל כיוון לתיקון.</li>
+<li>קראי לפי הסדר הזה. לכל בעיה: קובץ ושורה, חומרה, ומה היית כותבת למגיש, כולל כיוון לתיקון.</li>
 <li>סמני חומרה בחמש דרגות: חוסם, כדאי לתקן, שאלה, הערה קטנה, מחמאה. לפחות מחמאה אחת אמיתית.</li>
 <li>כתבי החלטה ומשפט סיכום.</li>
 <li>שמרי את הקובץ ועשי commit. רק אז פתחי את המפתח.</li>
@@ -1120,7 +1129,7 @@ docker compose -p ch35 -f data/compose.yaml down -v
 <li>האם כל הערה חוסמת שלך אומרת למה זה חשוב, ומציעה כיוון?</li>
 <li>מה החמצת, ומה היה צריך לגרום לך להסתכל שם?</li>
 </ul>
-<p>בסוף המפתח יש טבלה שמראה מה כלים היו תופסים לבד. התשובה, כשהרצנו אותם על השינוי: כמעט כלום. זה בדיוק הטיעון
+<p>בסוף המפתח יש טבלה שמראה מה כלים היו תופסים לבד. בהרצה שבה נכתב הספר, התשובה הייתה: כמעט כלום. זה בדיוק הטיעון
 בעד סבב כזה.</p>
 <h2 id="_3">סיכום</h2>
 <ul>
@@ -1329,7 +1338,7 @@ PostgreSQL בתרגיל ההזמנה; ולכתוב סקירה של PR שבור �
   שמופיע ברשימת המקורות של מחקר השוק, הוא נקודת פתיחה.</li>
 </ul>
 </main>
-<nav class="bottom"><a href="index.html">תוכן העניינים</a> · <a href="34-senior-interview-loop.html">← פרק 34: תהליך הגיוס הבכיר</a> · <a href="37-hookline-spec.html">פרק 37: Hookline: מפרט וארכיטקטורה →</a></nav>
+<nav class="bottom"><a href="index.html">תוכן העניינים</a> · <a href="34-senior-interview-loop.html">← פרק 34: תהליך הגיוס הבכיר</a> · <a href="36-system-design-interviews.html">פרק 36: תכנון מערכות בראיון ומאגר השאלות →</a></nav>
 <script type="module">
   // Render ```mermaid blocks in the browser (needs internet once; cached afterwards).
   const blocks = document.querySelectorAll("pre > code.language-mermaid");

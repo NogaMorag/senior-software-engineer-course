@@ -108,8 +108,8 @@
 כמו <code>healthz</code> ולא מרשה להם להיות קוד מקוצר. שתי תבניות שאף אחת מהן אינה ספציפית יותר מהשנייה נחשבות
 התנגשות, והרישום שלהן זורק panic כבר בעלייה.</p>
 <p>כשאין התאמה, הנתב עונה בעצמו: 404 כשהנתיב לא קיים, ו־405 עם כותרת <code>Allow</code> כשהנתיב קיים אבל המתודה לא.
-בקשה <code>GET /v1/links</code> מקבלת <code>405</code> עם <code>Allow: POST</code>. אחרי ההתאמה, הנתב שומר את התבנית שנבחרה בשדה
-<code>r.Pattern</code>, ולוג הגישה של סעיף 6.4 רושם אותה.</p>
+למשל, בקשת <code>GET</code> לנתיב <code>/v1/links</code> מקבלת 405, והכותרת <code>Allow</code> שלה היא <code>POST</code>.
+אחרי ההתאמה, הנתב שומר את התבנית שנבחרה בשדה <code>r.Pattern</code>, ולוג הגישה של סעיף 6.4 רושם אותה.</p>
 <blockquote>
 <p><strong>איך Rust עושה את זה:</strong> ב־axum, ה־<code>Router</code> ממפה נתיב ומתודה ל־handler, ו־extractors מפרקים את הבקשה
 לפי הטיפוסים בחתימה של הפונקציה. ב־Go החתימה תמיד אותה חתימה, ואת מוציאה בעצמך את <code>PathValue</code> ומפענחת את
@@ -159,7 +159,7 @@ func Chain(h http.Handler, mws ...Middleware) http.Handler {
 
 </div>
 
-<p>הבדיקה <code>validRequestID</code> מקבלת רק אותיות, ספרות ושלושה סימנים, עד 64 תווים, כי מזהה מבחוץ נכתב ללוג, ומזהה
+<p>הבדיקה <code>validRequestID</code> מקבלת רק אותיות לטיניות, ספרות ושלושה סימנים (נקודה, קו תחתון ומקף), עד 64 תווים, כי מזהה מבחוץ נכתב ללוג, ומזהה
 עם ירידת שורה הוא דרך לזייף שורות. המזהה עובר הלאה ב־context, עם מפתח מטיפוס פרטי.</p>
 <p>השכבה הפנימית, ההתאוששות, תופסת panic של handler. בלעדיה <code>net/http</code> אמנם לא קורס, אבל הוא סוגר את החיבור,
 והלקוח מקבל ניתוק במקום תשובה (הקובץ <code>internal/platform/middleware.go</code>):</p>
@@ -360,8 +360,8 @@ SHORTY_BASE_URL: &quot;localhost&quot; is not an absolute http or https URL
 </div>
 
 <p>המחיר: צריך לרשום עם הגרסאות שמקבלות context, <code>InfoContext</code> ו־<code>ErrorContext</code> ודומיהן. שורה שנכתבה עם
-<code>Info</code> רגיל תצא בלי מזהה, ויש בדיקה שתופסת את זה. כך נראות שתי שורות של בקשה אחת מתוך ריצה אמיתית
-(המספרים אצלך יהיו אחרים):</p>
+<code>Info</code> רגיל תצא בלי מזהה, ויש בדיקה שתופסת את זה. כך נראות שתי שורות של בקשה אחת בהרצה שבה נכתב הספר
+(המספרים והמזהה אצלך יהיו אחרים):</p>
 <div dir="ltr" align="left">
 
 
@@ -465,7 +465,7 @@ Ctrl-C שני הורג את התהליך מיד, בלי לחכות לתום זמ
 </tr>
 </tbody>
 </table>
-<p>ושני דברים שהשרת צריך עוד לפני שמכבים אותו, בפונקציה <code>NewServer</code> באותו קובץ: זמנים קצובים.
+<p>ועוד דבר שהשרת צריך, עוד לפני שמכבים אותו: זמנים קצובים, בפונקציה <code>NewServer</code> באותו קובץ.
 ל־<code>http.Server</code> ריק אין אף אחד, ולכן לקוח איטי אחד יכול להחזיק חיבור לנצח:</p>
 <div dir="ltr" align="left">
 
@@ -479,8 +479,8 @@ IdleTimeout:       60 * time.Second, // keep-alive connections between requests
 
 </div>
 
-<p>ל־<code>shorty</code> יש שני שרתים, הציבורי והפרטי של pprof (סעיף 6.8), והפונקציה <code>Run</code> (הקובץ
-<code>internal/app/app.go</code>) מריצה אותם ב־<code>errgroup</code>. כשאחד נכשל, ה־context המשותף מתבטל, והשני נכבה בצורה
+<p>ל־<code>shorty</code> יש שני שרתים, הציבורי והפרטי של pprof (סעיף 6.8). הפונקציה <code>Run</code> מריצה את שניהם
+ב־<code>errgroup</code> (הקובץ <code>internal/app/app.go</code>). כשאחד נכשל, ה־context המשותף מתבטל, והשני נכבה בצורה
 מסודרת:</p>
 <div dir="ltr" align="left">
 
@@ -554,17 +554,15 @@ if r := &lt;-got; r.err != nil || r.body != &quot;finished&quot; {
 שבדרך מקבלת תשובה מלאה. בדיקה שנייה מראה ש־handler שלא משתחרר גורם ל־<code>Serve</code> להחזיר
 <code>context.DeadlineExceeded</code> עטופה אחרי זמן החסד. את הסדר קובעים ה־channels <code>started</code> ו־<code>release</code>, לא
 <code>time.Sleep</code>.</p>
-<p>כלל אחרון לבדיקות שירות: לוגר שלא צריך לבדוק אותו, <code>slog.New(slog.DiscardHandler)</code>, כדי שהפלט של הבדיקות
-יישאר קריא. וכמו בפרק 5, הכול רץ עם <code>-race</code>.</p>
+<p>כלל אחרון לבדיקות שירות: בבדיקה שלא בודקת את הלוגים, הלוגר הוא <code>slog.New(slog.DiscardHandler)</code>, כדי שהפלט של
+הבדיקות יישאר קריא. וכמו בפרק 5, הכול רץ עם <code>-race</code>.</p>
 <h2 id="67-makefile">6.7 מבנה פרויקט ו־Makefile</h2>
 <p>למבנה של מודול Go יש שתי מוסכמות שהכלים עצמם מכבדים:</p>
 <ul>
 <li><strong>התיקייה <code>cmd/&lt;name&gt;/</code></strong> לכל תוכנית: חבילת <code>main</code> קטנה, שקוראת תצורה ומחברת חלקים. ב־<code>shorty</code> יש
-  שתיים,
-  <code>shorty</code> עצמו ו־<code>loadgen</code> לסעיף 6.8.</li>
+  שתיים, <code>shorty</code> עצמו ו־<code>loadgen</code> לסעיף 6.8.</li>
 <li><strong>התיקייה <code>internal/</code></strong> לכל השאר. חבילה תחת <code>internal</code> אפשר לייבא רק מתוך העץ שמעליה; הקומפיילר אוכף את
-  זה. כך
-  את מחליטה מה ה־API הציבורי של המודול (כאן: כלום), ויכולה לשנות את כל השאר בחופשיות.</li>
+  זה. כך את מחליטה מה ה־API הציבורי של המודול (כאן: כלום), ויכולה לשנות את כל השאר בחופשיות.</li>
 </ul>
 <table>
 <thead>
@@ -620,8 +618,8 @@ lint:
 והפקודה <code>gofmt -l</code> רק מדפיסה קבצים שצריך לפרמט, בלי להיכשל, ולכן ה־Makefile בודק אם הפלט ריק.</p>
 <h2 id="68-pprof">6.8 pprof: פרופיל ראשון</h2>
 <p>הכלי pprof (הפרופיילר של Go, וגם שם הפורמט שלו) עונה על השאלה „על מה התהליך מבזבז זמן או זיכרון?” מתוך
-תהליך שרץ. החבילה <code>net/http/pprof</code> חושפת אותו ב־HTTP, ו־<code>shorty</code> מגיש אותה <strong>על מאזין נפרד, שקשור
-ל־<code>127.0.0.1</code></strong> (הקובץ <code>internal/platform/debug.go</code>):</p>
+תהליך שרץ. החבילה <code>net/http/pprof</code> חושפת אותו ב־HTTP. השירות מגיש אותה <strong>על מאזין נפרד, שקשור
+לכתובת המקומית <code>127.0.0.1</code></strong> (הקובץ <code>internal/platform/debug.go</code>):</p>
 <div dir="ltr" align="left">
 
 
@@ -710,8 +708,18 @@ go run ./cmd/loadgen -url http://localhost:8080/gohome -c 8 -d 20s
 יש קוד של <code>shorty</code>, או של הספרייה הסטנדרטית ומערכת ההפעלה? אם רוב הזמן בקריאות מערכת, זה רמז שהעבודה
 נשלטת על ידי כתיבה לרשת וללוג, ולא על ידי החישוב. אל תניחי מראש מה תמצאי: מה שהפרופיל שלך מראה הוא
 התשובה.</p>
-<p>הפרופיל נשמר כקובץ בתיקייה <code>~/pprof</code>, ואפשר לפתוח אותו בממשק דפדפן עם <code>go tool pprof -http=:8081</code> ושם
-הקובץ; שם יש גם תצוגת flame graph. ושני פרופילים נוספים שימושיים מיד: <code>heap</code> לזיכרון שבשימוש,
+<p>הפרופיל נשמר כקובץ בתיקייה <code>~/pprof</code>, ואפשר לפתוח אותו בממשק דפדפן, שבו יש גם תצוגת flame graph. במקום
+שם הקובץ כתבי את הנתיב שהפקודה הקודמת הדפיסה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">go tool pprof -http=:8081 ~/pprof/&lt;the-file-it-saved&gt;.pb.gz
+</code></pre>
+
+
+</div>
+
+<p>ושני פרופילים נוספים שימושיים מיד: <code>heap</code> לזיכרון שבשימוש,
 ו־<code>goroutine?debug=1</code> למחסניות של כל ה־goroutines, הכלי הראשון כשחושדים בדליפה (סעיף 5.9).</p>
 <h2 id="69">6.9 בנצ'מרקים</h2>
 <p>בנצ'מרק (benchmark) ב־Go הוא פונקציה בקובץ בדיקה, שהשם שלה מתחיל ב־<code>Benchmark</code> והיא מקבלת <code>*testing.B</code>.
@@ -786,8 +794,9 @@ for b.Loop() {
 <li><strong>ממשק:</strong> יצירה, פענוח וסטטיסטיקה עובדים ב־<code>curl</code>, ו־<code>GET /v1/links</code> מחזיר 405.</li>
 <li><strong>לוגים:</strong> כל שורה של בקשה נושאת את אותו <code>request_id</code>, וזה גם הערך בכותרת <code>X-Request-ID</code> של התשובה.</li>
 <li><strong>התאוששות:</strong> handler שזורק panic מחזיר 500, והשירות ממשיך לשרת.</li>
-<li><strong>כיבוי:</strong> Ctrl-C מסיים את הלוג ב־<code>shutting down</code> ואז <code>stopped</code>, ובדיקת הכיבוי מראה שבקשה שבדרך מסיימת.</li>
-<li><strong>מדידה:</strong> <code>make lint test build</code> ירוק, הבנצ'מרק רץ, ופרופיל CPU נשמר.</li>
+<li><strong>כיבוי:</strong> אחרי Ctrl-C, שתי השורות האחרונות בלוג הן <code>shutting down</code> ו־<code>stopped</code>, ובדיקת הכיבוי מראה שבקשה
+  שבדרך מסיימת.</li>
+<li><strong>מדידה:</strong> יעדי הבדיקה, ה־lint והבנייה של ה־Makefile ירוקים, הבנצ'מרק רץ, ופרופיל CPU נשמר.</li>
 <li><strong>בעל פה:</strong> את עונה בקול על שאלות הראיון של פרקים 3 עד 6.</li>
 </ul>
 <p>כל דבר שנכשל נרשם ביומן התקיעות עם התיקון שלו. ולסיום, השאלה שמראיינים אוהבים: תארי בשתי דקות את חייה של
@@ -897,10 +906,9 @@ for b.Loop() {
 <ul>
 <li><strong>שרת <code>http.Server</code> בלי זמנים קצובים.</strong> לקוח איטי אחד מחזיק חיבור לנצח. תמיד <code>ReadHeaderTimeout</code> לפחות.</li>
 <li><strong>להפעיל <code>ListenAndServe</code> בלי כיבוי מסודר.</strong> <code>SIGTERM</code> קוטע בקשות באמצע. אות הופך ל־context,
-  ו־<code>Shutdown</code> עם
-  זמן חסד.</li>
-<li><strong>לקרוא ל־<code>Shutdown</code> עם ה־context שכבר בוטל.</strong> החזרה מיידית, והבקשות שבדרך נקטעות. זמן החסד צריך
-  context חדש.</li>
+  ו־<code>Shutdown</code> עם זמן חסד.</li>
+<li><strong>לקרוא ל־<code>Shutdown</code> עם ה־context שכבר בוטל.</strong> היא חוזרת מיד עם שגיאה, והתהליך יוצא בזמן שבקשות עוד
+  באמצע. זמן החסד צריך context חדש.</li>
 <li><strong>לפענח עם <code>json.NewDecoder(r.Body)</code> בלי גבול.</strong> גוף של גיגה־בית נקרא כולו לזיכרון. קודם
   <code>http.MaxBytesReader</code>.</li>
 <li><strong>להגיש pprof על הפורט הציבורי.</strong> הייבוא לבדו רושם נתיבים על <code>DefaultServeMux</code>; מגישים אותו רק על מאזין
@@ -924,7 +932,8 @@ for b.Loop() {
 <p><strong>איך תבני middleware לשירות, ובאיזה סדר?</strong>
    פונקציה שמקבלת <code>Handler</code> ומחזירה <code>Handler</code>, ושרשרת שבה הראשונה היא החיצונית. מזהה בקשה בחוץ, כדי שכל
    מה שאחריו יכתוב אותו; לוג גישה וזמן אחריו; התאוששות מ־panic בפנים, כדי שלוג הגישה יראה את ה־500.
-   לטיפוס שעוטף את ה־<code>ResponseWriter</code> יש <code>Unwrap</code>, אחרת <code>Flush</code> ו־deadlines נשברים. השיקול המרכזי הוא מה
+   לטיפוס שעוטף את ה־<code>ResponseWriter</code> יש מתודה <code>Unwrap</code>. בלעדיה, <code>http.ResponseController</code> לא מגיע לכותב
+   המקורי, ופעולות כמו ריקון החוצץ (flush) נכשלות. השיקול המרכזי הוא מה
    כל שכבה צריכה לראות.</p>
 </li>
 <li>
@@ -943,7 +952,7 @@ for b.Loop() {
 <p><strong>איך תמצאי למה שירות איטי בעומס?</strong>
    קודם מודדים, לא מנחשים. פרופיל CPU מ־pprof בזמן עומס מראה איפה הזמן הולך, <code>flat</code> מול <code>cum</code>. פרופיל
    heap ו־<code>allocs</code> מראים לחץ זיכרון, ופרופיל goroutine מראה מה מחכה. אחר כך בנצ'מרק לנתיב החם, עם
-   <code>-benchmem</code>, כדי לתקן ולהוכיח שיפור על אותה מכונה, בכמה ריצות. pprof רק על מאזין פרטי.</p>
+   <code>-benchmem</code>, כדי לתקן ולהוכיח שיפור על אותה מכונה, בכמה ריצות. ואת pprof מגישים רק על מאזין פרטי.</p>
 </li>
 </ol>
 <h2 id="obsidian">פתק Obsidian</h2>
@@ -994,7 +1003,8 @@ my profile top function: ___
 <li>קוד מקוצר נוצר ומפוענח בבקשה ידנית, ותצורה חסרה או שגויה עוצרת את העלייה עם הודעה ברורה.</li>
 <li>לכל שורות הלוג של בקשה יש אותו מזהה; בקשה שבדרך מסיימת בזמן כיבוי; handler שזורק panic מחזיר 500
   והשירות ממשיך.</li>
-<li>היעדים <code>make lint</code>, <code>make test</code> ו־<code>make build</code> ירוקים, ו־<code>/debug/pprof</code> לא קיים על הפורט הציבורי.</li>
+<li>שלושת יעדי ה־Makefile ירוקים: <code>lint</code>, <code>test</code> ו־<code>build</code>.</li>
+<li>הנתיב <code>/debug/pprof</code> לא קיים על הפורט הציבורי.</li>
 <li>פרופיל CPU נשמר והפונקציה העליונה שלו רשומה בפתק; תוצאת הבנצ'מרק רשומה עם המכונה.</li>
 <li>כל רשימת נקודת הביקורת של סעיף 6.10 עובדת בלי להסתכל בפתרונות.</li>
 </ul>
@@ -1005,9 +1015,10 @@ my profile top function: ___
 <li>המדריך „A Guide to Writing slog Handlers” במאגר הדוגמאות של Go מראה איך כותבים handler נכון, כולל
   טיפול בקבוצות, שה־handler של <code>shorty</code> עושה בפשטות.</li>
 <li>הכלי <code>benchstat</code> (<code>golang.org/x/perf/cmd/benchstat</code>) משווה שתי סדרות של ריצות בנצ'מרק ואומר אם ההבדל
-  מובהק. נסי: שנו את ה־<code>RWMutex</code> ב־<code>MemoryStore</code> ל־<code>Mutex</code> רגיל, ומדדי.</li>
-<li>פרופיל <code>mutex</code> ו־<code>block</code> צריכים הפעלה מפורשת (<code>runtime.SetMutexProfileFraction</code>). הוסיפי אותה מאחורי
-  משתנה סביבה, ובדקי אם יש תחרות על הנעילה תחת עומס.</li>
+  מובהק. נסי: שני את ה־<code>RWMutex</code> של המאגר בזיכרון ל־<code>Mutex</code> רגיל, ומדדי.</li>
+<li>הפרופילים של נעילות וחסימות כבויים כברירת מחדל, ומפעילים אותם בקוד, למשל עם
+  <code>runtime.SetMutexProfileFraction</code>. הוסיפי הפעלה כזאת מאחורי משתנה סביבה, ובדקי אם יש תחרות על הנעילה תחת
+  עומס.</li>
 </ul>
 </main>
 <nav class="bottom"><a href="index.html">תוכן העניינים</a> · <a href="05-go-concurrency.html">← פרק 5: מקביליות ב־Go</a> · <a href="07-python-typed-packaged.html">פרק 7: Python עם טיפוסים, אריזה ובדיקות →</a></nav>

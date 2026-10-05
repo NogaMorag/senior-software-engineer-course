@@ -165,7 +165,7 @@
 </tr>
 <tr>
 <td>כלי Go</td>
-<td>ניתוח סטטי, מיגרציות, protobuf, סריקת חולשות, בדיקת workflows</td>
+<td>ניתוח סטטי ובודקי קוד, מיגרציות, protobuf, סריקת חולשות, בדיקת workflows</td>
 <td>התיקייה <code>~/.local/bin</code></td>
 <td>יום 0</td>
 </tr>
@@ -192,7 +192,8 @@
   להסיר, ושום דבר לא נוגע במערכת.</li>
 </ul>
 <p>לכל כלי בפרק יש אותו מבנה, כדי שתדעי מה לחפש: מה ולמה, איפה, גרסה (עם הפניה לנספח ג), פקודות התקנה, פלט
-צפוי, בדיקה, הפעלה מחדש, הסרה, וטבלת תקלות קצרה. התקלות שחוצות כלים מרוכזות בסעיף 2.11.</p>
+צפוי, בדיקה, הפעלה מחדש, הסרה, וטבלת תקלות קצרה. התקלות שחוצות כלים מרוכזות בסעיף 2.11, וכל הטבלאות
+מרוכזות שוב בנספח ב.</p>
 <blockquote>
 <p><strong>מונח:</strong> משתנה הסביבה <code>PATH</code> הוא רשימת תיקיות, מופרדות בנקודתיים, שבהן המעטפת מחפשת פקודה כשאת מקלידה
 את שמה. „התקנה” של כלי שורת פקודה היא בדרך כלל רק העתקת קובץ הרצה לתיקייה שנמצאת ב־<code>PATH</code>. זו הסיבה
@@ -225,9 +226,13 @@
 </tr>
 </tbody>
 </table>
-<p><strong>לפני ההתקנה.</strong> צריך מחשב עם Windows 11 (או גרסה 22H2 של Windows 10), ווירטואליזציה מופעלת בהגדרות הקושחה.
-כדי לבדוק, פתחי את מנהל המשימות, עברי ללשונית הביצועים ובחרי CPU: בשורה Virtualization צריך להופיע
-Enabled. אם כתוב Disabled, צריך להפעיל אותה בהגדרות הקושחה של המחשב (השם משתנה בין יצרנים).</p>
+<p><strong>לפני ההתקנה.</strong> צריך שני דברים:</p>
+<ul>
+<li><strong>מערכת הפעלה:</strong> Windows 11, או Windows 10 בגרסה 22H2.</li>
+<li><strong>וירטואליזציה מופעלת בהגדרות הקושחה.</strong> כדי לבדוק, פתחי את מנהל המשימות ועברי ללשונית הביצועים. בחרי
+  את המעבד, ומצאי את השורה <code>Virtualization</code>: צריך להופיע בה <code>Enabled</code>. אם כתוב <code>Disabled</code>, מפעילים אותה
+  בהגדרות הקושחה של המחשב (השם משתנה בין יצרנים).</li>
+</ul>
 <p><strong>התקנה.</strong> זו אחת הפקודות הבודדות בספר שרצות ב־Windows עצמו, ב־PowerShell עם הרשאות מנהלת. פותחים אותו
 מהתפריט של לחיצה ימנית על סמל הטרמינל:</p>
 <div dir="ltr" align="left">
@@ -334,7 +339,7 @@ wsl --terminate Ubuntu
 </div>
 
 <p><strong>גיבוי והסרה.</strong> הפקודה <code>--unregister</code> מוחקת את ההפצה וכל מה שבתוכה, בלי דרך חזרה. לכן מגבים קודם לקובץ
-אחד, ואפשר לשחזר ממנו בפקודה <code>wsl --import</code>. ב־PowerShell:</p>
+אחד, שאפשר לשחזר ממנו בפקודת הייבוא (<code>--import</code>). ב־PowerShell:</p>
 <div dir="ltr" align="left">
 
 
@@ -496,9 +501,12 @@ wsl --unregister Ubuntu
 </tr>
 </tbody>
 </table>
-<p><strong>התיקייה של הכלים, ב־<code>PATH</code>.</strong> כל הכלים של הקורס נכנסים לשתי תיקיות בבית שלך: התיקייה <code>~/.local/go/bin</code>
-ל־Go, והתיקייה <code>~/.local/bin</code> לכל השאר. הפקודות האלה יוצרות את השנייה ומוסיפות את שתיהן לתחילת ה־<code>PATH</code>,
-בקובץ ההגדרות של bash:</p>
+<p><strong>התיקייה של הכלים, ב־<code>PATH</code>.</strong> כל הכלים של הקורס נכנסים לשתי תיקיות בבית שלך:</p>
+<ul>
+<li><strong>ל־Go עצמה:</strong> <code>~/.local/go/bin</code></li>
+<li><strong>לכל השאר:</strong> <code>~/.local/bin</code></li>
+</ul>
+<p>הפקודות האלה יוצרות את השנייה ומוסיפות את שתיהן לתחילת ה־<code>PATH</code>, בקובץ ההגדרות של bash:</p>
 <div dir="ltr" align="left">
 
 
@@ -529,8 +537,8 @@ echo &quot;$PATH&quot; | tr ':' '\n' | head -2
 מוקדם ב־<code>PATH</code> מנצחת, ולכן גרסה שהתקנת בבית תנצח גרסה ישנה של המערכת. הריצי את בלוק הפקודות פעם אחת
 בלבד; הרצה שנייה תוסיף שורה כפולה (לא מזיק, אבל מבלבל).</p>
 <p><strong>עברית בטרמינל.</strong> הטרמינל מציג אותיות עבריות, אבל ייתכן שמשפט שלם יופיע בסדר הפוך. זו בעיית תצוגה בלבד:
-הקובץ עצמו תקין, ו־VS Code יציג אותו נכון. הקידוד צריך להיות UTF-8; הפקודה <code>locale</code> תראה לך, והשורה
-הראשונה שלה צריכה להסתיים ב־<code>UTF-8</code>.</p>
+הקובץ עצמו תקין, ו־VS Code יציג אותו נכון. הקידוד צריך להיות UTF-8. כדי לבדוק, הריצי <code>locale</code>: השורה
+הראשונה בפלט צריכה להסתיים ב־<code>UTF-8</code>.</p>
 <p><strong>הפעלה מחדש והסרה.</strong> הפקודה <code>exec bash</code> מחליפה את המעטפת הנוכחית במעטפת טרייה, כמו לשונית חדשה. אין מה
 להסיר: הטרמינל מובנה. כדי לבטל את שינוי ה־<code>PATH</code>, מוחקים את שלוש השורות שהוספת בסוף <code>~/.bashrc</code>.</p>
 <table>
@@ -707,8 +715,9 @@ Docker Desktop
 
 <p>מה שחשוב: יש גם חלק Client וגם חלק Server. חלק Server מוכיח שהפקודה ב־Ubuntu מדברת עם המנוע. את הקונטיינר
 הראשון נריץ רק ביום 3, בסעיף 2.9.</p>
-<p><strong>הפעלה מחדש.</strong> בתפריט של הסמל שלו, באזור ההודעות, בוחרים Restart. אם המנוע לא מגיב: יוצאים מהאפליקציה,
-מריצים את הפקודה שמתחת ב־PowerShell, ומפעילים אותה שוב. כשלא צריך אותה, אפשר לצאת ממנה לגמרי ולפנות זיכרון.</p>
+<p><strong>הפעלה מחדש.</strong> בתפריט של הסמל שלו, באזור ההודעות, בוחרים Restart. אם המנוע לא מגיב: יוצאים מ־Docker
+Desktop, מריצים את הפקודה שמתחת ב־PowerShell, ומפעילים אותו שוב. כשלא צריך אותו, אפשר לצאת ממנו לגמרי
+ולפנות זיכרון.</p>
 <div dir="ltr" align="left">
 
 
@@ -851,14 +860,14 @@ cat ~/.ssh/id_ed25519.pub
 
 </div>
 
-<p>לשאלה על מיקום הקובץ לוחצים Enter (ברירת המחדל). לשאלה על ססמת מפתח (passphrase) מומלץ לבחור אחת: היא
+<p>לשאלה על מיקום הקובץ לוחצים Enter (ברירת המחדל). לשאלה על סיסמת מפתח (passphrase) מומלץ לבחור אחת: היא
 מגינה על המפתח אם הקובץ דולף. הפקודה השנייה מדפיסה שורה אחת שמתחילה ב־<code>ssh-ed25519</code>. העתיקי אותה, ואז:</p>
 <ol>
 <li>ב־GitHub, פתחי את ההגדרות של החשבון.</li>
 <li>בעמוד <code>SSH and GPG keys</code>, לחצי על <code>New SSH key</code>.</li>
 <li>הדביקי את השורה, תני למפתח שם (למשל שם המחשב), ושמרי.</li>
 </ol>
-<p>כדי לא להקליד את ססמת המפתח בכל פעם, נשתמש בכלי <code>keychain</code>, שמחזיק את המפתח פתוח בזיכרון בין לשוניות:</p>
+<p>כדי לא להקליד את סיסמת המפתח בכל פעם, נשתמש בכלי <code>keychain</code>, שמחזיק את המפתח פתוח בזיכרון בין לשוניות:</p>
 <div dir="ltr" align="left">
 
 
@@ -894,7 +903,7 @@ ssh -T git@github.com
 
 <p>קוד היציאה של הפקודה הזאת הוא 1 גם כשהכול תקין, כי GitHub לא נותן מעטפת. המשפט הוא ההוכחה.</p>
 <p><strong>החלפה והסרה.</strong> אם מפתח דלף או שאת מחליפה מחשב: מוחקים אותו בעמוד המפתחות ב־GitHub (זה מה שמבטל אותו
-באמת), מוחקים את שני הקבצים, ויוצרים זוג חדש. Git עצמו יוצא בפקודה הראשונה:</p>
+באמת), מוחקים את שני הקבצים, ויוצרים זוג חדש. את Git עצמו מסירה הפקודה הראשונה:</p>
 <div dir="ltr" align="left">
 
 
@@ -1167,7 +1176,12 @@ go version go1.27.1 linux/amd64
 <tr>
 <td>govulncheck</td>
 <td>סריקת חולשות ידועות בתלויות</td>
-<td>28</td>
+<td>27</td>
+</tr>
+<tr>
+<td>golangci-lint</td>
+<td>מריץ עשרות בודקי קוד בבת אחת; מותקן כקובץ מוכן, לא דרך <code>go install</code></td>
+<td>27</td>
 </tr>
 </tbody>
 </table>
@@ -1205,6 +1219,39 @@ Scanner: govulncheck@v1.8.0
 <p>כל פקודה לוקחת כמה עשרות שניות, כי היא מורידה ובונה. הגרסאות מוצמדות (נספח ג): <code>@latest</code> היה נותן כלי אחר בכל
 התקנה. שימי לב גם לפלט של govulncheck: השורה הראשונה היא גרסת Go, וגרסת הכלי מופיעה רק בשורה <code>Scanner</code>. הסקריפט
 <code>doctor.sh</code> יודע לקרוא אותה משם.</p>
+<p><strong>golangci-lint.</strong> הפרויקט ממליץ להתקין אותו מקובץ מוכן ולא לבנות מהמקור, ולכן הוא מגיע כמו הכלים של סעיף
+2.10: מורידים את הקובץ הדחוס ואת קובץ הטביעות מאותו פרסום, בודקים, ורק אז מתקינים. הפקודה <code>install -m 0755</code>
+מעתיקה את הקובץ ל־<code>~/.local/bin</code> ומסמנת אותו כקובץ הרצה:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">ARCH=$(dpkg --print-architecture)
+GL=golangci-lint-2.14.0-linux-${ARCH}
+cd /tmp
+curl -fsSLO &quot;https://github.com/golangci/golangci-lint/releases/download/v2.14.0/${GL}.tar.gz&quot;
+curl -fsSLO &quot;https://github.com/golangci/golangci-lint/releases/download/v2.14.0/golangci-lint-2.14.0-checksums.txt&quot;
+sha256sum -c --ignore-missing golangci-lint-2.14.0-checksums.txt
+tar -xzf &quot;${GL}.tar.gz&quot;
+install -m 0755 &quot;${GL}/golangci-lint&quot; ~/.local/bin/golangci-lint
+rm -rf &quot;${GL}&quot; &quot;${GL}.tar.gz&quot; golangci-lint-2.14.0-checksums.txt
+golangci-lint --version
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">golangci-lint-2.14.0-linux-amd64.tar.gz: OK
+golangci-lint has version 2.14.0 built with go1.27.0 from 114493f9 on 2026-09-24T11:07:15Z
+</code></pre>
+
+
+</div>
+
+<p>קובץ הטביעות מכיל שורה לכל קובץ בפרסום, והדגל <code>--ignore-missing</code> בודק רק את מה שהורד. הפלט הועתק מהרצה
+במחשב שעליו נכתב הספר: בדיקת הטביעה על הקובץ של <code>linux-amd64</code>, ושורת הגרסה מהקובץ המקביל של macOS.</p>
 <p>כלים אחרים שהספר משתמש בהם, כמו סורקי אימג'ים ובודק ה־OpenAPI, רצים כקונטיינרים בתוך הפרק שצריך אותם, ואין מה
 להתקין מראש.</p>
 <blockquote>
@@ -1214,7 +1261,16 @@ Scanner: govulncheck@v1.8.0
 כזה דורש גרסה חדשה ממה שמותקן, Go יודע להוריד אותה בעצמו (ההגדרה <code>GOTOOLCHAIN</code>). התרגילים בספר מצהירים
 על <code>go 1.27</code>, ולכן אצלך שום דבר לא יורד מעצמו.</p>
 </blockquote>
-<p><strong>הפעלה מחדש.</strong> אין שירות לעצור. אם משהו מוזר, <code>go clean -cache</code> מנקה את מטמון הבנייה.</p>
+<p><strong>הפעלה מחדש.</strong> אין שירות לעצור. אם משהו מוזר, ניקוי מטמון הבנייה הוא הצעד הראשון:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">go clean -cache
+</code></pre>
+
+
+</div>
+
 <p><strong>הסרה.</strong> קבצי מטמון המודולים מוגנים מכתיבה, ולכן <code>rm</code> רגיל נכשל עליהם. מנקים קודם עם Go עצמו, מבטלים את
 ההגדרה שכתבת, ורק אז מוחקים את Go ואת הכלים שהותקנו דרכו. אחר כך מוחקים את השורה של <code>~/.local/go/bin</code>
 מ־<code>~/.bashrc</code>:</p>
@@ -1225,6 +1281,7 @@ Scanner: govulncheck@v1.8.0
 go env -u GOBIN
 rm -rf ~/.local/go ~/go
 cd ~/.local/bin &amp;&amp; rm staticcheck goose buf protoc-gen-go protoc-gen-go-grpc govulncheck actionlint
+rm -rf ~/.local/bin/golangci-lint ~/.cache/golangci-lint
 </code></pre>
 
 
@@ -1332,12 +1389,12 @@ Installed Python 3.14.8 in 1.76s
 <code>python3</code>: היא שייכת למערכת ההפעלה, ואנחנו לא נוגעות בה. כל פרויקט בספר מצהיר על Python 3.14 בקובץ
 <code>pyproject.toml</code>, ו־uv בוחר אותה בעצמו.</p>
 <blockquote>
-<p><strong>טעות נפוצה:</strong> להריץ <code>pip install</code> „רק הפעם”. ב־Ubuntu החדשות זה ממילא נכשל בשגיאה
-<code>externally-managed-environment</code>, ובפרויקט זה עוקף את קובץ הנעילה. ההוספה הנכונה היא <code>uv add &lt;חבילה&gt;</code>,
-וההרצה היא <code>uv run &lt;פקודה&gt;</code>.</p>
+<p><strong>טעות נפוצה:</strong> להריץ pip „רק הפעם”. ב־Ubuntu החדשות זה ממילא נכשל בשגיאה
+<code>externally-managed-environment</code>, ובפרויקט זה עוקף את קובץ הנעילה. מוסיפים חבילה עם <code>uv add</code>, ומריצים
+עם <code>uv run</code>.</p>
 </blockquote>
-<p><strong>הפעלה מחדש ושדרוג.</strong> אין שירות. לשדרוג או לשנמוך לגרסה מוצמדת מריצים שוב את פקודת ההתקנה עם מספר הגרסה
-החדש.</p>
+<p><strong>הפעלה מחדש ושדרוג.</strong> אין שירות. כדי לעבור לגרסה מוצמדת אחרת, חדשה או ישנה, מריצים שוב את פקודת ההתקנה
+עם מספר הגרסה הרצוי.</p>
 <p><strong>הסרה.</strong> לפי התיעוד של uv: מנקים מטמון, מוחקים את גרסאות ה־Python ואת הכלים שהותקנו דרכו, ואז את שני
 קובצי ההרצה:</p>
 <div dir="ltr" align="left">
@@ -1520,10 +1577,11 @@ Go tools (go install, Day 0):
   ok    protoc-gen-go-grpc 1.6.2        (need &gt;= 1.6.2)
   ok    govulncheck        1.8.0        (need &gt;= 1.8.0)
   ok    actionlint         1.7.12       (need &gt;= 1.7.12)
+  ok    golangci-lint      2.14.0       (need &gt;= 2.14.0)
 Course folders:
   ok    COURSE             found        (/home/noga/senior-software-engineer-course)
   ok    senior-course      git-repo     (/home/noga/senior-course)
-doctor: 18 ok, 0 failed
+doctor: 19 ok, 0 failed
 doctor: the workbench is ready
 exit code: 0
 </code></pre>
@@ -1558,8 +1616,8 @@ version_ge() {
 
 </div>
 
-<p>למה לא להשוות מחרוזות? כי כמחרוזת, <code>2.10.0</code> קטנה מ־<code>2.3.0</code> (התו <code>1</code> קודם לתו <code>3</code>). הקידומת <code>10#</code> מכריחה
-קריאה בבסיס עשר, כדי ששדה כמו <code>08</code> לא ייקרא כמספר אוקטלי.</p>
+<p>למה לא להשוות מחרוזות? כי בהשוואת מחרוזות, הגרסה <code>2.10.0</code> קטנה מ־<code>2.3.0</code>: התו הראשון שונה הוא 1 מול 3.
+הקידומת <code>10#</code> מכריחה קריאה בבסיס עשר, כדי ששדה כמו <code>08</code> לא ייקרא כמספר אוקטלי.</p>
 <p>הפונקציה השנייה, <code>check_tool</code>, מקבלת שם, גרסה מינימלית, הפניה לסעיף, ואת פקודת הגרסה של הכלי. היא בודקת שהפקודה קיימת, מריצה אותה, שולפת את המספר הראשון בפלט, ומשווה.</p>
 <p>הסקריפט נכתב כך שירוץ גם ב־bash 3.2, הגרסה הישנה שמגיעה עם macOS, ולכן אין בו מערכים אסוציאטיביים
 ותחביר חדש אחר. לצידו נמצא <code>test_doctor.sh</code>, שמריץ אותו מול כלים מזויפים (סקריפטים קטנים שמדפיסים גרסה)
@@ -1786,15 +1844,15 @@ This message shows that your installation appears to be working correctly.
 <p>הפקודה מורידה אימג' (image) קטן מהמאגר הציבורי של Docker, יוצרת ממנו קונטיינר ומריצה אותו. הדגל <code>--rm</code>
 מוחק את הקונטיינר כשהוא מסיים. ההודעה המלאה מפרטת את ארבעת הצעדים האלה; קראי אותה, היא תשובה טובה לשאלה „מה
 Docker עושה כשאני מריצה קונטיינר”.</p>
-<p>ועכשיו ההתחייבות. לפני ה־<code>add</code>, ודאי שברשימה של <code>git status</code> אין <code>.venv</code> ואין קבצי בנייה; אם יש, קובץ
-ההחרגות לא הועתק:</p>
+<p>ועכשיו ההתחייבות. היא כוללת גם את התיקייה <code>ch01</code> מתרגיל פרק 1, אם עוד לא התחייבת עליה. הפקודה הראשונה למטה מציגה
+מה ייכנס. ודאי שאין ברשימה <code>.venv</code> ואין קבצי בנייה; אם יש, קובץ ההחרגות לא הועתק:</p>
 <div dir="ltr" align="left">
 
 
 <pre><code class="language-bash">cd ~/senior-course
 git status --short
 git add .
-git commit -m &quot;ch02: workbench, doctor and smoke tests&quot;
+git commit -m &quot;ch01-ch02: postings tally, workbench, doctor and smoke tests&quot;
 git log --oneline
 </code></pre>
 
@@ -1804,7 +1862,7 @@ git log --oneline
 <div dir="ltr" align="left">
 
 
-<pre><code class="language-text">2ac1ae6 ch02: workbench, doctor and smoke tests
+<pre><code class="language-text">2ac1ae6 ch01-ch02: postings tally, workbench, doctor and smoke tests
 </code></pre>
 
 
@@ -2209,12 +2267,68 @@ docker volume ls
 </tbody>
 </table>
 <p>כל הפקודות שמוחקות שואלות לפני כן. נפחים לא נמחקים באף אחת מהן, בכוונה: שם נמצאים הנתונים שלך. מחיקה של
-נפח היא פעולה מפורשת, דרך <code>down -v</code> של התרגיל או <code>docker volume rm &lt;שם&gt;</code>. אחרי ניקוי גדול ייתכן שקובץ הדיסק
-הווירטואלי ב־Windows לא יקטן מיד; נספח ב מסביר מה עושים.</p>
-<p><strong>הגבלת הזיכרון של WSL.</strong> כברירת מחדל WSL יכול לתפוס חלק גדול מהזיכרון של המחשב. אם המחשב נעשה איטי
-כשאשכול kind וכמה קונטיינרים רצים, אפשר להגביל. יוצרים ב־Windows קובץ טקסט בשם <code>.wslconfig</code>, עם התוכן שמתחת. מקומו בתיקייה
-שהמשתנה <code>%UserProfile%</code> מצביע עליה. אחרי השמירה מריצים <code>wsl --shutdown</code> ב־PowerShell, כדי שההגדרה תיקלט.
-המספרים הם נקודת פתיחה; התאימי למחשב שלך:</p>
+נפח היא פעולה מפורשת, בדגל <code>-v</code> של <code>down</code> בתרגיל, או בפקודה שמתחת:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">docker volume rm &lt;name&gt;
+</code></pre>
+
+
+</div>
+
+<p><strong>הדיסק הווירטואלי לא קטן מעצמו.</strong> כל הפצה של WSL שמורה בקובץ <code>ext4.vhdx</code> שגדל לפי הצורך. לפי התיעוד של
+Microsoft, קובץ כזה גדל כשמוסיפים קבצים, אבל לא קטן כשמוחקים אותם. אחרי ניקוי גדול בתוך Ubuntu, הנה הדרך
+להחזיר את המקום ל־Windows. הצעדים לא הורצו בהרצה שבה נכתב הספר (אין שם Windows); הם מבוססים על שני
+עמודי התיעוד שבסוף הסעיף.</p>
+<ol>
+<li><strong>עצירה.</strong> צאי מ־Docker Desktop, ואז ב־PowerShell עצרי את WSL. הקובץ חייב להיות מנותק בזמן הכיווץ.</li>
+<li><strong>הנתיב לקובץ.</strong> ב־PowerShell רגיל, הפקודה השנייה למטה מדפיסה את הנתיב המלא של הדיסק של Ubuntu. העתיקי אותו.</li>
+<li><strong>כיווץ.</strong> פתחי PowerShell עם הרשאות מנהלת והריצי <code>diskpart</code>. בשורה <code>DISKPART&gt;</code> הקלידי את שלוש השורות של
+   הבלוק השני, עם הנתיב שהעתקת. הכיווץ עשוי לקחת כמה דקות.</li>
+</ol>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-powershell">wsl --shutdown
+(Get-ChildItem -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Lxss | Where-Object { $_.GetValue(&quot;DistributionName&quot;) -eq 'Ubuntu' }).GetValue(&quot;BasePath&quot;) + &quot;\ext4.vhdx&quot;
+</code></pre>
+
+
+</div>
+
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">select vdisk file=&quot;&lt;path-to-ext4.vhdx&gt;&quot;
+compact vdisk
+exit
+</code></pre>
+
+
+</div>
+
+<p>שימי לב לשני דברים. ראשית, Microsoft ממליצה לא לגעת בקבצים של WSL בכלים של Windows, חוץ מהפעולות המתועדות
+האלה; לא מזיזים את הקובץ ולא פותחים אותו. שנית, האימג'ים של Docker לא יושבים בדיסק של Ubuntu אלא בדיסק
+נפרד של Docker Desktop. הצעדים כאן לא מטפלים בו, ולכן ייתכן שהמקום ש־<code>docker system prune</code> פינה לא יחזור
+ל־Windows. לדיסק הזה יש הגדרות משלו ב־Docker Desktop, ותיעוד משלו באתר של Docker.</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">https://learn.microsoft.com/en-us/windows/wsl/disk-space
+https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/compact-vdisk
+</code></pre>
+
+
+</div>
+
+<p><strong>הגבלת הזיכרון של WSL.</strong> לפי התיעוד של Microsoft, ברירת המחדל היא חצי מהזיכרון של המחשב. אם המחשב נעשה
+איטי כשאשכול kind וכמה קונטיינרים רצים, אפשר להגביל:</p>
+<ul>
+<li><strong>הקובץ:</strong> קובץ טקסט בשם <code>.wslconfig</code>, ב־Windows, בתיקייה שהמשתנה <code>%UserProfile%</code> מצביע עליה.</li>
+<li><strong>התוכן:</strong> הבלוק שמתחת. המספרים הם נקודת פתיחה; התאימי למחשב שלך.</li>
+<li><strong>הפעלה:</strong> אחרי השמירה, עצירה של WSL ב־PowerShell (כמו בצעד הראשון למעלה), כדי שההגדרה תיקלט.</li>
+</ul>
 <div dir="ltr" align="left">
 
 
@@ -2301,9 +2415,9 @@ processors=4
 <td><code>k6-v2.3.0-macos-${ARCH}.zip</code>, נפתח עם <code>unzip</code></td>
 </tr>
 <tr>
-<td><code>sed -i</code></td>
-<td><code>sed -i 's/a/b/' file</code></td>
-<td><code>sed -i '' 's/a/b/' file</code></td>
+<td>golangci-lint</td>
+<td><code>golangci-lint-2.14.0-linux-${ARCH}</code></td>
+<td><code>golangci-lint-2.14.0-darwin-${ARCH}</code></td>
 </tr>
 <tr>
 <td>מפתח SSH בזיכרון</td>
@@ -2313,10 +2427,20 @@ processors=4
 </tbody>
 </table>
 <blockquote>
-<p><strong>ב־Mac:</strong> הפקודה <code>sed</code> שונה במקום אחד. בגרסה של macOS הדגל <code>-i</code> דורש ארגומנט, גם אם הוא ריק. זה ההבדל היחיד בפקודות הספר שגורם
-לשגיאה מבלבלת (<code>invalid command code</code>) במקום לעבוד.</p>
+<p><strong>ב־Mac:</strong> הפקודה <code>sed</code> שונה במקום אחד. בגרסה של macOS הדגל <code>-i</code> דורש ארגומנט, גם אם הוא ריק. זה ההבדל
+היחיד בפקודות הספר שגורם לשגיאה מבלבלת (<code>invalid command code</code>) במקום לעבוד:</p>
 </blockquote>
-<p>פקודות ההורדה ובדיקת הטביעות של סעיפים 2.7 ו־2.10 עובדות ב־Mac כמו שהן, אחרי החלפת השמות לפי הטבלה. הן נבדקו
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">sed -i 's/a/b/' file      # Ubuntu
+sed -i '' 's/a/b/' file   # macOS
+</code></pre>
+
+
+</div>
+
+<p>פקודות ההורדה ובדיקת הטביעות של סעיפים 2.7, 2.7.1 ו־2.10 עובדות ב־Mac כמו שהן, אחרי החלפת השמות לפי הטבלה. הן נבדקו
 בפועל על Mac עם מעבד של Apple. שתי הפקודות <code>sha256sum</code> ו־<code>unzip</code> קיימות במערכת. גם הפקודה <code>shasum -a 256 -c</code>
 עובדת. לבדיקת הטביעה של Go צריך גם את <code>jq</code>:</p>
 <div dir="ltr" align="left">
@@ -2331,7 +2455,16 @@ processors=4
 <p>שתי הערות על המעטפת. ראשית, הסקריפטים של הספר נכתבו ל־bash, ומריצים אותם במפורש דרכה; לכן המעטפת השונה
 של Mac לא מפריעה. הגרסה של bash שמגיעה עם macOS היא 3.2 הישנה, והרופא נבדק גם בה. שנית, קבצים שהורדו בדפדפן
 מסומנים ב־macOS כ„הגיעו מהאינטרנט”, והמערכת עלולה לחסום את הרצתם; קבצים שהורדו ב־<code>curl</code> לא מסומנים כך.
-אם הורדת בדפדפן ונחסמת, הפקודה <code>xattr -d com.apple.quarantine &lt;קובץ&gt;</code> מסירה את הסימון.</p>
+אם הורדת בדפדפן ונחסמת, הפקודה שמתחת מסירה את הסימון:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">xattr -d com.apple.quarantine &lt;file&gt;
+</code></pre>
+
+
+</div>
+
 <p>את Docker Desktop מורידים מעמוד ההתקנה הרשמי, בגרסה שמתאימה למעבד; הדרישות המעודכנות מופיעות שם.
 כל השאר בפרק, מסעיף 2.9 והלאה, זהה: אותן תיקיות, אותו <code>doctor.sh</code>, אותן בדיקות.</p>
 <h2 id="_3">סיכום</h2>
@@ -2482,6 +2615,7 @@ course    export COURSE=&quot;$HOME/senior-software-engineer-course&quot;     my
 verify    sha256sum -c &lt;file&gt;.sha256sum | sha256sum -c --ignore-missing &lt;SHA256SUMS&gt;
 go        ~/.local/go  GOBIN=~/.local/bin  go version  -&gt; go1.27.1
 go tools  go install &lt;module&gt;@&lt;pin&gt;: staticcheck goose buf protoc-gen-go protoc-gen-go-grpc govulncheck actionlint
+lint      golangci-lint 2.14.0: release tarball + golangci-lint-2.14.0-checksums.txt -&gt; ~/.local/bin
 uv        curl -LsSf https://astral.sh/uv/0.12.23/install.sh | sh ; uv python install 3.14
 doctor    bash ch02/doctor.sh [--part-e] ; echo $?   (exit = number of failures)
 docker    docker version | docker run --rm hello-world | docker system df | docker system prune
@@ -2494,7 +2628,7 @@ my pins   go ____  uv ____  python ____  docker ____  kind ____  kubectl ____
 
 <h2 id="_7">תרגיל</h2>
 <p><strong>מטרה:</strong> סביבת עבודה מאומתת, וסקריפט שבודק אותה; בדיקות עשן ל־Go ול־Python; קונטיינר ראשון והתחייבות
-ראשונה; וביום 57, הכלים של חלק ה וההרחבה של הסקריפט. <strong>זמן:</strong> שלושה ימי לימוד: יום 0 (סעיפים 2.1 עד 2.8, כ־65 דקות התקנה), יום 3 (סעיפים 2.9, 2.11 ו־2.12, כ־55 דקות בנייה) ויום 57 (סעיף 2.10, כ־45 דקות התקנה). <strong>ידע מקדים:</strong> פרק 0, והפרק הזה.</p>
+ראשונה; וביום 57, הכלים של חלק ה וההרחבה של הסקריפט. <strong>זמן:</strong> שלושה ימי לימוד: יום 0 (סעיפים 2.1 עד 2.8, כ־70 דקות התקנה), יום 3 (סעיפים 2.9, 2.11 ו־2.12, כ־55 דקות בנייה) ויום 57 (סעיף 2.10, כ־45 דקות התקנה). <strong>ידע מקדים:</strong> פרק 0, והפרק הזה.</p>
 <p>הצעדים המלאים, קוד ההתחלה, רשימת הבדיקה, הרמזים והפתרון נמצאים ב־
 <a href="../exercises/ch02-workbench/README.md"><code>exercises/ch02-workbench/README.md</code></a>.</p>
 <p><strong>קריטריון סיום:</strong></p>

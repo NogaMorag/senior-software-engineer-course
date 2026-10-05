@@ -58,9 +58,9 @@ Terraform מחליף את הזיכרון הזה בקבצים: את כותבת מ
 <h2 id="_1">מה נלמד בפרק</h2>
 <ul>
 <li>מה זה תשתית כקוד, ומה היא נותנת מעבר לסקריפט של פקודות.</li>
-<li>providers, resources ו־state: שלושת המושגים שכל השאר נשען עליהם.</li>
-<li><code>plan</code> ו־<code>apply</code> מול kind: namespace ו־ConfigMap, שינוי אחד, סטייה שנוצרה ביד, ו־<code>destroy</code>.</li>
-<li>משתנים, outputs ומודול מקומי שאפשר להשתמש בו שוב.</li>
+<li>שלושת המושגים שכל השאר נשען עליהם: provider, resource ו־state.</li>
+<li>תכנון וביצוע מול kind: namespace ו־ConfigMap, שינוי אחד, סטייה שנוצרה ביד, ומחיקה בסוף.</li>
+<li>משתנים, ערכי פלט (outputs) ומודול מקומי שאפשר להשתמש בו שוב.</li>
 <li>state מרוחק ונעילות: למה צוותים לא שומרים state במחשב, ולמה לא ב־Git.</li>
 <li>ה־provider של Helm: להתקין את ה־chart מפרק 21 דרך Terraform, ומתי לא כדאי.</li>
 <li>אופציונלי: תצורה קטנה ל־AWS, עם אזהרות על עלות.</li>
@@ -221,7 +221,7 @@ resource &quot;kubernetes_config_map_v1&quot; &quot;settings&quot; {
 (נכון לאוקטובר 2026; ראי נספח ג).</p>
 </blockquote>
 <h3 id="2223-state">22.2.3 מה יש ב־state</h3>
-<p>אחרי <code>apply</code> נוצר בתיקייה הקובץ <code>terraform.tfstate</code>. ההתחלה שלו, מההרצה של הכותב:</p>
+<p>אחרי <code>apply</code> נוצר בתיקייה הקובץ <code>terraform.tfstate</code>. ההתחלה שלו, מההרצה שבה נכתב הספר:</p>
 <div dir="ltr" align="left">
 
 
@@ -263,8 +263,8 @@ kubernetes_namespace_v1.demo
 
 <blockquote>
 <p><strong>טעות נפוצה:</strong> להכניס את <code>terraform.tfstate</code> ל־Git. הקובץ מכיל כל ערך של כל resource, כולל סודות בטקסט
-גלוי (סיסמה של מסד נתונים, למשל), ושתי מפתחות שעובדות במקביל על עותקים שונים שלו דורסות זו את זו. הקובץ
-<code>.gitignore</code> של מאגר הקורס מתעלם ממנו; סעיף 22.5 מראה איפה כן שומרים אותו.</p>
+גלוי (סיסמה של מסד נתונים, למשל), ושני אנשים שעובדים במקביל על עותקים שונים שלו דורסים זה את זה. הקובץ
+<code>.gitignore</code> שהעתקת למאגר שלך בפרק 2 (סעיף 2.9) כבר מתעלם ממנו; סעיף 22.5 מראה איפה כן שומרים אותו.</p>
 </blockquote>
 <h2 id="223-plan-apply-kind">22.3 plan ו־apply מול kind</h2>
 <p>הסדר תמיד זהה, וכדאי להכיר כל צעד:</p>
@@ -368,13 +368,31 @@ Plan: 0 to add, 1 to change, 0 to destroy.
 </div>
 
 <p>שינית ערך אחד, וה־plan מראה בדיוק שינוי אחד, במקום. זה מה שהופך את ה־plan לשימושי בסקירה: הוא לא מראה את
-כל הקובץ, רק את ההבדל. ובלי שינוי בכלל, <code>terraform plan -detailed-exitcode</code> מסתיים בקוד 0, ובקוד 2 כשיש
-הבדל. כך CI בודק שאין שינויים מחוץ לקוד.</p>
+כל הקובץ, רק את ההבדל. עם הדגל <code>-detailed-exitcode</code>, הפקודה מסתיימת בקוד 0 כשאין שינוי ובקוד 2 כשיש הבדל.
+כך CI בודק שאין שינויים מחוץ לקוד:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">terraform plan -detailed-exitcode; echo &quot;exit $?&quot;
+</code></pre>
+
+
+</div>
+
 <blockquote>
 <p><strong>שימי לב:</strong> ה־plan שמודפס ב־<code>plan</code> הוא תצוגה. ה־<code>apply</code> מחשב plan חדש, וזה יכול להיות שונה אם מישהו שינה
-משהו בינתיים. בצוות שומרים את ה־plan לקובץ, <code>terraform plan -out=tfplan</code>, ומבצעים בדיוק אותו עם
-<code>terraform apply tfplan</code>.</p>
+משהו בינתיים. בצוות שומרים את ה־plan לקובץ, ומבצעים בדיוק אותו:</p>
 </blockquote>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">terraform plan -out=tfplan
+terraform apply tfplan
+</code></pre>
+
+
+</div>
+
 <h3 id="2233">22.3.3 סטייה</h3>
 <p>סטייה (drift) היא הבדל בין העולם לתצורה שנוצר מחוץ ל־Terraform. התרגיל יוצר אחת: הוא משנה את ה־ConfigMap
 ב־<code>kubectl edit</code> ומוסיף מפתח. עכשיו ה־plan, בלי שום שינוי בקבצים:</p>
@@ -492,7 +510,7 @@ Error from server (NotFound): namespaces &quot;tf-demo&quot; not found
 </tbody>
 </table>
 <h3 id="2242-outputs">22.4.2 outputs</h3>
-<p>output הוא פלט של התצורה: ערך ש־Terraform מדפיס אחרי apply, ושמודול אחר או סקריפט יכולים לקרוא. מהקובץ
+<p>ערך פלט (output) הוא פלט של התצורה: ערך ש־Terraform מדפיס אחרי apply, ושמודול אחר או סקריפט יכולים לקרוא. מהקובץ
 <code>solution/part1/outputs.tf</code>:</p>
 <div dir="ltr" align="left">
 
@@ -617,7 +635,7 @@ module.shorty.kubernetes_namespace_v1.this
 </tr>
 </tbody>
 </table>
-<p>backend מרוחק, כמו S3, פותר את שלושתן: הקובץ במקום משותף, לכל ריצה נלקחת נעילה, והאחסון שומר גרסאות קודמות.
+<p>ה־backend המרוחק, כמו S3, פותר את שלושתן: הקובץ במקום משותף, לכל ריצה נלקחת נעילה, והאחסון שומר גרסאות קודמות.
 נכון לאוקטובר 2026, בתיעוד של Terraform ה־backend של S3 תומך בנעילה בתוך S3 עצמו, עם הארגומנט
 <code>use_lockfile</code>. הנעילה הישנה דרך DynamoDB מסומנת שם כמיושנת ותוסר בגרסה עתידית. דוגמה ל־backend כזה נמצאת
 בסעיף 22.7, כי היא דורשת חשבון ענן.</p>
@@ -700,7 +718,8 @@ release = {
 
 </div>
 
-<p>ו־<code>helm list -n shorty-tf</code> מראה release רגיל. Terraform לא עוקף את Helm; הוא משתמש בו כספרייה.</p>
+<p>רשימת ה־releases של Helm ב־namespace הזה מראה release רגיל (צעד 9 בתרגיל). Terraform לא עוקף את Helm; הוא
+משתמש בו כספרייה.</p>
 <h3 id="2261">22.6.1 שתי עובדות שכדאי לבדוק בעצמך</h3>
 <p>הראשונה: ה־provider מכיל ספרייה של Helm, לא את הקובץ שהתקנת. בקובץ <code>go.mod</code> של ה־provider בגרסה 3.3.0 התלות
 היא <code>helm.sh/helm/v3</code>, כלומר Helm 3. ההבדל נראה באשכול: הפעם השדה <code>managedFields</code> מראה <code>Update</code> ולא <code>Apply</code>,
@@ -764,8 +783,8 @@ terraform plan
 עליה. שני כלים שמנהלים אותו אובייקט הם מתכון לסטייה שאף אחד מהם לא רואה.</p>
 <h2 id="227-aws-free-tier">22.7 אופציונלי: AWS free tier</h2>
 <blockquote>
-<p><strong>שימי לב:</strong> הסעיף הזה אופציונלי לגמרי, ואפשר לדלג עליו בלי לפספס שום דבר בהמשך הספר. <strong>הכותב לא הריץ את
-התצורה הזאת מול AWS.</strong> היא עברה <code>terraform fmt -check</code> ו־<code>terraform validate</code> בלבד. חשבון ענן יכול לעלות
+<p><strong>שימי לב:</strong> הסעיף הזה אופציונלי לגמרי, ואפשר לדלג עליו בלי לפספס שום דבר בהמשך הספר. <strong>התצורה הזאת לא
+הורצה מול AWS כשנכתב הספר.</strong> היא עברה <code>terraform fmt -check</code> ו־<code>terraform validate</code> בלבד. חשבון ענן יכול לעלות
 כסף, וזו הפעם היחידה בספר שהוא מופיע.</p>
 </blockquote>
 <p>לפני כל דבר אחר, אם את בוחרת לנסות:</p>
@@ -828,13 +847,13 @@ terraform validate
 <h2 id="_3">סיכום</h2>
 <ul>
 <li>תשתית כקוד: מצב רצוי בקבצים, שינוי נסקר כמו קוד, והרצה שנייה בלי שינוי לא עושה כלום.</li>
-<li>provider מדבר עם API; resource הוא אובייקט מוצהר; state הוא הקישור בין הכתובות בתצורה לאובייקטים
+<li>ה־provider מדבר עם API; ה־resource הוא אובייקט מוצהר; ה־state הוא הקישור בין הכתובות בתצורה לאובייקטים
   אמיתיים.</li>
 <li>הפניות בין resources בונות גרף, והגרף קובע את הסדר ביצירה ובמחיקה.</li>
-<li><code>plan</code> מראה בדיוק את ההבדל; <code>-/+</code> הוא החלפה, וזה מה שמחפשים בסקירה.</li>
+<li>ה־plan מראה בדיוק את ההבדל; הסימן <code>-/+</code> הוא החלפה, וזה מה שמחפשים בסקירה.</li>
 <li>שינוי ידני מתגלה כסטייה ב־plan הבא, וה־apply מחזיר אותו לתצורה.</li>
-<li>משתנים עם סוג ואימות, outputs, ומודול שמצהיר על providers אבל לא מגדיר אותם.</li>
-<li>state לא נכנס ל־Git: יש בו סודות, ואין בו נעילה. בצוות, backend מרוחק עם נעילה ו־apply ממקום אחד.</li>
+<li>משתנים עם סוג ואימות, ערכי פלט, ומודול שמצהיר על providers אבל לא מגדיר אותם.</li>
+<li>ה־state לא נכנס ל־Git: יש בו סודות, ואין בו נעילה. בצוות, backend מרוחק עם נעילה ו־apply ממקום אחד.</li>
 <li>ה־provider של Helm בגרסה 3: <code>kubernetes = { }</code>; הוא מכיל את Helm 3 כספרייה, ולא רואה סטייה בתוך release.</li>
 </ul>
 <h2 id="_4">מונחים לזכור</h2>
@@ -903,12 +922,12 @@ terraform validate
 <td>קלט של תצורה או מודול</td>
 </tr>
 <tr>
-<td>output</td>
+<td>ערך פלט</td>
 <td>output</td>
 <td>פלט של תצורה או מודול</td>
 </tr>
 <tr>
-<td>module</td>
+<td>מודול</td>
 <td>module</td>
 <td>תיקייה של קבצי Terraform עם קלט ופלט</td>
 </tr>
@@ -1006,7 +1025,7 @@ mine         first apply ___ s ; resources in part2 state ___ ; drift found by p
 <h2 id="_7">תרגיל</h2>
 <p><strong>מטרה:</strong> לנהל תשתית על kind מקבצים: namespace ו־ConfigMap עם ה־provider של Kubernetes, plan שמראה שינוי אחד,
 סטייה שנוצרה ביד ו־destroy; ואז מודול מקומי שמתקין את ה־chart של shorty דרך ה־provider של Helm, עם משתנים
-ו־outputs. הסעיף על AWS אופציונלי ולא הורץ על ידי הכותב.
+ו־outputs. הסעיף על AWS אופציונלי, והתצורה שלו לא הורצה מול AWS כשנכתב הספר.
 <strong>זמן:</strong> שני ימי לימוד, ימים 64 ו־65, כ־50 ו־60 דקות בנייה בהתאמה.
 <strong>ידע מקדים:</strong> הפרק; פרק 21 (ה־chart וה־image); פרק 20 (kind והקשר של kubectl); Terraform מפרק 2.</p>
 <p>הצעדים, קבצי ההתחלה, הרמזים והפתרון נמצאים ב־

@@ -14,6 +14,7 @@ chapter: 38
 - **‏M7:** ‏image אחד עם כל הבינאריים; משתמש מספרי; מיגרציות ב־hook; ‏Secret מבחוץ; ‏compose גם ב־CI.
 - **‏M8:** ‏`traceparent` בשורת האירוע; ‏SLI של פיגור על גבול 30; התראה על כשלים כי ה־SLI שותק; תחקיר עם מספרים שלי.
 - **‏M9:** ‏SSRF נבדק ביצירה ובחיבור; הסתרה לפני כל פלט, וסריקה; סכמה משני הצדדים; ‏VUs לפי קצב כפול זמן תגובה.
+- **‏M10:** הורגים ב־SIGKILL; סט צפוי מהמסד ולא משורות המסירה; פירוק הפיגור לשלבים; זמן סשן קצר לצרכנים.
 - **שאלה פתוחה:** ___
 
 <div dir="ltr" align="left">
@@ -35,6 +36,7 @@ m8        make obs-up | make promtool | make check-telemetry | make stage-incide
 grafana   http://localhost:3000 (folder Hookline)   prometheus :9090   tempo :3200   loki :3100
 m9        make load-ingest | make load-two-tenants | make images && make supply-chain   (RATE= NOISY_RATE= QUIET_RATE=)
 m9 tests  DATABASE_URL= go test -race ./internal/ssrf/ ./internal/redact/ ./internal/page/ ./contract/ ./internal/api/
+m10       make chaos (SEED= RATE= DURATION=) | make verify-delivery (SINCE= WAIT=) | make load-overload | scripts/stage-lag.sh
 lab       make lab-n3      GUARDS=off make lab-n3      (record your p50/p99, date, machine)
 guards    HOOKLINE_ENDPOINT_CONCURRENCY=2 HOOKLINE_BREAKER_FAILURES=5 HOOKLINE_BREAKER_OPEN=30s HOOKLINE_MAX_IN_FLIGHT=256
 m5 tests  go test -race -count=1 -skip 'RateLimit|OverItsLimit|LimiterFailure|Shed|Breaker|Bulkhead|Trace|PrivateAddress' ./internal/backoff/ ./internal/delivery/ ./internal/api/ ./internal/store/... ./internal/e2e/

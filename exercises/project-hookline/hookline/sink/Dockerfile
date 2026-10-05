@@ -2,8 +2,14 @@
 # The Hookline sink: the chapter 8 receiver, built as in chapter 19 (milestone M7). Build from this
 # directory: docker build -t receiver:dev .
 
+# The base image is pinned by the digest of its multi-platform index (chapter 19, section 19.7), so a
+# rebuild gets exactly the bytes that were scanned (milestone M10). The tag alone moves when Debian
+# security fixes are rebuilt into it. To take them: docker pull python:3.14.8-slim, read the new
+# digest with docker buildx imagetools inspect, replace it in both FROM lines, rebuild with --pull,
+# and run scripts/supply-chain.sh. An update bot (Renovate, Dependabot) can open that change for you.
+
 # ---- build stage: uv resolves and installs into /app/.venv ----
-FROM python:3.14.8-slim AS build
+FROM python:3.14.8-slim@sha256:c3e521df8b2b498a7a682e7e18676771cb80c6b75b8699af886b2d554ce40151 AS build
 COPY --from=ghcr.io/astral-sh/uv:0.12.23 /uv /bin/uv
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
@@ -22,7 +28,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev --no-editable
 
 # ---- runtime stage: the same python, the virtual environment, no uv ----
-FROM python:3.14.8-slim
+FROM python:3.14.8-slim@sha256:c3e521df8b2b498a7a682e7e18676771cb80c6b75b8699af886b2d554ce40151
 ARG GIT_SHA=unknown
 LABEL org.opencontainers.image.revision="${GIT_SHA}"
 # pip is not needed at runtime, and its own package metadata shows up in scans (chapter 19,

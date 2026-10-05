@@ -1,0 +1,1522 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>נספח ב: פתרון תקלות</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="top"><a href="index.html">תוכן העניינים</a> · <a href="a-glossary.html">← נספח א: מילון מונחים</a> · <a href="c-tool-versions.html">נספח ג: גרסאות כלים →</a></nav>
+<main class="book">
+<div class="toc"><span class="toctitle">תוכן הפרק</span><ul>
+<li><a href="#wsl2">WSL2 והטרמינל</a></li>
+<li><a href="#docker-desktop">Docker Desktop</a></li>
+<li><a href="#go">Go: שרשרת הכלים והמודולים</a></li>
+<li><a href="#uv-python">uv ו־Python</a></li>
+<li><a href="#postgresql">PostgreSQL</a></li>
+<li><a href="#redis">Redis</a></li>
+<li><a href="#redpanda-kafka">Redpanda ו־Kafka</a></li>
+<li><a href="#kind-kubectl">kind ו־kubectl</a></li>
+<li><a href="#helm">Helm</a></li>
+<li><a href="#terraform">Terraform</a></li>
+<li><a href="#github-actions">GitHub Actions</a></li>
+<li><a href="#_2">מחסנית התצפיתיות</a></li>
+<li><a href="#k6-testcontainers">k6 ו־testcontainers</a></li>
+<li><a href="#rust-33">Rust (פרק 33, אופציונלי)</a></li>
+<li><a href="#mac">Mac</a></li>
+<li><a href="#_3">איך מבקשים עזרה</a></li>
+</ul>
+</div>
+
+<h1 id="_1">נספח ב: פתרון תקלות</h1>
+<p>הנספח הזה מרכז במקום אחד את התקלות שהפרקים והתרגילים כבר תיארו: טבלאות התקלות של פרק 2, רשימות „טעויות
+נפוצות” של הפרקים, ורשימות „טעויות נפוצות ותיקונים” של ה־README בכל תרגיל. הוא לא מוסיף תקלות חדשות. כל שורה
+מפנה למקור שלה, ושם יש את ההקשר המלא.</p>
+<p>לפני שמחפשים כאן, הסדר של פרק 2, סעיף 2.11: לקרוא את השורה האחרונה של השגיאה עד הסוף, לבדוק איפה את (<code>pwd</code>),
+לבדוק איזה עותק של הכלי ירוץ (<code>command -v</code>), לפתוח לשונית חדשה, ולהריץ את הרופא. רוב התקלות הן אחת משלוש:
+הפקודה לא נמצאת, נמצאת גרסה אחרת, או שאת בתיקייה הלא נכונה.</p>
+<p>העמודה „פרק” מפנה כך:</p>
+<table>
+<thead>
+<tr>
+<th>הצורה</th>
+<th>הפירוש</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2.4</td>
+<td>פרק 2, סעיף 2.4</td>
+</tr>
+<tr>
+<td>21, טעויות</td>
+<td>הרשימה „טעויות נפוצות” בסוף פרק 21</td>
+</tr>
+<tr>
+<td>21, תרגיל</td>
+<td>הרשימה „טעויות נפוצות ותיקונים” ב־README של תרגיל פרק 21</td>
+</tr>
+</tbody>
+</table>
+<p>הסדר הוא לפי שכבות: הסביבה המקומית, השפות, שירותי הנתונים, הפריסה, ה־CI והתצפיתיות, כלי הבדיקות, ובסוף
+Mac ואיך מבקשים עזרה.</p>
+<h2 id="wsl2">WSL2 והטרמינל</h2>
+<table>
+<thead>
+<tr>
+<th>מה רואים</th>
+<th>סיבה סבירה</th>
+<th>מה עושים</th>
+<th>פרק</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>השגיאה <code>0x80370102</code> בהתקנת WSL</td>
+<td>וירטואליזציה כבויה בקושחה</td>
+<td>להפעיל אותה בהגדרות ה־UEFI ולהפעיל מחדש</td>
+<td>2.2</td>
+</tr>
+<tr>
+<td>השגיאה <code>0x8007019e</code></td>
+<td>רכיב ה־WSL של Windows לא הופעל</td>
+<td>להריץ שוב את פקודת ההתקנה כמנהלת, ולהפעיל מחדש</td>
+<td>2.2</td>
+</tr>
+<tr>
+<td>ההפצה לא מופיעה ברשימה</td>
+<td>ההורדה לא הושלמה</td>
+<td>להתקין במפורש עם <code>-d Ubuntu</code></td>
+<td>2.2</td>
+</tr>
+<tr>
+<td>שכחת את סיסמת ה־Linux</td>
+<td>הסיסמה נקבעה בהתקנה הראשונה ולא נשמרה</td>
+<td>ב־PowerShell <code>wsl -u root</code>, ואז בתוך Ubuntu <code>passwd</code> עם שם המשתמשת</td>
+<td>2.2</td>
+</tr>
+<tr>
+<td>הטרמינל נפתח ב־<code>/mnt/c/Users/...</code></td>
+<td>תיקיית ההתחלה של הפרופיל</td>
+<td>לתקן את השדה Command line בפרופיל של Ubuntu</td>
+<td>2.3</td>
+</tr>
+<tr>
+<td>הודעה <code>command not found</code> מיד אחרי התקנה</td>
+<td>המעטפת לא קראה מחדש את ה־<code>PATH</code></td>
+<td>לשונית חדשה, או <code>source ~/.bashrc</code></td>
+<td>2.3</td>
+</tr>
+<tr>
+<td>השגיאה <code>Could not get lock /var/lib/dpkg/lock-frontend</code></td>
+<td>עדכון אוטומטי רץ ברקע</td>
+<td>לחכות דקה ולנסות שוב; לא למחוק את קובץ הנעילה</td>
+<td>2.3</td>
+</tr>
+<tr>
+<td>הכול איטי מאוד, ושעונים של קבצים לא מתעדכנים</td>
+<td>העבודה נעשית תחת <code>/mnt/c</code></td>
+<td>להעביר את התיקייה אל <code>~</code></td>
+<td>2.11</td>
+</tr>
+<tr>
+<td>הרופא מדווח <code>FAIL</code> עם <code>on-/mnt</code> בשורת התיקייה</td>
+<td>קוד ההתחלה הועתק לכונן של Windows</td>
+<td>להעביר את העבודה אל <code>~/senior-course</code> ולהמשיך משם</td>
+<td>2, תרגיל</td>
+</tr>
+<tr>
+<td>הרופא מראה כלי שהותקן עכשיו כ־<code>missing</code></td>
+<td>הלשונית נפתחה לפני ההתקנה</td>
+<td>לשונית חדשה, או <code>source ~/.bashrc</code>, ולהריץ שוב</td>
+<td>2, תרגיל</td>
+</tr>
+<tr>
+<td>השורה <code>COURSE is not set</code></td>
+<td>המשתנה הוגדר רק בלשונית אחת</td>
+<td>לכתוב את השורה ב־<code>~/.bashrc</code> (סעיף 2.9), לא רק <code>export</code> חד־פעמי</td>
+<td>2, תרגיל</td>
+</tr>
+<tr>
+<td>ביום 57, בדיקת הרופא של יום 0 נכשלת עם קוד 5</td>
+<td>חמש שורות חלק ה נוספו מחוץ לבלוק ה־<code>if</code></td>
+<td>להעביר אותן לתוך הבלוק של <code>--part-e</code></td>
+<td>2, תרגיל</td>
+</tr>
+<tr>
+<td>השוואת גרסאות שהוספת לרופא נכשלת בבדיקה</td>
+<td>השוואה כמחרוזות במקום <code>check_tool</code></td>
+<td>להשתמש ב־<code>check_tool</code>, שמשווה דרך <code>version_ge</code></td>
+<td>2, תרגיל</td>
+</tr>
+<tr>
+<td>כל הקבצים נראים „שונו” ב־<code>git status</code></td>
+<td>הקבצים נערכו מצד Windows, עם סופי שורה אחרים</td>
+<td>לעבוד רק דרך WSL; להגדיר <code>core.autocrlf input</code></td>
+<td>2.5</td>
+</tr>
+<tr>
+<td>השגיאה <code>Permission denied (publickey)</code> מול GitHub</td>
+<td>המפתח לא נוסף ל־GitHub, או לא טעון</td>
+<td>לבדוק את עמוד המפתחות; <code>ssh-add -l</code> מראה מה טעון</td>
+<td>2.5</td>
+</tr>
+<tr>
+<td>השגיאה <code>UNPROTECTED PRIVATE KEY FILE</code></td>
+<td>הרשאות רחבות מדי על המפתח</td>
+<td>הרשאות <code>700</code> לתיקייה <code>~/.ssh</code> ו־<code>600</code> למפתח הפרטי</td>
+<td>2.5</td>
+</tr>
+<tr>
+<td>הודעה <code>code: command not found</code> ב־Ubuntu</td>
+<td>הלשונית נפתחה לפני ההתקנה</td>
+<td>לשונית חדשה; אם לא עוזר, <code>wsl --shutdown</code></td>
+<td>2.6</td>
+</tr>
+<tr>
+<td>אין <code>WSL: Ubuntu</code> בפינה של VS Code, והנתיבים של Windows</td>
+<td>התיקייה נפתחה מצד Windows</td>
+<td>לסגור, ולפתוח עם <code>code .</code> מתוך Ubuntu</td>
+<td>2.6</td>
+</tr>
+<tr>
+<td>הרופא עובר, אבל VS Code מראה שגיאות</td>
+<td>VS Code נפתח מצד Windows</td>
+<td>לפתוח עם <code>code .</code> מתוך Ubuntu</td>
+<td>2.11</td>
+</tr>
+<tr>
+<td>הורדות נכשלות בשגיאת תעודה</td>
+<td>רשת ארגונית עם proxy</td>
+<td>לנסות מרשת ביתית; לא לבטל אימות תעודות</td>
+<td>2.11</td>
+</tr>
+<tr>
+<td>המחשב איטי כש־Docker רץ</td>
+<td>WSL ו־Docker תופסים זיכרון רב</td>
+<td>להגביל זיכרון בקובץ <code>.wslconfig</code>, ואז <code>wsl --shutdown</code></td>
+<td>2.11, 2.12</td>
+</tr>
+<tr>
+<td>שינוי ב־<code>~/.bashrc</code> שבר את הטרמינל</td>
+<td>שגיאת תחביר בקובץ</td>
+<td>לפתוח מעטפת עם <code>bash --norc</code>, ולתקן ב־<code>nano ~/.bashrc</code></td>
+<td>2.11</td>
+</tr>
+<tr>
+<td>הודעה <code>Makefile:13: *** missing separator.  Stop.</code></td>
+<td>שורת פקודה ב־Makefile מתחילה ברווחים</td>
+<td>להתחיל אותה בטאב; לבדוק שהעורך לא ממיר טאבים לרווחים</td>
+<td>6, תרגיל</td>
+</tr>
+<tr>
+<td>השגיאה <code>listen tcp :8080: bind: address already in use</code></td>
+<td>שירות קודם עדיין רץ, אולי נעצר עם Ctrl-Z</td>
+<td>להריץ <code>fg</code> ואז Ctrl-C, או לבחור פורט אחר</td>
+<td>6, תרגיל</td>
+</tr>
+<tr>
+<td>שגיאת <code>address already in use</code> בשרת חדש</td>
+<td>הקודם עוד מסיים כיבוי מסודר</td>
+<td>לחכות לשורה האחרונה שלו, או לבדוק עם <code>lsof -i</code> מי מחזיק את הפורט</td>
+<td>15, תרגיל; 16, תרגיל</td>
+</tr>
+</tbody>
+</table>
+<h2 id="docker-desktop">Docker Desktop</h2>
+<table>
+<thead>
+<tr>
+<th>מה רואים</th>
+<th>סיבה סבירה</th>
+<th>מה עושים</th>
+<th>פרק</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>הודעה <code>docker: command not found</code> ב־Ubuntu</td>
+<td>השילוב עם Ubuntu כבוי, או לשונית ישנה</td>
+<td>להדליק את המתג בהגדרות, ולפתוח לשונית חדשה</td>
+<td>2.4</td>
+</tr>
+<tr>
+<td>השגיאה <code>Cannot connect to the Docker daemon</code></td>
+<td>Docker Desktop לא רץ, או עדיין עולה</td>
+<td>להפעיל אותו ולחכות שיופיע שהמנוע רץ</td>
+<td>2.4</td>
+</tr>
+<tr>
+<td>השגיאה <code>permission denied</code> על <code>docker.sock</code></td>
+<td>המעטפת נפתחה לפני שהשילוב הופעל</td>
+<td>לסגור את הטרמינל, <code>wsl --shutdown</code>, ולפתוח מחדש</td>
+<td>2.4</td>
+</tr>
+<tr>
+<td>המתקין מתלונן על גרסת WSL</td>
+<td>WSL ישן מ־2.1.5</td>
+<td>להריץ <code>wsl --update</code> ב־PowerShell</td>
+<td>2.4</td>
+</tr>
+<tr>
+<td>שתי גרסאות של <code>docker</code> מתנגשות</td>
+<td>הותקן בעבר <code>docker.io</code> מ־<code>apt</code></td>
+<td>להסיר את <code>docker.io</code>, ולפתוח לשונית חדשה</td>
+<td>2.4, 2, טעויות</td>
+</tr>
+<tr>
+<td>הדיסק מתמלא מאימג'ים וקונטיינרים</td>
+<td>שאריות של בניות ותרגילים</td>
+<td>קודם <code>docker system df</code>, אחר כך <code>prune</code> לפי הטבלה; נפחים נמחקים רק במפורש</td>
+<td>2.12</td>
+</tr>
+<tr>
+<td>נתוני התרגיל נעלמו אחרי ניקוי</td>
+<td>הורץ <code>docker volume prune</code> או <code>down -v</code></td>
+<td><code>docker system prune</code> בטוח לנפחים; <code>docker volume prune</code> לא. לקרוא לפני שמוחקים</td>
+<td>2, טעויות</td>
+</tr>
+<tr>
+<td>קונטיינר יוצא מיד עם <code>SHORTY_BASE_URL: required, not set</code></td>
+<td>shorty מסרב לעלות בלי כתובת בסיס</td>
+<td>להעביר אותה עם <code>-e</code>, או ב־<code>environment</code> של compose</td>
+<td>19, תרגיל</td>
+</tr>
+<tr>
+<td>הודעה <code>curl: (52) Empty reply from server</code> מול המקבל</td>
+<td>הוא מאזין ל־<code>127.0.0.1</code> בתוך הקונטיינר</td>
+<td>להגדיר <code>RECEIVER_HOST=0.0.0.0</code> בשלב הריצה, לא בשלב הבנייה</td>
+<td>19, תרגיל; 19, טעויות</td>
+</tr>
+<tr>
+<td>השגיאה <code>exec: "id": executable file not found</code></td>
+<td>ב־distroless אין <code>id</code>, וזה צפוי</td>
+<td>לבדוק את המשתמש עם <code>docker image inspect</code> ועם <code>docker top</code></td>
+<td>19, תרגיל</td>
+</tr>
+<tr>
+<td>השגיאה <code>exec /shorty: no such file or directory</code>, והקובץ קיים</td>
+<td>הבינארי נבנה עם cgo ומחפש ספריית C שאין בבסיס</td>
+<td>לכתוב <code>CGO_ENABLED=0</code> באותה פקודת <code>RUN</code> של <code>go build</code></td>
+<td>19, תרגיל</td>
+</tr>
+<tr>
+<td>ההודעה <code>dependency failed to start: ... is unhealthy</code></td>
+<td>בדיקת הבריאות בצורת מעטפת, ואין מעטפת ב־distroless</td>
+<td>לכתוב אותה כרשימה שמתחילה ב־<code>CMD</code></td>
+<td>19, תרגיל</td>
+</tr>
+<tr>
+<td>כל שינוי בשורה אחת מוריד מחדש את כל המודולים</td>
+<td>כל הקוד הועתק לפני הורדת התלויות</td>
+<td>להעתיק קודם רק את קובצי התלויות</td>
+<td>19, טעויות</td>
+</tr>
+<tr>
+<td>כיבוי מסודר לא קורה, או שה־image לא עולה ב־distroless</td>
+<td>צורת מעטפת ב־<code>ENTRYPOINT</code></td>
+<td>צורת רשימה; האות מגיע אז לשירות עצמו</td>
+<td>19, טעויות</td>
+</tr>
+<tr>
+<td>‏Kubernetes מסרב להפעיל image עם <code>USER nonroot</code></td>
+<td>המשתמש מוגדר בשם ולא במספר</td>
+<td>לכתוב <code>USER</code> במספרים</td>
+<td>19, טעויות; 20, טעויות</td>
+</tr>
+<tr>
+<td>הסריקה ב־Docker נכשלת עם <code>permission denied</code> על קובץ ה־SBOM</td>
+<td>הקובץ נכתב דרך הפניה של המעטפת לתיקייה שאינה שלך</td>
+<td>לוודא שאת בתיקייה <code>~/senior-course/ch28</code> ושהיא שלך</td>
+<td>28, תרגיל</td>
+</tr>
+</tbody>
+</table>
+<h2 id="go">Go: שרשרת הכלים והמודולים</h2>
+<table>
+<thead>
+<tr>
+<th>מה רואים</th>
+<th>סיבה סבירה</th>
+<th>מה עושים</th>
+<th>פרק</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>הודעה <code>go: command not found</code></td>
+<td>ה־<code>PATH</code> לא נטען</td>
+<td><code>source ~/.bashrc</code>; לבדוק שהשורה מסעיף 2.3 קיימת</td>
+<td>2.7</td>
+</tr>
+<tr>
+<td>הפקודה <code>go version</code> מדפיסה גרסה ישנה</td>
+<td>Go מ־<code>apt</code> מוקדם ב־<code>PATH</code></td>
+<td><code>command -v go</code>; אם התשובה <code>/usr/bin/go</code>, להסיר את <code>golang-go</code></td>
+<td>2.7</td>
+</tr>
+<tr>
+<td>ההודעה <code>sha256sum: WARNING: 1 computed checksum did NOT match</code></td>
+<td>הורדה פגומה או חלקית</td>
+<td>למחוק ולהוריד שוב; לא לפתוח קובץ שנכשל בבדיקה</td>
+<td>2.7</td>
+</tr>
+<tr>
+<td>ההתקנה של Go נשברת אחרי שדרוג</td>
+<td>גרסה חדשה נפתחה מעל הישנה</td>
+<td>למחוק את התיקייה, ורק אז לפתוח את הגרסה החדשה</td>
+<td>2, טעויות</td>
+</tr>
+<tr>
+<td>השגיאה <code>cgo: C compiler "gcc" not found</code></td>
+<td>חסר מהדר C</td>
+<td>להתקין את חבילות הבסיס מסעיף 2.3</td>
+<td>2.7</td>
+</tr>
+<tr>
+<td>השגיאה <code>-race requires cgo; enable cgo by setting CGO_ENABLED=1</code></td>
+<td>חסר מהדר C, ולכן cgo כבוי</td>
+<td>להתקין <code>build-essential</code> ולפתוח טרמינל חדש</td>
+<td>5, תרגיל</td>
+</tr>
+<tr>
+<td>שגיאת קומפילציה על משתנה או ייבוא שלא בשימוש</td>
+<td>ב־Go זו שגיאה, לא אזהרה</td>
+<td>באמצע עבודה, <code>_ = x</code></td>
+<td>3.4</td>
+</tr>
+<tr>
+<td>השגיאות <code>undefined: errors</code> או <code>undefined: strings</code> אחרי מילוי <code>TODO</code></td>
+<td>קובצי ההתחלה בלי הייבוא שהפתרון צריך</td>
+<td>להוסיף את הייבוא, או לתת ל־<code>gopls</code> להוסיף</td>
+<td>9, תרגיל</td>
+</tr>
+<tr>
+<td>הודעת <code>panic: TODO(day N)</code> כשמריצים את כל הבדיקות</td>
+<td>הבדיקות של יום מאוחר יותר מגיעות לקוד שעוד לא כתבת</td>
+<td>להריץ את המסנן של היום מהצעדים, ואת השאר כשמגיע תורן</td>
+<td>9, תרגיל; 12, תרגיל; 15, תרגיל; 30, תרגיל</td>
+</tr>
+<tr>
+<td>הודעת <code>panic: TODO: see chapter 38</code> בחבילה שחשבת שגמרת</td>
+<td>בדיקות של חבילה אחת קוראות לקוד של אחרת</td>
+<td>השורה הראשונה של ה־stack אומרת איזו פונקציה עוד ריקה</td>
+<td>פרויקט Hookline, README</td>
+</tr>
+<tr>
+<td>הבדיקות נתקעות עד שהן נכשלות על timeout אחרי עשר דקות</td>
+<td>ערוץ שלא נסגר, ו־workers מחכים לנצח</td>
+<td>לוודא <code>defer close(jobs)</code> במחולל, ושהוא חוזר כש־<code>ctx.Done()</code> נסגר</td>
+<td>5, תרגיל</td>
+</tr>
+<tr>
+<td>הודעת <code>panic: send on closed channel</code></td>
+<td>הערוץ נסגר מתוך worker, או לפני ש־<code>wg.Wait()</code> חזרה</td>
+<td>רק ה־goroutine שמחכה לכולם סוגרת אותו</td>
+<td>5, תרגיל; 5, טעויות</td>
+</tr>
+<tr>
+<td>בדיקת מרוץ עוברת אצלך</td>
+<td>הרצת בלי <code>-race</code></td>
+<td>להוסיף <code>-race</code> לכל הרצה</td>
+<td>32, תרגיל; 5, טעויות</td>
+</tr>
+<tr>
+<td>הפקודה <code>go test</code> ירוקה מיד אחרי שינוי במסד</td>
+<td>תוצאה שמורה מהרצה קודמת</td>
+<td>להוסיף <code>-count=1</code>, או להשתמש ב־<code>make test</code></td>
+<td>פרויקט Hookline, README</td>
+</tr>
+<tr>
+<td>הודעת <code>panic: pattern "GET /{id}" ... conflicts with pattern "GET /{code}"</code></td>
+<td>שני נתיבים שמתאימים בדיוק לאותן בקשות</td>
+<td>לתת לנתיב החדש קידומת משלו</td>
+<td>6, תרגיל</td>
+</tr>
+<tr>
+<td>הודעה <code>unsupported version of the configuration</code> מ־golangci-lint</td>
+<td>הכלי מצא קובץ תצורה ישן בתיקייה מעל או בבית</td>
+<td>להריץ מתוך התיקייה של התרגיל, או למחוק את הקובץ הישן</td>
+<td>27, תרגיל</td>
+</tr>
+<tr>
+<td>‏golangci-lint בגרסה 2 לא מקבל קובץ תצורה</td>
+<td>בקובץ חסר <code>version: "2"</code></td>
+<td>להמיר עם <code>golangci-lint migrate</code></td>
+<td>27, טעויות</td>
+</tr>
+<tr>
+<td>הפקודה <code>govulncheck -show verbose</code> עדיין מראה חולשה אחרי שדרוג</td>
+<td>שודרג לגרסה שסוגרת רק חלק מהחולשות</td>
+<td>לשדרג לגרסה שמופיעה בצעדים של התרגיל</td>
+<td>27, תרגיל</td>
+</tr>
+</tbody>
+</table>
+<h2 id="uv-python">uv ו־Python</h2>
+<table>
+<thead>
+<tr>
+<th>מה רואים</th>
+<th>סיבה סבירה</th>
+<th>מה עושים</th>
+<th>פרק</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>הודעה <code>uv: command not found</code></td>
+<td>לשונית שנפתחה לפני ההתקנה</td>
+<td>לשונית חדשה, או <code>source ~/.bashrc</code></td>
+<td>2.8</td>
+</tr>
+<tr>
+<td>השגיאה <code>No interpreter found for Python 3.14</code></td>
+<td>Python 3.14 לא הותקנה דרך uv</td>
+<td>להריץ <code>uv python install 3.14</code></td>
+<td>2.8</td>
+</tr>
+<tr>
+<td>השגיאה <code>externally-managed-environment</code></td>
+<td>הורצה pip על ה־Python של המערכת</td>
+<td>להוסיף עם <code>uv add</code> ולהריץ עם <code>uv run</code>; לא pip</td>
+<td>2.8</td>
+</tr>
+<tr>
+<td>השגיאה <code>ModuleNotFoundError</code> כשמריצים <code>python3 ...</code></td>
+<td>ה־Python של המערכת, בלי הסביבה של הפרויקט</td>
+<td>להריץ <code>uv run python ...</code> מתוך תיקיית הפרויקט</td>
+<td>2.8</td>
+</tr>
+<tr>
+<td>הכלי pytest לא נמצא, או שבדיקת הסביבה הווירטואלית נכשלת</td>
+<td>הרצה בלי <code>uv run</code></td>
+<td>בתיקיית הפרויקט תמיד <code>uv run pytest</code></td>
+<td>2, תרגיל</td>
+</tr>
+<tr>
+<td>ה־CI מקבל סביבה אחרת מזו שאצלך</td>
+<td>התקנה עם pip לתוך סביבת uv, או קובץ נעילה שלא נכנס ל־Git</td>
+<td><code>uv add</code>, ולחייב את <code>uv.lock</code></td>
+<td>7, טעויות</td>
+</tr>
+<tr>
+<td>קובץ הנעילה התעדכן בשקט</td>
+<td><code>uv sync</code> בלי <code>--locked</code> אחרי שינוי ידני בקובץ הפרויקט</td>
+<td>אם השינוי לא מכוון, להחזיר את הקובץ ולהריץ עם <code>--locked</code></td>
+<td>7, תרגיל</td>
+</tr>
+<tr>
+<td>השגיאה <code>The lockfile at uv.lock needs to be updated</code></td>
+<td><code>pyproject.toml</code> השתנה בלי נעילה מחדש</td>
+<td>להריץ <code>uv lock</code> מחוץ ל־Docker, ולשמור את הנעילה</td>
+<td>19, תרגיל</td>
+</tr>
+<tr>
+<td>הריצה נעצרת על סימון לא רשום</td>
+<td>שגיאת כתיב בסימון, עם <code>--strict-markers</code></td>
+<td>לתקן את השם, או לרשום את הסימון בקובץ הפרויקט</td>
+<td>7, תרגיל</td>
+</tr>
+<tr>
+<td>קוד היציאה 0 תחת <code>cProfile</code>, גם כשהכלי מחזיר 1</td>
+<td>הפרופיילר בולע את קוד היציאה</td>
+<td>לבדוק קוד יציאה בהרצה רגילה</td>
+<td>7, תרגיל</td>
+</tr>
+<tr>
+<td>הבדיקה שכתבת לא רצה, והמספר לא משתנה</td>
+<td>הקובץ מחוץ לתיקייה <code>tests/</code>, ו־<code>testpaths</code> מחפש רק בה</td>
+<td>להעביר אותו פנימה, עם שם שמתחיל ב־<code>test_</code></td>
+<td>29, תרגיל</td>
+</tr>
+<tr>
+<td>‏mypy מתלונן על טיפוס מספרי במודל</td>
+<td>ערבוב של <code>int</code> ו־<code>float</code></td>
+<td>כל המספרים <code>float</code> חוץ ממספר העותקים; חילוק ב־<code>/</code> מחזיר <code>float</code></td>
+<td>29, תרגיל</td>
+</tr>
+<tr>
+<td>‏<code>ruff check --fix</code> רץ, ובדיקה ממשיכה להיכשל</td>
+<td>התיקון האוטומטי לא נוגע ב־<code>B006</code> וב־<code>E722</code></td>
+<td>לתקן ביד</td>
+<td>27, תרגיל</td>
+</tr>
+<tr>
+<td>שירות FastAPI כולו נעצר תחת עומס</td>
+<td>ספרייה חוסמת בתוך <code>async def</code></td>
+<td><code>asyncio.to_thread</code>, או נקודת קצה רגילה ב־<code>def</code></td>
+<td>8.4, 8, טעויות</td>
+</tr>
+<tr>
+<td>קבוצת משימות נתקעת, או זמן קצוב לא עובד</td>
+<td><code>CancelledError</code> נבלע</td>
+<td>לתפוס רק כדי לרשום, ולזרוק שוב</td>
+<td>8, תרגיל; 8, טעויות</td>
+</tr>
+<tr>
+<td>המקבל מחזיר 401 על בקשות תקינות</td>
+<td>החתימה נבדקה על JSON שפורק ונבנה מחדש</td>
+<td>לבדוק את החתימה על הבתים הגולמיים, <code>await request.body()</code></td>
+<td>8, תרגיל</td>
+</tr>
+<tr>
+<td>ערך <code>date-time</code> לא תקין עובר אימות בשקט</td>
+<td>חסר <code>format_checker</code>, או שחסרה החבילה <code>rfc3339-validator</code></td>
+<td>להפעיל את הבודק ולהתקין את החבילה דרך <code>pyproject.toml</code></td>
+<td>26, תרגיל</td>
+</tr>
+</tbody>
+</table>
+<h2 id="postgresql">PostgreSQL</h2>
+<table>
+<thead>
+<tr>
+<th>מה רואים</th>
+<th>סיבה סבירה</th>
+<th>מה עושים</th>
+<th>פרק</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>כל הבדיקות של המסד מסומנות <code>SKIP</code></td>
+<td><code>DATABASE_URL</code> לא מוגדר בחלון הנוכחי</td>
+<td>להריץ שוב את שורת ה־<code>export</code> מהצעד הראשון; לבדוק עם <code>go test -v</code></td>
+<td>11, 14, 17, 30, תרגיל</td>
+</tr>
+<tr>
+<td>הודעת <code>role "postgres" does not exist</code></td>
+<td>המשתמש בתרגיל הוא <code>course</code></td>
+<td>להוסיף <code>-U course</code> ואת שם המסד לכל קריאה ל־psql</td>
+<td>10, תרגיל</td>
+</tr>
+<tr>
+<td>הפקודה <code>\i /work/data/seed.sql</code> נכשלת ב־<code>No such file or directory</code></td>
+<td>compose הורץ מתיקייה אחרת, או ש־<code>data</code> לא הועתקה</td>
+<td>להריץ מתוך <code>~/senior-course/ch10</code>, ולבדוק שהקובץ קיים שם</td>
+<td>10, תרגיל</td>
+</tr>
+<tr>
+<td>הבדיקות נכשלות על <code>connection refused</code></td>
+<td>השרת לא רץ, או שהכתובת מצביעה לפורט אחר</td>
+<td>לבדוק עם <code>docker compose -p chNN ... ps</code> שהוא <code>healthy</code>, ולתקן את <code>DATABASE_URL</code></td>
+<td>10, 35, תרגיל</td>
+</tr>
+<tr>
+<td>הודעת <code>connection refused</code> על פורט 5438</td>
+<td>המסד של Hookline לא למעלה, או בפרויקט compose אחר</td>
+<td><code>make db-up</code> מתוך <code>~/senior-course/hookline</code>, ולבדוק ב־<code>docker compose -p hookline ps</code></td>
+<td>פרויקט Hookline, README</td>
+</tr>
+<tr>
+<td>הודעת <code>relation "events" does not exist</code> בהרצת השרת</td>
+<td>לא הורצו מיגרציות על המסד של השרת</td>
+<td>להריץ את פקודת <code>migrate up</code> של <code>hookline-admin</code></td>
+<td>פרויקט Hookline, README</td>
+</tr>
+<tr>
+<td>שגיאה <code>22P02</code> בלוג, בדיקות API נכשלות מול המסד</td>
+<td>מזהה שאינו UUID הגיע לשאילתה</td>
+<td>לוודא ש־<code>domain.IsID</code> נקרא בכל נתיב</td>
+<td>פרויקט Hookline, README</td>
+</tr>
+<tr>
+<td>התוכנית מראה <code>Index Only Scan</code> עם <code>Heap Fetches</code> גבוה</td>
+<td>מפת הנראות לא עדכנית</td>
+<td>להריץ <code>VACUUM (ANALYZE)</code> על הטבלה, ואז את השאילתה שוב</td>
+<td>10, תרגיל</td>
+</tr>
+<tr>
+<td>ההערכה של <code>EXPLAIN</code> רחוקה מהמציאות</td>
+<td>בלי <code>ANALYZE</code> זו הערכה בלבד</td>
+<td>להריץ עם <code>ANALYZE</code>; על <code>DELETE</code>, בתוך <code>BEGIN</code> ו־<code>ROLLBACK</code></td>
+<td>10, טעויות</td>
+</tr>
+<tr>
+<td>אחרי כמה בקשות הכול נתקע</td>
+<td><code>rows.Close()</code> חסר בלולאה ידנית, והחיבור לא חוזר ל־pool</td>
+<td>לסגור, או להשתמש ב־<code>CollectRows</code></td>
+<td>10, טעויות</td>
+</tr>
+<tr>
+<td>השירות נופל דווקא בפריסה, על מגבלת חיבורים</td>
+<td><code>MaxConns</code> כפול מספר העותקים חוצה את <code>max_connections</code></td>
+<td>להקטין את <code>MaxConns</code> לפי מספר העותקים</td>
+<td>11, טעויות</td>
+</tr>
+<tr>
+<td>הבדיקה של אובדן עדכון נתקעת</td>
+<td>הקריאה נכתבה עם <code>FOR UPDATE</code> באותה goroutine</td>
+<td>ביום של הבדיקה הקריאה רגילה; לעצור עם Ctrl+C ולתקן</td>
+<td>11, תרגיל</td>
+</tr>
+<tr>
+<td>הפקודה <code>goose up</code> אומרת <code>no migrations to run</code> אחרי עריכה</td>
+<td>goose כבר רשם את הגרסה כמוחלת</td>
+<td>לבטל את העריכה ולכתוב מיגרציה חדשה</td>
+<td>11, תרגיל; 11, טעויות</td>
+</tr>
+<tr>
+<td>נשארים מסדים בשם <code>ch11_test_...</code></td>
+<td>panic בבדיקה עצר את התהליך לפני הניקוי</td>
+<td>לא מזיק; <code>down -v</code> מוחק הכול</td>
+<td>11, תרגיל</td>
+</tr>
+<tr>
+<td>הודעת <code>relation "jobs" already exists</code> עם <code>-init</code></td>
+<td>הטבלאות נוצרו בהרצה קודמת</td>
+<td>להריץ בלי <code>-init</code>, או להתחיל מחדש עם <code>down -v</code></td>
+<td>14, תרגיל</td>
+</tr>
+<tr>
+<td>המשני לא עולה, עם <code>no pg_hba.conf entry for replication connection</code></td>
+<td>הכרך של הראשי נוצר לפני שהתסריט היה שם</td>
+<td><code>down -v</code> ואז <code>up</code> מחדש</td>
+<td>17, תרגיל</td>
+</tr>
+<tr>
+<td>הודעת <code>replication slot "replica1" does not exist</code></td>
+<td>אותה סיבה, מהצד של ה־slot</td>
+<td><code>down -v</code> ואז <code>up</code> מחדש</td>
+<td>17, תרגיל</td>
+</tr>
+<tr>
+<td>בדיקות של המשני נכשלות ב־<code>context deadline exceeded</code></td>
+<td>השהיה נשארה במשני מהרצה שנקטעה</td>
+<td>במשני: <code>ALTER SYSTEM RESET recovery_min_apply_delay</code>, ואז <code>pg_reload_conf()</code></td>
+<td>17, תרגיל</td>
+</tr>
+<tr>
+<td>הדיסק של הראשי מתמלא</td>
+<td>slot של משני שמת שומר WAL בלי סוף</td>
+<td>לנטר slots ולהגביל אותם</td>
+<td>17, טעויות</td>
+</tr>
+<tr>
+<td>התראת פיגור קופצת בלילה, כשהמשני מעודכן</td>
+<td>פיגור נמדד לפי גיל הטרנזקציה האחרונה</td>
+<td>למדוד פיגור בבתים, או עם שורת דופק</td>
+<td>17.3, 17, טעויות</td>
+</tr>
+<tr>
+<td>המיגרציה נכשלת ב־<code>VALIDATE</code> עם <code>is violated by some row</code></td>
+<td>המילוי לא רץ, או שעותק ישן כתב רק לעמודה הישנה</td>
+<td>לפרוס את הגרסה שכותבת כפול לפני המיגרציה, ואז למלא</td>
+<td>30, תרגיל</td>
+</tr>
+<tr>
+<td>הוספה נכשלת עם <code>violates not-null constraint</code></td>
+<td>העמודה הישנה עדיין חובה</td>
+<td>להוסיף <code>DROP NOT NULL</code> לפני הפריסה</td>
+<td>30, תרגיל; 30, טעויות</td>
+</tr>
+<tr>
+<td>המילוי נכשל עם <code>invalid transaction termination</code></td>
+<td>הקובץ רץ בתוך טרנזקציה של goose</td>
+<td><code>-- +goose NO TRANSACTION</code> בשורה הראשונה</td>
+<td>30, תרגיל</td>
+</tr>
+<tr>
+<td>המילוי נכשל עם <code>unterminated dollar-quoted string</code></td>
+<td>goose חתך את הבלוק בנקודה־פסיק הראשונה</td>
+<td>לעטוף את הבלוק בשתי ההערות שתוחמות פקודה ארוכה</td>
+<td>30, תרגיל</td>
+</tr>
+<tr>
+<td>הכתיבות לטבלה נחסמות לכל זמן בניית האינדקס</td>
+<td><code>CREATE INDEX</code> בלי <code>CONCURRENTLY</code></td>
+<td><code>CONCURRENTLY</code>, ובקובץ goose גם <code>NO TRANSACTION</code></td>
+<td>30, טעויות</td>
+</tr>
+<tr>
+<td>כל התנועה לטבלה עומדת בתור מאחורי מיגרציה</td>
+<td>מיגרציה בלי <code>lock_timeout</code></td>
+<td>גבול של שניות, וניסיון חוזר</td>
+<td>30, טעויות</td>
+</tr>
+<tr>
+<td>השגיאה <code>data type text has no default operator class for access method "gist"</code></td>
+<td>אילוץ GiST עם שוויון על <code>text</code></td>
+<td><code>CREATE EXTENSION IF NOT EXISTS btree_gist;</code> לפני הטבלה</td>
+<td>35, תרגיל</td>
+</tr>
+</tbody>
+</table>
+<h2 id="redis">Redis</h2>
+<table>
+<thead>
+<tr>
+<th>מה רואים</th>
+<th>סיבה סבירה</th>
+<th>מה עושים</th>
+<th>פרק</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>בדיקות מדלגות עם <code>set DATABASE_URL and REDIS_ADDR</code></td>
+<td>טרמינל חדש, בלי משתני הסביבה</td>
+<td>להריץ את שתי שורות ה־<code>export</code>, ולבדוק עם <code>echo $REDIS_ADDR</code></td>
+<td>12, תרגיל</td>
+</tr>
+<tr>
+<td>בדיקות Redis מדווחות <code>SKIP</code></td>
+<td><code>REDIS_ADDR</code> לא הוגדר באותה פקודה</td>
+<td>לכתוב אותו בתחילת השורה, או לייצא לפני כן</td>
+<td>16, תרגיל</td>
+</tr>
+<tr>
+<td>כל <code>SET</code> נכשל כשהזיכרון מתמלא</td>
+<td>ברירת המחדל <code>noeviction</code></td>
+<td>לקבוע <code>allkeys-lru</code> או מדיניות אחרת במודע</td>
+<td>12.3, 12, טעויות</td>
+</tr>
+<tr>
+<td>השגיאה <code>Error compiling script</code></td>
+<td>שגיאת תחביר בסקריפט Lua</td>
+<td>ההודעה כוללת את מספר השורה, למשל <code>user_script:1</code></td>
+<td>16, תרגיל</td>
+</tr>
+<tr>
+<td>בקשה אחרי 80 מילישניות נדחית בבדיקת המילוי</td>
+<td>הזמן נשמר ביחידה לא נכונה, או הומר בלי <code>tostring</code></td>
+<td>לעבוד באלפיות שנייה, כמו בהערה בסקריפט</td>
+<td>16, תרגיל</td>
+</tr>
+<tr>
+<td>נעילה של מישהו אחר נמחקת</td>
+<td>שחרור נעילת Redis עם <code>DEL</code></td>
+<td>להשוות את הערך ולמחוק בפעולה אחת</td>
+<td>18, טעויות</td>
+</tr>
+</tbody>
+</table>
+<h2 id="redpanda-kafka">Redpanda ו־Kafka</h2>
+<table>
+<thead>
+<tr>
+<th>מה רואים</th>
+<th>סיבה סבירה</th>
+<th>מה עושים</th>
+<th>פרק</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>בדיקות מדלגות עם <code>set DATABASE_URL</code> או <code>set KAFKA_BROKERS</code></td>
+<td>המשתנים לא מוגדרים במסוף הזה</td>
+<td>להגדיר את שניהם, ולבדוק שה־stack למעלה עם <code>docker compose -p ch13 ... ps</code></td>
+<td>13, תרגיל</td>
+</tr>
+<tr>
+<td>החיבור הראשון מצליח, והכתיבה נתקעת</td>
+<td>כתובת פרסום שגויה ב־broker שבקונטיינר</td>
+<td>לבדוק את <code>--advertise-kafka-addr</code></td>
+<td>13.2, 13, טעויות</td>
+</tr>
+<tr>
+<td>הכלי <code>rpk</code> מתלונן <code>the input device is not a TTY</code></td>
+<td>הפונקציה הוגדרה בלי <code>-T</code>, וקלט הוזרם עם <code>printf</code></td>
+<td>להגדיר אותה שוב בדיוק כמו בצעדים</td>
+<td>13, תרגיל</td>
+</tr>
+<tr>
+<td>חבר חדש בקבוצה מתחיל מההתחלה</td>
+<td>הלולאה לא שומרת offsets</td>
+<td>להשלים את <code>CommitRecords</code></td>
+<td>13, תרגיל</td>
+</tr>
+<tr>
+<td>הודעה שנכשלה אבדה</td>
+<td>ה־offset שלה נשמר לפני שה־handler הצליח</td>
+<td>לשמור רק רשומות שהטיפול בהן הצליח</td>
+<td>13, תרגיל; 13, טעויות</td>
+</tr>
+<tr>
+<td>הקבוצה תקועה על הודעה אחת לנצח</td>
+<td>הודעה שבורה לתמיד, והלולאה נעצרת עליה</td>
+<td>להבחין בין שגיאה זמנית לקבועה, ולהעביר לתור מתים</td>
+<td>13.6, 14.5</td>
+</tr>
+<tr>
+<td>כל <code>POST /v1/links</code> מחזיר 503</td>
+<td>ה־topic לא קיים: השירות <code>topics</code> לא רץ, או משתנה במעטפת דורס</td>
+<td><code>unset SHORTY_KAFKA_TOPIC</code> ולהרים שוב</td>
+<td>24, תרגיל</td>
+</tr>
+</tbody>
+</table>
+<h2 id="kind-kubectl">kind ו־kubectl</h2>
+<table>
+<thead>
+<tr>
+<th>מה רואים</th>
+<th>סיבה סבירה</th>
+<th>מה עושים</th>
+<th>פרק</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>השגיאה <code>cannot execute binary file: Exec format error</code></td>
+<td>הורד קובץ של ארכיטקטורה אחרת</td>
+<td>לבדוק את המשתנה <code>ARCH</code> ולהוריד שוב</td>
+<td>2.10</td>
+</tr>
+<tr>
+<td>בדיקת הטביעה מדווחת <code>FAILED</code></td>
+<td>הורדה חלקית, או גרסה שונה בין שני הקבצים</td>
+<td>למחוק את שניהם ולהוריד שוב</td>
+<td>2.10</td>
+</tr>
+<tr>
+<td>הכלי kubectl מדפיס <code>connection refused</code> לפני יום 60</td>
+<td>נשכח הדגל <code>--client</code></td>
+<td>אין אשכול עדיין; זה תקין</td>
+<td>2.10</td>
+</tr>
+<tr>
+<td>הרופא עם <code>--part-e</code> מראה גרסה ישנה</td>
+<td>עותק ישן מוקדם ב־<code>PATH</code></td>
+<td><code>command -v</code> עם שם הכלי, ולמחוק את העותק הישן</td>
+<td>2.10</td>
+</tr>
+<tr>
+<td>הסטטוס <code>ErrImagePull</code> או <code>ImagePullBackOff</code></td>
+<td>ה־image לא נטען ל־node, או שהתגית <code>latest</code></td>
+<td><code>kind load docker-image</code>, ולוודא <code>imagePullPolicy: IfNotPresent</code></td>
+<td>20, תרגיל; 20, טעויות</td>
+</tr>
+<tr>
+<td>הסטטוס <code>ErrImageNeverPull</code></td>
+<td>ה־image נטען לאשכול בשם אחר, או בתגית אחרת</td>
+<td>אותו <code>--name</code> ואותה תגית כמו ב־manifest</td>
+<td>23, תרגיל</td>
+</tr>
+<tr>
+<td>הסטטוס <code>CreateContainerConfigError</code></td>
+<td>ה־Secret לא קיים ב־namespace, או משתמש בשם עם <code>runAsNonRoot</code></td>
+<td>ליצור את ה־Secret; <code>USER</code> במספרים</td>
+<td>20, תרגיל; 20, טעויות</td>
+</tr>
+<tr>
+<td>ה־receiver ב־<code>CrashLoopBackOff</code>, עם <code>ValueError</code> על <code>tcp://...</code></td>
+<td>Service בשם <code>receiver</code> הזריק <code>RECEIVER_PORT</code></td>
+<td>לוודא ש־<code>enableServiceLinks: false</code> נשאר בקובץ</td>
+<td>20.5.1, 20, תרגיל</td>
+</tr>
+<tr>
+<td>ה־Service לא מעביר אף בקשה</td>
+<td>ה־selector לא תואם לתוויות של התבנית</td>
+<td>להשוות תוויות; <code>kubectl get endpointslices</code></td>
+<td>20, טעויות; 21.5</td>
+</tr>
+<tr>
+<td>הפקודה <code>port-forward</code> נשברה</td>
+<td>היא הייתה מחוברת ל־pod שנמחק</td>
+<td>להריץ אותה מחדש</td>
+<td>20, תרגיל</td>
+</tr>
+<tr>
+<td>הודעה <code>curl: (7) Failed to connect</code> לפורט שאינו חשוף ב־Service</td>
+<td>ה־<code>port-forward</code> היה ל־Service ולא ל־pod</td>
+<td>להפנות ל־<code>pod/&lt;name&gt;</code></td>
+<td>20, תרגיל</td>
+</tr>
+<tr>
+<td>ה־pod עובר ל־<code>0/1</code> ואז <code>RESTARTS</code> עולה</td>
+<td>בדיקת המוכנות נכתבה ב־<code>livenessProbe</code></td>
+<td>להעביר את <code>/readyz</code> ל־<code>readinessProbe</code></td>
+<td>20, תרגיל</td>
+</tr>
+<tr>
+<td>כל העותקים מופעלים מחדש יחד בתקלה במסד</td>
+<td>בדיקת חיות שבודקת את המסד</td>
+<td>בדיקת חיות בודקת רק את התהליך</td>
+<td>20, טעויות</td>
+</tr>
+<tr>
+<td>שינוי ב־ConfigMap לא נקלט</td>
+<td>משתני סביבה נקראים בעלייה</td>
+<td><code>kubectl rollout restart</code></td>
+<td>20, טעויות</td>
+</tr>
+<tr>
+<td>הסטטוס <code>CrashLoopBackOff</code>, מונה ההפעלות עולה</td>
+<td>התהליך מת מיד אחרי שעלה</td>
+<td><code>kubectl logs --previous</code></td>
+<td>21.5</td>
+</tr>
+<tr>
+<td>הסטטוס <code>Running</code> אבל <code>0/1</code></td>
+<td>בדיקת המוכנות נכשלת</td>
+<td>אירועים מסוג <code>Unhealthy</code> ב־<code>describe</code></td>
+<td>21.5</td>
+</tr>
+<tr>
+<td>הסטטוס <code>Running</code> ו־<code>1/1</code>, והשירות לא עונה</td>
+<td>הבעיה בין ה־Service ל־pod</td>
+<td>ה־endpoints והפורטים</td>
+<td>21.5</td>
+</tr>
+<tr>
+<td>‏<code>OOMKilled</code> וקוד יציאה 137</td>
+<td>הקונטיינר חרג מתקרת הזיכרון</td>
+<td>תקרה שתואמת את מה שהשירות באמת צורך</td>
+<td>21.1.4</td>
+</tr>
+<tr>
+<td>השירות איטי בלי אף שגיאה בלוג</td>
+<td>חניקה בגלל תקרת מעבד נמוכה</td>
+<td>לבדוק חניקה לפני שמחפשים באג בקוד</td>
+<td>21.1.3, 21, טעויות</td>
+</tr>
+<tr>
+<td>ה־HPA מציג <code>cpu: &lt;unknown&gt;/60%</code></td>
+<td>metrics-server עוד לא אסף, או שחסר request למעבד</td>
+<td>לחכות דקה ולבדוק <code>kubectl top pods</code>; להוסיף request</td>
+<td>21, תרגיל; 21, טעויות</td>
+</tr>
+<tr>
+<td>‏metrics-server תקוע ב־<code>0/1</code> עם <code>x509: cannot validate certificate</code></td>
+<td>הותקן הקובץ הרשמי ישירות</td>
+<td>להחיל את <code>data/metrics-server</code> עם <code>-k</code>, שמוסיף <code>--kubelet-insecure-tls</code></td>
+<td>21, תרגיל</td>
+</tr>
+<tr>
+<td>מספר העותקים חוזר אחורה באמצע עומס</td>
+<td><code>replicas</code> ב־manifest של Deployment שיש לו HPA</td>
+<td>להשמיט את השדה כשה־HPA פעיל</td>
+<td>21.2, 21, טעויות</td>
+</tr>
+<tr>
+<td>פריסה נתקעת עם <code>ProgressDeadlineExceeded</code></td>
+<td>גרסה חדשה לא עוברת מוכנות</td>
+<td><code>kubectl rollout undo</code>, ואז לתקן את הקובץ ב־Git</td>
+<td>21.3, 21, טעויות</td>
+</tr>
+<tr>
+<td>פנייה לפורט של ה־ingress מחזירה רשימה של פקודות ניהול</td>
+<td>cloud-provider-kind רץ בלי <code>--enable-lb-port-mapping</code></td>
+<td>למחוק את ה־Ingress ואת הקונטיינרים שלו, ולהפעיל מחדש עם הדגל</td>
+<td>21, תרגיל</td>
+</tr>
+<tr>
+<td>‏<code>exec</code> נכשל עם <code>executable file not found</code></td>
+<td>ב־distroless אין shell, וזה צפוי</td>
+<td><code>kubectl debug</code> עם קונטיינר זמני</td>
+<td>21.5.2</td>
+</tr>
+<tr>
+<td>הפקודה <code>kubectl debug</code> נתקעת ולא מחזירה כלום</td>
+<td>הקונטיינר הזמני נכשל ב־<code>runAsNonRoot</code></td>
+<td>להוסיף <code>--custom=data/debug-nonroot.json</code></td>
+<td>21.5.2, 21, תרגיל</td>
+</tr>
+<tr>
+<td>הסקריפט <code>drill_check.sh</code> נכשל רגע אחרי תיקון</td>
+<td>השינוי עוד לא הגיע ל־kube-proxy</td>
+<td>להריץ שוב אחרי עשר שניות, לפני שמחפשים באג</td>
+<td>21, תרגיל</td>
+</tr>
+</tbody>
+</table>
+<h2 id="helm">Helm</h2>
+<table>
+<thead>
+<tr>
+<th>מה רואים</th>
+<th>סיבה סבירה</th>
+<th>מה עושים</th>
+<th>פרק</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>הפקודה <code>helm upgrade</code> נכשלת ב־<code>field is immutable</code> על ה־selector</td>
+<td>תווית משתנה, כמו גרסת ה־chart, נכנסה ל־<code>selectorLabels</code></td>
+<td>להשאיר אותה ב־<code>shorty.labels</code> בלבד; להסיר את ה־release ולהתקין מחדש</td>
+<td>21, תרגיל; 21, טעויות</td>
+</tr>
+<tr>
+<td>‏manifest עובר את kubeconform ולא עובד</td>
+<td>kubeconform בודק חוקיות, לא נכונות</td>
+<td>אשכול אמיתי הוא הבדיקה; לבדוק selector ותוויות</td>
+<td>21.7.4, 21, טעויות</td>
+</tr>
+<tr>
+<td>ה־release נתקע עד ה־timeout ונכשל</td>
+<td>ה־image לא נטען לאשכול, וה־pods ב־<code>ErrImagePull</code></td>
+<td><code>kind load</code> לאשכול הנכון, ולנסות שוב</td>
+<td>22, תרגיל</td>
+</tr>
+</tbody>
+</table>
+<h2 id="terraform">Terraform</h2>
+<table>
+<thead>
+<tr>
+<th>מה רואים</th>
+<th>סיבה סבירה</th>
+<th>מה עושים</th>
+<th>פרק</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>השגיאה <code>Unsupported block type</code> על <code>kubernetes</code> ב־provider של Helm</td>
+<td>בגרסה 3 זה אובייקט, לא בלוק</td>
+<td>לכתוב <code>kubernetes = { ... }</code></td>
+<td>22.6, 22, תרגיל</td>
+</tr>
+<tr>
+<td>ה־apply הראשון נכשל לפעמים ב־<code>namespaces "tf-demo" not found</code></td>
+<td>שם ה־namespace נכתב כמחרוזת, בלי הפניה</td>
+<td>להפנות ל־resource, ו־Terraform יסדר את הסדר</td>
+<td>22, תרגיל; 22, טעויות</td>
+</tr>
+<tr>
+<td>שגיאה על ההקשר <code>kind-ch22</code> ב־plan</td>
+<td>האשכול לא קיים, או נוצר בשם אחר</td>
+<td><code>kind get clusters</code>, או <code>-var kube_context=...</code></td>
+<td>22, תרגיל</td>
+</tr>
+<tr>
+<td>שגיאה על נתיב ה־chart</td>
+<td>ה־chart לא הועתק לתיקיית המודול</td>
+<td>לחזור לצעד שמעתיק אותו</td>
+<td>22, תרגיל</td>
+</tr>
+<tr>
+<td>הקובץ <code>terraform.tfstate</code> מופיע ב־<code>git status</code></td>
+<td>אין לו שורה ב־<code>.gitignore</code></td>
+<td>להוסיף את השורות מהצעדים לפני ה־commit</td>
+<td>22, תרגיל; 22.2.3</td>
+</tr>
+<tr>
+<td>שורת <code>-/+</code> ב־plan</td>
+<td>החלפה: מחיקה ויצירה מחדש</td>
+<td>לקרוא כל plan לפני apply; על מסד נתונים זו מחיקה של הנתונים</td>
+<td>22, טעויות</td>
+</tr>
+<tr>
+<td>תיקון ידני באשכול נעלם</td>
+<td>ה־apply הבא מחזיר לתצורה</td>
+<td>להעביר כל תיקון לקובץ</td>
+<td>22.3.3, 22, טעויות</td>
+</tr>
+<tr>
+<td>שינוי בתוך release של Helm לא מופיע ב־plan</td>
+<td>ה־provider לא רואה סטייה בתוך release</td>
+<td>לבדוק באשכול עצמו</td>
+<td>22.6, 22, טעויות</td>
+</tr>
+</tbody>
+</table>
+<h2 id="github-actions">GitHub Actions</h2>
+<table>
+<thead>
+<tr>
+<th>מה רואים</th>
+<th>סיבה סבירה</th>
+<th>מה עושים</th>
+<th>פרק</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>‏actionlint אומר <code>no project was found in any parent directories</code></td>
+<td>הרצה מחוץ למאגר Git</td>
+<td>לעבור ל־<code>~/senior-course</code>, או <code>git init</code> בתיקייה זמנית</td>
+<td>23, תרגיל</td>
+</tr>
+<tr>
+<td>ה־job נכשל ב־<code>tests were skipped; is DATABASE_URL set for this job?</code></td>
+<td>המשתנה לא מוגדר ברמת ה־job</td>
+<td>להעביר אותו ל־<code>env</code> של ה־job, ליד <code>services</code></td>
+<td>23, תרגיל</td>
+</tr>
+<tr>
+<td>‏CI ירוק, ובדיקות המסד לא רצו</td>
+<td>דילוג שקט כשאין מסד</td>
+<td>ב־job שבו המסד אמור להיות, דילוג הוא כישלון</td>
+<td>23.3, 23, טעויות</td>
+</tr>
+<tr>
+<td>ה־job נכשל ב־<code>connection refused</code> מול ה־service container</td>
+<td>חסר מיפוי פורטים, או שאין בדיקת בריאות</td>
+<td>שניהם; <code>--health-cmd</code> ב־<code>options</code></td>
+<td>23, תרגיל; 23, טעויות</td>
+</tr>
+<tr>
+<td>הבדיקות נכשלות, וה־step ירוק</td>
+<td>צינור ל־<code>tee</code> בלי <code>pipefail</code></td>
+<td><code>shell: bash</code></td>
+<td>23, טעויות</td>
+</tr>
+<tr>
+<td>‏PR נשאר חסום עם בדיקה „ממתינה” לנצח</td>
+<td>בדיקה חובה על workflow מסונן לפי נתיב</td>
+<td>לא לסמן workflow מסונן כבדיקה חובה</td>
+<td>23, טעויות</td>
+</tr>
+<tr>
+<td>‏<code>uv run</code> בצעד הבדיקות מתקין מחדש או מעדכן את <code>uv.lock</code></td>
+<td>חסר <code>--no-sync</code></td>
+<td>להוסיף <code>--no-sync</code></td>
+<td>23, תרגיל</td>
+</tr>
+<tr>
+<td>הדחיפה ל־GHCR נכשלת ב־<code>denied</code> או <code>403</code></td>
+<td>אין <code>packages: write</code> ל־job, או שה־package מקושר למאגר אחר</td>
+<td>לבדוק <code>permissions</code>, ואת Manage Actions access בדף ה־package</td>
+<td>23, תרגיל</td>
+</tr>
+<tr>
+<td>‏workflow מקבל הרשאות רחבות מהצפוי</td>
+<td>אין <code>permissions</code> בקובץ</td>
+<td><code>contents: read</code> ברמה העליונה, ולכל job רק מה שהוא צריך</td>
+<td>23.6, 23, טעויות</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_2">מחסנית התצפיתיות</h2>
+<table>
+<thead>
+<tr>
+<th>מה רואים</th>
+<th>סיבה סבירה</th>
+<th>מה עושים</th>
+<th>פרק</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ה־span נקרא <code>GET</code>, ולמדד אין <code>http_route</code></td>
+<td><code>otelhttp</code> לא רואה את התבנית, כי שכבה מעבירה עותק של הבקשה</td>
+<td>השכבה של התבנית חיצונית, ומעתיקה לפני שהיא כותבת</td>
+<td>24, תרגיל; 24, טעויות</td>
+</tr>
+<tr>
+<td>אין מדדים של שירות Python ב־Prometheus</td>
+<td>המדד בשם הישן, כי <code>OTEL_SEMCONV_STABILITY_OPT_IN</code> לא הוגדר</td>
+<td>להגדיר אותו לפני <code>instrument_app</code></td>
+<td>24.3, 24, תרגיל</td>
+</tr>
+<tr>
+<td>ארבעה מעקבים קצרים במקום אחד ארוך</td>
+<td>ה־propagator לא הותקן, או נקרא לפני <code>Setup</code></td>
+<td><code>Setup</code> ראשונה בעלייה</td>
+<td>24, תרגיל; 24, טעויות</td>
+</tr>
+<tr>
+<td>ה־collector נכשל עם <code>unknown type: "otlphttp"</code></td>
+<td>תצורה מגרסה ישנה</td>
+<td>בגרסה המוצמדת: <code>otlp_http</code> ו־<code>otlp_grpc</code></td>
+<td>24.7, 24, תרגיל</td>
+</tr>
+<tr>
+<td>בדיקה נכשלת רק כשהמחסנית רצה</td>
+<td>המחשב עמוס</td>
+<td>להריץ את הבדיקה לבד לפני שמחפשים באג</td>
+<td>24, תרגיל</td>
+</tr>
+<tr>
+<td>ה־spans האחרונים, אלה של הקריסה, חסרים</td>
+<td>לא נקרא כיבוי של הטלמטריה</td>
+<td>לקרוא לכיבוי, שמרוקן את המנה האחרונה</td>
+<td>24, טעויות</td>
+</tr>
+<tr>
+<td>‏Prometheus נופל או מתנפח</td>
+<td>נתיב גולמי כ־label</td>
+<td>label רק לתבנית, עם מעט ערכים אפשריים</td>
+<td>24, טעויות</td>
+</tr>
+<tr>
+<td>הקצב יוצא שגוי אחרי איפוס תהליך</td>
+<td><code>sum</code> לפני <code>rate</code></td>
+<td>קודם <code>rate</code>, אחר כך <code>sum</code></td>
+<td>24.4, 24, טעויות</td>
+</tr>
+<tr>
+<td>‏<code>histogram_quantile</code> מחזיר תוצאה ריקה בלי שגיאה</td>
+<td>חסר <code>le</code> ב־<code>by</code></td>
+<td>להשאיר את <code>le</code></td>
+<td>24.4, 24, טעויות</td>
+</tr>
+<tr>
+<td>עריכה ב־Grafana נעלמה</td>
+<td>לא יצאה חזרה לקובץ ה־JSON</td>
+<td>לייצא לקובץ שבמאגר</td>
+<td>24.6, 24, טעויות</td>
+</tr>
+<tr>
+<td>הודעה <code>yaml: did not find expected key</code> מ־<code>promtool check rules</code></td>
+<td>שורה עם פחות רווחים סגרה את בלוק ה־<code>expr</code></td>
+<td>להתחיל את הביטוי בסוגריים, באותה הזחה לכל השורות</td>
+<td>25, תרגיל</td>
+</tr>
+<tr>
+<td>בדיקת promtool נכשלת עם <code>got: nil</code></td>
+<td><code>interval</code> של 5 דקות, ובחלון של <code>rate</code> נשארת דגימה אחת</td>
+<td>דגימה כל דקה בבדיקות</td>
+<td>25.3.2, 25, תרגיל</td>
+</tr>
+<tr>
+<td>הבדיקה נכשלת רק על ההערות</td>
+<td>promtool משווה טקסט במדויק, ו־<code>$value</code> משתנה בין הרצות</td>
+<td>לא להדפיס <code>$value</code> בהערות</td>
+<td>25, תרגיל</td>
+</tr>
+<tr>
+<td>אין התראות ב־Prometheus בזמן התקרית</td>
+<td>המחסנית עלתה בלי <code>RULES_DIR</code></td>
+<td>לבדוק ב־<code>/api/v1/rules</code>, ולהרים מחדש עם המשתנה</td>
+<td>25, תרגיל</td>
+</tr>
+<tr>
+<td>‏Prometheus מאבד את החוקים אחרי <code>up</code> ידני</td>
+<td><code>up</code> בלי <code>--no-deps</code> יצר מחדש שירות תלוי</td>
+<td>להוסיף <code>--no-deps</code></td>
+<td>25, תרגיל</td>
+</tr>
+</tbody>
+</table>
+<h2 id="k6-testcontainers">k6 ו־testcontainers</h2>
+<table>
+<thead>
+<tr>
+<th>מה רואים</th>
+<th>סיבה סבירה</th>
+<th>מה עושים</th>
+<th>פרק</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>הודעת <code>pgtest: start PostgreSQL ... Cannot connect to the Docker daemon</code></td>
+<td>Docker Desktop לא רץ, או שהשילוב עם WSL כבוי</td>
+<td>להפעיל, ולבדוק עם <code>docker ps</code>; לבדיקות מהירות בלבד, <code>-short</code></td>
+<td>26, תרגיל</td>
+</tr>
+<tr>
+<td>קונטיינרים של <code>postgres:18.6</code> נשארים אחרי Ctrl-C</td>
+<td>‏Ryuk כבוי בסביבה או בקובץ ההגדרות</td>
+<td>להסיר את ההגדרה; למחוק את השאריות לפי התווית <code>org.testcontainers=true</code></td>
+<td>26.2.4, 26, תרגיל</td>
+</tr>
+<tr>
+<td>‏<code>go test ./...</code> ירוק, ושום דבר לא נבדק</td>
+<td>בדיקות אינטגרציה מדלגות כשאין Docker</td>
+<td><code>pgtest.Main</code> נכשל בקוד 1; בדיקות מהירות רק עם <code>-short</code> במפורש</td>
+<td>26, טעויות</td>
+</tr>
+<tr>
+<td>הקונטיינר נשאר אחרי שהבדיקות הסתיימו</td>
+<td><code>os.Exit</code> בתוך הפונקציה שמרימה אותו</td>
+<td>להחזיר קוד יציאה, ולקרוא ל־<code>os.Exit</code> ב־<code>TestMain</code></td>
+<td>26, טעויות</td>
+</tr>
+<tr>
+<td>מזהה שאינו UUID עובר בצד אחד של בדיקת החוזה</td>
+<td>הבודק לא אוכף <code>format</code></td>
+<td>ב־Go <code>c.AssertFormat()</code>, ב־Python <code>format_checker</code></td>
+<td>26, תרגיל</td>
+</tr>
+<tr>
+<td>בדיקת תכונה נכשלת פעם אחת ועוברת בהרצה הבאה</td>
+<td>rapid מגריל זרע חדש בכל הרצה</td>
+<td>להריץ עם הדגל <code>-rapid.seed=...</code> מההודעה עד שהבאג מתוקן</td>
+<td>26.4.3, 26, תרגיל</td>
+</tr>
+<tr>
+<td>‏<code>http_req_duration</code> גבוה פי כמה, וכל הבדיקות עוברות</td>
+<td>k6 עוקב אחרי הפניה לשרת זר</td>
+<td><code>maxRedirects: 0</code> ב־<code>options</code></td>
+<td>26, תרגיל</td>
+</tr>
+<tr>
+<td>‏<code>dropped_iterations</code> גדול מאפס</td>
+<td>אין מספיק VUs לקצב, והשרת ראה פחות עומס</td>
+<td>להגדיל את <code>maxVUs</code>, ולהשאיר את הסף על <code>dropped_iterations</code></td>
+<td>26, תרגיל; 26, טעויות</td>
+</tr>
+<tr>
+<td>דגל או פקודה ממדריך ישן לא קיימים</td>
+<td>הוסרו בגרסה 2, למשל <code>--no-summary</code> או <code>k6 pause</code></td>
+<td>לפי הטבלה בסעיף: <code>--summary-mode=disabled</code>, ‏executor אחר</td>
+<td>26.6.1</td>
+</tr>
+</tbody>
+</table>
+<h2 id="rust-33">Rust (פרק 33, אופציונלי)</h2>
+<table>
+<thead>
+<tr>
+<th>מה רואים</th>
+<th>סיבה סבירה</th>
+<th>מה עושים</th>
+<th>פרק</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>הפקודה <code>cargo</code> לא נמצאת בחלון חדש</td>
+<td>ההתקנה לא שינתה את קובצי ההגדרות, בכוונה</td>
+<td>להוסיף ל־<code>~/.bashrc</code> את השורה שטוענת את <code>~/.cargo/env</code></td>
+<td>33, תרגיל</td>
+</tr>
+<tr>
+<td>‏<code>git status</code> מציג אלפי קבצים תחת <code>target/</code></td>
+<td>חסרה שורה ב־<code>.gitignore</code></td>
+<td>להוסיף אותה כמו בצעדים</td>
+<td>33, תרגיל</td>
+</tr>
+<tr>
+<td>‏clippy מתלונן על שדות שלא נקראים</td>
+<td><code>allow(dead_code)</code> נמחק לפני שהפונקציות הושלמו</td>
+<td>לסיים את שתיהן, ואז למחוק</td>
+<td>33, תרגיל</td>
+</tr>
+</tbody>
+</table>
+<h2 id="mac">Mac</h2>
+<p>עד שמחשב ה־Windows מגיע אפשר לעבוד על Mac (פרק 0, סעיף 0.4). פרק 2, סעיף 2.13, מפרט את המקבילות; אלה
+המקומות שבהם ההבדל נראה כתקלה:</p>
+<table>
+<thead>
+<tr>
+<th>מה רואים</th>
+<th>סיבה סבירה</th>
+<th>מה עושים</th>
+<th>פרק</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>הודעה <code>invalid command code</code> מ־<code>sed -i</code></td>
+<td>בגרסה של macOS הדגל <code>-i</code> דורש ארגומנט</td>
+<td><code>sed -i ''</code> ואחריו הביטוי והקובץ</td>
+<td>2.13</td>
+</tr>
+<tr>
+<td>שורות <code>PATH</code> ו־<code>COURSE</code> לא נקלטות</td>
+<td>המעטפת היא zsh, והן נכתבו ב־<code>~/.bashrc</code></td>
+<td>לכתוב אותן ב־<code>~/.zshrc</code></td>
+<td>2.13</td>
+</tr>
+<tr>
+<td>‏<code>apt</code> לא קיים</td>
+<td>אין חבילות Ubuntu ב־macOS</td>
+<td>Homebrew: <code>brew install</code></td>
+<td>2.13</td>
+</tr>
+<tr>
+<td>בינארי שהורד לא רץ</td>
+<td>נבחר קובץ של Linux, או ארכיטקטורה לא נכונה</td>
+<td>שמות <code>darwin</code> (ול־k6 <code>macos</code>), ו־<code>ARCH=arm64</code> במעבד של Apple או <code>amd64</code> ב־Intel</td>
+<td>2.13</td>
+</tr>
+<tr>
+<td>בדיקת הטביעה של Go נכשלת כי <code>jq</code> חסר</td>
+<td>הכלי לא מגיע עם macOS</td>
+<td><code>brew install jq</code></td>
+<td>2.13</td>
+</tr>
+<tr>
+<td>ההורדה של k6 היא zip ולא tar</td>
+<td>הפרסום ל־macOS שונה</td>
+<td>לפתוח עם <code>unzip</code></td>
+<td>2.13</td>
+</tr>
+<tr>
+<td>קובץ שהורד בדפדפן נחסם בהרצה</td>
+<td>macOS מסמנת אותו כ„הגיע מהאינטרנט”</td>
+<td><code>xattr -d com.apple.quarantine</code> על הקובץ; הורדות ב־<code>curl</code> לא מסומנות</td>
+<td>2.13</td>
+</tr>
+<tr>
+<td>‏<code>keychain</code> לא קיים</td>
+<td>ב־Mac המפתח נשמר במחזיק המפתחות של המערכת</td>
+<td><code>ssh-add --apple-use-keychain ~/.ssh/id_ed25519</code></td>
+<td>2.13</td>
+</tr>
+<tr>
+<td>הפקודה <code>code</code> לא קיימת</td>
+<td>אין הרחבת WSL ב־Mac</td>
+<td>להתקין את הפקודה מתוך לוח הפקודות של VS Code</td>
+<td>2.13</td>
+</tr>
+<tr>
+<td>‏Git חסר</td>
+<td>ב־Mac הוא מגיע עם כלי הפיתוח של Xcode</td>
+<td><code>xcode-select --install</code>, או Homebrew</td>
+<td>2.13</td>
+</tr>
+<tr>
+<td>חשש ש־bash הישנה של macOS תשבור את הרופא</td>
+<td>macOS מגיעה עם bash 3.2</td>
+<td>הסקריפטים רצים במפורש ב־bash, והרופא נבדק גם ב־3.2</td>
+<td>2.9.1, 2.13</td>
+</tr>
+<tr>
+<td>‏testcontainers לא מוצא את Docker</td>
+<td>אין קישור ב־<code>/var/run/docker.sock</code></td>
+<td>ה־context הנוכחי של Docker מצביע לשקע בתיקיית הבית, וזה מספיק; <code>docker ps</code> עובד, גם הבדיקות</td>
+<td>26.2.4</td>
+</tr>
+<tr>
+<td>איפה לשים את הכספת של Obsidian</td>
+<td>אין <code>/mnt/c</code> ב־Mac</td>
+<td>תיקייה רגילה בבית, למשל <code>~/Documents/senior-course-notes</code></td>
+<td>0.5</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_3">איך מבקשים עזרה</h2>
+<p>כשתקלה עומדת יותר מ־20 דקות, רשמי אותה ביומן התקיעות (פרק 0, סעיף 0.9). כשמבקשים עזרה, מאדם או מעוזר AI,
+שאלה טובה מכילה את מה שצריך כדי לשחזר, בלי סודות:</p>
+<ul>
+<li><strong>הפקודה, כמו שהיא:</strong> כולל התיקייה שבה הרצת (<code>pwd</code>).</li>
+<li><strong>הפלט המלא:</strong> לא רק השורה האחרונה, ולא סיכום שלך. מעתיקים כטקסט, לא כצילום מסך.</li>
+<li><strong>הגרסאות:</strong> הפלט של הרופא, שמראה כל כלי והגרסה שלו.</li>
+<li><strong>מה ציפית לראות:</strong> הפלט הצפוי מה־README של התרגיל.</li>
+<li><strong>מה כבר ניסית:</strong> הצעדים, לפי הסדר, ומה כל אחד הראה.</li>
+<li><strong>מה הסרת:</strong> טוקנים, סיסמאות ושמות פנימיים לא נכנסים לשאלה. מחליפים ב־<code>change-me</code>.</li>
+</ul>
+<p>הפקודות שאוספות את הגרסאות:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-bash">pwd
+bash ~/senior-course/ch02/doctor.sh
+bash ~/senior-course/ch02/doctor.sh --part-e
+</code></pre>
+
+
+</div>
+
+<p>את התשובה מאמתים מול התיעוד הרשמי לפני שמשתמשים בה, כי עוזרים טועים בפרטים של כלים שהתעדכנו לאחרונה
+(פרק 0, סעיף 0.9). וכשזה נפתר, ממלאים את השדה „מה פתר” ביומן.</p>
+</main>
+<nav class="bottom"><a href="index.html">תוכן העניינים</a> · <a href="a-glossary.html">← נספח א: מילון מונחים</a> · <a href="c-tool-versions.html">נספח ג: גרסאות כלים →</a></nav>
+<script type="module">
+  // Render ```mermaid blocks in the browser (needs internet once; cached afterwards).
+  const blocks = document.querySelectorAll("pre > code.language-mermaid");
+  if (blocks.length) {
+    const mermaid = (await import("https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs")).default;
+    for (const code of blocks) {
+      const div = document.createElement("div");
+      div.className = "mermaid";
+      div.textContent = code.textContent;
+      code.parentElement.replaceWith(div);
+    }
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    await mermaid.run();
+  }
+</script>
+</body>
+</html>

@@ -49,10 +49,10 @@
 </div>
 
 <h1 id="20-kubernetes-kind">פרק 20: Kubernetes על kind</h1>
-<p>המילה Kubernetes הופיעה ב־19 מתוך 30 המודעות הבכירות שנבדקו ביד לספר, בכל חמש מודעות ה־platform ובשבע
-מתוך שמונה מודעות ה־DevOps (סעיפים 1.4 ו־2 בקובץ המחקר <code>00-stage1/01-market-research.md</code>). בראיון לא יבקשו ממך לנהל אשכול, אבל יצפו
-שתדעי מה קורה כשאת מריצה <code>kubectl apply</code>, למה pod נעלם ומי מחזיר אותו, ואיך בדיקת מוכנות שונה מבדיקת חיות.
-הפרק הזה בונה אשכול אמיתי על המחשב שלך, ופורס עליו את shorty מפרק 6 ואת ה־receiver מפרק 8, אובייקט אחרי
+<p>המילה Kubernetes הופיעה ב־19 מתוך 30 המודעות הבכירות שנבדקו ביד לספר, בכל חמש מודעות הפלטפורמה ובשבע
+מתוך שמונה מודעות ה־DevOps (סעיפים 1.4 ו־2 בקובץ המחקר <code>00-stage1/01-market-research.md</code>).</p>
+<p>בראיון לא יבקשו ממך לנהל אשכול, אבל יצפו שתדעי מה קורה כשאת מריצה <code>kubectl apply</code>, למה pod נעלם ומי
+מחזיר אותו, ואיך בדיקת מוכנות שונה מבדיקת חיות. הפרק הזה בונה אשכול אמיתי על המחשב שלך, ופורס עליו את shorty מפרק 6 ואת ה־receiver מפרק 8, אובייקט אחרי
 אובייקט.</p>
 <h2 id="_1">מה נלמד בפרק</h2>
 <ul>
@@ -69,8 +69,8 @@
 <li>פרק 19: ה־images של shorty ושל ה־receiver, משתמש מספרי שאינו root, מערכת קבצים לקריאה בלבד, ולמה לא
   <code>latest</code>. התרגיל מביא עותק של שני הקונטיינרים לבנייה, כך שאפשר להתחיל גם בלי תרגיל 19.</li>
 <li>פרק 6: התצורה של shorty מהסביבה, כיבוי מסודר על <code>SIGTERM</code>, והפורט הפרטי של הניפוי.</li>
-<li>פרק 2, סעיף 2.10: kind ו־kubectl מותקנים. ב־Mac של הכותב רץ kubectl 1.36 מול אשכול 1.37; ההפרש של גרסה
-  אחת בתוך מדיניות התמיכה של Kubernetes, אבל עדיף שתתקיני את הגרסה הנעולה שבנספח C.</li>
+<li>פרק 2, סעיף 2.10: kind ו־kubectl מותקנים. ב־Mac שעליו נכתב הספר רץ kubectl 1.36 מול אשכול 1.37; ההפרש של גרסה
+  אחת בתוך מדיניות התמיכה של Kubernetes, אבל עדיף שתתקיני את הגרסה הנעולה שבנספח ג.</li>
 <li>כ־2 GB פנויים במכונה של Docker. האשכול של התרגיל הוא node אחד.</li>
 </ul>
 <h2 id="201-kubernetes">20.1 מה Kubernetes פותר</h2>
@@ -137,7 +137,7 @@ containerd ורכיבי ה־control plane, בדיוק כמו במכונה אמי
 <h3 id="2021-node-image-digest">20.2.1 node image נעול ב־digest</h3>
 <p>ה־node הוא image בשם <code>kindest/node</code>, וכל גרסה של kind נבנתה מול גרסאות מסוימות שלו. הוראות הפרסום של
 kind v0.33.0 אומרות במפורש שחובה לנעול את ה־image ב־digest, כי התג לבדו לא מבטיח image שנבנה לגרסה הזאת
-(נכון לאוקטובר 2026; ראי נספח C). זה הקובץ <code>kind-config.yaml</code> של התרגיל:</p>
+(נכון לאוקטובר 2026; ראי נספח ג). זה הקובץ <code>kind-config.yaml</code> של התרגיל:</p>
 <div dir="ltr" align="left">
 
 
@@ -154,7 +154,18 @@ nodes:
 
 </div>
 
-<p>את ה־digest לא מעתיקים מבלוג. הוא מופיע בהוראות הפרסום של הגרסה, וכך קוראים אותן מהטרמינל:</p>
+<p>את ה־digest לא מעתיקים מבלוג. הוא מופיע בהוראות הפרסום של הגרסה, בעמוד הגרסה של kind ב־GitHub:</p>
+<div dir="ltr" align="left">
+
+
+<pre><code class="language-text">https://github.com/kubernetes-sigs/kind/releases/tag/v0.33.0
+</code></pre>
+
+
+</div>
+
+<p>הכלי GitHub CLI (הפקודה <code>gh</code>) אינו חלק מההתקנות של פרק 2, והוא רשות. מי שהוא מותקן ומחובר אצלה יכולה
+לקרוא את אותו טקסט מהטרמינל:</p>
 <div dir="ltr" align="left">
 
 
@@ -186,7 +197,7 @@ ch20-control-plane   Ready    control-plane   40s   v1.37.0
 
 </div>
 
-<p>הפקודה <code>kind create cluster</code> גם מוסיפה לקובץ <code>~/.kube/config</code> הקשר (context) בשם <code>kind-ch20</code> והופכת אותו
+<p>יצירת האשכול גם מוסיפה לקובץ <code>~/.kube/config</code> הקשר (context) בשם <code>kind-ch20</code>, והופכת אותו
 לנוכחי. כל פקודת <code>kubectl</code> שתריצי אחריה פונה לאשכול הזה.</p>
 <h3 id="2022-image">20.2.2 למה צריך לטעון את ה־image</h3>
 <p>ה־image שבנית נמצא באחסון של Docker במחשב שלך. ה־node של kind הוא קונטיינר, ובתוכו containerd משלו, עם
@@ -202,7 +213,7 @@ kind load docker-image shorty:ch20 --name ch20
 
 </div>
 
-<p>גם התגית חשובה כאן. מדיניות המשיכה (<code>imagePullPolicy</code>) שברירת המחדל שלה תלויה בתגית:</p>
+<p>גם התגית חשובה כאן, כי ברירת המחדל של מדיניות המשיכה (<code>imagePullPolicy</code>) תלויה בה:</p>
 <table>
 <thead>
 <tr>
@@ -224,7 +235,7 @@ kind load docker-image shorty:ch20 --name ch20
 </tr>
 </tbody>
 </table>
-<p>לכן ה־manifests של התרגיל כותבים את המדיניות במפורש, ותגית שאינה <code>latest</code>.</p>
+<p>לכן ה־manifests של התרגיל כותבים את המדיניות במפורש, ומשתמשים בתגית שאינה <code>latest</code>.</p>
 <h2 id="203-pods">20.3 pods</h2>
 <p>ה־pod (היחידה הקטנה ביותר ש־Kubernetes מריץ: קונטיינר אחד או יותר שחולקים רשת ואחסון) הוא מה שרץ בפועל.
 לכל pod כתובת IP משלו באשכול, והקונטיינרים שבתוכו מדברים זה עם זה דרך <code>localhost</code>. ברוב המקרים יש בו
@@ -269,9 +280,30 @@ spec:
 
 </div>
 
-<p>כל manifest (קובץ YAML שמתאר אובייקט) מתחיל בארבעה שדות: <code>apiVersion</code> ו־<code>kind</code> אומרים מה זה, <code>metadata</code>
-נותן שם ו־namespace (מרחב שמות בתוך האשכול; בתרגיל כל האובייקטים ב־<code>ch20</code>), ו־<code>spec</code> הוא המצב הרצוי.
-שאר השדות יחזרו בסעיפים הבאים: הסוד בסעיף 20.6, השם של ה־receiver בסעיף 20.5, והגדרות האבטחה הן
+<p>כל manifest (קובץ YAML שמתאר אובייקט) מתחיל בארבעה שדות:</p>
+<table>
+<thead>
+<tr>
+<th>שדה</th>
+<th>מה הוא אומר</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>apiVersion</code>, <code>kind</code></td>
+<td>מה זה האובייקט</td>
+</tr>
+<tr>
+<td><code>metadata</code></td>
+<td>שם, ו־namespace (מרחב שמות בתוך האשכול; בתרגיל כל האובייקטים ב־<code>ch20</code>)</td>
+</tr>
+<tr>
+<td><code>spec</code></td>
+<td>המצב הרצוי</td>
+</tr>
+</tbody>
+</table>
+<p>שאר השדות יחזרו בסעיפים הבאים: הסוד בסעיף 20.6, השם של ה־receiver בסעיף 20.5, והגדרות האבטחה הן
 אותן החלטות מפרק 19, שנכתבות עכשיו כמדיניות של האשכול.</p>
 <blockquote>
 <p><strong>שימי לב:</strong> הסוד מגיע לתוכנית כארגומנט בשורת הפקודה, כי <code>receiver-send</code> מקבל אותו רק כך. כל מי
@@ -358,22 +390,22 @@ kubectl -n ch20 get deployments,replicasets,pods -l app=shorty
 deployment.apps/shorty   2/2     2            2           20s
 
 NAME                                DESIRED   CURRENT   READY   AGE
-replicaset.apps/shorty-6d9f7c8b5d   2         2         2       20s
+replicaset.apps/shorty-57f9769656   2         2         2       20s
 
 NAME                          READY   STATUS    RESTARTS   AGE
-pod/shorty-6d9f7c8b5d-4xk2p   1/1     Running   0          20s
-pod/shorty-6d9f7c8b5d-q8wzm   1/1     Running   0          20s
+pod/shorty-57f9769656-6wdxs   1/1     Running   0          20s
+pod/shorty-57f9769656-snrjl   1/1     Running   0          20s
 </code></pre>
 
 
 </div>
 
-<p>השמות והגילים אצלך יהיו אחרים. השם של ה־ReplicaSet הוא שם ה־Deployment ועוד הגיבוב של התבנית, ושם
-ה־pod הוא שם ה־ReplicaSet ועוד סיומת אקראית. עכשיו מחקי pod אחד, ומיד הסתכלי שוב:</p>
+<p>הפלט הוא מההרצה שבה נכתב הספר, והשמות והגילים אצלך יהיו אחרים. השם של ה־ReplicaSet הוא שם
+ה־Deployment ועוד הגיבוב של התבנית, ושם ה־pod הוא שם ה־ReplicaSet ועוד סיומת אקראית. עכשיו מחקי pod אחד, ומיד הסתכלי שוב:</p>
 <div dir="ltr" align="left">
 
 
-<pre><code class="language-bash">kubectl -n ch20 delete pod shorty-6d9f7c8b5d-4xk2p
+<pre><code class="language-bash">kubectl -n ch20 delete pod shorty-57f9769656-6wdxs
 kubectl -n ch20 get pods -l app=shorty
 </code></pre>
 
@@ -451,6 +483,12 @@ kubectl -n ch20 get endpointslices -l kubernetes.io/service-name=shorty
 </tr>
 </tbody>
 </table>
+<blockquote>
+<p><strong>טעות נפוצה:</strong> לכל Service באותו namespace, ה־kubelet מוסיף לכל pod משתני סביבה בסגנון ישן של Docker.
+בשביל Service בשם <code>receiver</code> הוא מוסיף את המשתנה <code>RECEIVER_PORT</code>, שערכו כתובת מלאה ולא מספר. וזה בדיוק
+השם שה־receiver קורא כמספר הפורט שלו. בהרצה הראשונה, בזמן כתיבת הספר, ה־pod נפל בלולאה בגלל זה. השדה
+<code>enableServiceLinks: false</code> בקובץ <code>k8s/receiver-deployment.yaml</code> מכבה את ההזרקה; DNS עושה את העבודה ממילא.</p>
+</blockquote>
 <p>ה־sender של סעיף 20.3 משתמש בשם המלא של ה־receiver. כשהוא מסתיים, הלוג שלו מראה שהבקשה הגיעה:</p>
 <div dir="ltr" align="left">
 
@@ -518,7 +556,7 @@ data:
 
 </div>
 
-<p>וה־Deployment הופך כל מפתח למשתנה סביבה, בקטע הבא מתוך המכל של shorty:</p>
+<p>וה־Deployment הופך כל מפתח למשתנה סביבה, בקטע הבא מתוך הקונטיינר של shorty:</p>
 <div dir="ltr" align="left">
 
 
@@ -590,7 +628,7 @@ change-me
 </table>
 <p>ולכן ההחלטה בתרגיל: אין קובץ Secret במאגר. ה־manifests מפנים לשם <code>receiver-secret</code>, והסוד עצמו נוצר
 בפקודה. אחת מבדיקות התרגיל נכשלת אם קובץ עם <code>kind: Secret</code> נכנס לתיקייה. בשירות אמיתי הערך מגיע ממנהל
-הסודות, והפרק על אבטחה בחלק ז מרחיב.</p>
+הסודות, ופרק 28 מרחיב.</p>
 <p>ה־receiver קורא את הסוד כמשתנה סביבה, בקטע הבא מתוך <code>k8s/receiver-deployment.yaml</code>:</p>
 <div dir="ltr" align="left">
 
@@ -640,7 +678,7 @@ change-me
 </tr>
 </tbody>
 </table>
-<p>זה המשך המכל של shorty בקובץ <code>k8s/shorty-deployment.yaml</code>:</p>
+<p>זה המשך הקונטיינר של shorty בקובץ <code>k8s/shorty-deployment.yaml</code>:</p>
 <div dir="ltr" align="left">
 
 
@@ -718,8 +756,8 @@ kubectl -n ch20 get endpointslices -l kubernetes.io/service-name=shorty -o jsonp
 
 </div>
 
-<p>תוך כמה שניות, ה־pod מופיע עם <code>0/1</code> בעמודה <code>READY</code>, ו־<code>0</code> בעמודה <code>RESTARTS</code>. ב־EndpointSlice הוא מסומן
-<code>ready=false</code>, ו־Service כבר לא שולח אליו תעבורה. הוא חי, ממשיך לרוץ, ואף אחד לא הפעיל אותו מחדש. החזירי
+<p>תוך כמה שניות ה־pod מופיע כלא מוכן (<code>0/1</code>), ומספר ההפעלות מחדש שלו נשאר אפס. ב־EndpointSlice הוא מסומן
+<code>ready=false</code>. ה־Service כבר לא שולח אליו תעבורה. הוא חי, ממשיך לרוץ, ואף אחד לא הפעיל אותו מחדש. החזירי
 אותו עם <code>state=on</code>. אם הבדיקה הזאת הייתה בדיקת חיות, אחרי שלושה כישלונות הקונטיינר היה מופעל מחדש, והמתג
 היה חוזר למצבו ההתחלתי.</p>
 <blockquote>
@@ -846,6 +884,8 @@ kubectl -n ch20 get endpointslices -l kubernetes.io/service-name=shorty -o jsonp
   התהליך.</li>
 <li><strong>לשנות ConfigMap ולחכות.</strong> משתני סביבה נקראים בעלייה. מפעילים מחדש עם <code>rollout restart</code>.</li>
 <li><strong>לשמור Secret ב־Git, „כי הוא מקודד”.</strong> base64 נפתח בפקודה אחת. הסוד נוצר מבחוץ.</li>
+<li><strong>משתנה סביבה של האפליקציה שמתנגש עם שם של Service.</strong> Service בשם <code>receiver</code> מזריק <code>RECEIVER_PORT</code> לכל
+  pod ב־namespace. האפליקציה נופלת על ערך שלא כתבת. מכבים עם <code>enableServiceLinks: false</code>.</li>
 <li><strong><code>runAsNonRoot</code> עם image שהמשתמש שלו בשם.</strong> ה־pod נתקע ב־<code>CreateContainerConfigError</code>, כי אי אפשר לוודא
   שם. כותבים <code>USER</code> במספרים (פרק 19).</li>
 </ul>
@@ -905,7 +945,7 @@ kubectl -n ch20 get endpointslices -l kubernetes.io/service-name=shorty -o jsonp
 
 
 <pre><code class="language-text">cluster     kind create cluster --name ch20 --config kind-config.yaml ; kind delete cluster --name ch20
-node image  kindest/node:v1.37.0@sha256:a1ed56cf...   (from: gh api repos/kubernetes-sigs/kind/releases/tags/v0.33.0)
+node image  kindest/node:v1.37.0@sha256:a1ed56cf...   (from: github.com/kubernetes-sigs/kind/releases/tag/v0.33.0)
 load        docker build -t shorty:ch20 data/shorty ; kind load docker-image shorty:ch20 --name ch20
 apply       kubectl apply -f k8s/ ; kubectl -n ch20 rollout status deployment/shorty
 look        kubectl -n ch20 get deploy,rs,pods -l app=shorty ; kubectl -n ch20 describe pod POD
